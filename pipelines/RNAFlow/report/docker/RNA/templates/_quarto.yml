@@ -1,0 +1,125 @@
+project:
+  type: website
+  output-dir: /workspace
+
+website:
+  title: "BFP Report"
+  reader-mode: true
+  page-navigation: true
+  navbar:
+    logo: /logo/logo.png
+    logo-href: https://github.com/xsx123123
+    background: primary
+    search: true
+    left:
+      - href: ./qmd/index.qmd
+        text: Project
+      - href: ./qmd/workflow.qmd
+        text: Workflow
+      - href: ./qmd/qc.qmd
+        text: QC Report
+      - href: ./qmd/results.qmd
+        text: Result
+      - href: ./qmd/AI.qmd
+        text: AI Assistant
+      - text: Help
+        menu:
+          - text: About
+            icon: chat-left-dots-fill
+            href: ./qmd/about.qmd
+          - text: Ask a Question
+            icon: chat-text
+            href: ./qmd/faq.qmd
+          - text: License
+            icon: fingerprint
+            href: ./qmd/license.qmd
+          - text: Trademarks
+            icon: marker-tip
+            href: ./qmd/trademark.qmd
+    right:
+      - icon: github
+        href: https://github.com/xsx123123
+      - icon: wechat
+        href: https://github.com/xsx123123
+    announcement: 
+      icon: info-circle
+      dismissable: true
+      content: "**Alert** - this is some information that you should pay attention to"
+      type: primary
+      position: below-navbar
+  sidebar:
+    title: "RNA-seq Report"
+    logo: /logo/logo.png
+    logo-href: https://github.com/xsx123123
+    alignment: left
+    style: "floating"
+    pinned: true
+    contents:
+      - section: "Project Info"
+        contents: 
+          - ./qmd/index.qmd
+      - section: "Analysis & Results"
+        contents:
+          - ./qmd/workflow.qmd
+          - ./qmd/qc.qmd
+          - ./qmd/results.qmd
+          - ./qmd/AI.qmd
+    tools:
+      - icon: twitter
+        href: https://twitter.com
+      - icon: github
+        menu:
+          - text: Source Code
+            href:  https://code.com
+          - text: Report a Bug
+            href:  https://bugs.com
+  page-footer:
+      # pinned: true
+      border: true 
+      left: |
+        <span style="vertical-align: middle;">Proudly supported by</span>
+        <a href="https://posit.co" target="_blank" style="text-decoration: none; border-bottom: none;">
+          <img src="/logo/Posit_logo.svg" alt="Posit" height="18" style="vertical-align: middle; margin: 0 10px;">
+        </a>
+        &nbsp;
+        <a href="https://github.com/xsx123123" target="_blank" class="footer-icon"><i class="bi bi-github"></i></a>
+        &nbsp;
+        <a href="/index.xml" target="_blank" class="footer-icon"><i class="bi bi-rss"></i></a>
+      
+      center: |
+        <a href="/qmd/about.qmd" class="footer-link">About</a>
+        <span class="footer-sep">·</span>
+        <a href="/qmd/faq.qmd" class="footer-link">FAQ</a>
+        <span class="footer-sep">·</span>
+        <a href="/qmd/license.qmd" class="footer-link">License</a>
+        <span class="footer-sep">·</span>
+        <a href="/qmd/trademark.qmd" class="footer-link">Trademark</a>
+
+format:
+  html:
+    embed-resources: false
+    self-contained: false
+    theme: 
+      light: [./theme/New_Brutalism.scss]
+      dark: [./theme/Dark_New_Brutalism.scss]
+    mainfont: "Public Sans"
+    toc: true
+    css: 
+      - ./theme/styles.css
+      - ./theme/itables_saas.css
+    grid:
+      sidebar-width: 200px
+      body-width: 1050px
+      margin-width: 250px
+      gutter-width: 1.2rem
+    toc-location: right
+    toc-title: "目录"
+    page-layout: article
+    code-copy: true
+    smooth-scroll: true
+    anchor-sections: true
+    df-print: paged
+    include-after-body: 
+      - ./theme/load-mermaid.html
+    language: 
+      search-text-placeholder: Search

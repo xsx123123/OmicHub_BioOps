@@ -1,0 +1,59 @@
+---
+title: "Cell Type Annotation"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+source("R/read_manifest.R")
+source("R/read_summary.R")
+source("R/tables.R")
+source("R/plot_helpers.R")
+
+result_dir <- get_result_dir("data")
+manifest <- read_manifest(result_dir)
+annotation_summary <- read_summary_for_step(result_dir, manifest, "annotation")
+```
+
+## Annotation Summary
+
+```{r annotation-status, results='asis'}
+if (is.null(annotation_summary)) {
+  cat("Annotation summary not available.")
+} else {
+  cat(paste0("Status: **", annotation_summary$status, "**  "))
+  cat(paste0("Artifacts: ", annotation_summary$metrics$artifact_count %||% 0))
+}
+```
+
+## Annotation Plots
+
+```{r annotation-plots, fig.cap="Cell type annotation diagnostics", out.width="48%"}
+if (!is.null(annotation_summary)) display_images(result_dir, annotation_summary, max_images = 12)
+```
+
+## Annotation Counts
+
+```{r annotation-counts}
+counts <- annotation_summary$metrics$annotation_counts
+if (!is.null(counts) && length(counts) > 0) {
+  for (item in counts) {
+    cat("### ", item$column, "\n\n", sep = "")
+    count_df <- render_count_table(item$counts)
+    if (nrow(count_df) > 0) knitr::kable(count_df, format = "html")
+    cat("\n\n")
+  }
+} else {
+  cat("No annotation count columns were found in Cell-cluster-infor.csv.")
+}
+```
+
+## Annotation Artifacts
+
+```{r annotation-artifacts}
+artifacts <- artifact_table(annotation_summary)
+if (nrow(artifacts) > 0) {
+  knitr::kable(artifacts[, intersect(c("type", "path", "bytes"), colnames(artifacts)), drop = FALSE], format = "html")
+} else {
+  cat("No annotation artifacts recorded.")
+}
+```

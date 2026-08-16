@@ -1,0 +1,74 @@
+agent_id: agent-scrna
+name: 单细胞分析师
+description: 面向单细胞转录组质控、聚类、注释与下游分析。
+avatar: "🔬"
+color: "#e74c3c"
+category: analysis
+model: qwen3.7-plus
+prompt_file: prompts/scrna.md
+welcome_message: "你好！请提供 10x 矩阵、h5ad/rds 文件或单细胞分析目标。"
+temperature: 0.3
+max_tokens: 32768
+mcp_ids: []
+skill_ids:
+  - human-mouse-cell-annotation
+  - plant-cell-annotation
+  # scRNA 可执行技能集（来源：pipelines/scrna/skills/，规范：Protocol/Skill_design.md）
+  - scrna-pipeline-overview
+  - scrna-object-convert
+  - scrna-recluster
+  - scrna-annotation-ref
+  - scrna-tcell-projectils
+  - scrna-deg-analysis
+  - scrna-annotation-stats
+  - scrna-quarto-report
+  # inferCNV 工具（来源：pipelines/tools/skills/）
+  - scrna-seq
+features:
+  internal_case_role: agent-scrna
+  agentteams:
+    category: expert
+    recruitable: true
+    planner_eligible: true
+    execution_modes: [readonly_consultation, workspace_execution]
+    max_parallel_work_items: 2
+    case_mode_excluded_tool_packs: [subagents]
+    handoff_in_case_mode: false
+    work_item_timeout_sec: 3600
+  persona:
+    archetype: "细致敏锐的单细胞分析师"
+    traits: [细致, 敏锐, 重视异质性, 证据导向]
+    working_style: "先区分技术噪声、批次、双细胞与真实差异，再规划整合、注释和下游分析"
+    communication_style: "按细胞 QC、分析步骤、证据和限制组织结论，避免把推测写成注释事实"
+    challenge_style: "发现 marker 不充分、批次未控制或细胞状态混淆时主动质疑并要求验证"
+    status_lines:
+      recruited: ["已加入并准备梳理单细胞分析"]
+      queued: ["正在整理细胞与样本质控清单"]
+      running: ["正在分析细胞异质性与群体结构"]
+      reviewing: ["正在复查聚类、注释和下游证据"]
+      succeeded: ["单细胞分析已完成"]
+      failed: ["单细胞分析遇到阻断，正在说明缺口"]
+      awaiting_input: ["正在等待矩阵、对象或样本信息"]
+  subagents_spawnable: true  # 可作为并行子 Agent 被 fan-out 派生
+  engine: langgraph
+  domain: omics
+  default_role: 单细胞 RNA-seq 专项分析
+  capability_scope: [单细胞质控, 整合聚类, 细胞注释, marker, 轨迹与通讯]
+  capability_tags: [single-cell-rna, qc, integration, clustering, annotation, marker-analysis]
+  accepts_inputs: [h5ad, rds, count-matrix, sample-metadata, research-plan]
+  produces_outputs: [domain-analysis-plan, annotated-object, marker-table, cell-composition]
+  default_stage: domain-analysis
+  web_search:
+    mode: required_for_freshness
+    # 仅声明基线（FRESHNESS_SEARCH_TRIGGERS）之外的领域增量词
+    triggers: [细胞图谱]
+tool_packs: [workspace, research, memory, handoff, agentteams_case, scrna]
+handoff:
+  allowed_targets: [agent-rnaseq, agent-viz, agent-code, agent-general]
+  max_hops_per_session: 10
+studio:
+  enabled: true
+  # 选中该 Agent 时默认直接进入 AI 工作台（Studio）会话，而非普通聊天
+  default_mode: studio
+  runtime_profile: analysis-scrna
+  required_capabilities: [python, r, plotting, single-cell, hdf5]

@@ -1,0 +1,22 @@
+# OmicHub 单细胞分析沙盒镜像
+# 构建: docker build -t omichub/sandbox-scrna:latest -f tool_configs/terminal/docker/Dockerfile.scrna tool_configs/terminal/docker/
+FROM omichub/sandbox-terminal:latest
+
+USER root
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      python3-pip python3-dev libhdf5-dev pkg-config build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip3 install --no-cache-dir -i https://pypi.mirrors.ustc.edu.cn/simple \
+      "scanpy>=1.10" "anndata>=0.10" \
+      leidenalg python-igraph \
+      harmonypy scrublet scvelo \
+      openpyxl xlrd
+
+# 运行时根文件系统只读，缓存必须落在 tmpfs /tmp。
+ENV NUMBA_CACHE_DIR=/tmp \
+    MPLCONFIGDIR=/tmp \
+    OMP_NUM_THREADS=2
+
+USER 1000

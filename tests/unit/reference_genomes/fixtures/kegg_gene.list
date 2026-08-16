@@ -1,0 +1,5 @@
+ath:AT1G01010	CDS	1:3631..5899	NAC001; NAC domain containing protein 1
+ath:AT1G01020	CDS	1:complement(6788..9130)	ARV1; ARV1 family protein
+ath:AT1G01030	CDS	1:complement(11649..13714)	NGA3; AP2/B3-like transcriptional factor family protein
+ath:AT1G01040	CDS	1:23121..31227	DCL1; dicer-like 1
+ath:AT1G01046	miRNA	1:28500..28706	MIR838; microRNA ath-miR838

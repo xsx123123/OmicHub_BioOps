@@ -1,0 +1,30 @@
+flow:
+  id: treeplot
+  version: 1.0.0
+  display_name: 系统发育树绘制
+  domain: general
+  actor: agent-viz
+  runtime_image: analysis-core
+  bridge_workflow: treeplot
+  trigger_hints: [系统发育树, treeplot, phylogenetic tree, FASTA]
+artifacts:
+  - {key: sequences, type: json_manifest}
+  - {key: tree_newick, type: table}
+  - {key: tree_pdf, type: visualization_bundle}
+  - {key: tree_png, type: visualization_bundle}
+  - {key: delivery_manifest, type: json_manifest}
+stages:
+  - key: plot
+    title: 构建并渲染系统发育树
+    assistant_agent_id: agent-viz
+    executors:
+      - key: phylogenetic_tree
+        execution_mode: workspace_execution
+        queue: general_analysis
+        resource_profile: standard_8c32g
+        inputs: [sequences]
+        outputs: [tree_newick, tree_pdf, tree_png]
+        retry_policy: infra_bounded
+delivery:
+  quality_gate: true
+  outputs: [delivery_manifest, tree_newick, tree_pdf, tree_png]

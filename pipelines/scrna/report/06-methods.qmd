@@ -1,0 +1,40 @@
+---
+title: "Methods"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+source("R/read_manifest.R")
+source("R/read_summary.R")
+source("R/tables.R")
+
+result_dir <- get_result_dir("data")
+manifest <- read_manifest(result_dir)
+```
+
+## Analysis Parameters
+
+| Parameter | Value |
+|-----------|-------|
+| **Pipeline Version** | `r manifest$pipeline_version` |
+| **Project Name** | `r manifest$project_name` |
+| **Species TaxID** | `r manifest$species_tax_id` |
+| **Integration Method** | `r manifest$integration_method` |
+| **Samples** | `r paste(manifest$samples, collapse = ", ")` |
+| **Groups** | `r paste(manifest$groups, collapse = ", ")` |
+| **Total Cells** | `r manifest$metrics$total_cells %||% "N/A"` |
+
+## Methods Paragraph
+
+Single-cell RNA-seq data were processed using **scRNAseqMulticommand** (`r manifest$pipeline_version`). Cells were filtered based on mitochondrial content and gene count thresholds. Dimensionality reduction, clustering, and integration were performed using Seurat (`r manifest$integration_method` integration). Marker genes were identified using the Wilcoxon rank-sum test. Cell type annotation was performed using SingleR when a supported reference was available. Ambient RNA contamination was assessed using decontX when the step was enabled.
+
+## Output Files
+
+```{r output-files}
+if (!is.null(manifest$final_objects) && length(manifest$final_objects) > 0) {
+  objs <- if (is.data.frame(manifest$final_objects)) manifest$final_objects else do.call(rbind, lapply(manifest$final_objects, as.data.frame, stringsAsFactors = FALSE))
+  knitr::kable(objs, format = "html")
+} else {
+  cat("No final output objects recorded.")
+}
+```

@@ -1,0 +1,31 @@
+# RNAFlow Path Configuration
+# This file helps AI agents locate the RNAFlow installation
+
+# RNAFlow root directory (contains snakefile)
+# 留空时脚本会自动推导（基于本文件所在位置）
+RNAFLOW_ROOT: ""
+
+# Conda environment configuration
+CONDA:
+  # Recommended conda environment name for RNAFlow
+  DEFAULT_ENV_NAME: "snakemake"
+  # Whether to auto-activate environment (if false, user will be prompted)
+  AUTO_ACTIVATE: false
+  # Path to conda (auto-detected if empty)
+  CONDA_PATH: ""
+
+# Default config template paths (auto-populated if empty)
+CONFIG_TEMPLATES:
+  complete: ""
+  standard_deg: ""
+  qc_only: ""
+
+# Snakemake default parameters
+SNAKEMAKE_DEFAULTS:
+  cores: 20
+  use_conda: true
+  conda_frontend: mamba
+
+# Example usage:
+# cd $RNAFLOW_ROOT
+# snakemake --cores 60 --use-conda --config analysisyaml=/path/to/project_config.yaml

@@ -1,0 +1,50 @@
+# ATACFlow Standard Analysis Configuration
+# Version: ATACFlow_v0.0.5
+# Use this for routine chromatin accessibility analysis
+
+# === Basic Project Information ===
+project_name: 'PRJNA_ATAC_Standard'
+Genome_Version: "hg38"
+species: 'Homo_sapiens'
+client: 'Research_Lab'
+
+# === Data Path Configuration ===
+raw_data_path:
+  - /project/00.raw_data
+sample_csv: /project/01.workflow/samples.csv
+paired_csv: /project/01.workflow/contrasts.csv
+workflow: /project/01.workflow
+data_deliver: /project/02.data_deliver
+
+# === Execution Parameters ===
+execution_mode: local
+mapping_tools: chromap
+Library_Types: fr-firststrand
+
+# === Analysis Module Switches ===
+only_qc: false
+diff_peaks: true
+fastq_screen: true
+report: true
+
+# === Peak Calling Configuration ===
+peak_calling:
+  use_pooled_peaks: false  # Use single sample consensus peaks
+
+# === Notes ===
+# This configuration runs:
+# - QC & Trimming (FastQC + fastp)
+# - Contamination Check (FastQ Screen)
+# - Chromap or Bowtie2 Mapping
+# - Samtools filtering + PCR duplicate removal
+# - Organellar read filtering
+# - ataqv ATAC-seq QC
+# - MACS2 Peak Calling (single sample)
+# - Single sample consensus peaks
+# - DESeq2 Differential Peak Analysis + GO/KEGG Enrichment
+# - MultiQC + HTML Report
+#
+# Use this for:
+# - Routine differential accessibility analysis
+# - Projects with few biological replicates
+# - Faster analysis (skips some time-consuming steps)

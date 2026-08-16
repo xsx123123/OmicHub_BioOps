@@ -1,0 +1,11 @@
+title: "OmicHub 文档"
+items:
+  - id: "introduction"
+    title: "平台介绍"
+    file: "introduction.md"
+  - id: "quick-start"
+    title: "快速开始"
+    file: "quick-start.md"
+  - id: "api-reference"
+    title: "API 参考"
+    file: "api-reference.md"

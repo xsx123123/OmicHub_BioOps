@@ -1,0 +1,29 @@
+schema_version: "1.0"
+artifacts:
+  - type: rnaseq.fastq_manifest
+    producer: ebi_download
+    schema: {format: json, requires: [accession]}
+  - type: rnaseq.alignment_bam
+    producer: rnaflow_alignment
+    schema: {format: bam, requires: [reference_genome]}
+  - type: rnaseq.count_matrix
+    producer: featurecounts
+    schema: {format: tsv, rows: genes, cols: samples, requires: [sample_group_file]}
+  - type: qc.report
+    producer: quality_gate
+    schema: {format: html, multi: true}
+  - type: deg.results_table
+    producer: deseq2
+    schema: {format: tsv, rows: genes}
+  - type: viz.deg_volcano
+    producer: deg_volcano
+    schema: {format: html_or_png, requires: [deg.results_table]}
+  - type: scrna.filtered_h5ad
+    producer: scanpy_qc
+    schema: {format: h5ad, requires: [scrna.input_h5ad]}
+  - type: scrna.qc_metrics
+    producer: scanpy_qc
+    schema: {format: json, requires: [cells_after, genes_after]}
+  - type: scrna.input_h5ad
+    producer: user_upload
+    schema: {format: h5ad}

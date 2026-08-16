@@ -1,0 +1,46 @@
+title: 实验室知识库
+collections:
+- id_prefix: wiki
+  source_dir: ../../wiki
+  include: "**/*.md"
+  exclude:
+  - _Sidebar.md
+  category: 平台 Wiki
+  title_prefix: "Wiki · "
+items:
+- id: getting-started
+  title: 快速入门
+  file: getting-started.md
+  category: 上手指南
+- id: data-directory-guide
+  title: 数据目录结构说明
+  file: data-directory-guide.md
+  category: 上手指南
+- id: atac-seq-guide
+  title: ATAC-seq 实验指南
+  file: atac-seq-guide.md
+  category: 流程说明
+- id: atacseq-overview
+  title: ATAC-seq 原理、实验与分析流程
+  file: atac-seq/ATAC-seq.md
+  category: ATAC-seq 知识库
+- id: atacseq-chromatin-accessibility
+  title: Chromatin Accessibility
+  file: atac-seq/Chromatin Accessibility.md
+  category: ATAC-seq 知识库
+- id: rna-seq-tips
+  title: RNA-seq 分析小贴士
+  file: rna-seq-tips.md
+  category: 流程说明
+- id: rnaseq-overview
+  title: RNA-seq 原理、实验与分析流程
+  file: rna-seq/RNA-seq.md
+  category: RNA-seq 知识库
+- id: knowledge-base-architecture-summary
+  title: 知识库实现方式与架构汇总
+  file: knowledge-base-architecture-summary.md
+  category: 架构说明
+- id: platform-ai-assistants-and-overdrive
+  title: OmicHub AI 助手与超频模式指南
+  file: platform/ai-assistants-and-overdrive.md
+  category: 平台使用指南

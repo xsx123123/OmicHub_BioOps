@@ -1,0 +1,147 @@
+# ============================================================
+# OmicHub JBrowse 2 基因组浏览器配置文件
+# 路径: /data/omichub/config/jbrowse_config.yaml
+# ============================================================
+
+# 参考基因组定义
+# 每个基因组需要: FASTA 文件 + .fai 索引
+# 索引缺失时系统会自动触发 Celery 任务生成
+assemblies:
+  - id: rice_nipponbare
+    name: "水稻 (Nipponbare)"
+    species: "Oryza sativa"
+    description: "日本晴参考基因组 IRGSP-1.0"
+    fasta: "/data/omichub/ref/rice/IRGSP-1.0_genome.fasta"
+    fai: "/data/omichub/ref/rice/IRGSP-1.0_genome.fasta.fai"
+    # 可选: 染色体别名映射，用于显示更友好的名称
+    aliases:
+      Chr1: "1号染色体"
+      Chr2: "2号染色体"
+      Chr3: "3号染色体"
+      Chr4: "4号染色体"
+      Chr5: "5号染色体"
+      Chr6: "6号染色体"
+      Chr7: "7号染色体"
+      Chr8: "8号染色体"
+      Chr9: "9号染色体"
+      Chr10: "10号染色体"
+      Chr11: "11号染色体"
+      Chr12: "12号染色体"
+
+  - id: rice_pan
+    name: "水稻 (泛基因组)"
+    species: "Oryza sativa"
+    description: "水稻 3010 份泛基因组"
+    fasta: "/data/omichub/ref/rice_pan/pan_genome.fasta"
+    fai: "/data/omichub/ref/rice_pan/pan_genome.fasta.fai"
+
+  - id: lettuce
+    name: "生菜"
+    species: "Lactuca sativa"
+    description: "生菜参考基因组 v11"
+    fasta: "/data/omichub/ref/lettuce/lettuce_v11.fasta"
+    fai: "/data/omichub/ref/lettuce/lettuce_v11.fasta.fai"
+
+  - id: tomato
+    name: "番茄"
+    species: "Solanum lycopersicum"
+    description: "番茄 Heinz 1706 参考基因组 SL4.0"
+    fasta: "/data/omichub/ref/tomato/SL4.0.fasta"
+    fai: "/data/omichub/ref/tomato/SL4.0.fasta.fai"
+
+  - id: human_hg38
+    name: "人类 (GRCh38/hg38)"
+    species: "Homo sapiens"
+    description: "人类参考基因组 GRCh38"
+    fasta: "/data/omichub/ref/human/hg38.fa"
+    fai: "/data/omichub/ref/human/hg38.fa.fai"
+
+# 预设轨道 (公共/共享数据，所有用户可见)
+# 这些轨道会在每个参考基因组下自动挂载
+preset_tracks:
+  rice_nipponbare:
+    - name: "基因注释"
+      file: "/data/omichub/tracks/rice/genes.gff3.gz"
+      index: "/data/omichub/tracks/rice/genes.gff3.gz.tbi"
+      type: "gene"
+      color: "#2E7D32"
+
+    - name: "重复序列"
+      file: "/data/omichub/tracks/rice/repeats.bw"
+      type: "bigwig"
+      color: "#C62828"
+
+  lettuce:
+    - name: "基因注释"
+      file: "/data/omichub/tracks/lettuce/genes.gff3.gz"
+      index: "/data/omichub/tracks/lettuce/genes.gff3.gz.tbi"
+      type: "gene"
+      color: "#2E7D32"
+
+# 用户目录自动扫描配置
+auto_scan:
+  enabled: true
+  # 扫描路径模板: {user_id} 会被替换为实际用户ID
+  scan_paths:
+    - "/data/omichub/users/{user_id}/bam/"
+    - "/data/omichub/users/{user_id}/bigwig/"
+    - "/data/omichub/users/{user_id}/vcf/"
+
+  # 支持的文件扩展名
+  extensions:
+    - ".bam"
+    - ".cram"
+    - ".bw"
+    - ".bigwig"
+    - ".vcf.gz"
+    - ".bed.gz"
+    - ".gff3.gz"
+
+  # 扫描间隔 (分钟)
+  interval: 5
+
+  # 自动索引缺失的文件
+  auto_index: true
+
+# 上传配置
+upload:
+  # 上传目录
+  upload_dir: "/data/omichub/users/{user_id}/uploads/"
+
+  # 最大文件大小 (GB)
+  max_file_size: 10
+
+  # 允许的文件类型
+  allowed_types:
+    - ".bam"
+    - ".cram"
+    - ".bw"
+    - ".bigwig"
+    - ".vcf"
+    - ".vcf.gz"
+    - ".bed"
+    - ".bed.gz"
+    - ".gff3"
+    - ".gff3.gz"
+    - ".fasta"
+    - ".fa"
+
+  # 上传后自动索引
+  auto_index_after_upload: true
+
+  # 索引超时时间 (秒)
+  index_timeout: 3600
+
+# 浏览器默认配置
+defaults:
+  # 默认参考基因组
+  default_assembly: "rice_nipponbare"
+
+  # 默认视图区域
+  default_region: "Chr1:1000000-2000000"
+
+  # 轨道默认高度
+  track_height: 100
+
+  # 是否显示基因名称
+  show_labels: true

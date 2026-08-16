@@ -1,0 +1,42 @@
+studio:
+  enabled: true
+  default_image: omichub-analysis:core-2026.07
+  session:
+    idle_ttl_minutes: 10
+    # 工作区自会话最后更新起保留 7 天；有效分享、近期活动或执行中的会话不会清理。
+    # 已登记到报告中心的产物已复制到独立结果存储，不受此清理影响。
+    workspace_retention_days: 7
+    prewarm_on_create: true
+  ui:
+    default_view_mode: chat
+    follow_ai_default: true
+    terminal_collapsed_default: false
+    terminal_collapse_below_px: 760
+    hibernate_on_leave: true
+  sandbox:
+    cpu: 2
+    memory: 4g
+    exec_timeout_seconds: 600
+    network:
+      mode: whitelist
+      docker_network: omichub-studio-egress
+      proxy_container: omichub-studio-egress-proxy
+      proxy_host: studio-egress-proxy
+      proxy_port: 3128
+      # 包源白名单：允许沙盒内 uv/micromamba 现场安装依赖；仅放行包源域名，保持其余断网
+      allow: [conda.anaconda.org, pypi.org, files.pythonhosted.org, mirrors.aliyun.com, mirrors.ustc.edu.cn, pypi.mirrors.ustc.edu.cn]
+  mounts:
+    workspace: '{storage_path}/studio'
+  tools:
+    builtin:
+    - sandbox_execute
+    - workspace_write
+    - workspace_edit
+    - workspace_read
+    - workspace_list
+    - datahub_import
+    - platform_result_import
+    - artifact_register
+    - update_plan
+    - pipeline_query
+    - ask_user

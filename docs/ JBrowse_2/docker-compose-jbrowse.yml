@@ -1,0 +1,48 @@
+# ============================================================
+# docker-compose.yml 调整片段
+# 在现有 services 中增加挂载和新增 jbrowse2 服务（可选）
+# ============================================================
+
+services:
+  # 现有 nginx 服务增加挂载
+  nginx:
+    volumes:
+      # === 新增：JBrowse 2 静态产物 ===
+      - ./pipelines/jbrowse2:/usr/share/nginx/html/jbrowse2:ro
+
+      # === 新增：数据文件访问（如果之前没挂）===
+      - /data/omichub:/data/omichub:ro
+
+      # 现有挂载保持不变...
+      # - ./frontend/dist:/usr/share/nginx/html:ro
+      # - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      # ...
+
+  # 现有 web 服务增加环境变量（可选）
+  web:
+    environment:
+      # === 新增：JBrowse 配置文件路径 ===
+      - JBROWSE_CONFIG_PATH=/data/omichub/config/jbrowse_config.yaml
+      # 现有环境变量...
+    volumes:
+      # === 新增：配置文件和数据目录 ===
+      - /data/omichub/config:/data/omichub/config:ro
+      - /data/omichub:/data/omichub:ro
+      # 现有挂载...
+
+  # 可选：独立的 JBrowse 2 容器（如果不用 Nginx 直接托管静态文件）
+  # 推荐使用 Nginx 托管（上面的方式），但如果需要更复杂的部署：
+  # jbrowse2:
+  #   image: nginx:alpine
+  #   volumes:
+  #     - ./pipelines/jbrowse2:/usr/share/nginx/html:ro
+  #     - ./jbrowse-nginx.conf:/etc/nginx/conf.d/default.conf:ro
+  #   networks:
+  #     - omichub_net
+  #   restart: unless-stopped
+
+# 网络（确保 jbrowse2 能访问 web 服务获取 config）
+# 如果已有 omichub_net，不需要修改
+# networks:
+#   omichub_net:
+#     external: true

@@ -1,0 +1,93 @@
+format-version: 1.2
+data-version: releases/2026-06-15
+subsetdef: chebi_ph7_3 "Rhea list of ChEBI terms representing the major species at pH 7.3."
+subsetdef: gocheck_do_not_annotate "Term not to be used for direct annotation"
+subsetdef: gocheck_obsoletion_candidate "Terms planned for obsoletion"
+subsetdef: goslim_agr "AGR slim"
+subsetdef: goslim_aspergillus "Aspergillus GO slim"
+subsetdef: goslim_candida "Candida GO slim"
+subsetdef: goslim_chembl "ChEMBL protein targets summary"
+subsetdef: goslim_drosophila "Drosophila GO slim"
+subsetdef: goslim_euk_cellular_processes_ribbon "GO ribbon for eukaroytic cellular processes"
+subsetdef: goslim_flybase_ribbon "Insecta GO ribbon slim"
+subsetdef: goslim_generic "Generic GO slim"
+subsetdef: goslim_metagenomics "Metagenomics GO slim"
+subsetdef: goslim_mouse "Mouse GO slim"
+subsetdef: goslim_pir "PIR GO slim"
+subsetdef: goslim_plant "Plant GO slim"
+subsetdef: goslim_plant_ribbon "Plant GO ribbon"
+subsetdef: goslim_pombe "Fission yeast GO slim"
+subsetdef: goslim_prokaryote "GO subset for prokaryotes"
+subsetdef: goslim_prokaryote_ribbon "Prokaryote GO ribbon slim"
+subsetdef: goslim_synapse "synapse GO slim"
+subsetdef: goslim_virus "GO subset for viruses"
+subsetdef: goslim_yeast "Yeast GO slim"
+synonymtypedef: syngo_official_label "label approved by the SynGO project"
+synonymtypedef: systematic_synonym "Systematic synonym" EXACT
+default-namespace: gene_ontology
+idspace: dc http://purl.org/dc/elements/1.1/ 
+idspace: EC http://purl.uniprot.org/enzyme/ 
+idspace: KEGG_REACTION http://www.kegg.jp/entry/ 
+idspace: MetaCyc http://identifiers.org/metacyc.reaction/ 
+idspace: oboInOwl http://www.geneontology.org/formats/oboInOwl# 
+idspace: Reactome http://identifiers.org/reactome/ 
+idspace: RHEA http://rdf.rhea-db.org/ 
+idspace: skos http://www.w3.org/2004/02/skos/core# 
+idspace: TC http://identifiers.org/tcdb/ 
+idspace: terms http://purl.org/dc/terms/ 
+idspace: UM-BBD_pathwayID http://identifiers.org/umbbd.pathway/ 
+idspace: UM-BBD_reactionID http://identifiers.org/umbbd.reaction/ 
+idspace: VZ https://viralzone.expasy.org/ 
+ontology: go
+property_value: dc:description "The Gene Ontology (GO) provides a framework and set of concepts for describing the functions of gene products from all organisms." xsd:string
+property_value: dc:title "Gene Ontology" xsd:string
+property_value: has_ontology_root_term GO:0003674
+property_value: has_ontology_root_term GO:0005575
+property_value: has_ontology_root_term GO:0008150
+property_value: owl:versionInfo "2026-06-15" xsd:string
+property_value: terms:license http://creativecommons.org/licenses/by/4.0/
+
+[Term]
+id: GO:0000001
+name: mitochondrion inheritance
+namespace: biological_process
+def: "The distribution of mitochondria, including the mitochondrial genome, into daughter cells after mitosis or meiosis, mediated by interactions between mitochondria and the cytoskeleton." [GOC:mcc, PMID:10873824, PMID:11389764]
+synonym: "mitochondrial inheritance" EXACT []
+is_a: GO:0048308 ! organelle inheritance
+is_a: GO:0048311 ! mitochondrion distribution
+
+[Term]
+id: GO:0000002
+name: obsolete mitochondrial genome maintenance
+namespace: biological_process
+def: "OBSOLETE. The maintenance of the structure and integrity of the mitochondrial genome; includes replication and segregation of the mitochondrial chromosome." [GOC:ai, GOC:vw]
+comment: This term described phenotypic observations for multiple processes (including transport/lipid metabolism/ DNA metabolism/ fission/ fusion etc)
+is_obsolete: true
+
+[Term]
+id: GO:0000003
+name: obsolete reproduction
+namespace: biological_process
+def: "OBSOLETE. The production of new individuals that contain some portion of genetic material inherited from one or more parent organisms." [GOC:curators, GOC:isa_complete, GOC:jl, ISBN:0198506732]
+comment: The reason for obsoletion is that this term is equivalent to reproductive process.
+synonym: "reproductive physiological process" EXACT []
+is_obsolete: true
+replaced_by: GO:0022414
+
+
+[Term]
+id: GO:0003700
+name: DNA-binding transcription factor activity
+namespace: molecular_function
+def: "A transcription regulator activity that modulates transcription of gene sets via selective and non-covalent binding to a specific double-stranded genomic DNA sequence (sometimes referred to as a motif) within a cis-regulatory region. Regulatory regions include promoters (proximal and distal) and enhancers. Genes are transcriptional units, and include bacterial operons." [GOC:txnOH-2018]
+comment: Usage guidance: Most DNA-binding transcription factors do not have enzymatic activity. The presence of specific DNA-binding domains known to be present in DNA-binding transcription factors (HOX, GATA etc) should be used to help decide whether a protein is a DNA binding transcription factor or a coregulator. If a protein has an enzymatic activity (for example, ubiquitin ligase, histone acetyl transferase) and no known DNA binding domain, consider annotating to GO:0003712 transcription coregulator activity. Special care should be taken with proteins containing zinc fingers, Myb/SANT and ARID domains, since only a subset of proteins containing these domains directly and selectively bind to regulatory DNA motifs in cis-regulatory regions.
+subset: goslim_agr
+subset: goslim_candida
+subset: goslim_chembl
+subset: goslim_drosophila
+subset: goslim_metagenomics
+subset: goslim_mouse
+subset: goslim_plant
+subset: goslim_yeast
+is_a: GO:0140110 ! transcription regulator activity
+

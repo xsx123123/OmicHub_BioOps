@@ -1,0 +1,78 @@
+id: user
+name: "我的流程监控"
+version: "1.0.0"
+description: "当前用户分析任务实时监控面板"
+scope: user
+refresh:
+  mode: websocket
+  fallback_interval_seconds: 5
+permissions:
+  roles: ["user", "admin"]
+filters:
+  - key: status
+    label: "状态"
+    type: select
+    default: all
+    options:
+      - { label: "全部", value: all }
+      - { label: "运行中", value: running }
+      - { label: "失败", value: failed }
+      - { label: "已完成", value: success }
+  - key: keyword
+    label: "搜索"
+    type: search
+layout:
+  desktop: { columns: 12, row_height: 96 }
+  mobile: { columns: 1, row_height: 88 }
+widgets:
+  - id: running_count
+    type: metric
+    title: "运行中"
+    data_source: summary
+    query: { field: running_count }
+    style: { tone: info }
+    layout:
+      desktop: { x: 0, y: 0, w: 4, h: 1 }
+      mobile: { x: 0, y: 0, w: 1, h: 1 }
+  - id: avg_progress
+    type: metric
+    title: "平均进度"
+    data_source: summary
+    query: { field: avg_running_progress }
+    style: { tone: success, unit: percent }
+    layout:
+      desktop: { x: 4, y: 0, w: 4, h: 1 }
+      mobile: { x: 0, y: 1, w: 1, h: 1 }
+  - id: failed_today
+    type: metric
+    title: "今日失败"
+    data_source: summary
+    query: { field: failed_today }
+    style: { tone: danger }
+    layout:
+      desktop: { x: 8, y: 0, w: 4, h: 1 }
+      mobile: { x: 0, y: 2, w: 1, h: 1 }
+  - id: running_tasks
+    type: task_table
+    title: "我的任务"
+    data_source: tasks
+    query: { limit: 50 }
+    layout:
+      desktop: { x: 0, y: 1, w: 12, h: 5 }
+      mobile: { x: 0, y: 3, w: 1, h: 5 }
+    columns:
+      - { key: name, label: "任务", action: open_task }
+      - { key: flow_id, label: "流程" }
+      - { key: status, label: "状态", renderer: status_badge }
+      - { key: progress, label: "进度", renderer: progress_bar }
+      - { key: current_rule, label: "当前 Rule" }
+      - { key: last_event_at, label: "最后事件", renderer: relative_time }
+  - id: realtime_events
+    type: event_stream
+    title: "实时事件"
+    data_source: events
+    query: { limit: 100 }
+    options: { auto_scroll: true, compact: true }
+    layout:
+      desktop: { x: 0, y: 6, w: 12, h: 4 }
+      mobile: { x: 0, y: 8, w: 1, h: 4 }

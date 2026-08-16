@@ -1,0 +1,31 @@
+---
+title: "Trademarks"
+---
+
+## 商标声明 (Trademarks)
+
+本项目提及的特定产品名称、徽标和品牌仅用于标识和描述目的，这些名称可能是其各自所有者的商标。
+
+### 1. 第三方商标 (Third-Party Trademarks)
+
+以下列出本项目中使用的主要技术及其商标归属：
+
+* **`Quarto®`** 是 **Posit Software, PBC** 的注册商标。
+* **`Nextflow`** 是 **Seqera Labs** 的商标。
+* **`Snakemake`** 是 **Johannes Köster** 及其开发团队的版权/商标。
+* **`Docker`** 和 Docker 徽标是 **Docker, Inc.** 在美国和/或其他国家的商标或注册商标。
+* **`Vue.js`** 是 **Evan You** 和 **Vue Core Team** 的商标。
+* **`Python`** 和 Python 徽标是 **Python Software Foundation** 的注册商标。
+* **`FastAPI`** 是 **Sebastián Ramírez** 的版权/商标。
+
+*文中提及的其他所有商标均为其各自所有者的财产。*
+
+### 2. 合理使用声明 (Nominative Fair Use)
+
+在本文档和相关软件中对上述商标的使用仅出于**描述性目的**（即说明本生物信息分析流程是基于这些技术构建的，或与这些技术兼容）。
+
+这种使用**并不暗示**本项目与上述商标持有者之间存在任何形式的商业认可、赞助或附属关系。本项目由华中农业大学生物信息团队独立开发和维护。
+
+### 3. 本项目标识 (Project Identity)
+
+**`BFP`** 名称、项目徽标（Logo）以及相关的设计元素是 **华中农业大学园艺林学学院 王昕课题组** 的保留权利。未经允许，不得将其用于可能会引起混淆的商业用途。

@@ -1,0 +1,21 @@
+cluster_config:
+  resource_profiles:
+    low_resource:
+      threads: 2
+      mem_mb: 12000
+      queue_type: "default_queue"
+
+    medium_resource:
+      threads: 10
+      mem_mb: 24000
+      queue_type: "default_queue"
+
+    high_resource:
+      threads: 18
+      mem_mb: 64000
+      queue_type: "high_mem_queue"
+
+    very_high_resource:
+      threads: 32
+      mem_mb: 128000
+      queue_type: "high_mem_queue"

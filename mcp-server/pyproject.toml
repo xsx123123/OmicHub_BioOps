@@ -1,0 +1,20 @@
+[project]
+name = "omichub-mcp-server"
+version = "0.1.0"
+description = "OmicHub 多组学分析平台 MCP Server — 统一 AI 助手操作接口"
+requires-python = ">=3.11"
+dependencies = [
+    "fastmcp>=2.3.0",
+    "httpx>=0.27.0",
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
+    "pyyaml>=6.0",
+    "loguru>=0.7.2",
+]
+
+[project.scripts]
+omichub-mcp = "main:main"
+omichub-pipelines-mcp = "pipelines_main:main"
+
+[tool.uv]
+package = false

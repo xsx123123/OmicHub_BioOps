@@ -1,0 +1,63 @@
+# OmicHub 内置 AI Provider 模板
+# 管理员可在后台“从模板创建”快速填充 Provider 配置。
+# api_key 建议通过环境变量注入，YAML 中可写 ${ENV_VAR:-}。
+
+templates:
+  - name: OpenAI
+    provider_type: openai_compatible
+    base_url: https://api.openai.com/v1
+    default_models:
+      - gpt-4o
+      - gpt-4o-mini
+      - o1-preview
+      - o1-mini
+    env_key: OPENAI_API_KEY
+
+  - name: Anthropic
+    provider_type: openai_compatible
+    base_url: https://api.anthropic.com/v1
+    default_models:
+      - claude-3-5-sonnet
+      - claude-3-opus
+      - claude-3-haiku
+    env_key: ANTHROPIC_API_KEY
+
+  - name: DeepSeek
+    provider_type: openai_compatible
+    base_url: https://api.deepseek.com/v1
+    default_models:
+      - deepseek-chat
+      - deepseek-reasoner
+    env_key: DEEPSEEK_API_KEY
+
+  - name: Kimi (Moonshot)
+    provider_type: openai_compatible
+    base_url: https://api.moonshot.cn/v1
+    default_models:
+      - kimi-k2
+      - kimi-k1.5
+      - moonshot-v1-8k
+    env_key: MOONSHOT_API_KEY
+
+  - name: Qwen (Aliyun)
+    provider_type: openai_compatible
+    base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
+    default_models:
+      - qwen3.7-max
+      - qwen3.7-plus
+      - qwen2.5-72b-instruct
+    env_key: AL_API_KEY
+
+  - name: 火山方舟 Ark
+    provider_type: openai_compatible
+    base_url: https://ark.cn-beijing.volces.com/api/coding/v3
+    default_models:
+      - doubao-seed-2.0-pro
+      - deepseek-v4-pro
+    env_key: ARK_API_KEY
+
+  - name: Ollama (本地)
+    provider_type: openai_compatible
+    base_url: http://localhost:11434/v1
+    default_models: []
+    env_key: ""

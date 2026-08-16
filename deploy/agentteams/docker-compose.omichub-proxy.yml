@@ -1,0 +1,16 @@
+# OmicHub 主栈的可选 AgentTeams Bridge 网络接入。
+# 仅在启用 AGENTTEAMS_BRIDGE_ENABLED=true 后与主 Compose 文件一起使用。
+
+services:
+  web:
+    networks:
+      - app_net
+      - data_net
+      - omichub_net
+      - omichub-sandbox-net
+      - omichub_bridge_gateway
+
+networks:
+  omichub_bridge_gateway:
+    external: true
+    name: ${OMICHUB_BRIDGE_GATEWAY_NETWORK:-omichub_bridge_gateway}

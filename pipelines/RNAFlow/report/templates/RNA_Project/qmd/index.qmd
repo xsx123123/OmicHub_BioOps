@@ -1,0 +1,198 @@
+---
+title: "项目概况"
+analysis_type: RNA-seq
+subtitle: "RNA 转录组测序分析报告"
+date: last-modified
+execute:
+  echo: false
+  warning: false
+---
+
+```{python}
+import pandas as pd
+import datetime
+import os
+import sys
+
+# 引入 report_utils (确保路径正确)
+script_dir = os.path.abspath(os.path.join(os.getcwd(), '..', 'scripts'))
+if script_dir not in sys.path:
+    sys.path.append(script_dir)
+from report_utils import get_project_summary_stats,Sample_Info_table,Sample_Info_table_modern
+from metadata import load_project_metadata
+
+# 1. 加载项目元数据 (包含 input_files 配置)
+project_info = load_project_metadata("../data/project_summary.json")
+input_files = project_info['input_files']
+
+
+# 2. 加载并计算项目统计数据 (使用配置中的路径)
+stats, df_final = get_project_summary_stats(
+    data_dir=input_files.get('data_dir', "../data/index/"), 
+    qc_filename=input_files.get('qc_file', "multiqc_qc_general_stats.txt"),
+    mapping_filename=input_files.get('mapping_file', "multiqc_mapping_general_stats.txt"),
+    tpm_filename=input_files.get('tpm_file', "merge_rsem_tpm.tsv"),
+    sample_filename=input_files.get('sample_file', "sample.csv")
+)
+
+
+# 解包统计指标，方便后续调用
+total_samples_count = stats['total_samples']
+total_groups = stats['total_groups']
+total_data_gb = stats['total_data_gb']
+avg_q30 = stats['avg_q30']
+mapping_rate = stats['mapping_rate']
+unique_mapping_rate = stats['unique_mapping_rate']
+avg_dup = stats['avg_dup']
+genes_detected = stats['genes_detected']
+# 状态文本
+qc_status_text = stats['qc_status']
+mapping_status_text = stats['mapping_status']
+unique_status_text = stats['unique_status']
+# 计算平均每样本数据量 (避免除零错误)
+avg_data_per_sample = total_data_gb / total_samples_count if total_samples_count > 0 else 0
+
+current_date = datetime.date.today().strftime("%Y-%m-%d")
+```
+
+## 1.项目背景 (Background)
+### 1.1 实验设计
+
+本项目旨在通过转录组测序（RNA-seq）技术，探究目标样本在特定处理条件下的基因表达差异。通过对测序数据的深度挖掘，揭示其潜在的分子机制。
+
+
+::: {layout-ncol=5}
+
+<div class="p-3 rounded-3 text-center" style="background-color: #e7f1ff;">
+  <div style="font-size: 1.5rem;">👤</div>
+  <div class="small text-muted mt-1">委托客户</div>
+  <div class="fw-bold text-primary">`{python} project_info['client']`</div>
+</div>
+
+<div class="p-3 rounded-3 text-center" style="background-color: #e6f8f0;">
+  <div style="font-size: 1.5rem;">🦁</div>
+  <div class="small text-muted mt-1">目标物种</div>
+  <div class="fw-bold text-success">`{python} project_info['species']`</div>
+</div>
+
+<div class="p-3 rounded-3 text-center" style="background-color: #fce8e9;">
+  <div style="font-size: 1.5rem;">🧬</div>
+  <div class="small text-muted mt-1">基因组</div>
+  <div class="fw-bold text-danger">`{python} project_info['genome']`</div>
+</div>
+
+<div class="p-3 rounded-3 text-center" style="background-color: #fff8e1;">
+  <div style="font-size: 1.5rem;">🤖</div>
+  <div class="small text-muted mt-1">流程版本</div>
+  <div class="fw-bold text-warning-emphasis">`{python} project_info['software']`</div>
+</div>
+
+<div class="p-3 rounded-3 text-center" style="background-color: #f8f9fa;">
+  <div style="font-size: 1.5rem;">🗓</div>
+  <div class="small text-muted mt-1">报告日期</div>
+  <div class="fw-bold text-secondary">`{python} current_date`</div>
+</div>
+
+:::
+
+::: {.callout-note appearance="simple" icon=false}
+#### 📝 分析声明
+本次分析所有样本均已通过严格的质控标准（Q30 > **`{python} f"{avg_q30:.1f}"` %**）。分析所使用的参考基因组版本为 **`{python} project_info['genome']`**，注释文件与基因组版本严格对应。详细的软件参数与版本信息请参阅报告附录。
+:::
+---
+
+### 1.2 项目总览
+
+**项目测序数据产出与核心质控指标总览如下:**
+
+::: {.grid style="row-gap: 15px;"}
+
+::: {.g-col-3}
+::: {.callout-note appearance="minimal"}
+## 样本信息 (Samples)
+# **`{python} total_samples_count`** Samples
+包含 **`{python} total_groups`** 个实验分组
+:::
+:::
+
+::: {.g-col-3}
+::: {.callout-tip appearance="minimal"}
+## 总数据量 (Data)
+# **`{python} f"{total_data_gb:.1f}"` Gb**
+平均 `{python} f"{avg_data_per_sample:.1f}"` Gb / Sample
+:::
+:::
+
+::: {.g-col-3}
+::: {.callout-note appearance="minimal"}
+## 测序质量 (Q30)
+# **`{python} f"{avg_q30:.1f}"` %**
+`{python} qc_status_text`
+:::
+:::
+
+::: {.g-col-3}
+::: {.callout-important appearance="minimal"}
+## 基因检出 (Genes)
+# **`{python} genes_detected`**
+TPM > 1 的基因数量
+:::
+:::
+
+::: {.g-col-4}
+::: {.callout-note appearance="minimal"}
+## 比对率 (Mapping)
+# **`{python} f"{mapping_rate:.1f}"` %**
+`{python} mapping_status_text`
+:::
+:::
+
+::: {.g-col-4}
+::: {.callout-note appearance="minimal"}
+## 唯一比对 (Unique)
+# **`{python} f"{unique_mapping_rate:.1f}"` %**
+`{python} unique_status_text`
+:::
+:::
+
+::: {.g-col-4}
+::: {.callout-warning appearance="minimal"}
+## 重复率 (Dup)
+# **`{python} f"{avg_dup:.1f}"` %**
+序列重复水平
+:::
+:::
+
+:::
+
+::: {.callout-note collapse="true"}
+### 🔬 详细结论描述 (点击展开)
+本次项目共分析了 **`{python} total_samples_count`** 个样本，涉及 **`{python} total_groups`** 个实验分组。测序数据质量整体表现`{python} "优秀" if avg_q30 >= 90 else "良好"`。
+
+- **测序质量**：平均 Q30 达到 `{python} f"{avg_q30:.1f}"`%，`{python} qc_status_text`。
+- **比对情况**：参考基因组平均比对率为 `{python} f"{mapping_rate:.1f}"`% (`{python} mapping_status_text`)，其中唯一比对率为 `{python} f"{unique_mapping_rate:.1f}"`%。
+- **基因检出**：共检测到 `{python} genes_detected` 个有效表达基因 (TPM > 1)。
+:::
+
+
+
+## 2. 样本信息 (Sample Info)
+
+```{python}
+#| label: tbl-samples
+#| tbl-cap: "样本测序数据统计表"
+Sample_Info_table_modern(df_final)
+```
+
+::: {.callout-note appearance="minimal" icon=false collapse="true"}
+### 📝 表格列名说明 (点击展开)
+
+- **Sample ID**: 样本编号，用于区分不同的测序样本。
+- **Group**: 样本所属的实验分组。
+- **Clean Reads (M)**: 质控过滤后的高质量 Reads 总数（单位：百万，M）。
+- **Q30 (%)**: 测序质量评分达到 Q30（错误率 < 0.1%）的碱基比例。通常该值越高，测序质量越好。
+- **GC (%)**: 测序 Reads 中的 GC 碱基含量百分比。
+- **Mapping Rate (%)**: 成功比对到参考基因组上的 Reads 比例。
+- **Mapped GC (%)**: 成功比对到参考基因组上的序列的 GC 含量。
+- **Insert Size (bp)**: 测序文库的插入片段大小中位数（仅双端测序适用）。
+:::

@@ -1,0 +1,38 @@
+retry_policies:
+  infra_bounded:
+    auto_retry_on: [oom, node_lost, queue_timeout]
+    max_attempts: 2
+    escalate: new_revision_requires_approval
+  never:
+    auto_retry_on: []
+    max_attempts: 1
+
+approval_templates:
+  sample_inclusion:
+    approvers: [project_owner]
+    quorum: all
+    timeout_hours: 48
+    on_timeout: remind_and_escalate
+    never_auto_approve: true
+    requires_reject_reason: true
+  integration_approval:
+    approvers: [project_owner]
+    quorum: all
+    timeout_hours: 48
+    on_timeout: remind_and_escalate
+    never_auto_approve: true
+    requires_reject_reason: true
+  annotation_revision:
+    approvers: [project_owner]
+    quorum: all
+    timeout_hours: 48
+    on_timeout: remind_and_escalate
+    never_auto_approve: true
+    requires_reject_reason: true
+  trajectory_root_direction:
+    approvers: [project_owner, domain_expert]
+    quorum: all
+    timeout_hours: 72
+    on_timeout: remind_and_escalate
+    never_auto_approve: true
+    requires_reject_reason: true

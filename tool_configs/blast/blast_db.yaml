@@ -1,0 +1,11 @@
+databases:
+- db_key: '111'
+  name: TRA10
+  db_type: nucl
+  path: /data/omichub/blast/db/111/111
+  description: ''
+  source_species: null
+  source_version: null
+  version_group: '111'
+  is_active: true
+  is_public: true

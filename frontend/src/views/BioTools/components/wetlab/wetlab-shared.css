@@ -1,0 +1,214 @@
+/* ==========================================================================
+   湿实验计算器共享样式（wlc- 前缀，由 WetLabCalculatorsView 以非 scoped 方式全局引入）
+   各计算器子组件复用以下类名，避免重复样式。颜色一律走 CSS 变量并带亮色回退。
+   ========================================================================== */
+
+.wlc-card.n-card {
+  background: var(--neutral-card, #fff);
+  border: 1px solid var(--neutral-border, #e5e6eb);
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+.wlc-card.n-card:last-child {
+  margin-bottom: 0;
+}
+.wlc-card > .n-card__content {
+  padding: 16px;
+}
+
+/* 卡片标题行：标题 + 说明（左），试试示例数据（右） */
+.wlc-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.wlc-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--neutral-text-1, #1d2129);
+  letter-spacing: -0.01em;
+}
+.wlc-desc {
+  font-size: 12px;
+  color: var(--neutral-text-3, #86909c);
+  margin-top: 3px;
+  line-height: 1.6;
+}
+.wlc-sample-link {
+  flex-shrink: 0;
+  font-weight: 400;
+}
+
+/* 表单 + 结果 两栏布局 */
+.wlc-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+.wlc-grid.is-wide {
+  grid-template-columns: 400px 1fr;
+}
+/* 上下堆叠（表格类计算器：输入在上，结果表在下） */
+.wlc-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.wlc-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.wlc-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.wlc-label {
+  flex: 0 0 120px;
+  font-size: 13px;
+  color: var(--neutral-text-2, #4e5969);
+}
+.wlc-unit {
+  flex: 0 0 104px;
+}
+.wlc-unit-fixed {
+  flex: 0 0 104px;
+  font-size: 13px;
+  color: var(--neutral-text-3, #86909c);
+}
+.wlc-hint {
+  font-size: 12px;
+  color: var(--neutral-text-3, #86909c);
+  line-height: 1.6;
+}
+.wlc-panel-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--neutral-text-2, #4e5969);
+  margin-bottom: 8px;
+}
+
+/* 结果卡片 */
+.wlc-result {
+  background: var(--neutral-bg, #f7f8fa);
+  border: 1px dashed var(--neutral-border, #e5e6eb);
+  border-radius: 12px;
+  padding: 20px 24px;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.wlc-result-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.wlc-hero {
+  font-size: 15px;
+  color: var(--neutral-text-1, #1d2129);
+  line-height: 1.8;
+}
+.wlc-hero b {
+  color: var(--arco-primary, #165dff);
+  font-size: 20px;
+  letter-spacing: -0.01em;
+}
+.wlc-sub {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--neutral-text-3, #86909c);
+  line-height: 1.7;
+}
+.wlc-empty {
+  font-size: 13px;
+  color: var(--neutral-text-3, #86909c);
+}
+.wlc-formula {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--neutral-border, #e5e6eb);
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--neutral-text-3, #86909c);
+}
+.wlc-copy {
+  flex-shrink: 0;
+}
+
+/* 动态行（组分 / 文库 等可增删列表） */
+.wlc-dyn {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+.wlc-dyn-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.wlc-dyn-row .grow {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 键值结果展示 */
+.wlc-kv {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 16px;
+  font-size: 13px;
+  align-items: baseline;
+}
+.wlc-kv .k {
+  color: var(--neutral-text-3, #86909c);
+}
+.wlc-kv .v {
+  color: var(--neutral-text-1, #1d2129);
+  font-weight: 500;
+}
+
+/* 序列输出（等宽） */
+.wlc-seq-out {
+  font-family: 'JetBrains Mono', Menlo, Consolas, monospace;
+  word-break: break-all;
+  font-size: 13px;
+  line-height: 1.6;
+  background: var(--neutral-hover, #f2f3f8);
+  padding: 8px 10px;
+  border-radius: 6px;
+  color: var(--neutral-text-1, #1d2129);
+}
+
+.wlc-table {
+  margin-top: 4px;
+}
+.wlc-stat-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+@media (max-width: 1200px) {
+  .wlc-grid,
+  .wlc-grid.is-wide {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 768px) {
+  .wlc-label {
+    flex-basis: 96px;
+  }
+  .wlc-unit,
+  .wlc-unit-fixed {
+    flex-basis: 84px;
+  }
+}

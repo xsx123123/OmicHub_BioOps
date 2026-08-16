@@ -1,0 +1,74 @@
+"""Runtime-reloadable catalog of built-in Agent abilities and handoff criteria."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any
+
+import yaml
+
+from omichub.core.config import get_settings
+
+
+class AgentAbilityCatalog:
+    """Read ``data/ai/agent_ability.yaml`` with mtime-based hot reload."""
+
+    def __init__(self, path: str | Path | None = None) -> None:
+        self.path = Path(path or get_settings().agent_ability_yaml)
+        self._mtime_ns = -1
+        self._agents: dict[str, dict[str, Any]] = {}
+
+    def get(self, agent_id: str) -> dict[str, Any]:
+        self._reload_if_needed()
+        return dict(self._agents.get(agent_id) or {})
+
+    def all(self) -> dict[str, dict[str, Any]]:
+        self._reload_if_needed()
+        return {agent_id: dict(value) for agent_id, value in self._agents.items()}
+
+    def _reload_if_needed(self) -> None:
+        try:
+            mtime_ns = self.path.stat().st_mtime_ns
+        except OSError:
+            self._agents = {}
+            self._mtime_ns = -1
+            return
+        if self._agents and mtime_ns <= self._mtime_ns:
+            return
+        try:
+            raw = yaml.safe_load(self.path.read_text(encoding="utf-8")) or {}
+        except (OSError, yaml.YAMLError):
+            self._agents = {}
+            self._mtime_ns = mtime_ns
+            return
+        entries = raw.get("agents") if isinstance(raw, dict) else None
+        if not isinstance(entries, dict):
+            self._agents = {}
+            self._mtime_ns = mtime_ns
+            return
+        self._agents = {
+            str(agent_id): self._normalize(entry)
+            for agent_id, entry in entries.items()
+            if isinstance(entry, dict)
+        }
+        self._mtime_ns = mtime_ns
+
+    @staticmethod
+    def _normalize(entry: dict[str, Any]) -> dict[str, Any]:
+        def strings(key: str) -> list[str]:
+            value = entry.get(key)
+            if not isinstance(value, list):
+                return []
+            return list(dict.fromkeys(str(item).strip() for item in value if str(item).strip()))
+
+        return {
+            "summary": str(entry.get("summary") or "").strip(),
+            "chat_entry": entry.get("chat_entry") is not False,
+            "capabilities": strings("capabilities"),
+            "not_suitable_for": strings("not_suitable_for"),
+            "handoff_when": strings("handoff_when"),
+            "preferred_inputs": strings("preferred_inputs"),
+        }
+
+
+agent_ability_catalog = AgentAbilityCatalog()

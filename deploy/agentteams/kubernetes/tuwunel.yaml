@@ -1,0 +1,126 @@
+# Tuwunel（conduwuit 系）生产 Matrix Homeserver。
+# 开发环境仍用 ../matrix-dev 的 Synapse compose；本清单与官方生产部署同构。
+# 注意：Tuwunel 为有状态单副本（RWO PVC），扩缩容前必须先迁移数据库。
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: omichub-tuwunel-config
+  namespace: agentteams-system
+  labels: {app.kubernetes.io/name: omichub-tuwunel, app.kubernetes.io/part-of: omichub-agentteams}
+data:
+  # server_name 必须与 Gateway 的 GATEWAY_MATRIX_SERVER_NAME、
+  # GATEWAY_MATRIX_IDENTITIES 中的域名部分一致。
+  TUWUNEL_SERVER_NAME: "example.internal"
+  TUWUNEL_ADDRESS: "0.0.0.0"
+  TUWUNEL_PORT: "6167"
+  TUWUNEL_DATABASE_PATH: "/var/lib/tuwunel"
+  TUWUNEL_MAX_REQUEST_SIZE: "20000000"
+  # 平台用户全部由 AppService 供给，关闭开放注册与联邦。
+  TUWUNEL_ALLOW_REGISTRATION: "false"
+  TUWUNEL_ALLOW_FEDERATION: "false"
+  TUWUNEL_ALLOW_CHECK_FOR_UPDATES: "false"
+  # AppService 注册文件由 Secret omichub-tuwunel-appservice 挂载。
+  TUWUNEL_APPSERVICE_CONFIG_FILES: '["/etc/tuwunel/appservice/registration.yaml"]'
+  TUWUNEL_LOG: "info,state_res=warn"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: omichub-tuwunel-appservice
+  namespace: agentteams-system
+  labels: {app.kubernetes.io/name: omichub-tuwunel, app.kubernetes.io/part-of: omichub-agentteams}
+type: Opaque
+stringData:
+  # 模板：部署前替换两个 token，且 as_token 必须等于 Gateway 的
+  # GATEWAY_MATRIX_SERVICE_TOKEN。sender_localpart 固定为 Gateway 伪装身份的
+  # 归属命名空间起点；users 正则覆盖静态身份与 omichub-user-* 动态账号。
+  registration.yaml: |
+    id: omichub-agent-gateway
+    url: "http://omichub-agent-gateway:8081"
+    as_token: "replace-appservice-as-token"
+    hs_token: "replace-appservice-hs-token"
+    sender_localpart: omichub-user
+    namespaces:
+      users:
+        - exclusive: true
+          regex: "@(bioops-manager|omichub-user|omichub-user-.+|agent-.+):example\\.internal"
+      rooms: []
+      aliases: []
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: omichub-tuwunel-data
+  namespace: agentteams-system
+  labels: {app.kubernetes.io/name: omichub-tuwunel, app.kubernetes.io/part-of: omichub-agentteams}
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests: {storage: 10Gi}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: omichub-tuwunel
+  namespace: agentteams-system
+  labels:
+    app.kubernetes.io/name: omichub-tuwunel
+    app.kubernetes.io/part-of: omichub-agentteams
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app.kubernetes.io/name: omichub-tuwunel}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: omichub-tuwunel
+        app.kubernetes.io/part-of: omichub-agentteams
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: tuwunel
+          image: jevolk/tuwunel:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef: {name: omichub-tuwunel-config}
+          ports: [{name: http, containerPort: 6167}]
+          readinessProbe:
+            httpGet: {path: /_matrix/client/versions, port: http}
+            initialDelaySeconds: 10
+          livenessProbe:
+            httpGet: {path: /_matrix/client/versions, port: http}
+            initialDelaySeconds: 30
+          resources:
+            requests: {cpu: 250m, memory: 512Mi}
+            limits: {cpu: "2", memory: 2Gi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}
+          volumeMounts:
+            - {name: data, mountPath: /var/lib/tuwunel}
+            - {name: tmp, mountPath: /tmp}
+            - {name: appservice, mountPath: /etc/tuwunel/appservice, readOnly: true}
+      volumes:
+        - name: data
+          persistentVolumeClaim: {claimName: omichub-tuwunel-data}
+        - name: tmp
+          emptyDir: {medium: Memory}
+        - name: appservice
+          secret: {secretName: omichub-tuwunel-appservice}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: omichub-tuwunel
+  namespace: agentteams-system
+  labels: {app.kubernetes.io/name: omichub-tuwunel, app.kubernetes.io/part-of: omichub-agentteams}
+spec:
+  selector: {app.kubernetes.io/name: omichub-tuwunel}
+  ports: [{name: http, port: 6167, targetPort: http}]

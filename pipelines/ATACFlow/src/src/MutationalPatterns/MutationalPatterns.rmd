@@ -1,0 +1,236 @@
+---
+title: "MutationalPatterns_analysis"
+author: "zhang jian"
+date: "2025-11-23"
+output: html_document
+---
+
+## 1. 加载依赖包
+```r
+# 加载核心分析包
+library(MutationalPatterns)
+library(BSgenome)
+# 加载参考基因组 (hg38) - 注意：确保你的 VCF 是基于 hg38 比对的，如果是 hg19 需更换
+library(BSgenome.Hsapiens.UCSC.hg38) 
+library(NMF) # 用于非负矩阵分解算法
+library(tidyverse) # 数据处理全家桶
+library(data.table) # 高速读取数据
+library(gridExtra) # 拼图工具
+library(ggplot2) # 绘图核心
+library(ggpubr) # 绘图美化
+library(patchwork) # 拼图工具
+ref_genome <- "BSgenome.Hsapiens.UCSC.hg38"
+library(ref_genome, character.only = TRUE)
+```
+
+## 2. 运行参数设置 & 数据加载
+
+```r
+# --- 预设配色方案 (便于后续统一画图风格) ---
+color_discrete_friendly  <- c("#0072B2","#56B4E9","#009E73","#F5C710","#E69F00","#D55E00")
+colors_discrete_friendly_long <- c("#CC79A7","#0072B2","#56B4E9","#009E73","#F5C710","#E69F00","#D55E00")
+colors_discrete_apple <- c("#ff3b30","#ff9500","#ffcc00","#4cd964","#5ac8fa","#007aff","#5856d6")
+colors_discrete_ibm <- c("#5B8DFE","#725DEE","#DD227D","#FE5F00","#FFB109")
+
+# --- 设置文件路径 ---
+root_dir <- '/home/zj/analysis/EGFR_liu_project/03.MutationalPatterns'
+COSMIC_MutationalPatterns_dir <- '/home/zj/analysis/EGFR_liu_project/03.MutationalPatterns/COSMIC_v3.4_SBS_GRCh38.txt'
+save_dir <- '/home/zj/analysis/EGFR_liu_project/03.MutationalPatterns/result'
+vcf_dir <- '/home/zj/analysis/EGFR_liu_project/03.MutationalPatterns/VCF_cli_INFO'
+
+# --- 读取并筛选 COSMIC 肺癌特征 ---
+COSMIC_MutationalPatterns <- fread(COSMIC_MutationalPatterns_dir)
+# 【注意】这里需要先定义 lung_sbs_list，例如：lung_sbs_list <- c("SBS1", "SBS2", "SBS4", "SBS5", "SBS13")
+# 筛选出肺癌相关的特征子集，作为先验知识库
+ling_COSMIC_MutationalPatterns <- COSMIC_MutationalPatterns |> select(c(Type,lung_sbs_list))
+```
+
+## 3. 读取 VCF 数据并构建对象
+
+```r
+# 读取临床信息 (确保样本 ID 和文件名能对应)
+clin_info <- fread("/home/zj/analysis/EGFR_liu_project/03.MutationalPatterns/VCF_cli_INFO/cli_update.txt") |> select(c(Tumor_Sample_Barcode,ID))
+
+# 获取 VCF 文件列表
+vcf_list <- list.files(vcf_dir,full.names = T,pattern = ".vcf")
+
+# 处理文件名以匹配临床信息 ID
+name_lsit <- gsub("/home/zj/analysis/EGFR_liu_project/03.MutationalPatterns/VCF_cli_INFO/","",vcf_list)
+name_lsit <- gsub('.vcf','',name_lsit)
+
+# 确保 VCF 列表顺序与 Sample ID 顺序一致
+sample_id_list <-  clin_info$ID[match(name_lsit,clin_info$Tumor_Sample_Barcode)]
+
+# 读取 SNV 数据构建 GRangesList 对象
+snv_grl <- read_vcfs_as_granges(vcf_list, sample_id_list, ref_genome, type = 'snv')
+# 读取 Indel 数据 (如果后续需要分析 Indel)
+indel_grl <- read_vcfs_as_granges(vcf_list, sample_id_list, ref_genome, type = 'indel')
+```
+
+## 4. 基础突变特征分析 (SNV QC)
+```r
+# 统计 6 种基础突变类型 (C>A, C>T 等) 的频数
+snv_muts <- mut_type_occurrences(snv_grl,ref_genome)
+
+# 可视化突变谱 (Spectrum)
+p1 <- plot_spectrum(snv_muts) 
+p2 <- plot_spectrum(snv_muts, CT = TRUE) # 区分 CpG 上下文的 C>T
+p3 <- plot_spectrum(snv_muts, CT = TRUE, indv_points = TRUE, legend = FALSE) # 带散点
+# 拼图并保存基础突变谱
+merge_Variable <-  p1 + p2 + plot_layout() & 
+  scale_fill_manual(values = colors_discrete_friendly_long) & 
+  labs(fill = 'Variable') & theme_pubclean() & 
+  theme(legend.position = 'bottom',legend.text = element_text(size = 8), legend.title = element_text(size = 8)) & 
+  guides(fill = guide_legend(keywidth = 0.6, keyheight = 1.2,ncol=4, override.aes = list(size = 3.5)))
+
+ggsave(file.path(save_dir,'Variable_Mutation_spectrum.png'), width = 8,height = 4, dpi = 1000, plot = merge_Variable)
+ggsave(file.path(save_dir,'Variable_Mutation_spectrum.pdf'), width = 8,height = 4, dpi = 1000, plot = merge_Variable)
+```
+
+## 5. 构建 96 类突变矩阵
+
+```r
+# 这是 NMF 分析的核心输入数据 (96-trinucleotide matrix)
+snv_mut_mat <- mut_matrix(vcf_list = snv_grl, ref_genome = ref_genome)
+# --- 批量绘制 96 类突变谱 (分批次保存以免图太大) ---
+# 这一步是为了直观展示每个样本的突变指纹
+# [Batch 1-7 代码块逻辑相同，此处省略重复注释]
+p <- plot_96_profile(snv_mut_mat[, c(1:5)], colors = color_discrete_friendly, ymax = 0.1) + 
+  theme_pubclean() + 
+  theme(axis.text.x = element_text(angle = 45,hjust = 0.99,vjust = 0.99))
+p$layers[[1]]$aes_params$linewidth <- 0.001 # 调整线条粗细
+ggsave(file.path(save_dir,'96_profile_plot_sample_batch_1.png'), width = 17,height = 6,plot = p,dpi = 1000)
+# ... (后续 batch 保存代码同理)
+```
+
+## 6. De novo 突变特征提取 (NMF)
+
+```r
+# 添加微量数值防止 NMF 因零值报错
+snv_mut_mat = snv_mut_mat + 0.0001
+
+# 【关键步骤】Rank Survey：评估最佳特征数量 (2到6)
+# 通过 RSS 和 Cophenetic correlation 决定 rank=4 是否合理
+estimate = nmf(snv_mut_mat, rank=2:6, method="brunet", nrun=1000, seed=123456)
+plot(estimate)
+
+# 保存 Rank 评估图 (用于附图)
+p <- plot(estimate)  + theme_pubclean() + ggtitle(NULL) + theme(legend.position = 'bottom')
+ggsave(file.path(save_dir,'rank_estimate.png'), width = 8,height = 6,plot = p,dpi = 1000)
+
+# 【核心步骤】执行 NMF 提取 (Rank=4)
+snv_nmf_res <- extract_signatures(snv_mut_mat, rank = 4, nrun = 100, single_core = TRUE)
+
+# 重命名提取出的特征 (暂时命名为 A-D)
+colnames(snv_nmf_res$signatures) <- c("Signature A", "Signature B", "Signature C", "Signature D")
+rownames(snv_nmf_res$contribution) <- c("Signature A", "Signature B", "Signature C", "Signature D")
+
+# 保存提取结果
+write.csv(snv_nmf_res$signatures,file.path(save_dir,'denovo_nmf_signatures.csv'))
+write.csv(snv_nmf_res$contribution,file.path(save_dir,'denovo_nmf_contribution.csv'))
+
+# 可视化提取出的 4 个特征的 96 类谱
+p <- plot_96_profile(snv_nmf_res$signatures, ymax = 0.05) +
+  theme_pubclean() + 
+  theme(axis.text.x = element_text(angle = 45,hjust = 0.99,vjust = 0.99))
+p$layers[[1]]$aes_params$linewidth <- 0.001
+ggsave(file.path(save_dir,'denovo_nmf_plot_96_result.png'), width = 15,height = 6,plot = p,dpi = 1000)
+
+# 可视化 De novo 的贡献度堆叠图
+p <- plot_contribution(snv_nmf_res$contribution, snv_nmf_res$signature, mode = "relative", coord_flip = F) + 
+  scale_fill_manual(values = colors_discrete_ibm) +
+  scale_y_continuous(limits = c(0,1),expand = c(0,0)) +
+  theme_pubclean() + 
+  theme(axis.text.x = element_text(angle = 45,hjust = 0.99,vjust = 0.99), legend.position = 'bottom')
+ggsave(file.path(save_dir,'denovo_nmf_contribution_result.png'), width = 12,height = 4,plot = p,dpi = 1000)
+
+# 绘制带聚类的热图 (样本分型)
+library(ggsci)
+# 手动计算聚类顺序 (稳健方法)
+relative_contribution <- prop.table(snv_nmf_res$contribution, margin = 2)
+dist_matrix <- dist(t(relative_contribution), method = "euclidean")
+hc <- hclust(dist_matrix, method = "complete")
+ordered_samples <- colnames(snv_nmf_res$contribution)[hc$order]
+
+# 绘制左图(带树)和右图(不带树)，并拼接
+pch1 <- plot_contribution_heatmap(snv_nmf_res$contribution, sample_order = ordered_samples, cluster_samples=FALSE, plot_values = T) + scale_fill_material("deep-orange")
+pch2 <- plot_contribution_heatmap(snv_nmf_res$contribution, cluster_samples=FALSE,plot_values = T) + scale_fill_material("deep-orange")
+merge_heatmap <-  pch1 + pch2 + plot_layout(guides = 'collect') &  theme_pubclean() +
+  theme(legend.position = 'right', axis.text.x = element_text(angle = 45,hjust = 0.99,vjust = 0.99))
+ggsave(file.path(save_dir,'denovo_nmf_contribution_heatmap.png'), width = 9,height = 6,plot = merge_heatmap ,dpi = 1000)
+```
+
+
+## 7. 质量控制：重构对比
+```r
+# 对比原始突变谱 vs NMF 重构谱 (QC 步骤，Cosine similarity 应 > 0.9)
+p <- plot_compare_profiles(snv_mut_mat[,1], snv_nmf_res$reconstructed[,1], profile_names = c("Original", "Reconstructed"))  +
+  theme_pubclean() + 
+  theme(axis.text.x = element_text(angle = 45,hjust = 0.99,vjust = 0.99))
+ggsave(file.path(save_dir,'compare_reconstructed_Original_profiles.png'), width = 14,height = 5,plot = p,dpi = 1000)
+```
+### 8. 特征比对与命名 (Assignment)
+```r
+# 数据清洗与对齐：将 COSMIC 数据转换为矩阵并与 NMF 结果对齐行名
+ling_COSMIC_MutationalPatterns_convert  <-  ling_COSMIC_MutationalPatterns |> tibble::column_to_rownames(var = 'Type')
+ling_COSMIC_MutationalPatterns_convert <- ling_COSMIC_MutationalPatterns_convert[rownames(snv_nmf_res$signatures),]
+all(rownames(ling_COSMIC_MutationalPatterns_convert) == rownames(snv_nmf_res$signatures)) # 必须为 TRUE
+# 计算余弦相似度矩阵 (NMF vs COSMIC)
+cos_sim_matrix <- cos_sim_matrix(snv_nmf_res$signatures, ling_COSMIC_MutationalPatterns_convert)
+# 绘制相似度热图 (用于确定 Signature A-D 分别对应哪个 COSMIC 特征)
+p <- plot_cosine_heatmap(cos_sim_matrix, cluster_rows = TRUE, cluster_cols = TRUE, plot_values = T)
+ggsave(file.path(save_dir,'cos_sim_matrix.png'), width = 6,height = 4,plot = p,dpi = 1000)
+```
+
+### 9. 最终拟合 (Refitting)
+
+```r
+# 使用纯净的肺癌 COSMIC 特征集对原始样本进行拟合
+matrix_ling_COSMIC_MutationalPatterns_convert <- as.matrix(ling_COSMIC_MutationalPatterns_convert)
+fit_res <- fit_to_signatures(snv_mut_mat, matrix_ling_COSMIC_MutationalPatterns_convert)
+# 保存拟合结果
+write.csv(fit_res$contribution,file.path(save_dir,'fit_to_signatures.csv'))
+write.csv(fit_res$reconstructed,file.path(save_dir,'fit_to_reconstructed.csv'))
+# 可视化拟合后的绝对贡献度 (原始分类)
+p <- plot_contribution(fit_res$contribution, coord_flip = F, mode = "relative") +
+  scale_fill_manual(values = colors_discrete_ibm) +
+  theme_pubclean() + 
+  theme(axis.text.x = element_text(angle = 45,hjust = 0.99,vjust = 0.99), legend.position = 'bottom')
+ggsave(file.path(save_dir,'fit_nmf_contribution_result.png'), width = 12,height = 4,plot = p,dpi = 1000)
+```
+
+## 10. 病因学归纳与最终绘图 (Etiology Aggregation)
+```r
+# 提取数据并合并特征
+contribution_df <- as.data.frame(t(fit_res$contribution))
+
+plot_data <- contribution_df %>%
+    tibble::rownames_to_column("Sample") %>% 
+    # 根据生物学意义合并特征 (解释 Signature B 等)
+    mutate(APOBEC = SBS2 + SBS13,
+           Aging = SBS1,
+           Clock =  SBS5,
+           Smoking = SBS4) %>%
+    select(Sample, APOBEC, Aging, Clock, Smoking) %>%
+    pivot_longer(cols = -Sample, names_to = "Mechanism", values_to = "Contribution")
+
+# 绘制最终的机制贡献图 (正文主图)
+p <- ggplot(plot_data, aes(x = Sample, y = Contribution, fill = Mechanism)) +
+  geom_bar(stat = "identity", position = "fill", width = 0.8) +
+  scale_fill_manual(values = colors_discrete_apple,
+                    labels = c("APOBEC" = "APOBEC (SBS2+13)", 
+                               "Aging" = "Aging (SBS1)", 
+                               "Clock" = "Clock (SBS5)", 
+                               "Smoking" = "Smoking (SBS4)")) +
+  scale_y_continuous(expand = c(0,0)) +
+  labs(title = "Etiology-based Contribution (Merged Signatures)", y = "Relative Contribution", x = NULL) +
+  theme_pubclean() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 0.99), legend.position = 'bottom')
+
+ggsave(file.path(save_dir,'fit_denovo_nmf_contribution_result.png'), width = 12,height = 4,plot = p,dpi = 1000)
+```
+
+
+
+
+

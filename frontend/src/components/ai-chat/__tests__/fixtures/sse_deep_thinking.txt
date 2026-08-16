@@ -1,0 +1,184 @@
+data: {"type": "text", "content": "用户", "is_reasoning": true}
+
+data: {"type": "text", "content": "只是简单地", "is_reasoning": true}
+
+data: {"type": "text", "content": "打了个招呼 \"hi", "is_reasoning": true}
+
+data: {"type": "text", "content": "\"。\n", "is_reasoning": true}
+
+data: {"type": "text", "content": "作为 OmicHub", "is_reasoning": true}
+
+data: {"type": "text", "content": " 生信平台的", "is_reasoning": true}
+
+data: {"type": "text", "content": " AI 助手，", "is_reasoning": true}
+
+data: {"type": "text", "content": "我应该友好地回应", "is_reasoning": true}
+
+data: {"type": "text", "content": "，并简要介绍", "is_reasoning": true}
+
+data: {"type": "text", "content": "我能提供的帮助", "is_reasoning": true}
+
+data: {"type": "text", "content": "，引导用户提出", "is_reasoning": true}
+
+data: {"type": "text", "content": "他们的生", "is_reasoning": true}
+
+data: {"type": "text", "content": "信分析需求。", "is_reasoning": true}
+
+data: {"type": "text", "content": "\n\n思考", "is_reasoning": true}
+
+data: {"type": "text", "content": "可用的工具和功能：", "is_reasoning": true}
+
+data: {"type": "text", "content": "\n-", "is_reasoning": true}
+
+data: {"type": "text", "content": " KEGG ", "is_reasoning": true}
+
+data: {"type": "text", "content": "通路富集分析", "is_reasoning": true}
+
+data: {"type": "text", "content": "\n- 火山", "is_reasoning": true}
+
+data: {"type": "text", "content": "图绘制\n-", "is_reasoning": true}
+
+data: {"type": "text", "content": " 曼哈顿", "is_reasoning": true}
+
+data: {"type": "text", "content": "图绘制\n-", "is_reasoning": true}
+
+data: {"type": "text", "content": " 系统发育树", "is_reasoning": true}
+
+data: {"type": "text", "content": "构建\n- RNA", "is_reasoning": true}
+
+data: {"type": "text", "content": "-seq 差异", "is_reasoning": true}
+
+data: {"type": "text", "content": "表达分析流程", "is_reasoning": true}
+
+data: {"type": "text", "content": "提交\n- AT", "is_reasoning": true}
+
+data: {"type": "text", "content": "AC-seq ", "is_reasoning": true}
+
+data: {"type": "text", "content": "染色质可及", "is_reasoning": true}
+
+data: {"type": "text", "content": "性分析流程提交", "is_reasoning": true}
+
+data: {"type": "text", "content": "\n- 任务", "is_reasoning": true}
+
+data: {"type": "text", "content": "状态和", "is_reasoning": true}
+
+data: {"type": "text", "content": "结果查询\n\n回复", "is_reasoning": true}
+
+data: {"type": "text", "content": "策略：\n1", "is_reasoning": true}
+
+data: {"type": "text", "content": ". 友好问候", "is_reasoning": true}
+
+data: {"type": "text", "content": "。\n2.", "is_reasoning": true}
+
+data: {"type": "text", "content": " 简要列出我可以", "is_reasoning": true}
+
+data: {"type": "text", "content": "帮忙", "is_reasoning": true}
+
+data: {"type": "text", "content": "做的事情（数据可视化", "is_reasoning": true}
+
+data: {"type": "text", "content": "、富", "is_reasoning": true}
+
+data: {"type": "text", "content": "集分析、测序", "is_reasoning": true}
+
+data: {"type": "text", "content": "流程提交等）。", "is_reasoning": true}
+
+data: {"type": "text", "content": "\n3. ", "is_reasoning": true}
+
+data: {"type": "text", "content": "询问用户今天", "is_reasoning": true}
+
+data: {"type": "text", "content": "需要什么帮助。\n", "is_reasoning": true}
+
+data: {"type": "text", "content": "你好！", "model": "qwen3.7-max", "session_id": "a9a7a337-5841-42cf-82e8-dba0a06d03ab", "message_id": "f345a790-515f-43e1-a768-cafc4947ad6e"}
+
+data: {"type": "text", "content": "👋 ", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": "我是 OmicHub", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": " 生信平台的", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": " AI 助手。", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": "很高兴为您服务！\n\n", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": "我可以帮您", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": "完成以下生信", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": "分析和", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": "可视化任务：\n", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": "- **数据可视化", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": "**：绘制交互式", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": "火山图（", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": "差异表达）、曼", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": "哈顿图", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": "（GWAS/Q", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": "TL）。\n-", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": " **富集分析", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": "**：对基因", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": "列表进行 KEG", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": "G 通路富", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": "集分析。\n", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": "- **测序", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": "分析流程**：", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": "准备", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": "并提交 RNA-seq", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": " 差异表达分析", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": "或 ATAC-se", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": "q 染色质", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": "可及性分析", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": "任务。\n-", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": " **进化分析**", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": "：构建和", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": "可视化系统发育树", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": "。\n- **", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": "任务管理**：", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": "查询已提交分析", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": "任务的状态和结果", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": "摘要。\n\n请问", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": "今天有什么我可以帮", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": "您的吗", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": "？您可以直接告诉我", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": "您的需求", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": "或上传相关数据", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": "文件", "model": "qwen3.7-max"}
+
+data: {"type": "text", "content": "。", "model": "qwen3.7-max"}
+
+data: {"type": "done", "content": "", "session_id": "a9a7a337-5841-42cf-82e8-dba0a06d03ab", "message_id": "f345a790-515f-43e1-a768-cafc4947ad6e", "usage": {"prompt_tokens": 4208, "total_tokens": 4529, "completion_tokens": 321, "prompt_tokens_details": {"cached_tokens": 0}, "completion_tokens_details": {"reasoning_tokens": 157}}, "finish_reason": "stop"}
+

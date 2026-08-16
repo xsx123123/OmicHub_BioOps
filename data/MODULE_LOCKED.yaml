@@ -1,0 +1,195 @@
+# data/MODULE_LOCKED.yaml —— 平台模块注册表（模块权限管控的唯一数据源）
+#
+# 职责边界：
+#   - 本文件只声明「平台有哪些模块、哪些可锁、路由/API 前缀、新用户默认锁定状态」。
+#   - 每个用户实际被禁用的模块 key 列表存在数据库 users.disabled_modules 列，
+#     禁止把 per-user 权限写进本文件（多管理员并发修改会互相覆盖）。
+#
+# 消费方：管理员权限对话框 / 前端路由守卫 / 后端 API 拦截中间件，全部从本注册表取模块清单。
+#
+# 新增模块接入工作流（3 步）：
+#   1. 在本文件追加一个条目（填好 key、route_prefix、api_prefix）；
+#   2. 实现该模块的前端页面/菜单与后端 API（沿用注册表中的 key 与前缀）；
+#   3. 重启后端（启动时硬校验本文件，语法错误 / key 重复 / 缺字段会拒绝启动并报出原因）。
+#   权限对话框自动出现新模块行，路由守卫与 API 中间件自动对其生效，无需改权限相关代码。
+#
+# 字段说明：
+#   key            模块唯一标识，与前端菜单 key、路由一一对应
+#   name           权限对话框中的显示名
+#   route_prefix   前端路由前缀（字符串或字符串列表），路由守卫据此判断
+#   api_prefix     后端 API 前缀（字符串或字符串列表），权限中间件据此拦截；
+#                  匹配规则为「等于前缀」或「以 前缀+'/' 开头」；无 API 的模块写 []
+#   lockable       是否可被管理员按用户禁用；false 表示不参与按用户配置
+#                  （如首页、系统管理），守卫与中间件对其直接跳过
+#   default_locked 新用户注册时是否默认锁定该模块（写入新用户 disabled_modules）
+#   ai             AI 类模块标记，权限对话框中置顶并显示「AI」标签
+#
+# 共享基础设施（/auth、/llm、/prompts、/notifications、/announcements、/festival、
+# /docs、/site-settings、/site-content、/platform、/modules）不进注册表、永不拦截。
+modules:
+  - key: home
+    name: 首页
+    route_prefix: /
+    api_prefix: []
+    lockable: false
+    default_locked: false
+    ai: false
+
+  - key: dashboard
+    name: 仪表板
+    route_prefix: /dashboard
+    api_prefix: /api/v1/stats
+    lockable: true
+    default_locked: false
+    ai: false
+
+  - key: flows
+    name: 分析中心
+    route_prefix: /flows
+    api_prefix:
+      - /api/v1/flows
+      - /api/v1/pipelines
+    lockable: true
+    default_locked: false
+    ai: false
+
+  - key: files
+    name: 数据管理
+    route_prefix: /files
+    api_prefix: /api/v1/files
+    lockable: true
+    default_locked: false
+    ai: false
+
+  - key: database
+    name: 数据库
+    route_prefix:
+      - /database
+      - /reference-genomes
+    # 数据库页面当前为前端 mock 数据，无专属后端 API
+    api_prefix: []
+    lockable: true
+    default_locked: false
+    ai: false
+
+  - key: downloads
+    name: 数据下载
+    route_prefix: /downloads
+    api_prefix: /api/v1/downloads
+    lockable: true
+    default_locked: false
+    ai: false
+
+  - key: tasks
+    name: 任务中心
+    route_prefix: /tasks
+    api_prefix: /api/v1/tasks
+    lockable: true
+    default_locked: false
+    ai: false
+
+  - key: workflow-monitor
+    name: 流程监控
+    route_prefix: /workflow-monitor
+    api_prefix: /api/v1/workflow-monitor
+    lockable: true
+    default_locked: false
+    ai: false
+
+  - key: reports
+    name: 结果报告中心
+    route_prefix: /reports
+    api_prefix: /api/v1/reports
+    lockable: true
+    default_locked: false
+    ai: false
+
+  - key: ai-assistant
+    name: AI 助手
+    route_prefix: /ai
+    api_prefix:
+      - /api/v1/chat
+      - /api/v1/ai
+    lockable: true
+    default_locked: false
+    ai: true
+
+  - key: ai-workbench
+    name: AI 工作台
+    route_prefix: /studio
+    api_prefix:
+      - /api/v1/studio
+      - /api/v1/agents
+      - /api/v1/mas
+      - /api/v1/sandbox
+      - /api/v1/mcp
+      - /api/v1/mcp-builder
+    lockable: true
+    default_locked: false
+    ai: true
+
+  - key: agent-teams
+    name: Agent 协作中心
+    route_prefix: /agent-teams
+    api_prefix: /api/v1/agent-teams
+    lockable: true
+    default_locked: false
+    ai: true
+
+  - key: tools
+    name: 生信工具箱
+    route_prefix: /tools
+    api_prefix:
+      - /api/v1/tools
+      - /api/v1/blast
+      - /api/v1/deg
+      - /api/v1/enrichment
+      - /api/v1/jbrowse
+      - /api/v1/phylogenetic-tree
+      # 云端沙盒终端属于工具箱
+      - /api/v1/terminal
+    lockable: true
+    default_locked: false
+    ai: false
+
+  - key: knowledge
+    name: 实验室知识库
+    route_prefix: /knowledge
+    # 知识库 API 挂在 /api/v1/docs 路由下的 knowledge 子路径；
+    # 精确匹配规则（等于前缀或以 前缀+'/' 开头）保证不拦截 /docs 其余端点
+    api_prefix: /api/v1/docs/knowledge
+    lockable: true
+    default_locked: false
+    ai: false
+
+  - key: cookies
+    name: 用量统计
+    route_prefix: /cookies
+    api_prefix: /api/v1/cookies
+    lockable: true
+    default_locked: false
+    ai: false
+
+  - key: settings
+    name: 系统设置
+    route_prefix: /settings
+    api_prefix: /api/v1/users
+    lockable: true
+    default_locked: false
+    ai: false
+
+  - key: about
+    name: 关于 OmicHub
+    route_prefix: /about
+    api_prefix: []
+    lockable: true
+    default_locked: false
+    ai: false
+
+  - key: admin
+    name: 系统管理
+    route_prefix: /admin
+    api_prefix: /api/v1/admin
+    lockable: false
+    default_locked: false
+    ai: false

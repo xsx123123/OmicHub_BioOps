@@ -1,0 +1,162 @@
+[project]
+name = "omichub"
+version = "0.1.0"
+description = "OmicHub - 私有化多组学分析平台"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [
+    { name = "OmicHub Team" },
+]
+
+dependencies = [
+    # Web 框架
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.27.0",
+    "python-multipart>=0.0.9",
+    # 数据校验
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
+    # 数据库
+    "sqlalchemy[asyncio]>=2.0.25",
+    "asyncpg>=0.29.0",
+    "alembic>=1.13.0",
+    # 缓存
+    "redis[hiredis]>=5.0.0",
+    # 任务队列
+    "celery[redis]>=5.3.6",
+    "flower>=2.0.1",
+    "arq>=0.28.0",
+    # 安全
+    "pyjwt>=2.8.0",
+    "passlib[bcrypt]>=1.7.4",
+    "pyotp>=2.9.0",  # TOTP 2FA
+    # AI / LLM
+    "httpx>=0.27.0",
+    "litellm>=1.60.0",
+    "mcp>=1.0.0",
+    # 加密
+    "cryptography>=42.0.0",
+    # 代码执行沙盒（容器池）
+    "docker>=7.0.0",
+    # 终端 WebSocket 代理
+    "aiohttp>=3.9.0",
+    # 文件处理
+    "aiofiles>=23.2.1",
+    "minio>=7.2.0",
+    "pyyaml>=6.0.1",
+    "biopython>=1.83",
+    "lunardate>=0.3.0",
+    # 日志
+    "loguru>=0.7.2",
+    "rich-argparse>=1.7.0",
+    # 监控
+    "psutil>=5.9.8",
+    # 可观测性（OpenTelemetry：Trace / Metrics / Log 关联）
+    "opentelemetry-api>=1.25.0",
+    "opentelemetry-sdk>=1.25.0",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.25.0",
+    "opentelemetry-instrumentation-fastapi>=0.46b0",
+    "opentelemetry-instrumentation-httpx>=0.46b0",
+    "opentelemetry-exporter-prometheus>=0.46b0",
+    "prometheus-client>=0.20.0",
+    # Plot statistics
+    "numpy>=1.26.0",
+    "scipy>=1.11.0",
+    "statsmodels>=0.14.0",
+    "scikit-posthocs>=0.11.4",
+    "langgraph>=0.2.0",
+    "mem0ai==2.0.15",
+    "psycopg[binary,pool]>=3.1",
+    "ollama>=0.6.2",
+    "fastembed>=0.8.0",
+    "pypdf>=5.0.0",
+    "pillow>=10.0.0",
+]
+
+[project.optional-dependencies]
+workflow = ["snakemake>=8.0.0"]
+
+[project.scripts]
+omichubtools = "omichubtools.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.5",
+    "pytest-cov>=4.1.0",
+    "httpx>=0.27.0",
+    "ruff>=0.3.0",
+    "mypy>=1.8.0",
+    "ipython>=8.20.0",
+    "types-pyyaml>=6.0.12",
+]
+
+# === uv 镜像源（中科大主 + 阿里云备） ===
+[[tool.uv.index]]
+name = "ustc"
+url = "https://pypi.mirrors.ustc.edu.cn/simple/"
+default = true
+
+[[tool.uv.index]]
+name = "aliyun"
+url = "https://mirrors.aliyun.com/pypi/simple/"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/omichub", "scripts/omichubtools"]
+
+# === Ruff 配置 ===
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "N",    # pep8-naming
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "SIM",  # flake8-simplify
+    "ASYNC", # flake8-async
+]
+ignore = ["E501"]  # line length handled by formatter
+
+[tool.ruff.lint.per-file-ignores]
+# 节日彩蛋配置与 DTO 使用 camelCase 以兼容 YAML/JSON 约定
+"src/omichub/domain/festival/**/*.py" = ["N815"]
+"src/omichub/application/schemas/festival.py" = ["N815"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+# === MyPy 配置 ===
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["celery.*", "flower.*", "snakemake.*", "mcp.*", "docker.*", "lunardate.*", "langgraph.*", "langchain_core.*", "rocketmq.*"]
+ignore_missing_imports = true
+
+# === Pytest 配置 ===
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-v --tb=short --strict-markers"
+markers = [
+    "unit: 单元测试",
+    "integration: 集成测试",
+    "e2e: 端到端测试",
+]

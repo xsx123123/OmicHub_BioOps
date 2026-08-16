@@ -1,0 +1,40 @@
+# ATACFlow QC-Only Configuration
+# Version: ATACFlow_v0.0.5
+# Use this for quick quality control and data screening
+
+# === Basic Project Information ===
+project_name: 'PRJNA_ATAC_QC_Only'
+Genome_Version: "hg38"
+species: 'Homo_sapiens'
+client: 'Research_Lab'
+
+# === Data Path Configuration ===
+raw_data_path:
+  - /project/00.raw_data
+sample_csv: /project/01.workflow/samples.csv
+paired_csv: /project/01.workflow/contrasts.csv
+workflow: /project/01.workflow
+data_deliver: /project/02.data_deliver
+
+# === Execution Parameters ===
+execution_mode: local
+mapping_tools: chromap
+Library_Types: fr-firststrand
+
+# === Analysis Module Switches ===
+# Only run QC - skip all downstream analysis
+only_qc: true
+fastq_screen: true
+
+# === Notes ===
+# This configuration runs:
+# - QC & Trimming (FastQC + fastp)
+# - Contamination Check (FastQ Screen)
+# - Chromap or Bowtie2 Mapping
+# - Basic filtering and QC metrics
+# - MultiQC report
+#
+# Use this for:
+# - Quick data quality assessment
+# - Screening new datasets
+# - Testing pipeline configuration

@@ -1,0 +1,55 @@
+ai:
+  # Provider: "volcengine" or "aliyun"
+  provider: "volcengine" 
+  
+  # Auto-Fallback strategy
+  # If the primary provider fails (Timeout/5xx), try these in order
+  fallback_providers: ["aliyun"]
+
+  # Global settings
+  temperature: 0.6
+  top_p: 0.9
+  timeout: 120
+  default_language: "Chinese"
+  max_input_tokens: 30000
+
+  # Provider-specific settings
+  volcengine:
+    model: 
+      - doubao-seed-1-6-251015
+      - doubao-seed-1-6-lite-251015
+      - deepseek-v3-2-251201
+      - kimi-k2-thinking-251104
+      - doubao-seed-1-6-flash-250828
+    # api_key_env: "ARK_API_KEY" (Hidden default)
+
+  aliyun:
+    model: 
+      - qwen3-max
+      - qwen-plus
+      - qwen-flash
+      - qwen3-omni-flash
+      - qwen-omni-turbo
+    base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    # api_key_env: "DASHSCOPE_API_KEY" (Hidden default)
+
+  # Pricing (CNY per 1k tokens)
+  # Update these values based on current cloud provider pricing
+  pricing:
+    doubao-seed-1-6-251015:
+      input: 0.0008
+      output: 0.002
+    qwen-plus:
+      input: 0.004
+      output: 0.012
+    qwen-max:
+      input: 0.02
+      output: 0.06
+    # Default fallback pricing if model not found
+    default:
+      input: 0.001
+      output: 0.002
+
+logging:
+  level: "INFO"
+  save_json: true

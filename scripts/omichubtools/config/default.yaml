@@ -1,0 +1,5 @@
+logs:
+  Label: omichubtools
+  log_level: INFO
+  more_info: false
+  style: default

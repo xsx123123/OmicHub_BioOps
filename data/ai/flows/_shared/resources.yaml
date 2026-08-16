@@ -1,0 +1,18 @@
+standard_8c32g:
+  cpu: 8
+  memory_gb: 32
+  temp_disk_gb: 100
+  queue: scrna_analysis
+  max_project_concurrency: 4
+highmem_16c128g:
+  cpu: 16
+  memory_gb: 128
+  temp_disk_gb: 500
+  queue: scrna_upstream_highmem
+  max_project_concurrency: 2
+highmem_32c256g:
+  cpu: 32
+  memory_gb: 256
+  temp_disk_gb: 800
+  queue: scrna_analysis_highmem
+  max_project_concurrency: 1

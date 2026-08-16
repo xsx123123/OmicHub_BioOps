@@ -1,0 +1,53 @@
+# ============================================
+# OmicHub DEG 差异表达分析工具运行配置
+# ============================================
+# 修改本文件后由配置加载器基于 mtime 自动热重载，无需重启后端。
+#
+# 引擎：DESeq2 / edgeR 双引擎（脚本见 scripts/，打包进 R 运行镜像）。
+#   - method: auto    所有比较组均有生物学重复 -> DESeq2；
+#                     任一组为 1v1（无重复）  -> edgeR（有重复对比走 QL F-test，
+#                                                1v1 对比走固定 BCV 的 exactTest）
+#   - method: deseq2  强制 DESeq2（1v1 对比会失败，任务报错）
+#   - method: edger   强制 edgeR
+#
+# Web 只提交任务、读取结果 CSV/PNG；全部统计计算与绘图在 R Docker 容器执行
+# （镜像 Dockerfile 见 deploy/docker/Dockerfile.deg，构建 make docker-build-deg）。
+#
+# 路径（基于 settings.storage_path）：
+#   上传输入：{storage_path}/users/{user_id}/deg/{task_id}/input/
+#   任务结果：{storage_path}/users/{user_id}/deg/{task_id}/results/
+# --------------------------------------------
+
+meta:
+  name: "DEG"
+  version: "1.0"
+  description: "DESeq2 / edgeR 双引擎差异表达分析；无生物学重复(1v1)样本自动路由 edgeR 固定 BCV 模式"
+
+input_limits:
+  max_counts_file_size_mb: 200       # 表达矩阵（Raw Counts）上限
+  max_metadata_file_size_mb: 5       # 样本信息表上限
+  max_pairs_file_size_mb: 5          # 比较对文件上限
+  max_annotation_file_size_mb: 50    # 基因注释文件上限（可选）
+  min_samples: 2                     # 至少 2 个样本（1v1 是最小可运行设计）
+  max_samples: 500                   # 样本数上限，防止误传巨型矩阵拖垮 worker
+  max_contrasts: 50                  # 比较对数量上限
+  max_genes: 100000                  # 基因行数上限
+
+execution:
+  use_docker: true                   # false 时 worker 内直接 Rscript（需本机装好依赖）
+  docker_image: "omichub-r-deg:v1"   # make docker-build-deg 构建，见 deploy/docker/Dockerfile.deg
+  queue: "analysis"                  # Celery 队列，与 enrichment 等分析任务共用
+  timeout: 7200                      # 容器软超时（秒）
+  cpus: 4.0                          # docker run --cpus
+  memory: "8g"                       # docker run --memory
+
+defaults:
+  method: "auto"        # auto | deseq2 | edger
+  lfc: 1.0              # |log2FoldChange| 阈值
+  pval: 0.05            # Raw P-value 阈值
+  bcv: 0.4              # edgeR 无重复对比的生物学变异系数（0.4 人源 / 0.1 建系 / 0.01 技术重复）
+  min_replicates: 2     # 组内样本数低于此值的对比走 edgeR 固定 BCV 模式
+
+results:
+  results_subdir: "deg"              # {storage_path}/users/{user_id}/deg/{task_id}/
+  retention_days: 30                 # 结果保留天数，过期由清理任务回收

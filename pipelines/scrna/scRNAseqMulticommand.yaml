@@ -1,0 +1,25 @@
+singeler_reference:
+  HumanDICEImmuneCell: Celldex/HumanDICEImmuneCell.rds
+  HumanPrimaryCellAtla: Celldex/HumanPrimaryCellAtla.rds
+  HumanNovershternHematopoietic : Celldex/HumanNovershternHematopoietic.rds
+  HumanMonacoImmune : Celldex/HumanMonacoImmune.rds
+  HuamnBlueprintEncode : Celldex/HumanBlueprintEncode.rds
+  MouseRNA : Celldex/MouseRNA.rds
+  MouseImmGen: Celldex/MouseImmGen.rds
+  ScTypeDB : Celldex/ScTypeDB_full.xlsx
+  Cell_marker_Human : Celldex/Cell_marker_Human.txt
+  Cell_marker_Mouse : Celldex/Cell_marker_Mouse.txt
+  PanglaoDB_markers : Celldex/PanglaoDB_markers_27_Mar_2020.tsv
+
+scripts:
+  main : src/core/core_main.r
+  general_scripts : src/cli/00.general_R_function.r
+  scRNA_seq_pacaksges : src/cli/00.scRNA_seq_packages.r
+  color_Package : src/cli/01.color_Package.r
+  dir : src/cli/02.dir.r
+  cellID : src/cli/03.CellIDfun.r
+  gene_sets_prepare : src/cli/04.gene_sets_prepare.r
+  sctype_score : src/cli/05.sctype_score_.r
+
+conda_env:
+  scvi_path_conda: /home/zj/miniconda3/envs/scvi

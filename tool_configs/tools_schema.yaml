@@ -1,0 +1,453 @@
+# ============================================
+# OmicHub AI 助手可调用的工具 Schema 注册表
+# ============================================
+# 与 tools_setting.yaml 解耦：前者供 LLM 消费，后者供前端工具箱展示。
+# 改完即生效：加载器按文件 mtime 自动热重载，无需重启后端。
+#
+# 命名约定：
+#   - name 统一以 omichub_ 开头，避免与 MCP preset / web_search 撞名。
+#   - input_schema 遵循 JSON Schema Draft 7（转 OpenAI functions 时自动调整）。
+#   - invocation_mode 决定执行方式：
+#       backend_sync   进程内同步调 service
+#       backend_shim   进程内调轻量 Python shim
+#       backend_async  仅提交异步任务（Phase 1 占位）
+#       open_page      不执行，返回前端路由引导用户
+#
+# 字段说明：
+#   key              与 tools_setting.yaml 对应的工具 key
+#   name             LLM function 名
+#   description      LLM 看到的工具描述
+#   category         工具类别（enrichment / visualization / sequence / workflow）
+#   invocation_mode  执行模式
+#   service          backend_sync 时：module.path:ClassName
+#   method           backend_sync 时：调用的方法名
+#   shim_module      backend_shim 时：module.path
+#   requires_confirm 是否需要用户二次确认
+#   annotations      MCP Tool Annotations（readOnlyHint / destructiveHint / openWorld / idempotent）
+#   input_schema     LLM 参数 JSON Schema
+#   llm_result_fields  回灌 LLM 的字段白名单
+#   ui_result_fields   透传给前端的字段白名单
+# --------------------------------------------
+
+tools:
+  - key: agent-handoff-transfer
+    name: transfer_to_agent
+    description: 将当前会话交接给白名单中的下一位专业 Agent。必须提供已完成工作、用户诉求和工作区产物摘要；不能用于绕过 Agent 授权。
+    category: agent-handoff
+    invocation_mode: backend_sync
+    service: omichub.application.services.agent_handoff_tool_service.AgentHandoffToolService
+    method: transfer_to_agent
+    requires_confirm: false
+    annotations: {readOnlyHint: false, destructiveHint: false, openWorld: false, idempotent: false}
+    extra: {user_scoped: true, control_tool: handoff}
+    input_schema:
+      type: object
+      properties:
+        target_agent: {type: string, description: 白名单中的目标 Agent ID}
+        reason: {type: string, description: 转交原因，回转交时必须说明新增信息}
+        handoff_summary: {type: string, description: 已完成工作的自包含摘要}
+        user_intent: {type: string, description: 用户当前希望继续完成的任务}
+        artifacts: {type: array, items: {type: string}, description: 用户 workspace 内相关产物的相对路径}
+        constraints: {type: array, items: {type: string}, description: 分组、参考基因组和输出格式等约束}
+      required: [target_agent, reason, handoff_summary, user_intent]
+    llm_result_fields: [summary, handoff, success, error]
+    ui_result_fields: []
+
+  - key: agent-parallel-subagents
+    name: parallel_subagents
+    description: >
+      将多个相互独立的子任务并行分派给已注册且可派生的专业 Agent 执行，等待全部完成后返回结构化汇总。
+      仅用于真正独立、单任务可在数分钟内完成的子任务；有依赖关系的步骤应串行调用；
+      长耗时管道或需要用户确认的任务应改用 MAS 计划。不得用于需要向用户澄清的场景。
+    category: agent-orchestration
+    invocation_mode: backend_sync
+    service: omichub.application.services.parallel_subagent_tool_service.ParallelSubAgentToolService
+    method: run_parallel_subagents
+    requires_confirm: false
+    annotations: {readOnlyHint: false, destructiveHint: false, openWorld: true, idempotent: false}
+    extra: {user_scoped: true, control_tool: subagent_fanout}
+    input_schema:
+      type: object
+      properties:
+        context_summary: {type: string, description: 各子 Agent 共享的自包含背景（数据、约束、文件路径）}
+        tasks:
+          type: array
+          minItems: 1
+          maxItems: 5
+          description: 相互独立的子任务列表，1–5 个
+          items:
+            type: object
+            properties:
+              agent_id: {type: string, description: 目标 Agent ID，须标记 subagents_spawnable}
+              task: {type: string, description: 自包含的子任务指令，不超过 2000 字}
+            required: [agent_id, task]
+      required: [context_summary, tasks]
+    llm_result_fields: [summary, results, success, error]
+    ui_result_fields: [progress, fanout_run_id]
+
+  - key: agentteams-create-case
+    name: create_agentteams_case
+    description: >
+      仅在用户已确认后，为需要多人协作、人工审批、长耗时执行或交付验收的任务创建 AgentTeams Case。
+      不得用于普通问答、轻量并行或意图不明确的请求。
+    category: agent-orchestration
+    invocation_mode: backend_sync
+    service: omichub.application.services.agentteams_case_tool_service.AgentTeamsCaseToolService
+    method: run
+    requires_confirm: true
+    annotations: {readOnlyHint: false, destructiveHint: false, openWorld: false, idempotent: true}
+    extra: {user_scoped: true, control_tool: agentteams_case}
+    input_schema:
+      type: object
+      properties:
+        objective: {type: string, maxLength: 500, description: 自包含的交付目标，不含原始样本内容或凭证}
+        project_id: {type: string, description: 当前受控会话已绑定的项目引用 ID}
+        flow_id: {type: string, description: 已在平台白名单中的流程 ID}
+        sample_context_refs:
+          type: array
+          description: 仅样本上下文引用，不得包含原始样本内容
+          items:
+            type: object
+            properties:
+              kind: {type: string}
+              id: {type: string}
+            required: [kind, id]
+        origin_consultation_id:
+          type: string
+          maxLength: 256
+          description: 可选。由多专家会诊升级而来时携带的会诊来源 ID。
+        consultation_summary:
+          type: string
+          maxLength: 1800
+          description: 可选。由多专家会诊升级而来时携带的结论摘要，供预检与审批追溯。
+      required: [objective, project_id, flow_id]
+    llm_result_fields: [case_id, title, status, summary, success, error]
+    ui_result_fields: [case_card]
+
+  - key: agentteams-task-result-summary
+    name: task_result_summary
+    description: 读取当前用户任务的状态、flow、参数快照、产物清单、QC metrics 与失败摘录。
+    category: agentteams-evidence
+    invocation_mode: backend_sync
+    service: omichub.application.services.agentteams_data_tool_service.AgentTeamsDataToolService
+    method: task_result_summary
+    requires_confirm: false
+    annotations: {readOnlyHint: true, destructiveHint: false, openWorld: false, idempotent: true}
+    extra: {user_scoped: true}
+    input_schema:
+      type: object
+      properties:
+        task_id: {type: string, description: 当前用户拥有的任务 UUID}
+      required: [task_id]
+    llm_result_fields: [task_id, status, flow_id, parameters, metrics, artifacts, file_records, error_excerpt, success, error]
+    ui_result_fields: []
+
+  - key: agentteams-task-file-preview
+    name: task_file_preview
+    description: 预览当前用户任务目录内的文本产物头部；拒绝绝对路径、路径穿越和符号链接。
+    category: agentteams-evidence
+    invocation_mode: backend_sync
+    service: omichub.application.services.agentteams_data_tool_service.AgentTeamsDataToolService
+    method: task_file_preview
+    requires_confirm: false
+    annotations: {readOnlyHint: true, destructiveHint: false, openWorld: false, idempotent: true}
+    extra: {user_scoped: true}
+    input_schema:
+      type: object
+      properties:
+        task_id: {type: string, description: 当前用户拥有的任务 UUID}
+        path: {type: string, description: 相对于任务根目录的文件路径}
+        max_bytes: {type: integer, minimum: 1, maximum: 20000, default: 20000}
+      required: [task_id, path]
+    llm_result_fields: [task_id, path, size, truncated, content, success, error]
+    ui_result_fields: []
+
+  - key: agentteams-workspace-file-preview
+    name: workspace_file_preview
+    description: 按 requester_ref 隔离，预览当前用户 workspace 内的文本文件头部。
+    category: agentteams-evidence
+    invocation_mode: backend_sync
+    service: omichub.application.services.agentteams_data_tool_service.AgentTeamsDataToolService
+    method: workspace_file_preview
+    requires_confirm: false
+    annotations: {readOnlyHint: true, destructiveHint: false, openWorld: false, idempotent: true}
+    extra: {user_scoped: true}
+    input_schema:
+      type: object
+      properties:
+        path: {type: string, description: 相对于当前用户 workspace 的文件路径}
+        max_bytes: {type: integer, minimum: 1, maximum: 20000, default: 20000}
+      required: [path]
+    llm_result_fields: [path, size, truncated, content, success, error]
+    ui_result_fields: []
+
+  - key: agentteams-artifact-fetch
+    name: artifact_fetch
+    description: 拉取 Case 内上游产物到当前工作目录；大文件走私有 MinIO，不向 Agent 暴露预签名 URL。
+    category: agentteams-evidence
+    invocation_mode: backend_sync
+    service: omichub.application.services.agentteams_data_tool_service.AgentTeamsDataToolService
+    method: artifact_fetch
+    requires_confirm: false
+    annotations: {readOnlyHint: true, destructiveHint: false, openWorld: false, idempotent: true}
+    extra: {user_scoped: true, workspace_access: true}
+    input_schema:
+      type: object
+      properties:
+        case_id: {type: string}
+        artifact_ref: {type: string, description: s3 URI 或当前用户 workspace 相对路径}
+        dest_name: {type: string}
+      required: [case_id, artifact_ref]
+    llm_result_fields: [local_path, size_bytes, sha256, success, error]
+    ui_result_fields: []
+
+  - key: agentteams-task-compare-metrics
+    name: task_compare_metrics
+    description: 对比当前用户多个任务的指定 QC metrics 字段。
+    category: agentteams-evidence
+    invocation_mode: backend_sync
+    service: omichub.application.services.agentteams_data_tool_service.AgentTeamsDataToolService
+    method: task_compare_metrics
+    requires_confirm: false
+    annotations: {readOnlyHint: true, destructiveHint: false, openWorld: false, idempotent: true}
+    extra: {user_scoped: true}
+    input_schema:
+      type: object
+      properties:
+        task_ids: {type: array, minItems: 1, maxItems: 20, items: {type: string}}
+        fields: {type: array, minItems: 1, maxItems: 20, items: {type: string}}
+      required: [task_ids, fields]
+    llm_result_fields: [fields, tasks, success, error]
+    ui_result_fields: []
+
+  - key: agentteams-rule-threshold-lookup
+    name: rule_threshold_lookup
+    description: 查询 FlowRegistry 中指定 QC metric 的确定性硬规则阈值与规则版本。
+    category: agentteams-evidence
+    invocation_mode: backend_sync
+    service: omichub.application.services.agentteams_data_tool_service.AgentTeamsDataToolService
+    method: rule_threshold_lookup
+    requires_confirm: false
+    annotations: {readOnlyHint: true, destructiveHint: false, openWorld: false, idempotent: true}
+    extra: {user_scoped: true}
+    input_schema:
+      type: object
+      properties:
+        flow_id: {type: string, description: FlowRegistry flow.id 或 bridge_workflow}
+        metric_name: {type: string, enum: [mapping_rate, q30, duplicate_rate]}
+      required: [flow_id, metric_name]
+    llm_result_fields: [flow_id, metric_name, threshold, rule_version, success, error]
+    ui_result_fields: []
+
+  - key: agent-memory-save
+    name: omichub_save_memory
+    description: 保存用户明确透露、跨会话仍有价值的研究偏好或项目事实。禁止保存密钥、密码、Token、原始数据内容或临时细节。
+    category: agent-memory
+    invocation_mode: backend_sync
+    service: omichub.application.services.agent_memory_tool_service.AgentMemoryToolService
+    method: save_memory
+    requires_confirm: false
+    annotations: {readOnlyHint: false, destructiveHint: false, openWorld: false, idempotent: true}
+    extra: {user_scoped: true}
+    input_schema:
+      type: object
+      properties:
+        content: {type: string, description: 一句自包含的长期记忆，最多 200 字符}
+        scope: {type: string, enum: [profile, project, preference, summary], description: 记忆范围}
+        keywords: {type: array, items: {type: string}, description: 用于后续召回的关键词，最多 8 个}
+      required: [content, scope]
+    llm_result_fields: [memory_id, action, summary, success, error]
+    ui_result_fields: []
+
+  - key: agent-memory-update
+    name: omichub_update_memory
+    description: 修正或更新一条已有的跨会话用户记忆。
+    category: agent-memory
+    invocation_mode: backend_sync
+    service: omichub.application.services.agent_memory_tool_service.AgentMemoryToolService
+    method: update_memory
+    requires_confirm: false
+    annotations: {readOnlyHint: false, destructiveHint: false, openWorld: false, idempotent: true}
+    extra: {user_scoped: true}
+    input_schema:
+      type: object
+      properties:
+        memory_id: {type: string, description: 要更新的记忆 ID}
+        content: {type: string, description: 更新后的一句自包含记忆，最多 200 字符}
+        keywords: {type: array, items: {type: string}, description: 新的召回关键词}
+      required: [memory_id, content]
+    llm_result_fields: [memory_id, action, summary, success, error]
+    ui_result_fields: []
+
+  - key: agent-memory-forget
+    name: omichub_forget_memory
+    description: 遗忘用户明确要求删除的一条跨会话记忆。
+    category: agent-memory
+    invocation_mode: backend_sync
+    service: omichub.application.services.agent_memory_tool_service.AgentMemoryToolService
+    method: forget_memory
+    requires_confirm: false
+    annotations: {readOnlyHint: false, destructiveHint: false, openWorld: false, idempotent: true}
+    extra: {user_scoped: true}
+    input_schema:
+      type: object
+      properties:
+        memory_id: {type: string, description: 要遗忘的记忆 ID}
+      required: [memory_id]
+    llm_result_fields: [memory_id, forgotten, summary, success, error]
+    ui_result_fields: []
+
+  - key: agent-memory-search
+    name: omichub_search_memory
+    description: 在当前用户自己的跨会话记忆中检索与当前任务相关的信息。
+    category: agent-memory
+    invocation_mode: backend_sync
+    service: omichub.application.services.agent_memory_tool_service.AgentMemoryToolService
+    method: search_memory
+    requires_confirm: false
+    annotations: {readOnlyHint: true, destructiveHint: false, openWorld: false, idempotent: true}
+    extra: {user_scoped: true}
+    input_schema:
+      type: object
+      properties:
+        query: {type: string, description: 要检索的研究项目、物种、数据类型或偏好}
+        scope: {type: string, enum: [profile, project, preference, summary], description: 可选范围过滤}
+        limit: {type: integer, minimum: 1, maximum: 10, default: 5}
+      required: [query]
+    llm_result_fields: [memories, count, summary, success, error]
+    ui_result_fields: []
+
+  - key: kegg-enrichment
+    name: omichub_run_kegg_enrichment
+    description: 对基因列表进行 KEGG 通路富集分析，返回 Top 通路摘要与 Plotly 气泡图。
+    category: enrichment
+    invocation_mode: backend_sync
+    service: omichub.tools.enrichments.service.EnrichmentService
+    method: submit
+    requires_confirm: false
+    annotations:
+      readOnlyHint: false
+      destructiveHint: false
+      openWorld: false
+      idempotent: true
+    input_schema:
+      type: object
+      properties:
+        species_id:
+          type: string
+          description: 物种 ID，如 human、mouse、rat
+        gene_text:
+          type: string
+          description: 每行一个基因符号或 Entrez ID；也支持 upload://file_id 引用已上传的基因列表文件
+      required: [species_id, gene_text]
+    llm_result_fields: [task_id, stats, top_pathways, success, error]
+    ui_result_fields: [plotly_figure, table_data, download_urls]
+
+  - key: volcano
+    name: omichub_plot_volcano
+    description: 根据差异表达结果绘制交互式火山图。支持 CSV/TSV 文本，自动识别 log2FC 与 p-value 列。
+    category: visualization
+    invocation_mode: backend_shim
+    shim_module: omichub.tools.shims.volcano
+    runtime_profile: analysis-plot
+    mas_execution_policy: plot.deg_volcano
+    required_capabilities: [python, plotting, tabular]
+    requires_confirm: false
+    annotations:
+      readOnlyHint: false
+      destructiveHint: false
+      openWorld: false
+      idempotent: true
+    input_schema:
+      type: object
+      properties:
+        data_text:
+          type: string
+          description: CSV/TSV 格式的差异表达表文本，含 log2FC 与 p-value 列；支持 upload://file_id 聊天上传文件或 file://UUID 工作区文件引用
+        pval_cutoff:
+          type: number
+          default: 0.05
+          description: p-value 阈值
+        lfc_cutoff:
+          type: number
+          default: 1.0
+          description: log2FoldChange 阈值
+      required: [data_text]
+    llm_result_fields: [stats, top_up_genes, top_down_genes, success, error]
+    ui_result_fields: [plotly_figure, result_ref]
+
+  - key: deg-analysis
+    name: omichub_run_deg_analysis
+    description: 打开 DEG 差异表达分析工作台，由用户上传 Counts 矩阵、样本分组与比较对文件，自动选择 DESeq2（有重复）或 edgeR（1v1 无重复）完成差异分析。
+    category: analysis
+    invocation_mode: open_page
+    route: /tools/deg-analysis
+    requires_confirm: false
+    annotations:
+      readOnlyHint: false
+      destructiveHint: false
+      openWorld: false
+      idempotent: true
+    input_schema:
+      type: object
+      properties:
+        method:
+          type: string
+          enum: [auto, deseq2, edger]
+          description: 希望使用的差异分析引擎；auto 表示按重复数自动路由，页面仍允许用户随时切换
+    llm_result_fields: [route, message, success, error]
+    ui_result_fields: [route, arguments]
+
+  - key: phylogenetic-tree
+    name: omichub_build_phylogenetic_tree
+    description: 生成「生物信息工具箱 · 系统发育树构建」工具页入口，由用户上传序列、配置参数，并通过专用 Celery worker 完成建树与可视化；该页面不是 AI 工作台。
+    category: sequence
+    invocation_mode: open_page
+    route: /tools/phylogenetic-tree
+    requires_confirm: false
+    annotations:
+      readOnlyHint: false
+      destructiveHint: false
+      openWorld: false
+      idempotent: true
+    input_schema:
+      type: object
+      properties:
+        layout:
+          type: string
+          enum: [rectangular, circular, radial]
+          description: 希望在页面中使用的树布局；页面仍允许用户随时切换
+    llm_result_fields: [route, message, success, error]
+    ui_result_fields: [route, arguments]
+
+  - key: manhattan
+    name: omichub_plot_manhattan
+    description: 根据 GWAS/QTL 汇总统计表绘制交互式曼哈顿图。支持 CSV/TSV 文本，自动识别 SNP / Chromosome / Position / P-value 列。
+    category: visualization
+    invocation_mode: backend_shim
+    shim_module: omichub.tools.shims.manhattan
+    runtime_profile: analysis-plot
+    required_capabilities: [python, plotting, tabular]
+    requires_confirm: false
+    annotations:
+      readOnlyHint: false
+      destructiveHint: false
+      openWorld: false
+      idempotent: true
+    input_schema:
+      type: object
+      properties:
+        data_text:
+          type: string
+          description: CSV/TSV 格式的 GWAS 汇总统计表，含 SNP、染色体、位置、P-value 列；也支持 upload://file_id
+        suggestive_line:
+          type: number
+          default: 5.0
+          description: suggestive 阈值线 (-log10 p)
+        genome_wide_line:
+          type: number
+          default: 8.0
+          description: genome-wide 阈值线 (-log10 p)
+      required: [data_text]
+    llm_result_fields: [stats, top_snps, success, error]
+    ui_result_fields: [plotly_figure, result_ref]

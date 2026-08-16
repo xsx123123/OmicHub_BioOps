@@ -1,0 +1,192 @@
+# ============================================
+# OmicHub 计算节点栈（独立编排）——仅 Celery Worker
+# 单机逻辑解耦：与主栈 (docker-compose.yml) 通过外部网络 omichub_net 共享 Redis
+# 用法: ./scripts/worker-compose.sh up -d（或 make docker-up-worker）
+# 生产水平扩展: ./scripts/worker-compose.sh --scale worker=2 up -d
+#
+# 前置:
+#   1. docker network create omichub_net      # 外部网络（主栈已声明同名 external）
+#   2. 主栈已启动，且 cache 服务已加入 omichub_net
+#   3. 编辑 data/worker_config.yaml 配置本机的共享盘与流程 Workspace 路径
+#   4. 使用 scripts/worker-compose.sh 启动，以将 YAML 路径加载到 Compose
+# ============================================
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "50m"
+    max-file: "3"
+
+services:
+  rocketmq-worker:
+    image: ${OMICHUB_WORKER_IMAGE:-omichub-worker:dev}
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.worker
+      args:
+        SNAKEMAKE_LOGGER_PLUGIN_REF: ${SNAKEMAKE_LOGGER_PLUGIN_REF:-main}
+    container_name: omichub-rocketmq-worker
+    profiles: ["rocketmq"]
+    restart: unless-stopped
+    logging: *default-logging
+    group_add:
+      - "${DOCKER_GID:?Run scripts/worker-compose.sh to detect the Docker socket GID}"
+    env_file:
+      - ../../.env
+    environment:
+      - APP_ENV=development
+      - POSTGRES_HOST=db
+      - REDIS_HOST=cache
+      - ROCKETMQ_NAMESRV_ADDR=rocketmq-namesrv:9876
+      - SERVICE_NAME=rocketmq-worker
+      - PYTHONPATH=/app/src
+      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@cache:6379/1
+      - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD}@cache:6379/2
+      - OMICHUB_LOG_DIR=/app/logs
+      - SNAKEMAKE_MONITOR_LOGGER=rich-loguru
+      - SNAKEMAKE_USE_CONDA=true
+      - SNAKEMAKE_CONDA_PREFIX=/data/omichub/.conda_envs
+      - MAMBA_ROOT_PREFIX=/data/omichub/.mamba
+      - XDG_CACHE_HOME=/data/omichub/.cache
+    volumes:
+      - ../../src:/app/src:ro
+      - ../../tool_configs:/app/tool_configs
+      - ${WORKER_SHARED_DATA_DIR:?Run scripts/worker-compose.sh to load data/worker_config.yaml}:/data/omichub
+      - ${WORKER_SHARED_DATA_DIR:?Run scripts/worker-compose.sh to load data/worker_config.yaml}/logs/app:/app/logs
+      - ${WORKER_SHARED_DATA_DIR:?Run scripts/worker-compose.sh to load data/worker_config.yaml}/logs/snakemake:/logs
+      - ${WORKER_PIPELINE_DIR:?Run scripts/worker-compose.sh to load data/worker_config.yaml}:/opt/omichub/pipelines:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - omichub_net
+    command:
+      - python
+      - -m
+      - omichub.infrastructure.task_queue.rocketmq_worker
+      - --queues
+      - analysis,blast_search,blast_db_build,phylo_tree,phylo_tree_highmem,mas_apptainer
+    healthcheck:
+      test: ["CMD-SHELL", "kill -0 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+
+  worker:
+    # Compose 同时负责构建与运行。可在 .env 覆盖为不可变发布标签，
+    # 例如 OMICHUB_WORKER_IMAGE=registry.example.com/omichub-worker:2026.07.12-<sha>。
+    image: ${OMICHUB_WORKER_IMAGE:-omichub-worker:dev}
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.worker
+      args:
+        SNAKEMAKE_LOGGER_PLUGIN_REF: ${SNAKEMAKE_LOGGER_PLUGIN_REF:-main}
+    container_name: omichub-worker
+    restart: unless-stopped
+    logging: *default-logging
+    group_add:
+      # scripts/worker-compose.sh 启动时自动读取 /var/run/docker.sock 的实际 GID。
+      - "${DOCKER_GID:?Run scripts/worker-compose.sh to detect the Docker socket GID}"
+    env_file:
+      - ../../.env
+    environment:
+      - APP_ENV=development
+      - POSTGRES_HOST=db
+      - REDIS_HOST=cache                 # 经 omichub_net 解析主栈 Redis 服务名
+      - SERVICE_NAME=worker
+      - PYTHONPATH=/app/src
+      # Redis  broker/backend 必须携带密码；cache 服务已启用 --requirepass ${REDIS_PASSWORD}。
+      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@cache:6379/1
+      - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD}@cache:6379/2
+      - AL_API_KEY=${AL_API_KEY}
+      - ARK_API_KEY=${ARK_API_KEY}
+      - OMICHUB_LOG_DIR=/app/logs
+      - OMICHUB_CELERY_LOG_DIR=/data/omichub/logs/celery/tasks
+      # Snakemake 与 Micromamba 均由轻量 Worker 镜像提供；流程环境运行时写入共享盘。
+      - PATH=/app/.venv/bin:/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin
+      - SNAKEMAKE_MONITOR_LOGGER=rich-loguru
+      - SNAKEMAKE_USE_CONDA=true
+      - SNAKEMAKE_CONDA_PREFIX=/data/omichub/.conda_envs
+      - MAMBA_ROOT_PREFIX=/data/omichub/.mamba
+      - XDG_CACHE_HOME=/data/omichub/.cache
+    volumes:
+      # 开发环境源码热重载（生产部署应使用构建进镜像的 immutable 标签）
+      - ../../src:/app/src:ro
+      - ../../data:/app/data:ro  # Agent YAML/提示词等站点内容（agentteams 会诊/房间响应等 celery 任务依赖 capability registry）
+      - ../../tool_configs:/app/tool_configs  # BLAST 数据库 YAML 需要可写
+      # —— 核心共享存储（模拟分布式共享盘，与主栈 web 共用）——
+      - ${WORKER_SHARED_DATA_DIR:?Run scripts/worker-compose.sh to load data/worker_config.yaml}:/data/omichub # 任务数据读写
+      - ${WORKER_SHARED_DATA_DIR:?Run scripts/worker-compose.sh to load data/worker_config.yaml}/logs/app:/app/logs # 应用日志持久化到宿主机
+      - ${WORKER_SHARED_DATA_DIR:?Run scripts/worker-compose.sh to load data/worker_config.yaml}/logs/snakemake:/logs # Snakemake 流程日志统一落盘
+      - ${WORKER_PIPELINE_DIR:?Run scripts/worker-compose.sh to load data/worker_config.yaml}:/opt/omichub/pipelines:ro # RNAFlow / ATACFlow Workspace
+      - /var/run/docker.sock:/var/run/docker.sock  # R enrichment 等隔离分析容器由 Worker 编排
+    networks:
+      - omichub_net
+    # -Q analysis,blast_search,blast_db_build: 显式消费 analysis 队列及 BLAST 专属队列。
+    #   不加 -Q 时 worker 只消费内置默认队列 "celery"，会导致已路由任务永远排队。
+    command:
+      - /bin/sh
+      - -c
+      - |
+        export OMICHUB_WORKFLOW_MONITOR_TOKEN="$${OMICHUB_WORKFLOW_MONITOR_TOKEN:-$${WORKFLOW_MONITOR_INGEST_TOKEN}}"
+        exec celery -A omichub.infrastructure.celery_app.celery worker -Q analysis,blast_search,blast_db_build --loglevel=info
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          socket_gid=$$(stat -c '%g' /var/run/docker.sock) &&
+          grep '^Groups:' /proc/1/status | tr ' \t' '\n' | grep -qx "$$socket_gid" &&
+          setpriv --reuid "$${PUID:-1000}" --regid "$${PGID:-1000}" --groups "$$socket_gid" --
+          docker version >/dev/null 2>&1 &&
+          celery -A omichub.infrastructure.celery_app.celery inspect ping -d celery@$$HOSTNAME || exit 1
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+
+  phylo-worker:
+    image: ${OMICHUB_PHYLO_WORKER_IMAGE:-omichub-phylo-worker:dev}
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.phylo
+    container_name: omichub-phylo-worker
+    restart: unless-stopped
+    logging: *default-logging
+    env_file:
+      - ../../.env
+    environment:
+      - APP_ENV=development
+      - POSTGRES_HOST=db
+      - REDIS_HOST=cache
+      - SERVICE_NAME=phylo-worker
+      - PYTHONPATH=/app/src
+      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@cache:6379/1
+      - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD}@cache:6379/2
+      - OMP_NUM_THREADS=${PHYLO_WORKER_THREADS:-4}
+      - OMICHUB_LOG_DIR=/app/logs
+    volumes:
+      - ../../src:/app/src:ro
+      - ../../tool_configs:/app/tool_configs:ro
+      - ${WORKER_SHARED_DATA_DIR:?Run scripts/worker-compose.sh to load data/worker_config.yaml}:/data/omichub
+      - ${WORKER_SHARED_DATA_DIR:?Run scripts/worker-compose.sh to load data/worker_config.yaml}/logs/app:/app/logs
+    networks:
+      - omichub_net
+    command:
+      - celery
+      - -A
+      - omichub.infrastructure.celery_app.celery
+      - worker
+      - -Q
+      - phylo_tree,phylo_tree_highmem
+      - --concurrency=${PHYLO_WORKER_CONCURRENCY:-2}
+      - --prefetch-multiplier=1
+      - --loglevel=info
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A omichub.infrastructure.celery_app.celery inspect ping -d celery@$$HOSTNAME || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+
+networks:
+  omichub_net:
+    name: ${OMICHUB_NETWORK_NAME:-omichub_net}
+    external: true

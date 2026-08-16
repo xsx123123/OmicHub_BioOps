@@ -1,0 +1,55 @@
+---
+title: "Differential Expression"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+source("R/read_manifest.R")
+source("R/read_summary.R")
+source("R/tables.R")
+source("R/plot_helpers.R")
+
+result_dir <- get_result_dir("data")
+manifest <- read_manifest(result_dir)
+deg_summary <- read_summary_for_step(result_dir, manifest, "deg")
+```
+
+## DEG Summary
+
+```{r deg-status, results='asis'}
+if (is.null(deg_summary)) {
+  cat("DEG summary not available. Differential expression outputs are expected under figure/deg/ when this step is run.")
+} else {
+  cat(paste0("Status: **", deg_summary$status, "**  "))
+  cat(paste0("Result files: ", deg_summary$metrics$result_file_count %||% 0))
+}
+```
+
+## DEG Plots
+
+```{r deg-plots, fig.cap="Differential expression plots", out.width="48%"}
+if (!is.null(deg_summary)) display_images(result_dir, deg_summary, max_images = 12)
+```
+
+## Top DEG Results
+
+```{r deg-table}
+deg_artifacts <- artifact_table(deg_summary, types = "csv")
+deg_csv <- artifact_abs_paths(result_dir, deg_artifacts)[1]
+if (!is.na(deg_csv) && file.exists(deg_csv)) {
+  top_deg <- read.csv(deg_csv, stringsAsFactors = FALSE)
+  knitr::kable(head(top_deg, 30), format = "html")
+} else {
+  cat("No DEG CSV files found.")
+}
+```
+
+## DEG Files
+
+```{r deg-files}
+if (nrow(deg_artifacts) > 0) {
+  knitr::kable(deg_artifacts[, intersect(c("type", "path", "bytes"), colnames(deg_artifacts)), drop = FALSE], format = "html")
+} else {
+  cat("No DEG artifacts recorded.")
+}
+```

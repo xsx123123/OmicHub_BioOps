@@ -1,0 +1,125 @@
+"""HTTP-only client for the isolated AgentTeams Matrix Gateway.
+
+OmicHub authenticates to the Gateway as a Manager service.  Matrix homeserver
+URLs, Application Service tokens, and Matrix user credentials remain inside the
+separately deployed Gateway process.
+"""
+
+from __future__ import annotations
+
+import json
+from collections.abc import AsyncGenerator
+from dataclasses import dataclass
+from typing import Any
+
+import httpx
+
+from omichub.core.config import get_settings
+
+
+@dataclass(frozen=True)
+class RoomGatewayRuntimeConfig:
+    enabled: bool
+    gateway_url: str
+    manager_token: str
+    timeout_seconds: float
+
+    @property
+    def configured(self) -> bool:
+        return self.enabled and bool(self.gateway_url and self.manager_token)
+
+
+class AgentTeamsRoomGatewayService:
+    """Small, failure-isolated proxy for Matrix room operations."""
+
+    def __init__(self, config: RoomGatewayRuntimeConfig | None = None) -> None:
+        settings = get_settings()
+        self._config = config or RoomGatewayRuntimeConfig(
+            enabled=settings.agentteams_gateway_enabled,
+            gateway_url=settings.agentteams_gateway_url.strip(),
+            manager_token=settings.agentteams_gateway_manager_token,
+            timeout_seconds=settings.agentteams_gateway_timeout_seconds,
+        )
+
+    @property
+    def available(self) -> bool:
+        return self._config.configured
+
+    async def create_room(self, session_id: str, identities: list[str]) -> dict[str, Any]:
+        return await self._request("POST", "/rooms", json={"session_id": session_id, "identities": identities})
+
+    async def ensure_users(self, identities: list[str]) -> dict[str, Any]:
+        """批量供给 AppService 持有的 Matrix 账号（幂等）。"""
+        return await self._request("POST", "/users/ensure", json={"identities": identities})
+
+    async def post_message(
+        self,
+        room_id: str,
+        *,
+        sender_identity: str,
+        content: str,
+        sender: dict[str, Any],
+        source: str = "omichub",
+    ) -> dict[str, Any]:
+        return await self._request(
+            "POST",
+            f"/rooms/{room_id}/messages",
+            json={
+                "sender_identity": sender_identity,
+                "content": content,
+                "sender": sender,
+                "source": source,
+            },
+        )
+
+    async def stream_room_events(
+        self, room_id: str, *, since: str | None = None
+    ) -> AsyncGenerator[dict[str, Any]]:
+        if not self.available:
+            return
+        params = {"since": since} if since else None
+        try:
+            async with (
+                httpx.AsyncClient(
+                    base_url=self._config.gateway_url.rstrip("/"),
+                    timeout=httpx.Timeout(None),
+                ) as client,
+                client.stream(
+                    "GET", f"/rooms/{room_id}/sync", params=params, headers=self._headers()
+                ) as response,
+            ):
+                response.raise_for_status()
+                async for line in response.aiter_lines():
+                    if not line.startswith("data:"):
+                        continue
+                    try:
+                        payload = json.loads(line[5:].strip())
+                    except json.JSONDecodeError:
+                        continue
+                    if isinstance(payload, dict):
+                        yield payload
+        except httpx.HTTPError as exc:
+            raise RuntimeError("Matrix Gateway 暂时不可用") from exc
+
+    async def _request(self, method: str, path: str, **kwargs: Any) -> dict[str, Any]:
+        if not self.available:
+            raise RuntimeError("Matrix Gateway 未配置")
+        try:
+            async with httpx.AsyncClient(
+                base_url=self._config.gateway_url.rstrip("/"),
+                timeout=self._config.timeout_seconds,
+            ) as client:
+                response = await client.request(method, path, headers=self._headers(), **kwargs)
+                response.raise_for_status()
+        except httpx.HTTPError as exc:
+            raise RuntimeError("Matrix Gateway 暂时不可用") from exc
+        payload = response.json()
+        if not isinstance(payload, dict):
+            raise RuntimeError("Matrix Gateway 返回了无效响应")
+        return payload
+
+    def _headers(self) -> dict[str, str]:
+        return {
+            "X-Gateway-Identity": "bioops-manager",
+            "X-Gateway-Token": self._config.manager_token,
+        }

@@ -1,0 +1,113 @@
+#!/opt/conda/envs/scrna/bin/Rscript
+# Author  : JZHANG
+# Date    : 2025-12-19
+#-----------------------------------####---------------------------------------#
+rm(list=ls())  # Clean Memory object
+set.seed(10)   # Set seed
+
+# --- Dynamic Memory Allocation for future.globals.maxSize ---
+get_optimal_max_size <- function(default_mb = 8000) {
+  # Try to get total memory on Linux
+  mem_info <- tryCatch({
+    if (file.exists("/proc/meminfo")) {
+      mem_total_kb <- as.numeric(gsub("[^0-9]", "", grep("MemTotal", readLines("/proc/meminfo"), value = TRUE)))
+      # Use 80% of total memory to be safe in Docker
+      as.integer((mem_total_kb / 1024) * 0.8)
+    } else {
+      default_mb
+    }
+  }, error = function(e) default_mb)
+  
+  # Ensure at least the default value
+  final_mb <- max(mem_info, default_mb)
+  return(final_mb)
+}
+
+TOTAL_MEM_MB <- get_optimal_max_size()
+options(future.globals.maxSize = TOTAL_MEM_MB * 1024^2)
+
+ScriptsVersion <- 'v4.1.1-alpha'
+YAML_PATH <- 'scRNAseqMulticommand.yaml'
+#-----------------------------------####---------------------------------------#
+# pre-loading pacakges
+suppressMessages(library("yaml"))
+suppressMessages(library("qs"))
+suppressMessages(library("log4r"))
+suppressMessages(library("getopt"))
+suppressMessages(library("stringr"))
+suppressMessages(library("crayon"))
+suppressMessages(library("praise"))
+suppressMessages(library("data.table"))
+#-----------------------------------####---------------------------------------#
+# Detect the script's directory path based on execution mode (Rscript vs. interactive/source)
+initial_options <- commandArgs(trailingOnly = FALSE)
+file_arg_name <- "--file="
+script_name <- sub(file_arg_name, "", initial_options[grep(file_arg_name, initial_options)])
+if (length(script_name) > 0) {
+    # If run via Rscript
+    PIPELINE_PATH <- dirname(normalizePath(script_name))
+  } else {
+    # Fallback: check if we are in an interactive session or sourced
+    PIPELINE_PATH <- getwd()
+  }
+#-----------------------------------####---------------------------------------#
+# Load command modules function
+source(file.path(PIPELINE_PATH,'src/init/00.log4r.r'))
+source(file.path(PIPELINE_PATH,'src/init/01.Multicommand.r'))
+source(file.path(PIPELINE_PATH,'src/init/02.Print_Analysis_Config.r'))
+source(file.path(PIPELINE_PATH,'src/init/03.init.r'))
+source(file.path(PIPELINE_PATH,"src/init/04.logo.r"))
+# get analysis Arguments
+opt <- scRNAseqmultiSampleCommand()
+
+# Update maxSize again if user specified very high threads (Optional enhancement)
+# For very large datasets, sometimes we need more than 80% if it's the only process
+# but 80% is a safe standard for Docker.
+
+# Initialize Logger - first ensure output directory exists
+if (!dir.exists(opt$outputdir)) {
+  dir.create(opt$outputdir, recursive = TRUE, showWarnings = FALSE)
+}
+log_filename <- file.path(opt$outputdir, 
+                          paste0('scRNAseqMulticommand','-',opt$projectname,
+                                 '-',format(Sys.time(),"%Y-%m-%d-%H:%M:%S"),
+                                 '-',Sys.info()[["user"]],".log"))
+# Use the value from --log argument directly
+logger <- log4r_init(level = opt$log, log_file = log_filename)
+
+# Set global pipeline options to suppress noise from Seurat, Future, etc.
+set_pipeline_options(logger)
+
+info(logger, paste0("🚀 Memory Optimization: Setting future.globals.maxSize to ", TOTAL_MEM_MB, " MB"))
+
+if (opt$log == "DEBUG") {
+  info(logger, "🔧 Debug Mode ENABLED: Logging level set to DEBUG")
+}
+# 4. Initialize Pipeline Context (Paths & Version)
+ctx <- initialize_pipeline_context(logger,
+                                   YAML_PATH = YAML_PATH,
+                                   ScriptsVersion = ScriptsVersion,
+                                   description = 'scRNA-seq Analysis pipeline',
+                                   app_name = 'scRNAseqMulticommand')
+PIPELINE_PATH <- ctx$PIPELINE_PATH
+YAML_PATH <- ctx$YAML_PATH
+# 5. Load YAML & Configuration
+yaml <- suppressWarnings(yaml.load_file(file.path(PIPELINE_PATH, YAML_PATH), readLines.warn = T))
+scvi_path_conda <- yaml$conda_env$scvi_path_conda
+# 6. Print beautified configuration
+Print_Analysis_Config(opt)
+#-----------------------------------####---------------------------------------#
+# 7. Loading core analysis scripts from YAML
+source(file.path(PIPELINE_PATH, yaml$scripts$general_scripts))
+source(file.path(PIPELINE_PATH, yaml$scripts$color_Package))
+source(file.path(PIPELINE_PATH, yaml$scripts$dir))
+source(file.path(PIPELINE_PATH, yaml$scripts$main))
+source(file.path(PIPELINE_PATH, yaml$scripts$cellID))
+source(file.path(PIPELINE_PATH, yaml$scripts$gene_sets_prepare))
+source(file.path(PIPELINE_PATH, yaml$scripts$sctype_score))
+#-----------------------------------####----------------------------------------#
+# Initialize Project (Parameters, References, Packages, Directories)
+source(file.path(PIPELINE_PATH,'src/cli/00.Initialize_Project.r'))
+#-----------------------------------####---------------------------------------#
+Check_sample(cellRangerlist_dataframe, Run_Context)
+#-----------------------------------####---------------------------------------#

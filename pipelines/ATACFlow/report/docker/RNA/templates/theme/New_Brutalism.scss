@@ -1,0 +1,414 @@
+/*-- scss:defaults --*/
+// quarto-scss-analysis-annotation { "origin": "custom-linear-light-theme-final" }
+
+$theme: "journal" !default;
+
+// --- 1. 色彩系统 (Light) ---
+$body-bg:       #ffffff !default;
+$body-color:    #27272a !default; // 锌灰-800
+$primary:       #18181b !default; // 锌灰-900 (接近黑)
+$secondary:     #71717a !default;
+$border-color:  #e4e4e7 !default; // 浅灰边框
+
+// 语义色
+$link-color:            #18181b !default;
+$link-hover-color:      #000000 !default;
+
+// 字体设置
+$font-family-sans-serif: "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif !default;
+$headings-font-family:   "Space Grotesk", sans-serif !default;
+$headings-font-weight:   600 !default;
+
+// --- 2. 布局参数 (必须与 Dark 模式完全一致) ---
+$border-radius: 0 !default;
+$input-btn-padding-y: .5rem !default;
+$input-btn-padding-x: 1rem !default;
+$navbar-padding-y: 1rem !default;
+
+/*-- scss:rules --*/
+
+@import url('https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap');
+
+// --- 全局布局锁死 (Sticky Footer Layout) ---
+// 1. 确保 HTML 根标签高度占满
+html {
+  height: 100%;
+}
+
+// 2. 将 Body 变成垂直弹性盒子，且最小高度为屏幕高度
+body {
+  display: flex !important;       
+  flex-direction: column !important; 
+  min-height: 100vh !important;   
+  margin: 0;
+  letter-spacing: -0.015em;
+  -webkit-font-smoothing: antialiased;
+}
+
+// 3. 中间的内容区域自动膨胀
+#quarto-content {
+  flex: 1 0 auto !important; 
+  width: 100%; 
+}
+
+h1, h2, h3, h4, h5, h6 {
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  letter-spacing: -0.03em;
+}
+
+// 代码块布局
+pre {
+  border: 1px solid $border-color;
+  border-radius: 0;
+  padding: 1rem;
+  background-color: #f4f4f5; // Zinc-100
+  color: #27272a;
+}
+code { color: #27272a; }
+
+// 卡片布局
+.callout, .card {
+  border: 1px solid $border-color;
+  border-left-width: 4px; // 保持左侧粗边框
+  border-radius: 0;
+  box-shadow: none !important;
+}
+
+// 按钮布局
+.btn {
+  border-radius: 0;
+  box-shadow: none !important;
+  border: 1px solid transparent; 
+}
+
+.btn-primary {
+  background-color: #18181b;
+  color: #ffffff;
+  &:hover { background-color: #000000; }
+}
+
+.btn-secondary {
+  background-color: #ffffff;
+  border-color: #e4e4e7;
+  color: #18181b;
+  &:hover { background-color: #f4f4f5; }
+}
+
+// --- 3. 导航栏 (Navbar) - 液态玻璃特效 ---
+.navbar {
+  // 核心：半透明 + 高斯模糊 + 饱和度提升
+  background-color: rgba(255, 255, 255, 0.5) !important;
+  backdrop-filter: blur(30px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(180%) !important;
+  
+  border-bottom: 1px solid rgba(0,0,0,0.05) !important;
+  
+  // 强制吸顶
+  position: sticky;
+  top: 0;
+  z-index: 1030;
+  
+  padding-left: 0;
+  padding-right: 0;
+  
+  .navbar-brand {
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    font-size: 1.2rem;
+    text-transform: none;
+    color: #000000 !important; 
+  }
+
+  .nav-link { 
+    color: #71717a !important; 
+    &:hover, &.active { 
+      color: #000000 !important; 
+      text-shadow: 0 0 10px rgba(255,255,255, 0.8);
+    }
+  }
+
+  // 图标强制纯黑
+  .bi, 
+  .quarto-color-scheme-toggle .bi,
+  .navbar-toggler-icon {
+    color: #000000 !important;
+    fill: #000000 !important;
+    filter: brightness(0) !important; 
+  }
+}
+
+// --- 4. 组件修复补丁 ---
+
+// 搜索框显形补丁
+#quarto-search, .quarto-search-tools {
+  .search-button, .aa-SubmitIcon {
+    border: 1px solid $border-color !important;
+    background-color: #f4f4f5 !important;
+    color: #27272a !important;
+    border-radius: 0 !important;
+    padding: 0.2rem 0.5rem;
+  }
+  .search-button:hover {
+    border-color: #000000 !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
+  }
+}
+
+input[type="search"], .aa-Input {
+  background-color: #ffffff !important;
+  border: 1px solid $border-color !important;
+  color: #000000 !important;
+}
+
+// AI 助手模块 (浅色模式)
+.callout.ai-box {
+  background-color: #f3f4f6 !important;
+  border-left-color: #6366f1 !important;
+  border-left-width: 5px !important;
+  border-radius: 0 !important;
+  
+  div.callout-body { 
+    color: #1f2937 !important; 
+    font-size: 1.1rem !important; /* 增大正文字体 */
+    line-height: 1.6 !important;
+  }
+  div.callout-header { 
+    color: #1f2937 !important; 
+    font-size: 1.2rem !important; /* 增大标题字体 */
+    font-weight: 700 !important;
+  }
+}
+
+/* 全局 Callout 字体微调 */
+.callout-body {
+  font-size: 1rem; 
+}
+
+// --- 5. 侧边栏 Logo 限制 ---
+.sidebar-logo {
+  max-width: 120px !important;
+  margin: 0 auto 1rem auto;
+  display: block;
+}
+
+// --- 6. 页脚样式 (Footer Style) ---
+.footer {
+  // Sticky Footer 关键属性
+  flex-shrink: 0 !important;
+  margin-top: auto !important;
+  width: 100%;
+  
+  // 样式
+  background: transparent !important; // 修复 YAML 报错
+  font-size: 0.9rem;
+  color: $secondary;
+  margin-top: 4rem; // 视觉上的间距
+  
+  .footer-icon {
+    color: $secondary;
+    text-decoration: none !important;
+    transition: color 0.2s;
+    &:hover { color: $primary; }
+  }
+
+  .footer-link {
+    color: $secondary;
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    &:hover {
+      color: $primary;
+      border-bottom-color: $primary;
+    }
+  }
+  
+  .footer-sep {
+    margin: 0 0.5rem;
+    color: $gray-300;
+  }
+}
+/* 兜底：让内容区至少占满视口高度（减去一个大概的 footer 高度） */
+#quarto-content {
+  min-height: calc(100vh - 140px);
+}
+// --- 布局修正：交给 Quarto 自己吸底 ---
+// Quarto 会用 JS 动态给 #quarto-content 写入 min-height: calc(100vh - footer高度)
+// 因此不要把 body 改成 flex，也不要手写 #quarto-content 的 min-height。[web:5]
+
+// 轻量兜底：避免某些主题/自定义样式导致 body 出现多余默认 margin
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+// 不要给 #quarto-content 设置 flex / min-height（让 Quarto 的动态 min-height 生效）
+#quarto-content {
+  width: 100%;
+}
+
+// --- 页脚样式（仅视觉，不做布局吸底） ---
+.footer {
+  background: transparent !important; // 你原来的设置可保留
+  font-size: 0.9rem;
+  color: $secondary;
+  border-top: 1px solid rgba(0,0,0,0.08); // 如需 border，可在这里控制
+
+  .footer-icon {
+    color: $secondary;
+    text-decoration: none !important;
+    transition: color 0.2s;
+    &:hover { color: $primary; }
+  }
+
+  .footer-link {
+    color: $secondary;
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    &:hover {
+      color: $primary;
+      border-bottom-color: $primary;
+    }
+  }
+
+  .footer-sep {
+    margin: 0 0.5rem;
+    color: $gray-300;
+  }
+}
+/* --- DataTables 美化 (New Brutalism & SaaS Style - Light Mode) --- */
+.dataTables_wrapper {
+  font-family: "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  background: transparent !important; 
+  padding: 0 !important;
+  margin-top: 1.5rem !important;
+  border-radius: 0 !important;
+  box-shadow: none !important; 
+  border: none !important; 
+  color: #27272a; 
+
+  table.dataTable {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    border-bottom: 2px solid #18181b !important; 
+    margin: 1rem 0 !important;
+  }
+
+  table.dataTable thead th {
+    background-color: #f4f4f5 !important; 
+    color: #71717a !important; 
+    font-weight: 700 !important;
+    font-size: 12px !important;
+    text-transform: uppercase; 
+    letter-spacing: 0.05em;
+    border-bottom: 2px solid #18181b !important; 
+    padding: 16px 12px !important;
+    text-align: left;
+  }
+
+  table.dataTable tbody td {
+    background-color: #ffffff !important;
+    border-bottom: 1px solid #e4e4e7 !important; 
+    padding: 14px 12px !important; 
+    font-size: 14px !important;
+    vertical-align: middle !important;
+    color: #27272a !important;
+  }
+
+  table.dataTable tbody tr:hover td {
+    background-color: #fafafa !important; 
+  }
+
+  .dataTables_length, .dataTables_filter {
+    margin-bottom: 20px;
+    color: #71717a !important;
+    font-size: 13px;
+    font-weight: 500;
+    
+    select, input {
+      border: 2px solid #18181b !important; 
+      border-radius: 0 !important; 
+      padding: 6px 10px;
+      background-color: #ffffff;
+      color: #18181b;
+      outline: none;
+      &:focus { background-color: #f4f4f5; }
+    }
+  }
+
+  .dt-buttons {
+    margin-bottom: 15px;
+    .dt-button {
+      background: #ffffff !important;
+      border: 2px solid #18181b !important;
+      color: #18181b !important;
+      border-radius: 0 !important;
+      font-size: 11px !important;
+      font-weight: 700 !important;
+      padding: 5px 12px !important;
+      margin-right: 8px !important;
+      box-shadow: 2px 2px 0px #18181b !important;
+      transition: all 0.1s;
+      text-transform: uppercase;
+      &:hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0px #18181b !important; }
+      &:active { transform: translate(1px, 1px); box-shadow: 0px 0px 0px #18181b !important; }
+    }
+  }
+
+  .dataTables_info {
+    font-size: 12px;
+    color: #71717a !important;
+    padding-top: 15px !important;
+  }
+
+  .dataTables_paginate {
+    margin-top: 15px !important;
+    .paginate_button {
+        border: 2px solid transparent !important;
+        border-radius: 0 !important;
+        color: #71717a !important;
+        font-weight: 600;
+        font-size: 12px;
+        padding: 4px 10px !important;
+        &:hover { color: #18181b !important; background: #f4f4f5 !important; border-color: #18181b !important; }
+    }
+    .paginate_button.current {
+        color: #ffffff !important;
+        background: #18181b !important; 
+        border-color: #18181b !important;
+    }
+  }
+}
+
+// --- 7. Tabset (Nav Tabs) 美化 (New Brutalism) ---
+.nav-tabs {
+  border-bottom: 2px solid #18181b !important;
+  
+  .nav-link {
+    color: #71717a !important; // 默认浅灰
+    border: 2px solid transparent !important;
+    border-radius: 0 !important; // 直角
+    margin-right: 4px;
+    font-weight: 700;
+    transition: all 0.2s ease;
+    
+    &:hover {
+      color: #18181b !important;
+      background-color: #f4f4f5 !important;
+      border-color: #e4e4e7 !important;
+    }
+    
+    &.active {
+      color: #ffffff !important;
+      background-color: #18181b !important; // 选中时深黑背景
+      border: 2px solid #18181b !important;
+    }
+  }
+}
+
+.tab-content {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border: 1px solid #e4e4e7; // 可选：给内容加个淡灰框
+  border-top: none; 
+}

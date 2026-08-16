@@ -1,0 +1,53 @@
+# OmicHub 宏基因组沙盒镜像
+# 构建: docker build -t omichub/sandbox-metagenomics:latest -f tool_configs/terminal/docker/Dockerfile.metagenomics tool_configs/terminal/docker/
+FROM omichub/sandbox-terminal:latest
+
+USER root
+
+# kraken2/centrifuge/fastp 走 apt（jammy 仓库有）；
+# bracken 不在 Ubuntu 22.04 官方仓库（2026-07-28 实测 Unable to locate package），
+# 与 assembly 镜像同路线：micromamba + bioconda（USTC 镜像）安装。
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      kraken2 centrifuge fastp \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip3 install --no-cache-dir -i https://pypi.mirrors.ustc.edu.cn/simple multiqc
+
+# micromamba 二进制从官方镜像复制（避免境外下载）
+COPY --from=mambaorg/micromamba:2.0.5 /usr/bin/micromamba /usr/local/bin/micromamba
+
+ENV MAMBA_ROOT_PREFIX=/opt/conda \
+    MAMBA_NO_BANNER=1
+
+# 预置中科大镜像源；基础镜像 ENV HOME=/home/omichub，condarc 必须写到该 HOME 下
+# （见 Protocol/镜像构建国内加速规范_v1.md §4）
+RUN printf '%s\n' \
+      'show_channel_urls: true' \
+      'default_channels:' \
+      '  - https://mirrors.ustc.edu.cn/anaconda/pkgs/main' \
+      '  - https://mirrors.ustc.edu.cn/anaconda/pkgs/free' \
+      '  - https://mirrors.ustc.edu.cn/anaconda/pkgs/r' \
+      '  - https://mirrors.ustc.edu.cn/anaconda/pkgs/msys2' \
+      'custom_channels:' \
+      '  conda-forge: https://mirrors.ustc.edu.cn/anaconda/cloud' \
+      '  bioconda: https://mirrors.ustc.edu.cn/anaconda/cloud' \
+      '  menpo: https://mirrors.ustc.edu.cn/anaconda/cloud' \
+      'channel_priority: flexible' \
+      'channels:' \
+      '  - conda-forge' \
+      '  - bioconda' \
+      '  - menpo' \
+      '  - defaults' \
+      > /home/omichub/.condarc \
+    && cp /home/omichub/.condarc /root/.condarc \
+    && chown omichub:omichub /home/omichub/.condarc
+
+RUN micromamba create -y -n meta -c conda-forge -c bioconda \
+      bracken \
+    && micromamba clean -afy \
+    && for f in /opt/conda/envs/meta/bin/bracken*; do ln -sf "$f" /usr/local/bin/; done
+
+# Kraken2 / Bracken 数据库体积通常为数十 GB，不随镜像发布；
+# 请放入 workspace 或 raw_data 并在命令中通过 --db 显式指定。
+ENV OMICHUB_IMAGE_NOTICE="Kraken2/Bracken 数据库未内置，请在 workspace 或 raw_data 中准备数据库后使用 --db 指定。"
+
+USER 1000

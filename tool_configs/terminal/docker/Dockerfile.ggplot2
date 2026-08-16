@@ -1,0 +1,22 @@
+# OmicHub 科研绘图 ggplot2 沙盒镜像
+# 构建: docker build -t omichub/sandbox-ggplot2:latest -f tool_configs/terminal/docker/Dockerfile.ggplot2 tool_configs/terminal/docker/
+FROM omichub/sandbox-terminal:latest
+
+USER root
+
+# 使用 Ubuntu 二进制 R 包，避免在容器中编译 tidyverse；Noto CJK 保证中文图例可用。
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      r-base \
+      r-cran-ggplot2 r-cran-dplyr r-cran-tidyr r-cran-readr \
+      r-cran-stringr r-cran-forcats r-cran-tibble r-cran-purrr \
+      r-cran-ggrepel r-cran-cowplot r-cran-rcolorbrewer r-cran-viridis \
+      fonts-noto-cjk fontconfig \
+    && rm -rf /var/lib/apt/lists/* \
+    && fc-cache -f
+
+RUN pip3 install --no-cache-dir -i https://pypi.mirrors.ustc.edu.cn/simple \
+      plotnine matplotlib seaborn
+
+ENV MPLCONFIGDIR=/tmp
+
+USER 1000

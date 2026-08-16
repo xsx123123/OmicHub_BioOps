@@ -1,0 +1,68 @@
+# OmicHub phylogenetic analysis Worker image.
+# Purpose: consume phylo_tree queues in an isolated Conda environment.
+# Build context: repository root
+# Build command: make docker-build-worker
+FROM condaforge/mambaforge:23.11.0-0
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV CONDA_DEFAULT_ENV=phylo
+ENV PATH=/opt/conda/envs/phylo/bin:$PATH
+
+# 基础依赖
+# 基础镜像（Ubuntu focal）默认源 archive.ubuntu.com 在部分网络环境不可达
+# （apt-get update 挂起 → 包列表为空 → Unable to locate package），
+# 默认切换到 USTC 镜像；其他环境可用 --build-arg APT_MIRROR=http://archive.ubuntu.com 还原。
+ARG APT_MIRROR=http://mirrors.ustc.edu.cn
+RUN sed -i -e "s|http://archive.ubuntu.com/ubuntu/|${APT_MIRROR}/ubuntu/|g" -e "s|http://security.ubuntu.com/ubuntu/|${APT_MIRROR}/ubuntu/|g" /etc/apt/sources.list && \
+    apt-get update && apt-get install -y --no-install-recommends \
+    build-essential gcc g++ gfortran make cmake \
+    libopenmpi-dev libgomp1 && rm -rf /var/lib/apt/lists/*
+
+# 预置中科大镜像源，加速容器内 mamba/conda 环境安装（见 Protocol/镜像构建国内加速规范_v1.md §4）
+RUN printf '%s\n' \
+      'show_channel_urls: true' \
+      'default_channels:' \
+      '  - https://mirrors.ustc.edu.cn/anaconda/pkgs/main' \
+      '  - https://mirrors.ustc.edu.cn/anaconda/pkgs/free' \
+      '  - https://mirrors.ustc.edu.cn/anaconda/pkgs/r' \
+      '  - https://mirrors.ustc.edu.cn/anaconda/pkgs/msys2' \
+      'custom_channels:' \
+      '  conda-forge: https://mirrors.ustc.edu.cn/anaconda/cloud' \
+      '  bioconda: https://mirrors.ustc.edu.cn/anaconda/cloud' \
+      '  menpo: https://mirrors.ustc.edu.cn/anaconda/cloud' \
+      '  pytorch: https://mirrors.ustc.edu.cn/anaconda/cloud' \
+      'channel_priority: flexible' \
+      'channels:' \
+      '  - conda-forge' \
+      '  - bioconda' \
+      '  - menpo' \
+      '  - defaults' \
+      > /root/.condarc
+
+# 创建 Conda 环境
+RUN mamba create -n phylo python=3.11 pip -y
+
+# 科学计算基础
+RUN mamba install -n phylo -c bioconda -c conda-forge \
+    biopython=1.83 numpy scipy pandas dendropy greenlet -y && mamba clean -a -y
+
+# MSA 工具
+RUN mamba install -n phylo -c bioconda \
+    mafft=7.525 clustalo=1.2.4 muscle=5.1 -y && mamba clean -a -y
+
+# 树构建工具
+RUN mamba install -n phylo -c bioconda \
+    fasttree=2.1.11 iqtree=2.2.2.7 mrbayes=3.2.7 phylip=3.697 \
+    seqkit=2.7 -y && mamba clean -a -y
+
+WORKDIR /app
+
+COPY pyproject.toml README.md ./
+COPY src/ ./src/
+COPY tool_configs/ ./tool_configs/
+
+RUN /opt/conda/envs/phylo/bin/pip install --no-cache-dir \
+    -i https://pypi.mirrors.ustc.edu.cn/simple .
+
+# 运行 worker：需在编排中覆盖 command
+# celery -A omichub.infrastructure.celery_app.celery worker -Q phylo_tree -n phylo@%h

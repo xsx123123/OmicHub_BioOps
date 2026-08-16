@@ -1,0 +1,26 @@
+# OmicHub RNA-seq 流程沙盒镜像
+# 构建: docker build -t omichub/sandbox-rnaseq:latest -f tool_configs/terminal/docker/Dockerfile.rnaseq tool_configs/terminal/docker/
+FROM omichub/sandbox-terminal:latest
+
+USER root
+
+# 全部优先使用 Ubuntu / Debian Med 二进制：比对、定量与 DESeq2 差异表达。
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      hisat2 salmon subread \
+      r-base-core r-bioc-deseq2 r-bioc-tximport r-cran-readr \
+    && rm -rf /var/lib/apt/lists/*
+
+# 优先使用 apt 版本；未提供或低于 0.46 时回退到官方二进制。
+ARG KALLISTO_VERSION=0.48.0
+RUN apt-get update \
+    && (apt-get install -y --no-install-recommends kallisto || true) \
+    && installed_version="$(dpkg-query -W -f='${Version}' kallisto 2>/dev/null || true)" \
+    && if [ -z "$installed_version" ] || dpkg --compare-versions "$installed_version" lt "0.46"; then \
+         wget -q "https://github.com/pachterlab/kallisto/releases/download/v${KALLISTO_VERSION}/kallisto_linux-v${KALLISTO_VERSION}.tar.gz" -O /tmp/kallisto.tar.gz \
+         && tar -xzf /tmp/kallisto.tar.gz -C /opt \
+         && ln -sf "/opt/kallisto_linux-v${KALLISTO_VERSION}/kallisto" /usr/local/bin/kallisto \
+         && rm /tmp/kallisto.tar.gz; \
+       fi \
+    && rm -rf /var/lib/apt/lists/*
+
+USER 1000

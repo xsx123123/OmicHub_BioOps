@@ -1,0 +1,8 @@
+# 跨会话长期记忆工具包：仅授予需要持续理解用户研究背景的 Agent。
+id: memory
+description: 保存、修正、遗忘和检索当前用户自己的跨会话研究记忆。
+builtin_tools:
+  - omichub_save_memory
+  - omichub_update_memory
+  - omichub_forget_memory
+  - omichub_search_memory

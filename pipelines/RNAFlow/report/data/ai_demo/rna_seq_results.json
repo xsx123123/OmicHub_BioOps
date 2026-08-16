@@ -1,0 +1,32 @@
+{
+  "project_info": {
+    "id": "PROJ_RNA_001",
+    "comparison": "Drug_Treatment_vs_Control",
+    "organism": "Homo sapiens"
+  },
+  "qc_summary": {
+    "total_reads": "45.2 M",
+    "mapping_rate": "94.5%",
+    "conclusion": "PASS"
+  },
+  "deg_stats": {
+    "total_degs": 1250,
+    "up_regulated": 780,
+    "down_regulated": 470,
+    "threshold": "padj < 0.05 & |log2FC| > 1"
+  },
+  "top_genes": [
+    {"symbol": "IL6", "log2FC": 5.4, "padj": "1.2e-20", "function": "Pro-inflammatory cytokine"},
+    {"symbol": "CXCL8", "log2FC": 4.1, "padj": "3.5e-15", "function": "Chemokine (C-X-C motif) ligand 8"},
+    {"symbol": "MMP9", "log2FC": 3.8, "padj": "4.2e-12", "function": "Matrix metallopeptidase 9"},
+    {"symbol": "COL1A1", "log2FC": -3.5, "padj": "2.1e-10", "function": "Collagen type I alpha 1 chain"},
+    {"symbol": "ALB", "log2FC": -4.2, "padj": "1.8e-14", "function": "Albumin"}
+  ],
+  "enrichment": {
+    "top_pathways": [
+      "TNF signaling pathway",
+      "Cytokine-cytokine receptor interaction",
+      "Rheumatoid arthritis"
+    ]
+  }
+}

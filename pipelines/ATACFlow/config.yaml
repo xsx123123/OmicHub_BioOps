@@ -1,0 +1,29 @@
+project_name: 'PRJNA1224991'
+Genome_Version: "Lsat_Salinas_v11" # Lsat_Salinas_v8,Lsat_Salinas_v11,ITAG4.1,TAIR10.1,GRCm39,hg38
+species: 'Lactuca_sativa'
+client: 内部测试
+# short read raw-data
+raw_data_path:
+  - /data/jzhang/project/Temp/atac_human_PRJNA427322/00.raw_data
+# short read samples info
+sample_csv: /data/jzhang/project/Temp/atac_human_PRJNA427322/01.workflow/samples.csv
+paired_csv: /data/jzhang/project/Temp/atac_human_PRJNA427322/01.workflow/contrasts.csv
+# workflow
+workflow: /data/jzhang/project/Temp/atac_human_PRJNA427322/01.workflow
+# ATACFlow Output file
+data_deliver: /data/jzhang/project/Temp/atac_human_PRJNA427322/02.data_deliver
+# wheather run in HPC Cluster
+execution_mode: local #local,cluster
+queue_id: default
+# Fragment Library Types
+Library_Types: fr-firststrand # fr-unstranded,fr-firststrand,fr-secondstrand
+# only run QC for ATAC-seq
+only_qc: true
+# wheather generate HTML report for ATAC-seq
+report: true
+# wheather differential peak analysis for ATAC-seq
+diff_peaks: true
+# wheather fastq_screen for ATAC-seq
+fastq_screen: true
+# ---------------------------------------------------------------------- #
+loki_url: "http://122.205.67.97:3100"

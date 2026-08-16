@@ -1,0 +1,39 @@
+# ============================================
+# OmicHub 富集分析物种配置（KEGG / GO）
+# ============================================
+# 修改本文件后由配置加载器基于 mtime 自动热重载，无需重启后端。
+#
+# 字段说明：
+#   id            物种唯一标识，前端下拉 value（提交时作为 species_id 传回）
+#   display_name  展示名称；后端序列化为前端 SpeciesOption.label
+#   enabled       是否在前端下拉可见（false 则隐藏，不参与提交）
+#   kegg_code     KEGG API 物种三字码，如 hsa / ath（传入容器 --kegg_code）
+#   org_db        R OrgDb 包名，如 org.Hs.eg.db（传入容器 --org_db）
+#   id_type       基因 ID 类型，如 SYMBOL / TAIR（传入容器 --id_type）
+#   go_annotation 本地 GO 注释（gene_id<TAB>GO:xxxx，第三列可选描述）
+#   go_obo        本地 GO OBO 文件，传给 R 容器的 clusterProfiler::enricher
+#   kegg_id_map   gene→NCBI/KEGG ID 映射，传给 R 容器的 enrichKEGG
+#   kegg_key_type clusterProfiler enrichKEGG 的 keyType，默认 kegg
+#   p_value_cutoff clusterProfiler 默认 p-valueCutoff
+#   q_value_cutoff clusterProfiler 默认 qvalueCutoff
+#
+# Web 只提交任务、读取 CSV；所有 GO / KEGG 富集和 PNG/PDF 可视化均在 R Docker 容器执行。
+#
+# 新增物种：在 species_list 下追加一项即可，无需改代码。
+# 注意：R 镜像须预装 clusterProfiler、enrichplot、ontologyIndex 和 optparse。
+# --------------------------------------------
+
+species_list:
+  # 番茄 ITAG4.1：GO 使用本地 OBO/注释；KEGG 使用本地 gene→NCBI 映射。
+  - id: "tomato_itag4_1"
+    display_name: "Solanum lycopersicum ITAG4.1 (番茄)"
+    enabled: true
+    kegg_code: "sly"
+    org_db: ""
+    id_type: "ITAG4.1"
+    go_annotation: "/data/omichub/omichub_data/reference/ITAG4.1/ITAG4.1_blast2go_annot.annot_deal"
+    go_obo: "/data/omichub/omichub_data/reference/ITAG4.1/go-basic.obo"
+    kegg_id_map: "/data/omichub/omichub_data/reference/ITAG4.1/ITAG4.1.kegg.id"
+    kegg_key_type: "kegg"
+    p_value_cutoff: 0.05
+    q_value_cutoff: 0.1

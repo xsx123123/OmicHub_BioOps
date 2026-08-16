@@ -1,0 +1,100 @@
+project:
+  type: website
+  output-dir: _site
+  render:
+    - index.qmd
+    - 01-qc.qmd
+    - 02-integration.qmd
+    - 03-clustering.qmd
+    - 04-annotation.qmd
+    - 05-deg.qmd
+    - 06-methods.qmd
+
+website:
+  title: "scRNAseqMulticommand Report"
+  reader-mode: true
+  page-navigation: true
+  navbar:
+    logo: logo/logo.png
+    logo-href: index.qmd
+    search: true
+    left:
+      - href: index.qmd
+        text: Project
+      - href: 01-qc.qmd
+        text: QC Report
+      - href: 02-integration.qmd
+        text: Integration
+      - href: 03-clustering.qmd
+        text: Clustering
+      - href: 04-annotation.qmd
+        text: Annotation
+      - href: 05-deg.qmd
+        text: DEG
+      - href: 06-methods.qmd
+        text: Methods
+    right:
+      - icon: github
+        href: https://github.com/xsx123123
+  sidebar:
+    title: "scRNA-seq Report"
+    logo: logo/logo.png
+    logo-href: index.qmd
+    alignment: left
+    style: floating
+    pinned: true
+    contents:
+      - section: "Project Info"
+        contents:
+          - index.qmd
+      - section: "Analysis & Results"
+        contents:
+          - 01-qc.qmd
+          - 02-integration.qmd
+          - 03-clustering.qmd
+          - 04-annotation.qmd
+          - 05-deg.qmd
+          - 06-methods.qmd
+    tools:
+      - icon: github
+        href: https://github.com/xsx123123
+  page-footer:
+    border: true
+    left: |
+      <span style="vertical-align: middle;">Proudly supported by</span>
+      <img src="logo/Posit_logo.svg" alt="Posit" height="18" style="vertical-align: middle; margin-left: 10px;">
+    center: |
+      <a href="index.html" class="footer-link">Project</a>
+      <span class="footer-sep">·</span>
+      <a href="06-methods.html" class="footer-link">Methods</a>
+    right: |
+      <a href="https://github.com/xsx123123" target="_blank" class="footer-icon"><i class="bi bi-github"></i></a>
+
+format:
+  html:
+    theme:
+      - styles/theme.scss
+    css:
+      - styles/styles.css
+      - styles/itables_saas.css
+    toc: true
+    toc-location: right
+    toc-title: "目录"
+    code-fold: true
+    code-summary: "Show code"
+    code-copy: true
+    smooth-scroll: true
+    anchor-sections: true
+    fig-width: 10
+    fig-height: 8
+    page-layout: article
+    df-print: paged
+    grid:
+      sidebar-width: 210px
+      body-width: 1050px
+      margin-width: 250px
+      gutter-width: 1.2rem
+    self-contained: false
+    embed-resources: false
+    language:
+      search-text-placeholder: Search

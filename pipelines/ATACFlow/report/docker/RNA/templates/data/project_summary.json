@@ -1,0 +1,28 @@
+{
+  "project_meta": {
+    "client": "李教授课题组 (Huazhong Agri. Univ.)",
+    "species": "Mus musculus (C57BL/6)",
+    "genome_version": "GRCm39 (Ensembl v109)",
+    "pipeline_version": "RNAFlow v2.1",
+    "analysis_date": "2026-01-13"
+  },
+  "stats": {
+    "total_samples": 12,
+    "group_count": 4
+  },
+  "input_files": {
+    "data_dir": "../data/index/",
+    "qc_file": "../data/index/multiqc_qc_general_stats.txt",
+    "mapping_file": "../data/index/multiqc_mapping_general_stats.txt",
+    "tpm_file": "../data/index/merge_rsem_tpm.tsv",
+    "sample_file": "../data/index/sample.csv",
+    "fastp_report_dir": "../data/fastp_trim_report/multiqc_short_read_trim_report_data",
+    "fastp_stats_file": "../data/fastp_trim_report/multiqc_general_stats.txt",
+    "fastq_screen_r1_dir": "../data/fastq_screen_report/fastq_screen_multiqc_r1/multiqc_r1_fastq_screen_report_data",
+    "fastq_screen_r2_dir": "../data/fastq_screen_report/fastq_screen_multiqc_r2/multiqc_r2_fastq_screen_report_data",
+    "qualimap_dir": "../data/QualiMap/multiqc_data/",
+    "contrasts_file": "../data/index/contrasts.csv",
+    "deg_dir": "../data/res/DEG",
+    "enrichment_dir": "../data/res/Enrichments"
+  }
+}

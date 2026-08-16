@@ -1,0 +1,396 @@
+---
+title: "分析结果"
+execute: 
+  echo: false
+  warning: false
+---
+```{python}
+#| label: setup-import-res
+#| echo: false
+
+import sys
+import os
+import pandas as pd
+from IPython.display import display, Markdown
+
+script_dir = os.path.abspath(os.path.join(os.getcwd(), '..', 'scripts'))
+
+if script_dir not in sys.path:
+    sys.path.append(script_dir)
+
+try:
+    from plot_utils import plot_pca_static, plot_pca_interactive, show_gene_table, plot_volcano_pvalue
+    from visualize_utils import display_fastp_table, display_gene_expression_table
+    from plotly_heatmap import draw_interactive_heatmap
+    from pca_plotly import draw_pca_plotly
+    from enrichment_plotly import draw_fancy_dotplot
+    from distribution_plotly import draw_expression_distribution_plotly
+    from report_utils import load_analysis_config, get_file_path,find_comparisons,get_comparisons_from_csv
+    from metadata import load_project_metadata
+except ImportError as e:
+    print(f"❌ 导入失败: {e}")
+    print(f"🔍 Python 当前在这些地方寻找: {sys.path}")
+
+# 1. 加载项目配置
+project_info = load_project_metadata("/app/project_summary.json")
+input_files = project_info['input_files']
+
+
+# samples & tpm path (从配置中获取，带默认值兜底)
+meta_file = input_files.get('sample_file', '../data/index/sample.csv')
+tpm_file = input_files.get('tpm_file', '../data/res/matrix/merge_rsem_tpm.tsv')
+comparisons_file = input_files.get('contrasts_file', '../data/index/contrasts.csv')
+
+
+# 目录配置
+deg_base_dir = input_files.get('deg_dir', '../data/res/DEG')
+enrich_base_dir = input_files.get('enrichment_dir', '../data/res/Enrichments')
+
+# 初始化配置与比较组
+config = {} # 如果有 JSON 配置文件，可以使用 load_analysis_config 加载
+comparisons = get_comparisons_from_csv(comparisons_file)
+```
+## BFP RNA-seq Result
+
+本章节详细展示了本次 `BFP RNA-seq` 项目的生物信息学分析结果。分析内容涵盖了从样本全局表达分布、基因表达矩阵，到差异表达基因筛选及功能富集分析的全过程，旨在从系统层面揭示不同实验组间的转录组差异及其潜在的生物学意义。
+
+### 样本关系 & Gene Distribution
+
+本节通过主成分分析（PCA）和基因表达分布图，对样本间的相互关系及整体数据质量进行评估。PCA 展示了样本在低维空间中的聚类情况，反映了组内重复性与组间差异；而表达量分布图则用于检验样本间的数据一致性，确保后续分析的可靠性。
+
+```{python}
+#| label: plot-pca
+#| fig-cap: "Global PCA Analysis (PC1-PC3)"
+
+# 使用前面定义的变量，不再重复定义
+if tpm_file and os.path.exists(tpm_file) and os.path.exists(meta_file):
+    # 调用函数
+    fig, config_plot = draw_pca_plotly(
+        tpm_file = tpm_file, 
+        meta_file = meta_file,
+        height_num = 500,
+        width_num = 1000,
+        scale_num = 7
+    )
+
+    fig.show(config=config_plot)
+else:
+    print("❌ 无法绘制 PCA: 缺少 TPM 文件或 Sample Info 文件。 সন")
+```
+
+::: {.callout-note appearance="minimal" icon=false collapse="true"}
+**图注说明: Global PCA Analysis (全局主成分分析)**
+
+此图通过降维算法展示了样本在基因表达模式上的整体相似性与差异性。
+
+1. **PC1/PC2/PC3 (主成分)**:
+   * **含义**: 坐标轴代表了数据中差异最大的几个维度。轴标签括号内的百分比（Variance Explained）代表该维度解释总体数据差异的比例，比例越高说明该维度对区分样本越重要。
+2. **Sample Clustering (样本聚类)**:
+   * **含义**: 图中每个点代表一个样本。点与点之间的欧几里得距离反映了样本间基因表达谱的相似程度——距离越近，表达模式越相似。
+   * **组内重复性**: 理想情况下，同一实验组（相同颜色/形状）的样本应在图上聚集在一起，形成紧密的簇，这表明实验重复性良好。
+3. **Group Separation (组间分离)**:
+   * **含义**: 不同颜色或形状通常代表不同的实验分组或处理条件。不同组别的样本群在图上分离得越明显（通常沿 PC1 或 PC2 轴分开），说明组间存在显著的生物学差异，有利于后续筛选差异表达基因。
+:::
+
+```{python}
+#| label: plot-dist
+#| fig-cap: "Gene Distribution"
+
+if tpm_file and os.path.exists(tpm_file) and os.path.exists(meta_file):
+    fig, conf = draw_expression_distribution_plotly(
+        tpm_file=tpm_file,
+        meta_file=meta_file,
+        threshold=1,
+        width_num=1000,
+        height_num=500
+    )
+
+    # 2. 显示或保存
+    if fig:
+        fig.show(config=conf)
+else:
+     print("❌ 无法绘制 Gene Distribution: 缺少数据文件。 সন")
+```
+
+::: {.callout-note appearance="minimal" icon=false collapse="true"}
+**图注说明: Sample TPM Distribution (样本表达量分布图)**
+
+此图采用小提琴图（Violin Plot）展示了各样本中基因表达量的整体分布情况，用于评估样本间的数据分布是否一致以及标准化（Normalization）的效果。
+
+1. **Y-axis: Log2(TPM + 1)**:
+   * **含义**: 纵坐标代表基因表达量的对数转换值。TPM (Transcripts Per Million) 是消除测序深度和基因长度影响后的标准化表达量单位。采用 $Log_2(TPM + 1)$ 转换是为了压缩数据的动态范围，使低表达和高表达基因能在同一尺度下展示。
+2. **Violin Structure (小提琴形态)**:
+   * **外部轮廓 (Density)**: “小提琴”的宽度代表在该表达水平下的基因密度（频率）。由于大多数基因处于中低表达水平，通常底部较宽，顶部较尖。
+   * **内部箱线 (Box Plot)**: 内部的矩形箱体展示了统计学分布。箱子中间的横线代表**中位数 (Median)**，箱体上下边界分别代表上四分位数 (75%) 和下四分位数 (25%)。
+3. **Distribution Consistency (分布一致性)**:
+   * **解读**: 在理想的 RNA-seq 分析中，经过有效的标准化处理后，不同样本的表达量分布形态（即小提琴的胖瘦、中位数的高度）应大致相似。如果个别样本的分布形态与其他样本存在显著差异（如整体偏移），可能提示该样本存在文库构建偏好或测序质量异常。
+:::
+
+### 基因表达矩阵 (Gene Expression Matrix)
+
+在此展示了各样本中所有基因的标准化表达量（TPM）。该矩阵是后续差异分析、热图绘制及功能富集的基础数据。您可以通过表格上方的工具栏进行搜索、筛选，或下载完整数据进行个性化探究。
+
+```{python}
+#| label: table-tpm-preview
+#| output: asis
+if tpm_file and os.path.exists(tpm_file):
+    display_gene_expression_table(tpm_file, top_n=100)
+else:
+    print("❌ 无法展示矩阵: TPM 文件缺失。 সন")
+```
+
+::: {.callout-note appearance="minimal" icon=false collapse="true"}
+**表注说明: Gene Expression Units (基因表达量单位说明)**
+
+此表展示了基因的标准化表达水平。为便于理解，以下是对两种常见计量单位的说明：
+
+1. **TPM (Transcripts Per Million)**:
+   * **含义**: 每百万转录本。它是目前更受推崇的标准化单位。
+   * **特点**: 与 FPKM 类似，但计算逻辑略有不同。**TPM 的最大优势在于其总和在每个样本中恒定为 $10^6$**，这一特性使其在进行**样本间（Sample-to-Sample）** 的平行比较时比 FPKM 更准确。
+2. **Data Filtering (数据筛选)**:
+   * 为便于浏览，本表仅展示了部分关键基因（如 Top 100 高表达基因）。完整表达矩阵请通过左上角的 <i class="bi bi-filetype-csv"></i> `CSV` 按钮下载。
+:::
+
+### 基因表达热图 (Heatmap)
+
+通过聚类热图直观展示了高变异基因在不同样本中的表达模式。色阶变化反映了基因表达量的相对高低（Z-Score），聚类树则揭示了样本间及基因间的相似性，有助于快速识别具有特定表达趋势的基因簇。
+
+```{python}
+#| label: plot-heatmap
+#| fig-cap: "TPM 基因表达热图 (Top 1000 Variances)"
+
+if tpm_file and os.path.exists(tpm_file) and os.path.exists(meta_file):
+    # 调用函数
+    fig, config_plot = draw_interactive_heatmap(
+        input_file=tpm_file, 
+        metadata_file=meta_file, 
+        top_n=1000, 
+        do_cluster=True
+    )
+
+    # 在 Quarto 中显示
+    fig.show(config=config_plot)
+else:
+    print("❌ 无法绘制 Heatmap: 缺少数据文件。 সন")
+```
+
+::: {.callout-note appearance="minimal" icon=false collapse="true"}
+**图注说明: Clustered Heatmap (基因表达聚类热图)**
+
+此图基于 TPM 表达量矩阵，展示了在样本间变异程度最高的基因表达模式，直观反映了组间差异。
+
+1. **Data Selection (数据选择)**:
+   * **Top 1000 Variances**: 为了突出样本间的主要差异，图中仅选取了在所有样本中**方差（Variance）最大**的前 1000 个基因进行绘制。这能有效过滤掉在所有样本中表达量恒定不变的“管家基因”或低表达噪音，聚焦于最具生物学意义的动态变化基因。
+2. **Color Scale: Z-Score (颜色标度)**:
+   * **含义**: 图中颜色代表经过 **Z-Score 标准化**（按行/基因归一化）后的相对表达量，而非原始 TPM 值。
+   * **解读**:
+     * <span style="color:#b2182b">■</span> **红色 (Red, Z > 0)**: 代表该基因在对应样本中的表达量**高于**其在所有样本中的平均水平（相对高表达）。
+     * <span style="color:#2166ac">■</span> **蓝色 (Blue, Z < 0)**: 代表该基因的表达量**低于**平均水平（相对低表达）。
+     * **白色**: 代表接近平均水平。
+3. **Cluster Analysis (聚类分析)**:
+   * **基因聚类 (行)**: 具有相似表达模式的基因被聚集在一起，形成了明显的红/蓝颜色模块（Block），揭示了受实验处理影响而协同上调或下调的基因集。
+:::
+
+### 差异表达分析 (Volcano)
+
+火山图（Volcano Plot）综合展示了基因表达变化的幅度（Log2 Fold Change）与统计学显著性（-Log10 P-value）。图中显著上调和下调的基因被高亮标记，这些差异表达基因（DEGs）是后续生物学功能挖掘的核心对象。依据 `Pvalue < 0.05` 且 `|log2FC| > 1` 的条件下筛选差异基因。
+
+```{python}
+#| label: table-deg-preview
+#| output: asis
+
+display(Markdown("::: {.panel-tabset}"))
+
+for comp in comparisons:
+    deg_file_key = f"{comp}_DEG.csv"
+    # 使用配置中的 deg_base_dir
+    deg_file = get_file_path(config, deg_file_key, local_base_dir=deg_base_dir)
+    
+    display(Markdown(f"### {comp}"))
+    
+    if deg_file and os.path.exists(deg_file):
+        try:
+            df_deg = pd.read_csv(deg_file)
+            display_gene_expression_table(df_deg) 
+        except Exception as e:
+            print(f"Error reading {deg_file}: {e}")
+    else:
+        print(f"⚠️ 文件未找到: {deg_file_key} (Expect at: {deg_file})")
+
+display(Markdown(":::"))
+```
+
+
+```{python}
+#| label: fig-volcano-dynamic
+#| output: asis
+display(Markdown("::: {.panel-tabset}"))
+for comp in comparisons:
+    deg_file_key = f"{comp}_DEG.csv"
+    # 使用配置中的 deg_base_dir
+    deg_file = get_file_path(config, deg_file_key, local_base_dir=deg_base_dir)
+    
+    display(Markdown(f"### {comp}"))
+    
+    if deg_file and os.path.exists(deg_file):
+        try:
+            df_deg = pd.read_csv(deg_file)
+            fig = plot_volcano_pvalue(df_deg, title=f'{comp} Volcano',
+                col_logfc = 'log2FoldChange',col_pval = 'pvalue',
+                col_padj = 'padj',col_symbol  = 'Symbol',col_status='Status_By_Pval')
+            fig.show()
+        except Exception as e:
+            print(f"Error plotting volcano for {comp}: {e}")
+    else:
+        print(f"⚠️ 无法绘制火山图，文件缺失: {deg_file_key}")
+
+display(Markdown(":::"))
+```
+
+::: {.callout-note appearance="minimal" icon=false collapse="true"}
+**图注说明: Volcano Plot (差异基因火山图)**
+
+此图直观展示了两个分组间基因表达差异的显著性与变化幅度，用于快速筛选具有统计学意义的差异基因（DEGs）。
+
+1. **Axes Interpretation (坐标轴含义)**:
+   * **X-axis ($	ext{log}_2	ext{FoldChange}$)**: 横坐标代表基因表达量的**差异倍数**（取对数）。
+     * **正值 (右侧)**: 代表基因在处理组/比较组中表达量**上调**。
+     * **负值 (左侧)**: 代表基因在处理组/比较组中表达量**下调**。
+   * **Y-axis ($-	ext{log}_{10}	ext{P-value}$)**: 纵坐标代表差异的**统计学显著性**。数值越高，P 值越小（越接近 0），说明该差异由随机误差导致的概率越低，结果越可靠。
+2. **Color Legend (颜色图例)**:
+   * <span style="color:#ef4444">●</span> **Up (上调基因)**: 满足显著性阈值（通常 $P < 0.05$）且差异倍数达到标准（如 $|	ext{log}_2FC| > 1$）的上调基因。
+   * <span style="color:#3b82f6">●</span> **Down (下调基因)**: 满足显著性阈值且差异倍数达到标准的下调基因。
+   * <span style="color:#d1d5db">●</span> **Normal (非显著)**: 未满足筛选条件的基因，通常被认为是表达无显著差异。
+3. **Threshold Lines (阈值线)**:
+   * 图中的灰色虚线代表设定的筛选阈值（Cutoff）。位于垂直虚线外侧且位于水平虚线上方的点，即为最终筛选出的差异表达基因。
+:::
+
+
+### 富集分析结果 (Enrichments)
+
+利用 GO 和 KEGG 数据库对差异表达基因进行功能富集分析，旨在揭示受实验处理影响最为显著的生物学过程、细胞组分及分子通路。点图（Dotplot）展示了富集显著性高且包含基因数较多的主要条目。
+
+展示各个比较组的上调 (UP) 富集分析结果。
+
+```{python}
+#| label: plot-enrichments-dynamic-up
+#| output: asis
+
+display(Markdown("::: {.panel-tabset}"))
+
+for comp in comparisons:
+    # 这里我们只展示 UP 的富集，如果需要 DOWN，可以再加一层循环或 tab
+    enrich_key = f"{comp}_UP.csv"
+    # 使用配置中的 enrich_base_dir
+    enrich_file = get_file_path(config, enrich_key, local_base_dir=enrich_base_dir)
+    
+    if enrich_file and os.path.exists(enrich_file):
+        display(Markdown(f"### {comp} UP"))
+        
+        # 1. Table
+        try:
+            df_enrich = pd.read_csv(enrich_file, sep=None, engine='python')
+            display_gene_expression_table(df_enrich)
+        except Exception as e:
+            print(f"Error reading enrichment table: {e}")
+            
+        # 2. Dotplot
+        try:
+            fig, config_plot = draw_fancy_dotplot(
+                enrich_file, 
+                top_n=20, 
+                p_cutoff=0.1,
+                x_col="GeneRatio", 
+                y_col="Description", 
+                size_col="Count", 
+                color_col="p.adjust",
+                height_num=600, width_num=800, scale_num=4
+            )
+            fig.show(config=config_plot)
+        except Exception as e:
+            print(f"Error plotting enrichment dotplot: {e}")
+            
+    else:
+        # 如果找不到文件，可以选择不显示 tab，或者显示缺失信息
+        # display(Markdown(f"### {comp} UP (Missing)"))
+        pass
+display(Markdown(":::"))
+```
+
+```{python}
+#| label: plot-enrichments-dynamic-DOWN
+#| output: asis
+display(Markdown("::: {.panel-tabset}"))
+for comp in comparisons:
+    # 这里我们只展示 UP 的富集，如果需要 DOWN，可以再加一层循环或 tab
+    enrich_key = f"{comp}_DOWN.csv"
+    # 使用配置中的 enrich_base_dir
+    enrich_file = get_file_path(config, enrich_key, local_base_dir=enrich_base_dir)
+    
+    if enrich_file and os.path.exists(enrich_file):
+        display(Markdown(f"### {comp} DOWN"))
+        
+        # 1. Table
+        try:
+            df_enrich = pd.read_csv(enrich_file, sep=None, engine='python')
+            display_gene_expression_table(df_enrich)
+        except Exception as e:
+            print(f"Error reading enrichment table: {e}")
+            
+        # 2. Dotplot
+        try:
+            fig, config_plot = draw_fancy_dotplot(
+                enrich_file, 
+                top_n=20, 
+                p_cutoff=0.1,
+                x_col="GeneRatio", 
+                y_col="Description", 
+                size_col="Count", 
+                color_col="p.adjust",
+                height_num=600, width_num=800, scale_num=4
+            )
+            fig.show(config=config_plot)
+        except Exception as e:
+            print(f"Error plotting enrichment dotplot: {e}")
+            
+    else:
+        # 如果找不到文件，可以选择不显示 tab，或者显示缺失信息
+        display(Markdown(f"### {comp} DOWN (Missing)"))
+        pass
+
+display(Markdown(":::"))
+```
+
+
+::: {.callout-note appearance="minimal" icon=false collapse="true"}
+**表注说明: 富集分析结果列表详解**
+
+本表展示了功能富集分析的详细统计数据，各列含义如下：
+
+* **ID**: 数据库中的唯一标识符（如 GO ID 或 KEGG Pathway ID）。
+* **Description**: 功能条目或通路的具体名称/描述。
+* **GeneRatio**: 差异基因比例 ($k/n$)。即：该通路下的差异基因数 / 输入的总差异基因数。
+* **BgRatio**: 背景基因比例 ($M/N$)。即：该通路下的背景基因数 / 数据库背景总基因数。
+* **RichFactor**: 富集因子。通常计算为 `Count / Background_Match_Count` ($k/M$)。值越大表示富集程度越高。
+* **FoldEnrichment**: 富集倍数。计算为 `GeneRatio / BgRatio`。值大于 1 表示正向富集。
+* **zScore**: 标准化 Z 分值。用于预测通路的激活或抑制状态（通常结合 Log2FC 计算），$z > 0$ 暗示激活，$z < 0$ 暗示抑制。
+* **pvalue**: 原始 P 值。基于超几何分布或 Fisher 精确检验计算出的统计学显著性。
+* **p.adjust**: 校正后的 P 值。常用的校正方法为 BH (Benjamini-Hochberg) 法，用于控制假阳性率。
+* **qvalue**: Q 值。也是一种 FDR (错误发现率) 的衡量指标，通常与 p.adjust 类似，用于多重假设检验校正。
+* **geneID**: 命中该通路的具体差异基因列表（通常以 "/" 分隔的 Gene Symbol 或 ID）。
+* **Count**: 命中该通路的差异基因数量 ($k$)。
+* **Input_Gene_Count**: 输入进行分析的差异基因总数 ($n$)。
+* **Background_Match_Count**: 该通路在背景数据库中包含的基因总数 ($M$)。
+:::
+
+::: {.callout-note appearance="minimal" icon=false collapse="true"}
+### 图注说明: Enrichment Dotplot (功能富集气泡图)
+
+此气泡图直观展示了显著富集的生物学通路（GO Terms 或 KEGG Pathways）。
+
+1. **Y-axis (Description)**: 纵坐标代表富集到的功能条目或通路名称。
+2. **X-axis (GeneRatio)**: 横坐标代表**基因比例**（该条目中差异基因数 / 输入的总差异基因数）。比例越高，说明该功能在差异基因集中越显著。
+3. **Dot Size (Count)**: 气泡的大小代表该条目中富集到的**差异基因数量**。气泡越大，包含的差异基因越多。
+4. **Dot Color (p.adjust)**: 气泡的颜色代表富集的**统计学显著性**（校正后的 P 值）。
+    * 通常，**红色**代表显著性更高（P 值更小），**蓝色**代表显著性较低。
+:::

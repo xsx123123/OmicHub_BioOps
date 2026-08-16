@@ -1,0 +1,6 @@
+# OmicStudio sandbox-agent 运行时依赖（随镜像烘焙，刻意保持最小集）
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.6.0
+# MCP Builder：容器内以 STDIO 运行/验证 AI 生成的实验 MCP Server
+mcp>=1.2.0

@@ -1,0 +1,305 @@
+/*-- scss:defaults --*/
+// Theme Name: Dark New Brutalism (SaaS Edition)
+// Author: Hajimi (Generated for Jian Zhang)
+
+$theme: "journal" !default;
+
+// --- 1. 色彩系统 (Dark - Linear Zinc) ---
+// 使用 Zinc 色系，比纯黑更高级，长时间看屏幕不累
+$body-bg:       #09090b !default; // Zinc-950 (极深灰黑背景)
+$body-color:    #e4e4e7 !default; // Zinc-200 (主要文字：灰白)
+$primary:       #ffffff !default; // 主色：纯白 (用于强调)
+$secondary:     #a1a1aa !default; // 次要色：浅灰
+$border-color:  #27272a !default; // 边框色：深灰
+$success:       #22c55e !default; // 绿色 (用于 Up 基因)
+$info:          #3b82f6 !default; // 蓝色 (用于 Down 基因)
+
+// 链接颜色
+$link-color:            #ffffff !default;
+$link-hover-color:      #d4d4d8 !default;
+
+// 字体设置 (保持与亮色模式一致，防止抖动)
+$font-family-sans-serif: "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif !default;
+$headings-font-family:   "Space Grotesk", sans-serif !default;
+$headings-font-weight:   600 !default;
+
+// --- 2. 布局参数 (硬朗风格) ---
+$border-radius: 0 !default; // 直角，去圆角
+$input-btn-padding-y: .5rem !default;
+$input-btn-padding-x: 1rem !default;
+$navbar-padding-y: 1rem !default;
+
+/*-- scss:rules --*/
+
+@import url('https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap');
+
+// --- 全局重置 ---
+body {
+  letter-spacing: -0.015em;
+  -webkit-font-smoothing: antialiased;
+  background-color: $body-bg;
+}
+
+// 标题强制为白色
+h1, h2, h3, h4, h5, h6 {
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  letter-spacing: -0.03em;
+  color: #ffffff !important; 
+}
+
+// 链接去下划线，悬停时显示
+a {
+  text-decoration: none;
+  transition: opacity 0.2s;
+  &:hover { opacity: 0.8; text-decoration: underline; }
+}
+
+// --- 3. 组件样式 (Dark Mode Specific) ---
+
+// [导航栏] - 沉浸式深黑
+.navbar {
+  background-color: rgba(9, 9, 11, 0.95) !important; //稍微一点点透
+  border-bottom: 1px solid $border-color;
+  
+  .navbar-brand { 
+    color: #ffffff !important; 
+    font-weight: 700;
+    font-size: 1.2rem;
+  }
+  
+  .nav-link { 
+    color: #a1a1aa !important; // 默认灰色
+    font-weight: 500;
+  }
+  
+  .nav-link:hover, .nav-link.active { 
+    color: #ffffff !important; // 激活白色
+  }
+
+  // --- 强制图标变白 (核心修复) ---
+  // 使用高权重选择器覆盖 Quarto 默认样式
+  .navbar-nav .nav-link i, 
+  .navbar-nav .nav-link .bi,
+  .navbar-toggler-icon {
+    color: #ffffff !important;
+    fill: #ffffff !important;
+    opacity: 1 !important;
+  }
+  
+  // 针对特定图标的保险措施
+  .bi-github::before, .bi-wechat::before {
+    color: #ffffff !important;
+  }
+}
+
+// [代码块] - 深色背景
+pre {
+  background-color: #18181b; // Zinc-900
+  border: 1px solid $border-color;
+  color: #e4e4e7;
+  border-radius: 0; // 直角
+}
+code { color: #e4e4e7; }
+
+// [Callout / 提示框] - 硬朗边框
+.callout, .card {
+  background-color: transparent;
+  border: 1px solid $border-color;
+  border-left-width: 4px;
+  border-radius: 0;
+  box-shadow: none !important;
+}
+
+// [搜索框] - 顶部搜索栏
+#quarto-search, .quarto-search-tools {
+  .search-button {
+    border: 1px solid #3f3f46 !important;
+    background-color: rgba(255,255,255,0.05) !important;
+    color: #e4e4e7 !important;
+    border-radius: 0 !important;
+  }
+  .search-button:hover {
+    border-color: #ffffff !important;
+    color: #ffffff !important;
+  }
+}
+
+// --- 4. 特色模块：AI 助手 (紫色微光) ---
+.callout.ai-box {
+  background-color: rgba(99, 102, 241, 0.05) !important; // 极淡的靛紫
+  border-left-color: #818cf8 !important; 
+  border: 1px solid rgba(129, 140, 248, 0.2);
+  
+  .callout-title { color: #ffffff !important; }
+  .bi-robot { color: #818cf8 !important; }
+  div.callout-body { color: #e4e4e7 !important; }
+}
+
+// --- 5. 表格美化 (Clean SaaS List View - Dark) ---
+// 核心部分：完全复刻你发的高级 SaaS 截图
+.dataTables_wrapper {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  
+  // 容器：彻底透明化，去边框
+  background: transparent !important; 
+  padding: 0 !important;
+  margin-top: 1rem !important;
+  border-radius: 0 !important;
+  box-shadow: none !important; 
+  border: none !important; 
+  color: #e4e4e7; 
+
+  // 表格主体：无竖线
+  table.dataTable {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    border-bottom: 1px solid #27272a !important; 
+  }
+
+  // 表头：大写、加粗、底部亮线
+  table.dataTable thead th {
+    background-color: transparent !important; 
+    color: #a1a1aa !important; // 浅灰表头
+    font-weight: 700 !important;
+    font-size: 12px !important;
+    text-transform: uppercase; 
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid #3f3f46 !important; 
+    padding: 16px 12px !important;
+  }
+
+  // 单元格：无竖线，大间距
+  table.dataTable tbody td {
+    background-color: transparent !important;
+    border-bottom: 1px solid #27272a !important; // 极淡的分割线
+    border-top: none !important;
+    border-left: none !important;
+    border-right: none !important;
+    padding: 16px 12px !important; // 增加行高
+    font-size: 14px !important;
+    vertical-align: middle !important;
+    color: #e4e4e7 !important;
+  }
+
+  // 悬停效果：极微弱的亮光
+  table.dataTable tbody tr:hover td {
+    background-color: rgba(255, 255, 255, 0.03) !important; 
+    cursor: pointer;
+  }
+
+  // 表格搜索框
+  .dataTables_filter {
+    margin-bottom: 15px;
+    input {
+      border: 1px solid #3f3f46;
+      border-radius: 4px; // 稍微一点圆角让输入框显得友好
+      padding: 6px 12px;
+      font-size: 14px;
+      background-color: rgba(24, 24, 27, 0.5);
+      color: #fff;
+      outline: none;
+      &:focus {
+        border-color: #818cf8;
+        box-shadow: 0 0 0 1px rgba(129, 140, 248, 0.2);
+      }
+    }
+  }
+
+  // 导出按钮组
+  .dt-buttons {
+    margin-bottom: 15px;
+    .dt-button {
+      background: transparent !important;
+      border: 1px solid #3f3f46 !important;
+      color: #a1a1aa !important;
+      border-radius: 0 !important;
+      font-size: 11px !important;
+      font-weight: 700 !important;
+      padding: 5px 12px !important;
+      margin-right: 8px !important;
+      box-shadow: 2px 2px 0px #3f3f46 !important;
+      transition: all 0.1s;
+      text-transform: uppercase;
+
+      &:hover {
+        background: #27272a !important;
+        color: #fff !important;
+        border-color: #52525b !important;
+        transform: translate(-1px, -1px);
+        box-shadow: 3px 3px 0px #52525b !important;
+      }
+      &:active { transform: translate(1px, 1px); box-shadow: 0px 0px 0px #18181b !important; }
+    }
+  }
+
+  // 分页器与长度选择
+  .dataTables_length, .dataTables_filter {
+    margin-bottom: 15px;
+    color: #a1a1aa !important;
+    font-size: 12px;
+    select, input {
+      border: 1px solid #3f3f46;
+      border-radius: 0; 
+      padding: 5px 10px;
+      font-size: 12px;
+      background-color: rgba(24, 24, 27, 0.5);
+      color: #fff;
+      outline: none;
+      &:focus {
+        border-color: #ffffff;
+      }
+    }
+  }
+
+  .dataTables_paginate {
+    margin-top: 20px !important;
+    font-size: 12px !important;
+    .paginate_button {
+        color: #71717a !important; 
+        border: 1px solid transparent !important;
+        border-radius: 0 !important;
+        &:hover { color: #fff !important; background: #27272a !important; border-color: #3f3f46 !important; }
+    }
+    .paginate_button.current {
+        color: #fff !important;
+        background: #27272a !important; 
+        border: 1px solid #ffffff !important;
+    }
+  }
+}
+
+// --- 7. Tabset (Nav Tabs) 美化 (Dark Mode) ---
+.nav-tabs {
+  border-bottom: 1px solid $border-color !important;
+  
+  .nav-link {
+    color: #a1a1aa !important; // 默认浅灰
+    border: 1px solid transparent !important;
+    border-radius: 0 !important; // 直角
+    margin-right: 2px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    
+    &:hover {
+      color: #ffffff !important;
+      background-color: rgba(255, 255, 255, 0.05) !important;
+      border-color: transparent !important;
+    }
+    
+    &.active {
+      color: #ffffff !important;
+      background-color: #18181b !important; // 选中时深色背景
+      border: 1px solid $border-color !important;
+      border-bottom-color: #18181b !important; // 遮住底下的线，形成连通感
+    }
+  }
+}
+
+// 确保内容区域也有合适的上边距
+.tab-content {
+  margin-top: 1rem;
+  border: 1px solid $border-color; // 可选：给整个 tab 内容加个框，增加整体感
+  border-top: none;
+  padding: 1rem;
+}

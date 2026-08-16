@@ -1,0 +1,135 @@
+# reference:
+reference_path : /data/jzhang/reference/ATACFlow_reference
+# FastQ Screen Database Root Path (For migration)
+# This path should contain subdirectories like 'hg38', 'GRCm39', 'fastq_screen_database', etc.
+fastq_screen_db_path: /data/jzhang/reference/fastq_screen_database
+# Support gene version
+can_use_genome_version:
+  - Lsat_Salinas_v11
+  - Lsat_Salinas_v11_wx
+  - Lsat_Salinas_v8_wx
+  - ITAG4.1
+  - hg38
+  - GRCm39
+  - GO
+# MCP Genome Version
+mcp_genome_version: 
+  Lsat_Salinas_v11:
+    name: Lsat_Salinas_v11
+    description: Lettuce reference genome (v11)
+  Lsat_Salinas_v11_wx:
+    name: Lsat_Salinas_v11_wx
+    description: Lettuce reference genome (v11) power by wang xing
+  Lsat_Salinas_v8_wx:
+    name: Lsat_Salinas_v8_wx
+    description: Lettuce reference genome (v8) power by wang xing
+  ITAG4.1:
+    name: ITAG4.1
+    description: tomato reference genome (ITAG4.1) 
+  hg38:
+    name: hg38
+    description: Human reference genome (GRCh38)
+  GRCm39:
+    name: GRCm39
+    description: Mouse reference genome (GRCm39)
+# Bowtie2 Reference PATH
+Bowtie2_index:
+    Lsat_Salinas_v11:
+      index: Lactuca_sativa_V11_ncbi/Lsat_Salinas_v11_index/Lsat_Salinas_v11
+      chromap_index: Lactuca_sativa_V11_ncbi/Lactuca_sativa_V11_ncbi_chromap_index
+      gene_gtf: Lactuca_sativa_V11_ncbi/GCF_002870075.4_Lsat_Salinas_v11_genomic.fix_id_gene.gtf
+      genome_fa: Lactuca_sativa_V11_ncbi/GCF_002870075.4_Lsat_Salinas_v11_genomic.fix_id.fna
+      genome_gtf: Lactuca_sativa_V11_ncbi/GCF_002870075.4_Lsat_Salinas_v11_genomic.fix_id.gtf
+      genome_gff: Lactuca_sativa_V11_ncbi/GCF_002870075.4_Lsat_Salinas_v11_genomic.fix_id.gff
+      bed: Lactuca_sativa_V11_ncbi/Lsat_Salinas_v11.bed12
+      go_annotation: Lactuca_sativa_V11_ncbi/GCF_002870075.4-RS_2022_12_gene_ontology.go
+      tss_bed:  Lactuca_sativa_V11_ncbi/Lactuca_sativa_V11_ncbi_tss.deal.bed
+      autosomes: Lactuca_sativa_V11_ncbi/Lactuca_sativa_V11_autosomes.txt
+      ploidy: 2
+    Lsat_Salinas_v8_wx:
+      index: Lactuca_sativa_V8_wx/Lsat_Salinas_v8_index_xw/Lsat_Salinas_v8_xw
+      chromap_index: Lactuca_sativa_V8_wx/Lsat_Salinas_v8.xw
+      gene_gtf: Lactuca_sativa_V8_wx/GLactuca_sativa_V8A.gtf
+      genome_fa: Lactuca_sativa_V8_wx/Lactuca_sativa_V8A.fasta
+      genome_gtf: Lactuca_sativa_V8_wx/Lactuca_sativa_V8A.gtf
+      genome_gff: Lactuca_sativa_V8_wx/Lactuca_sativa_V8A.gff3
+      bed: Lactuca_sativa_V8_wx/Lactuca_sativa_V8A.bed12
+      go_annotation: Lactuca_sativa_V8_wx/GCF_002870075.4-RS_2022_12_gene_ontology.go
+      tss_bed:  Lactuca_sativa_V8_wx/Lactuca_sativa_V8A.tss.deal.bed
+      autosomes: Lactuca_sativa_V8_wx/Lactuca_sativa_V8_autosomes.txt
+      ploidy: 2
+    Lsat_Salinas_v11_wx:
+      index: Lactuca_sativa_V11_xw/Lsat_Salinas_v11_index_xw/Lsat_Salinas_v11_index_xw
+      chromap_index: Lactuca_sativa_V11_xw/Lsat_Salinas_v11.xw
+      gene_gtf: Lactuca_sativa_V11_xw/Lsat_Salinas_v11.genome.gtf
+      genome_fa: Lactuca_sativa_V11_xw/Lsat_Salinas_v11.genome.fasta
+      genome_gtf: Lactuca_sativa_V11_xw/Lsat_Salinas_v11.genome.gtf
+      genome_gff: Lactuca_sativa_V11_xw/Lsat_Salinas_v11.genome.gff
+      bed: Lactuca_sativa_V11_xw/Lsat_Salinas_v11.genome.bed12
+      go_annotation: Lactuca_sativa_V11_xw/GCF_002870075.4-RS_2022_12_gene_ontology.go
+      tss_bed:  Lactuca_sativa_V11_xw/Lsat_Salinas_v11.xw.tss.deal.bed
+      autosomes: Lactuca_sativa_V11_xw/Lactuca_sativa_V11_wx_autosomes.txt
+      ploidy: 2
+    ITAG4.1:
+      index: ITAG4.1/ITAG4.1_bowtie2_index/ITAG4.1_bowtie2_index
+      chromap_index: ITAG4.1/S_lycopersicum_chromosomes.4.00.chromap
+      gene_gtf: ITAG4.1/ITAG4.1_gene_models.genes.gtf
+      genome_fa: ITAG4.1/S_lycopersicum_chromosomes.4.00.fa
+      genome_gtf: ITAG4.1/ITAG4.1_gene_models.gtf
+      genome_gff: ITAG4.1/ITAG4.1_gene_models.gff
+      bed: ITAG4.1/ITAG4.1_gene_models.bed12
+      go_annotation: ITAG4.1/ITAG4.1_blast2go_annot.annot_deal
+      tss_bed:  ITAG4.1/ITAG4.1_gene_models.tss.bed
+      autosomes: ITAG4.1/S_lycopersicum_chromosomes.4.00.autosomes.txt
+      ploidy: 2
+    hg38:
+      index: hg38/GRCh38.p14_bowtie2/GRCh38.p14_index
+      chromap_index: hg38/GRCh38.p14.chromap_index
+      gene_gtf: hg38/gencode.v49.annotation.gene.gtf
+      genome_fa: hg38/GRCh38.p14.genome.fa
+      genome_gtf: hg38/gencode.v49.annotation.gtf
+      genome_gff: hg38/gencode.v49.annotation.gff3
+      bed: hg38/gencode.v49.annotation.bed12
+      go_annotation: hg38/goa_human.go
+      tss_bed:  hg38/gencode.v49.annotation_tss.deal.bed
+      blacklists: hg38/hg38-blacklist.v2.bed
+      autosomes: hg38/hg38_autosomes.txt
+      ploidy: 2
+    GRCm39:
+      index: GRCm39/GRCm39_bowtie2_index/GRCm39_bowtie2_index
+      chromap_index: hg38/GRCm39.genome.chromap
+      gene_gtf: GRCm39/gencode.vM38.genes.gtf
+      genome_fa: GRCm39/GRCm39.genome.fa
+      genome_gtf: GRCm39/gencode.vM38.annotation.gtf
+      genome_gff: GRCm39/gencode.vM38.annotation.gff3
+      bed: GRCm39/gencode.vM38.annotation.bed12
+      go_annotation: GRCm39/mgigene_go_annotation.tsv
+      tss_bed:  GRCm39/gencode.vM38.annotation.tss.bed
+      autosomes: GRCm39/GRCm39_autosomes.txt
+      blacklists: GRCm39/mm39.excluderanges.bed
+      ploidy: 2
+    GO:
+      obo: go_database/go-basic.obo
+genome_info:
+  Lsat_Salinas_v11:
+    effectiveGenomeSize: 2590369317
+    chrMID: ChrMT
+    plast: Chrpla
+  Lsat_Salinas_v11_wx:
+    effectiveGenomeSize: 2589893728
+    chrMID: ChrMT
+    plast: Chrpla
+  Lsat_Salinas_v8_wx:
+    effectiveGenomeSize: 2399609109
+    chrMID: ChrMT
+    plast: Chrpla
+  ITAG4.1:
+    effectiveGenomeSize: 782520033
+    chrMID: ChrMT
+    plast: Chrpla
+  hg38:
+    effectiveGenomeSize: 3291585349
+    chrMID: chrM
+  GRCm39:
+    effectiveGenomeSize: 2728222451
+    chrMID: chrM

@@ -1,0 +1,27 @@
+# 开发验证专用：本机临时 Matrix(Synapse)+ Element Web。
+# 仅用于在本地打通 AgentTeams 协作聊天室链路(chat-room API、抽屉 iframe、按 Case 解析房间)。
+# 这不是正式部署形态——正式控制面(Tuwunel Matrix / Element Web / MinIO / Higress)
+# 走 K8s 官方 Helm chart,见 docs/26.8.1/agent_Case.md 第 6 节与 ../README.md。
+services:
+  synapse:
+    image: matrixdotorg/synapse:latest
+    container_name: omichub-matrix-dev-synapse
+    restart: unless-stopped
+    volumes:
+      - ./synapse-data:/data
+    ports:
+      - "127.0.0.1:8008:8008"
+
+  element:
+    image: vectorim/element-web:latest
+    container_name: omichub-matrix-dev-element
+    restart: unless-stopped
+    volumes:
+      - ./element-config.json:/app/config.json:ro
+      # element-web 镜像默认带 X-Frame-Options: SAMEORIGIN,不允许被 OmicHub 页面 iframe 嵌入;
+      # 开发环境挂载去掉该头的 nginx 配置(由 setup 脚本从镜像提取并改写)
+      - ./nginx-no-xfo.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "127.0.0.1:8081:80"
+    depends_on:
+      - synapse

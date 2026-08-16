@@ -1,0 +1,13 @@
+---
+title: AI 生物学解读
+execute: 
+  echo: false
+  warning: false
+---
+
+::: {.callout-tip icon="false" appearance="simple" }
+## <i class="bi bi-robot"></i> AI 生物学解读 (AI Assistant)
+
+
+
+:::

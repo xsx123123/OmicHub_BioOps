@@ -1,0 +1,4 @@
+interface:
+  display_name: "OmicHub Frontend Design"
+  short_description: "Apply OmicHub scientific-workbench UI standards."
+  default_prompt: "Use $omichub-frontend-design to improve this Vue frontend while following the OmicHub design system."

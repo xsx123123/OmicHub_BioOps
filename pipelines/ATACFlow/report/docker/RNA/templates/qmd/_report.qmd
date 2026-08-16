@@ -1,0 +1,43 @@
+---
+title: "BFP RNA-seq 完整分析报告"
+date: last-modified
+author: "RNA-seq Team"
+format:
+  html:
+    embed-resources: true       # <--- 核心：把所有图片、CSS、JS 打包进一个文件
+    self-contained: true        # 兼容旧版本写法
+    toc: true                   # 开启目录
+    toc-depth: 3                # 目录深度
+    toc-location: left          # 目录放在左侧（替代侧边栏）
+    toc-title: "导航目录"
+    number-sections: true       # 章节自动编号
+    theme: 
+      light: [./theme/New_Brutalism.scss] # 保留你的主题
+      dark: [./theme/Dark_New_Brutalism.scss]
+    css: 
+      - ./theme/styles.css
+      - ./theme/itables_saas.css
+    code-copy: true
+    smooth-scroll: true
+    df-print: paged
+---
+
+# 项目概况 (Project Info)
+{{< include index.qmd >}}
+
+# 分析流程 (Workflow)
+{{< include workflow.qmd >}}
+
+# 质量控制 (QC Report)
+{{< include qc.qmd >}}
+
+# 分析结果 (Results)
+{{< include results.qmd >}}
+
+# 关于 (About)
+{{< include about.qmd >}}
+
+---
+<div style="text-align: center; margin-top: 50px; color: gray;">
+  报告生成于 {{< meta date >}} | Proudly supported by Quarto
+</div>

@@ -1,0 +1,31 @@
+# OmicHub 统一下载器配置
+# 修改后由 DownloadConfigManager 按文件 mtime 自动热重载，无需重启。
+
+features:
+  ebi: false
+  cloud_storage: false
+  direct_link: false
+
+binaries:
+  ebi: "/data/omichub/bin/EBIDownload"
+  ebi_config: "/data/omichub/bin/EBIDownload.yaml"
+  aria2c: "/usr/bin/aria2c"
+  ossutil: "/data/omichub/bin/ossutil"
+  tosutil: "/data/omichub/bin/tosutil"
+  obsutil: "/data/omichub/bin/obsutil"
+
+aria2:
+  default_threads: 4
+  max_threads: 16
+  max_concurrent_downloads: 4
+  max_tries: 5
+  retry_wait: 5
+  connect_timeout: 30
+  timeout: 60
+  file_allocation: "none"
+  check_integrity: true
+  ftp_reuse_connection: true
+
+validation:
+  max_links_per_task: 100
+  allowed_schemes: ["http", "https", "ftp"]

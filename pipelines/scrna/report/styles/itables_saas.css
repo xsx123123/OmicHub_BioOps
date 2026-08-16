@@ -1,0 +1,128 @@
+/* --- DataTables SaaS 风格 (适配亮/暗模式) --- */
+
+:root {
+    --dt-bg: #ffffff;
+    --dt-text: #1f2937;
+    --dt-header-text: #374151;
+    --dt-border: #f3f4f6;
+    --dt-header-border: #e5e7eb;
+    --dt-hover: #f9fafb;
+    --dt-input-bg: #f9fafb;
+    --dt-btn-bg: #ffffff;
+    --dt-btn-hover: #f3f4f6;
+}
+
+/* 黑夜模式变量覆盖 */
+[data-mode="dark"] {
+    --dt-bg: #09090b;          /* Zinc-950 */
+    --dt-text: #e4e4e7;        /* Zinc-200 */
+    --dt-header-text: #a1a1aa; /* Zinc-400 */
+    --dt-border: #27272a;      /* Zinc-800 */
+    --dt-header-border: #3f3f46; /* Zinc-700 */
+    --dt-hover: #18181b;       /* Zinc-900 */
+    --dt-input-bg: #18181b;
+    --dt-btn-bg: #18181b;
+    --dt-btn-hover: #27272a;
+}
+
+.dataTables_wrapper {
+    background: var(--dt-bg) !important;
+    padding: 0px;
+    font-family: "Public Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+    color: var(--dt-text) !important;
+}
+
+/* 表格主体 */
+table.dataTable {
+    border-collapse: collapse !important;
+    width: 100% !important;
+    border-bottom: 1px solid var(--dt-border) !important;
+    margin: 1.5rem 0 !important;
+    background: var(--dt-bg) !important;
+}
+
+/* 表头 */
+table.dataTable thead th {
+    background-color: var(--dt-bg) !important; 
+    color: var(--dt-header-text) !important;
+    font-weight: 700 !important;
+    font-size: 13px !important;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 2px solid var(--dt-header-border) !important;
+    padding: 16px 12px !important;
+    text-align: left;
+}
+
+/* 单元格 */
+table.dataTable tbody td {
+    background-color: var(--dt-bg) !important;
+    border-bottom: 1px solid var(--dt-border) !important;
+    padding: 16px 12px !important;
+    font-size: 14px !important;
+    vertical-align: middle !important;
+    color: var(--dt-text) !important;
+}
+
+/* 悬停效果 */
+table.dataTable tbody tr:hover td {
+    background-color: var(--dt-hover) !important;
+}
+
+/* 搜索框与长度选择 */
+.dataTables_filter, .dataTables_length {
+    margin-bottom: 15px;
+    color: var(--dt-header-text) !important;
+    font-size: 13px;
+}
+
+.dataTables_filter input, .dataTables_length select {
+    border: 1px solid var(--dt-header-border) !important;
+    border-radius: 6px !important;
+    padding: 6px 12px !important;
+    background-color: var(--dt-input-bg) !important;
+    color: var(--dt-text) !important;
+    outline: none;
+}
+
+/* 按钮组 */
+.dt-buttons {
+    margin-bottom: 15px;
+}
+button.dt-button {
+    background: var(--dt-btn-bg) !important;
+    border: 1px solid var(--dt-header-border) !important;
+    color: var(--dt-text) !important;
+    border-radius: 6px !important;
+    font-size: 12px !important;
+    padding: 6px 14px !important;
+    box-shadow: none !important;
+    transition: all 0.2s;
+}
+button.dt-button:hover {
+    background: var(--dt-btn-hover) !important;
+    border-color: var(--dt-header-text) !important;
+}
+
+/* 分页器 */
+.dataTables_paginate {
+    margin-top: 20px !important;
+    font-size: 12px !important;
+}
+
+.dataTables_paginate .paginate_button {
+    color: var(--dt-text) !important;
+    border-radius: 6px !important;
+    border: 1px solid transparent !important;
+}
+
+.dataTables_paginate .paginate_button.current {
+    background: var(--dt-hover) !important;
+    color: var(--dt-text) !important;
+    border: 1px solid var(--dt-header-border) !important;
+}
+
+/* 修复一些 DataTables 默认样式在暗色下的冲突 */
+.dataTables_wrapper .dataTables_info {
+    color: var(--dt-header-text) !important;
+}

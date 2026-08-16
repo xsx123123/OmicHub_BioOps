@@ -1,0 +1,4 @@
+id: handoff
+description: 在同一会话内向白名单中的下一位专业 Agent 交接结构化上下文。
+builtin_tools:
+  - transfer_to_agent

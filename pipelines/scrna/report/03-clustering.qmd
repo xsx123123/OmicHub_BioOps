@@ -1,0 +1,60 @@
+---
+title: "Clustering & Marker Genes"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+source("R/read_manifest.R")
+source("R/read_summary.R")
+source("R/tables.R")
+source("R/plot_helpers.R")
+
+result_dir <- get_result_dir("data")
+manifest <- read_manifest(result_dir)
+cluster_summary <- read_summary_for_step(result_dir, manifest, "cluster_markers")
+```
+
+## Cluster Marker Summary
+
+```{r cluster-status, results='asis'}
+if (is.null(cluster_summary)) {
+  cat("Cluster marker summary not available.")
+} else {
+  cat(paste0("Status: **", cluster_summary$status, "**  "))
+  cat(paste0("Marker files: ", cluster_summary$metrics$marker_file_count %||% 0))
+}
+```
+
+## Clustering Plots
+
+```{r cluster-plots, fig.cap="UMAP and clustering plots", out.width="48%"}
+if (!is.null(cluster_summary)) display_images(result_dir, cluster_summary, max_images = 12)
+```
+
+## Top Marker Genes
+
+```{r marker-table}
+if (!is.null(cluster_summary) && !is.null(cluster_summary$tables$top_markers) && nrow(cluster_summary$tables$top_markers) > 0) {
+  knitr::kable(cluster_summary$tables$top_markers, format = "html")
+} else {
+  marker_artifacts <- artifact_table(cluster_summary, types = "csv", path_pattern = "marker")
+  marker_csv <- artifact_abs_paths(result_dir, marker_artifacts)[1]
+  if (!is.na(marker_csv) && file.exists(marker_csv)) {
+    markers <- read.csv(marker_csv, stringsAsFactors = FALSE)
+    knitr::kable(head(markers, 50), format = "html")
+  } else {
+    cat("Marker gene list not found.")
+  }
+}
+```
+
+## Marker Files
+
+```{r marker-files}
+marker_artifacts <- artifact_table(cluster_summary, types = c("csv", "qs"), path_pattern = "marker")
+if (nrow(marker_artifacts) > 0) {
+  knitr::kable(marker_artifacts[, intersect(c("type", "path", "bytes"), colnames(marker_artifacts)), drop = FALSE], format = "html")
+} else {
+  cat("No marker artifacts recorded.")
+}
+```

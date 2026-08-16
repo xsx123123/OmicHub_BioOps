@@ -1,0 +1,17 @@
+id: scrna
+description: 单细胞团队的基因/功能证据查询能力：Ensembl 基因检索与 GO 术语校验，用于 marker 验证与注释审查。
+# MCP UUID 与 rnaseq/atacseq 工具包共用同一组已注册 Server；此处仅按单细胞场景
+# 收敛白名单（不暴露序列/CDS 拉取等与本领域无关的工具）。
+mcp_ids:
+  - 9f3a3546-e7d6-4a59-9c61-206ca2e471c7
+  - 15bb9689-f2c9-4d31-aaa3-4f79514e7f92
+mcp_tools:
+  9f3a3546-e7d6-4a59-9c61-206ca2e471c7:
+    - list_species
+    - search_genes
+    - lookup_gene
+    - get_xrefs
+  15bb9689-f2c9-4d31-aaa3-4f79514e7f92:
+    - search_go_terms
+    - get_go_term
+    - validate_go_id

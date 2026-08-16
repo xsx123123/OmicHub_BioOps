@@ -1,0 +1,101 @@
+# Matrix Gateway 生产部署：OmicHub 侧唯一接触 Matrix 凭证的进程。
+# 镜像由 integrations/agentteams/gateway/Dockerfile 构建（uid 10002，端口 8081）。
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: omichub-agent-gateway-config
+  namespace: agentteams-system
+  labels: {app.kubernetes.io/name: omichub-agent-gateway, app.kubernetes.io/part-of: omichub-agentteams}
+data:
+  GATEWAY_ENVIRONMENT: "production"
+  GATEWAY_MATRIX_HOMESERVER_URL: "http://omichub-tuwunel:6167"
+  # server_name 与静态身份域名必须与 omichub-tuwunel-config 的 TUWUNEL_SERVER_NAME 一致。
+  GATEWAY_MATRIX_SERVER_NAME: "example.internal"
+  GATEWAY_MATRIX_IDENTITIES: "bioops-manager=@bioops-manager:example.internal,omichub-user=@omichub-user:example.internal,agent-rnaseq=@agent-rnaseq:example.internal,agent-scrna=@agent-scrna:example.internal,agent-viz=@agent-viz:example.internal,agent-code=@agent-code:example.internal"
+  # Element Web 地址：建房后随 room.created 证据事件下发给前端做 iframe 嵌入，
+  # 指向对外可访问的 Element 部署（开发期可用 matrix-dev 的 http://localhost:8081）。
+  GATEWAY_ELEMENT_BASE_URL: "https://element.example.internal"
+  GATEWAY_OMICHUB_BASE_URL: "http://omichub-api.omichub-system:8000"
+  GATEWAY_AUDIT_LOG_PATH: "/var/lib/omichub-agent-gateway/audit.jsonl"
+  GATEWAY_STATE_STORE_URL: "redis://omichub-agentteams-state:6379/0"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: omichub-agent-gateway-runtime
+  namespace: agentteams-system
+  labels: {app.kubernetes.io/name: omichub-agent-gateway, app.kubernetes.io/part-of: omichub-agentteams}
+type: Opaque
+stringData:
+  # 模板：部署前替换。MATRIX_SERVICE_TOKEN 必须等于 Tuwunel AppService
+  # 注册文件（omichub-tuwunel-appservice）中的 as_token。
+  GATEWAY_OMICHUB_INTEGRATION_TOKEN: "replace-omichub-integration-token"
+  GATEWAY_IDENTITIES: "bioops-manager:replace-manager-gateway-secret"
+  GATEWAY_MATRIX_SERVICE_TOKEN: "replace-appservice-as-token"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: omichub-agent-gateway
+  namespace: agentteams-system
+  labels:
+    app.kubernetes.io/name: omichub-agent-gateway
+    app.kubernetes.io/part-of: omichub-agentteams
+spec:
+  replicas: 2
+  selector:
+    matchLabels: {app.kubernetes.io/name: omichub-agent-gateway}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: omichub-agent-gateway
+        app.kubernetes.io/part-of: omichub-agentteams
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10002
+        runAsGroup: 10002
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: gateway
+          image: omichub-agent-gateway:0.1.0
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef: {name: omichub-agent-gateway-config}
+            - secretRef: {name: omichub-agent-gateway-runtime}
+          ports: [{name: http, containerPort: 8081}]
+          readinessProbe: {httpGet: {path: /healthz, port: http}, initialDelaySeconds: 5}
+          livenessProbe: {httpGet: {path: /healthz, port: http}, initialDelaySeconds: 15}
+          resources:
+            requests: {cpu: 250m, memory: 256Mi}
+            limits: {cpu: "1", memory: 1Gi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}
+          volumeMounts:
+            - {name: tmp, mountPath: /tmp}
+            - {name: audit, mountPath: /var/lib/omichub-agent-gateway}
+      volumes:
+        - {name: tmp, emptyDir: {medium: Memory}}
+        # 审计 JSONL 随 Pod 生命周期；需要长期留存时改为 PVC 并配 logrotate。
+        - {name: audit, emptyDir: {}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: omichub-agent-gateway
+  namespace: agentteams-system
+  labels: {app.kubernetes.io/name: omichub-agent-gateway, app.kubernetes.io/part-of: omichub-agentteams}
+spec:
+  selector: {app.kubernetes.io/name: omichub-agent-gateway}
+  ports: [{name: http, port: 8081, targetPort: http}]
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: omichub-agent-gateway
+  namespace: agentteams-system
+spec:
+  minAvailable: 1
+  selector: {matchLabels: {app.kubernetes.io/name: omichub-agent-gateway}}

@@ -1,0 +1,13 @@
+templates:
+  - id: differential-expression
+    title: 差异表达分析
+    prompt: 请根据以下基因列表和样本分组设计差异表达分析：\n基因/数据：{{gene_list}}\n样本分组：{{sample_group}}
+  - id: enrichment
+    title: 功能富集分析
+    prompt: 请对以下基因列表进行 GO/KEGG/GSEA 富集分析，并说明物种与背景集要求：\n{{gene_list}}
+  - id: disease-genes
+    title: 疾病相关基因解读
+    prompt: 请分析以下基因与疾病或表型 {{disease_or_phenotype}} 的关系，并区分已知证据与推测：\n{{gene_list}}
+  - id: atac-peaks
+    title: ATAC-seq Peak 解读
+    prompt: 请分析以下 ATAC-seq peak 列表，说明注释、motif 和通路分析步骤：\n{{peak_list}}

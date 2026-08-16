@@ -1,0 +1,152 @@
+# ============================================
+# OmicHub 常用物种基因数据库 · 注册表
+# ============================================
+# 结构：species → versions 两级（设计文档 docs/26.8.4/常用物种基因数据库_实施方案.md §4.1）。
+# 热重载：加载器按文件 mtime 自动重载，改完无需重启后端；
+# 强制立即生效：POST /api/v1/reference-genomes/reload（管理员）。
+#
+# 路径约定：
+#   - data_dir 为版本数据目录（绝对路径），files.*.path 相对 data_dir 解析；
+#   - 文件缺失 / 本文件缺失 / 解析失败时，API 降级为空配置，绝不抛异常；
+#   - gene_index 为 indexer 构建产物（相对 data_dir），先写临时文件再原子替换。
+#
+# files[key].format 决定 indexer 用哪个解析器：
+#   genomic_fasta     解压 gz（若有）+ 生成 .fai（纯 Python）
+#   gff3              gene/mRNA/exon → genes + transcripts
+#   tair_functional   TAIR functional_descriptions TSV → genes.annotation
+#   fasta_kv          CDS/蛋白 FASTA 登记转录本 ID + 序列偏移
+#   gaf               gene_association GAF 2.2 → go_annotations
+#   obo               go-basic.obo → go_terms
+#   kegg_ko           ath_ko.list（剥离 ath:/ko: 前缀）→ kegg_annotations
+#   kegg_pathway      ath_pathway.list（剥离 path: 前缀）→ kegg_annotations
+#   kegg_pathway_name ath_pathway_name.list → kegg_pathways 字典
+#   kegg_gene         ath_gene.list（4 列）→ 基因 symbol 补充
+# --------------------------------------------
+
+species:
+  # ---------- 拟南芥 TAIR10（首个端到端接入的物种） ----------
+  - id: arabidopsis
+    common_name: 拟南芥
+    latin_name: Arabidopsis thaliana
+    taxonomy_id: "3702"
+    icon: 🌱
+    category: plant
+    gradient: "linear-gradient(90deg, #0FC6C2, #165DFF)"
+    description: 模式植物拟南芥 TAIR10 注释库（基因结构 + 序列 + GO + KEGG 全套）
+    versions:
+      - id: tair10
+        version_name: TAIR10
+        assembly_name: TAIR10
+        is_default: true
+        status: active
+        release_date: "2010-12"
+        description: 经典模式植物参考版本，GO/KEGG 注释完整
+        tags: [模式植物, 稳定版]
+        data_dir: /data/omichub/omichub_data/reference/TAIR10
+        stats:
+          chromosomes: 7          # Chr1-5 + ChrC + ChrM
+          total_genes: 28775
+          protein_coding: 27655
+          genome_size: "119.7 Mb"
+          n50: "23.5 Mb"
+        files:
+          fasta:       { path: TAIR10_chr_all.fas.gz,        format: genomic_fasta, type: genomic }
+          gff3:        { path: TAIR10_GFF3_genes.gff,        format: gff3 }
+          cds:         { path: TAIR10_cds_20101214,          format: fasta_kv }
+          protein:     { path: TAIR10_pep_20101214,          format: fasta_kv }
+          functional:  { path: TAIR10_functional_descriptions, format: tair_functional }
+          go:          { path: gene_association.tair.gz,     format: gaf }
+          go_obo:      { path: go-basic.obo,                 format: obo }
+          kegg_ko:     { path: ath_ko.list,                  format: kegg_ko }
+          kegg_pathway: { path: ath_pathway.list,            format: kegg_pathway }
+          kegg_pathway_name: { path: ath_pathway_name.list,  format: kegg_pathway_name }
+          kegg_gene:   { path: ath_gene.list,                format: kegg_gene }
+        gene_index: gene_index.db
+
+  # ---------- 生菜（数据待接入，卡片显示 missing） ----------
+  - id: lettuce
+    common_name: 生菜
+    latin_name: Lactuca sativa
+    taxonomy_id: "4236"
+    icon: 🥬
+    category: plant
+    gradient: "linear-gradient(90deg, #165DFF, #722ED1)"
+    description: 生菜多版本参考基因组与功能注释库（数据待接入）
+    versions:
+      - id: lettuce-v11
+        version_name: v11
+        assembly_name: Lsat.1.v11
+        is_default: true
+        release_date: "2023-05"
+        description: 最新版染色体级组装（FASTA/GFF3 待下载接入）
+        tags: [最新版, 染色体级]
+        data_dir: /data/omichub/omichub_data/reference/Lettuce
+        stats: { chromosomes: 9, total_genes: 38678, genome_size: "2.69 Gb", n50: "120 Mb" }
+        files: {}
+        gene_index: gene_index.db
+      - id: lettuce-v8
+        version_name: v8
+        assembly_name: Lsat.1.v8
+        is_default: false
+        release_date: "2020-11"
+        description: 稳定版染色体级组装（FASTA/GFF3 待下载接入）
+        tags: [稳定版, 染色体级]
+        data_dir: /data/omichub/omichub_data/reference/Lettuce
+        stats: { chromosomes: 9, total_genes: 35241, genome_size: "2.65 Gb", n50: "95 Mb" }
+        files: {}
+        gene_index: gene_index.db
+
+  # ---------- 水稻（数据待接入） ----------
+  - id: rice
+    common_name: 水稻
+    latin_name: Oryza sativa
+    taxonomy_id: "4530"
+    icon: 🌾
+    category: plant
+    gradient: "linear-gradient(90deg, #F77234, #F7BA1E)"
+    description: 水稻 Nipponbare 参考基因组与注释库（数据待接入）
+    versions:
+      - id: irgsp-1.0
+        version_name: IRGSP-1.0
+        assembly_name: IRGSP-1.0
+        is_default: true
+        release_date: "2023-11"
+        description: 水稻主流参考版本（FASTA/GFF3 待下载接入）
+        tags: [主流版本, 染色体级]
+        data_dir: ""
+        stats: { chromosomes: 12, total_genes: 30600, genome_size: "373 Mb", n50: "31.1 Mb" }
+        files: {}
+        gene_index: gene_index.db
+
+  # ---------- 番茄（数据待接入） ----------
+  - id: tomato
+    common_name: 番茄
+    latin_name: Solanum lycopersicum
+    taxonomy_id: "4081"
+    icon: 🍅
+    category: plant
+    gradient: "linear-gradient(90deg, #F53F3F, #F77234)"
+    description: 番茄 SL4.0 草案数据库，功能注释建设中
+    versions:
+      - id: sl4.0
+        version_name: SL4.0
+        assembly_name: SL4.0
+        is_default: true
+        release_date: "2024-03"
+        description: 番茄参考版本（FASTA/GFF3 待下载接入）
+        tags: [建设中]
+        data_dir: ""
+        stats: { chromosomes: 12, total_genes: 34120, genome_size: "828 Mb", n50: "67 Mb" }
+        files: {}
+        gene_index: gene_index.db
+      - id: itag4.1
+        version_name: ITAG4.1
+        assembly_name: ITAG4.1
+        is_default: false
+        release_date: "2024-03"
+        description: 番茄注释版本（GO/KEGG 注释文件在盘，FA/GFF3 待下载）
+        tags: [建设中]
+        data_dir: /data/omichub/omichub_data/reference/ITAG4.1
+        stats: { chromosomes: 12, total_genes: 0, genome_size: "", n50: "" }
+        files: {}
+        gene_index: gene_index.db

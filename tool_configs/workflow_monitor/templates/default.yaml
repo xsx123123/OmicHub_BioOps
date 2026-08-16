@@ -1,0 +1,106 @@
+id: default
+name: "流程监控总览"
+version: "1.0.0"
+description: "OmicHub 分析流程实时监控面板"
+scope: user
+refresh:
+  mode: websocket
+  fallback_interval_seconds: 5
+permissions:
+  roles: ["user", "admin"]
+filters:
+  - key: status
+    label: "状态"
+    type: select
+    default: running
+    options:
+      - { label: "全部", value: all }
+      - { label: "运行中", value: running }
+      - { label: "失败", value: failed }
+      - { label: "已完成", value: success }
+  - key: flow_id
+    label: "流程"
+    type: flow_select
+    default: all
+  - key: keyword
+    label: "搜索"
+    type: search
+    placeholder: "搜索任务名、Rule、错误信息"
+layout:
+  desktop: { columns: 12, row_height: 96 }
+  mobile: { columns: 1, row_height: 88 }
+widgets:
+  - id: running_count
+    type: metric
+    title: "运行中"
+    data_source: summary
+    query: { field: running_count }
+    style: { tone: info, icon: PulseOutline }
+    layout:
+      desktop: { x: 0, y: 0, w: 3, h: 1 }
+      mobile: { x: 0, y: 0, w: 1, h: 1 }
+
+  - id: failed_today
+    type: metric
+    title: "今日失败"
+    data_source: summary
+    query: { field: failed_today }
+    style: { tone: danger, icon: AlertCircleOutline }
+    layout:
+      desktop: { x: 3, y: 0, w: 3, h: 1 }
+      mobile: { x: 0, y: 1, w: 1, h: 1 }
+
+  - id: avg_progress
+    type: metric
+    title: "平均进度"
+    data_source: summary
+    query: { field: avg_running_progress }
+    style: { tone: success, unit: percent }
+    layout:
+      desktop: { x: 6, y: 0, w: 3, h: 1 }
+      mobile: { x: 0, y: 2, w: 1, h: 1 }
+
+  - id: stale_tasks
+    type: metric
+    title: "疑似卡住"
+    data_source: summary
+    query: { field: stale_task_count }
+    style: { tone: warning, icon: TimerOutline }
+    layout:
+      desktop: { x: 9, y: 0, w: 3, h: 1 }
+      mobile: { x: 0, y: 3, w: 1, h: 1 }
+
+  - id: running_tasks
+    type: task_table
+    title: "运行中任务"
+    data_source: tasks
+    query: { status: running, limit: 50 }
+    layout:
+      desktop: { x: 0, y: 1, w: 8, h: 5 }
+      mobile: { x: 0, y: 4, w: 1, h: 5 }
+    columns:
+      - { key: name, label: "任务", action: open_task }
+      - { key: flow_id, label: "流程" }
+      - { key: status, label: "状态", renderer: status_badge }
+      - { key: progress, label: "进度", renderer: progress_bar }
+      - { key: current_rule, label: "当前 Rule" }
+      - { key: last_event_at, label: "最后事件", renderer: relative_time }
+
+  - id: realtime_events
+    type: event_stream
+    title: "实时事件"
+    data_source: events
+    query: { limit: 100 }
+    options: { auto_scroll: true, compact: true }
+    layout:
+      desktop: { x: 8, y: 1, w: 4, h: 5 }
+      mobile: { x: 0, y: 9, w: 1, h: 4 }
+
+  - id: recent_errors
+    type: error_list
+    title: "近期错误"
+    data_source: errors
+    query: { limit: 20 }
+    layout:
+      desktop: { x: 0, y: 6, w: 12, h: 3 }
+      mobile: { x: 0, y: 13, w: 1, h: 3 }

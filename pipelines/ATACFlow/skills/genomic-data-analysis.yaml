@@ -1,0 +1,109 @@
+version: '1.0'
+name: 'Genomic Data Analysis'
+description: 'ATACFlow 中的基因组数据分析技能，包括参考基因组、序列比对、Peak Calling 等'
+skills:
+  - id: 'reference_genome_setup'
+    name: '参考基因组配置'
+    description: |
+      ATACFlow 使用预设的 reference.yaml 配置参考基因组路径，用户无需修改。
+      对于 hg38 等常见基因组，管理员已配置好索引路径：
+      - index: Bowtie2/Chromap 索引目录
+      - genome_fa: 基因组 FASTA 文件
+      - genome_gtf: GTF 注释文件
+      - genome_gff: GFF 注释文件
+      - genome_sizes: 染色体大小文件
+      - black_list: ENCODE blacklist 区域
+      用户只需在 config.yaml 中设置 Genome_Version: "hg38" 即可自动引用。
+    tags: ['ATACFlow', 'reference genome', 'hg38', 'index', 'preset config']
+
+  - id: 'sequence_alignment'
+    name: '序列比对'
+    description: |
+      ATACFlow 支持双引擎比对：
+      1. Chromap（默认）：专为大规模 ATAC-seq 优化，处理速度更快
+      2. Bowtie2：经典比对工具，兼容性好，参数控制更精细
+      在 config.yaml 中设置：mapping_tools: chromap  # 或 bowtie2
+      比对后会进行严格的 BAM 过滤：去除重复、过滤低质量比对、去除细胞器DNA（植物）、结构过滤等。
+    tags: ['ATACFlow', 'alignment', 'Bowtie2', 'Chromap', 'BAM filtering']
+
+  - id: 'bam_processing'
+    name: 'BAM 文件处理'
+    description: |
+      ATACFlow 的 BAM 处理流程包括：
+      1. 重复标记：使用 GATK MarkDuplicates 标记 PCR 重复
+      2. 基础过滤：去除未比对、次要比对、低质量比对
+      3. 植物学优化（可选）：动态剔除线粒体和叶绿体比对
+      4. 结构性过滤：使用自研 Rust 工具进行配对关系质控
+      5. 坐标排序：生成最终的坐标排序 BAM 文件
+      6. 位移校正：ATAC-seq 特有的 Tn5 位移调整（+4bp for + strand, -5bp for - strand）
+    tags: ['ATACFlow', 'BAM', 'GATK', 'filtering', 'Tn5 shifting']
+
+  - id: 'peak_calling'
+    name: 'Peak Calling'
+    description: |
+      ATACFlow 使用 MACS2 进行 Peak Calling，支持多种策略：
+      1. 单样本分析：对每个样本独立 call peak
+      2. Pooled 分析（推荐）：合并组内生物学重复后 call peak，提高灵敏度
+      3. IDR 分析：评估生物学重复间的一致性
+      配置方式（config.yaml）：
+      peak_calling:
+        use_pooled_peaks: true  # true 使用 pooled peaks，false 使用单样本共识
+      输出：narrowPeaks、broadPeaks、bedGraph、bigWig 等格式
+    tags: ['ATACFlow', 'peak calling', 'MACS2', 'pooled', 'IDR']
+
+  - id: 'consensus_peaks'
+    name: '共识 Peaks'
+    description: |
+      ATACFlow 生成两类共识 peak 集：
+      1. 单样本共识（04.consensus/single/）：合并所有单样本 peaks
+      2. Pooled 共识（04.consensus/pooled/）：合并所有组的 pooled peaks（当 use_pooled_peaks: true 时）
+      每个共识集包含：
+      - all_samples_consensus_peaks.bed：合并后的 consensus peaks
+      - consensus_peaks_annotation.txt：Peak 功能注释
+      - consensus_counts_matrix.txt：样本 counts 矩阵（用于 DESeq2）
+      - consensus_counts_matrix_ann.txt：带注释的 counts 矩阵
+    tags: ['ATACFlow', 'consensus peaks', 'annotation', 'counts matrix']
+
+  - id: 'differential_analysis'
+    name: '差异可及性分析'
+    description: |
+      ATACFlow 使用 DESeq2 进行差异可及性分析（Differential Accessibility）：
+      1. 输入：consensus_counts_matrix.txt + contrasts.csv 定义的对比组
+      2. 分析：DESeq2 归一化、差异检验、log2FoldChange 计算
+      3. 过滤：基于 config.yaml 中设置的 LFC 和 PVAL 阈值
+      4. 输出：
+         - DEG/对比组_DESeq2_results.txt：完整差异分析结果
+         - DEG/对比组_sig_diff_peaks.txt：显著差异 peaks
+         - 火山图、MA 图等可视化
+    tags: ['ATACFlow', 'differential analysis', 'DESeq2', 'DEG']
+
+  - id: 'functional_enrichment'
+    name: '功能富集分析'
+    description: |
+      ATACFlow 对差异 peaks 进行功能富集分析：
+      1. GO 富集分析（clusterProfiler）：
+         - 识别差异 peaks 关联基因的 GO term 富集
+         - 输出：条形图、点图、网络图
+      2. KEGG 通路富集分析：
+         - 识别显著富集的 KEGG 通路
+         - 输出：通路图、富集结果表格
+      3. 输入：DEG 结果中的显著差异 peaks
+      4. 输出目录：06.deg_enrich/enrich/
+    tags: ['ATACFlow', 'GO enrichment', 'KEGG', 'functional annotation']
+
+  - id: 'motif_analysis'
+    name: '转录因子结合位点分析 (TOBIAS)'
+    description: |
+      ATACFlow 集成 TOBIAS 进行转录因子足迹分析：
+      1. ATACorrect：校正 Tn5 插入偏好和可及性偏差
+      2. ScoreBigwig：生成校正后的信号 track
+      3. BINDetect：检测转录因子结合位点
+      4. Differential Footprinting：对比不同组的 TF 结合差异
+      输出目录结构（06.motif_analysis/）：
+      - 01.formatted_peaks/：格式化后的 peak 文件
+      - 02.signal_corrected/：校正后的信号文件
+      - 03.footprints/：足迹分析结果
+      - 04.bindetect/：TF 结合检测结果
+      - 05.differential_motifs/：差异 motif 分析
+      - 06.final_report/：综合报告
+    tags: ['ATACFlow', 'TOBIAS', 'motif analysis', 'footprinting', 'transcription factors']

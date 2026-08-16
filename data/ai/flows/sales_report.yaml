@@ -1,0 +1,29 @@
+flow:
+  id: sales_report
+  version: 1.0.0
+  display_name: 销售报表清洗
+  domain: general
+  actor: agent-code
+  runtime_image: analysis-core
+  bridge_workflow: sales_report
+  trigger_hints: [销售报表, sales report, CSV 清洗, 数据清洗]
+artifacts:
+  - {key: raw_csv, type: table}
+  - {key: clean_csv, type: table}
+  - {key: report, type: review_report}
+  - {key: delivery_manifest, type: json_manifest}
+stages:
+  - key: transform
+    title: 清洗销售明细并生成质量报告
+    assistant_agent_id: agent-code
+    executors:
+      - key: pandas_clean
+        execution_mode: workspace_execution
+        queue: general_analysis
+        resource_profile: standard_8c32g
+        inputs: [raw_csv]
+        outputs: [clean_csv, report]
+        retry_policy: infra_bounded
+delivery:
+  quality_gate: true
+  outputs: [delivery_manifest, clean_csv, report]

@@ -1,0 +1,195 @@
+---
+title: "质控结果"
+bibliography: ../reference/qc_references.bib
+csl: ../reference/china-national-standard-gb-t-7714-2015-numeric.csl
+lang: zh
+execute: 
+  echo: false
+  warning: false
+---
+
+```{python}
+#| label: setup-import-qc
+#| echo: false
+
+import sys
+import os
+
+# 1. 动态添加脚本路径
+# os.path.abspath('..') 会指向项目的根目录
+# 我们把 'root/scripts' 加入到 Python 的搜索路径中
+script_dir = os.path.abspath(os.path.join(os.getcwd(), '..', 'scripts'))
+
+if script_dir not in sys.path:
+    sys.path.append(script_dir)
+
+# 2. 现在可以像标准库一样导入啦！
+# 从 qc_utils.py 中导入 visualize_multiqc_logs 函数
+try:
+    from qc_vis import visualize_multiqc_logs
+    from visualize_utils import display_fastp_table,display_fastq_screen_table
+    from metadata import load_project_metadata
+    
+    # 加载项目配置
+    project_info = load_project_metadata("../data/project_summary.json")
+    input_files = project_info['input_files']
+    
+    # print(f"✅ 成功导入工具函数，脚本路径: {script_dir}")
+except ImportError as e:
+    print(f"❌ 导入失败: {e}")
+    print(f"🔍 Python 当前在这些地方寻找: {sys.path}")
+```
+
+
+## 1. 测序质量 (Quality Control)
+
+本部分汇总了测序数据的整体质量评估结果。通过整合 **fastp** (数据清洗)、**FastQ Screen** (污染检测) 及 **QualiMap/STAR** (比对评估) 的分析日志，我们生成了如下的 `MultiQC` 交互式报告。
+
+**质控核心目标：**
+1. 剔除低质量及含接头的 `Reads`；
+2. 确认无明显的外源物种污染；
+3. 验证比对率及覆盖深度符合分析要求。
+
+## 2. fastp
+
+`Fastp` 用于对 `FASTQ` 格式的测序数据进行质量控制和过滤处理。该软件的一大亮点是能同时输出过滤前后的质量统计结果，清晰展示数据处理的影响。在过滤方面，`Fastp` 功能强大，支持去除低质量碱基、筛选序列长度、切除接头（`Adapter`）序列以及修剪 `PolyG/PolyX` 尾部等多种操作[@chen2018fastp]。
+
+### 2.1 Fastp 过滤前后统计表
+
+```{python}
+#| label: fastp-table
+#| results: asis
+# 设置文件路径
+data_path = input_files.get("fastp_stats_file", "../data/fastp_trim_report/multiqc_general_stats.txt")
+# 一行代码搞定！
+display_fastp_table(data_path)
+```
+
+::: {.callout-note appearance="minimal" icon=false collapse="true"}
+**表注说明**:
+
+1. **Sample**: 样本编号。
+2. **% Duplication**: **重复率**。指被识别为 PCR 重复或光学重复的 Reads 百分比，该值过高可能意味着文库复杂度较低.
+3. **% Q30**: **Q30 碱基比例**。指质量值 $\ge$ 30（即测序错误率 $< 0.1\%$）的碱基所占比例，是衡量测序质量的核心指标。
+4. **Q30 Bases**: **高置信度碱基总数**。过滤后质量值达到 Q30 的碱基总数据量 (bp)。
+5. **Read1/2 Len**: **原始读长**。过滤前 Read 1 和 Read 2 的平均序列长度。
+6. **% Surviving**: **过滤留存率**。经过 fastp 质控（去除低质量、N碱基、太短序列等）后保留下来的 Clean Reads 比例。
+7.  **% Adapter**: **接头去除率**。检测到含有接头序列并被切除的 Reads 比例。
+:::
+
+### 2.2 Fastp 质控汇总图
+
+```{python}
+#| label: fastp-viz
+#| results: asis
+visualize_multiqc_logs(
+    analysis_dir=input_files.get("fastp_report_dir", '../data/fastp_trim_report/multiqc_short_read_trim_report_data'), 
+    target_modules=['fastp']
+)
+```
+
+::: {.callout-note appearance="minimal" icon=false collapse="true"}
+**图注说明**:
+
+1. **Filtered Reads Visualization**: **数据过滤统计图**。直观展示了过滤前后 Reads 的数量变化。深色部分通常代表保留的高质量 Clean Reads，浅色或其它颜色代表因不同原因（如低质量碱基过多、含有 N 碱基、序列过短等）被丢弃的 Dirty Reads。
+   * <span style="color:#7cb5ec">■</span> **Passed Filter**: **质控合格 (Clean Reads)**,最终保留下来的高质量 Reads，将直接用于后续的比对和分析。
+   * <span style="color:#434348">■</span> **Low Quality**: **低质量丢弃** ,因序列中包含过多低质量碱基（质量值低于阈值）而被整体丢弃的 Reads。这通常是测序仪状态不佳导致的。
+   * <span style="color:#90ed7d">■</span> **Too Many N**: **N 碱基过多** ,因无法确定的碱基（N）数量超过设定阈值（默认通常为 5 个）而被丢弃的 Reads。
+   * <span style="color:#f7a35c">■</span> **Low Complexity**: **低复杂度序列**。,指序列复杂度过低（如连续的 `AAAAA` 或简单的重复模式），这类序列通常缺乏生物学特异性。
+   * <span style="color:#8085e9">■</span> **Too Short**: **序列过短**,在切除接头（Adapter）或修剪低质量末端后，剩余长度低于设定阈值（如 15bp）的 Reads。这些片段太短，无法进行有效比对。
+2. **Insert Sizes Visualization**: **插入片段长度分布图**。展示了文库中插入片段（Insert Size）长度的频数分布。对于双端测序（PE），该分布的峰值应符合文库构建时的预期长度（例如 $350\text{bp}$ 或 $500\text{bp}$），分布越窄说明文库片段均一性越好。
+3. **Sequence Quality Visualization**: **碱基质量分布图**。横坐标为 Read 上的碱基位置（Cycle），纵坐标为平均质量值（Phred Score）。通常 Read 测序末端的质量值会呈现下降趋势，但整体应保持在较高水平（如绿色区域，$Q > 30$）。
+4. **GC Content Visualization**: **GC 含量分布图**。展示了 Read 上每个位置的 G 和 C 碱基总比例。理想情况下，除测序原本的前几个碱基可能存在波动（随机引物偏好性）外，其余部分的曲线应趋于平稳并接近物种基因组的平均 GC 含量。
+5. **N content Visualization**: **N 碱基含量分布图**。展示了测序仪无法确定碱基类型（标记为 $N$）的比例。高质量数据的 $N$ 含量通常极低（接近 0 线），若出现明显的峰值，通常提示测序过程存在异常。
+:::
+
+## 3. fastq-screen
+
+`FastQ Screen` 将 `FASTQ` 格式的测序数据与一组预设的参考基因组数据库进行比对。该工具旨在量化样本的物种组成，从而检测潜在的生物污染，并验证测序文库的来源是否与预期一致[@wingett2018fastq]
+
+::: {.panel-tabset}
+### 3.1 FastQ Screen R1
+
+```{python}
+#| label: fastq-screen-R1
+#| results: asis
+visualize_multiqc_logs(
+    analysis_dir=input_files.get("fastq_screen_r1_dir", '../data/fastq_screen_report/fastq_screen_multiqc_r1/multiqc_r1_fastq_screen_report_data'), 
+    target_modules=['fastq_screen']
+)
+```
+
+### 3.2 FastQ Screen R1
+```{python}
+#| label: fastq-screen-R2
+#| results: asis
+visualize_multiqc_logs(
+    analysis_dir=input_files.get("fastq_screen_r2_dir", '../data/fastq_screen_report/fastq_screen_multiqc_r2/multiqc_r2_fastq_screen_report_data'), 
+    target_modules=['fastq_screen']
+)
+```
+:::
+
+## 4. QualiMap
+
+`QualiMap` 对比对后的 `BAM` 文件进行深度的质量控制分析。该工具通过评估基因组覆盖度均匀性、`5'-3'` 端偏好性以及 `Reads` 在基因组特征（如外显子、内含子、基因间区）上的分布情况，来衡量文库制备的完整性和测序比对的整体质量[@okonechnikov2016qualimap]。
+
+```{python}
+#| label: QualiMap
+#| results: asis
+visualize_multiqc_logs(
+    analysis_dir=input_files.get("qualimap_dir", '../data/QualiMap/multiqc_data/'), 
+    target_modules=['QualiMap']
+)
+```
+
+::: {.callout-note appearance="minimal" icon=false collapse="true"}
+**图注说明**:
+
+1. **Coverage Histogram**: **覆盖度直方图**。展示了参考基因组上不同测序深度（Coverage）的频率分布。
+    - **含义**: 峰型越集中且偏向右侧，说明测序覆盖越均匀；若出现原本为 0 的高峰，可能提示参考基因组与样本差异较大或存在未测序区域。
+2. **Genome Fraction Covered**: **基因组覆盖比例累积图**。展示了达到特定覆盖深度阈值的基因组比例变化。
+    - **含义**: 曲线下降越平缓（即在高深度 X 轴处仍保持较高 Y 轴数值），表明高深度覆盖的区域占比越高，测序数据的完整性越好。
+3. **Insert Size Histogram**: **插入片段长度分布图**。展示了双端测序（PE）文库中插入片段长度的频率分布。
+    - **含义**: 反映了文库构建时的打断效果。理想情况下应呈现单峰正态分布；若出现双峰或多峰，可能提示文库构建过程中存在片段筛选偏差或接头污染。
+4. **GC Content Distribution**: **GC 含量分布图**。展示了比对 Reads 的 GC 含量分布与参考基因组理论分布的对比。
+    - **含义**: 实线代表实际测序数据的 GC 分布，虚线/阴影代表参考基因组的理论分布。两者重合度越高，说明测序过程中的 PCR 扩增偏好性 (PCR Bias) 越小，且无明显的外源物种污染。
+:::
+
+## 5. STAR
+
+`STAR` 基于最大可比对前缀（`Maximal Mappable Prefix`, `MMP`）策略执行序列比对。该算法在保证高比对速度的同时，克服了 `RNA-seq` 数据中 `reads` 跨越内含子的比对挑战，实现了对新颖剪切位点（`novel splice sites`）的高灵敏度检测及外显子边界的精确定位[@dobin2013star]。
+
+```{python}
+#| label: STAR
+#| results: asis
+visualize_multiqc_logs(
+    analysis_dir=input_files.get("qualimap_dir", '../data/QualiMap/multiqc_data/'), 
+    target_modules=['STAR']
+)
+```
+
+::: {.callout-note appearance="minimal" icon=false collapse="true"}
+**图注说明: STAR Alignment Categories (比对结果分类)**
+
+此图展示了 Reads 比对到参考基因组的详细去向分类：
+
+1.  <span style="color:#437bb1">■</span> **Uniquely mapped (唯一比对)**:
+    * **定义**: 在参考基因组上找到唯一最佳位置的 Reads。
+    * ✅ **参考标准**: RNA-seq 的核心指标。理想情况应 **> 80%**。如果该值 **< 60%**，通常提示参考基因组版本不匹配、样本存在严重降解或严重的 DNA 污染。
+2.  <span style="color:#7cb5ec">■</span> **Mapped to multiple loci (多重比对)**:
+    * **定义**: 比对位置 $>1$ 个但未超上限（默认 10-20）。
+    * ℹ️ **注意**: 来源于旁系同源基因或重复序列。植物样本中由于多倍化现象，该比例可能略高于动物样本（通常 5% - 15% 属正常范围）。若异常高，需检查是否存在 **rRNA 污染**。
+3.  <span style="color:#f7a35c">■</span> **Mapped to too many loci (过度多重)**:
+    * **定义**: 比对位置超过上限。
+    * ⚠️ **注意**: 通常来自转座子等高度重复区。如果该比例极高，说明文库中重复序列富集，可能不仅影响定量准确性，也浪费了测序数据量。
+4.  <span style="color:#e63471">■</span> **Unmapped: too many mismatches (错配过多)**:
+    * **定义**: 碱基不匹配率过高导致比对失败。
+    * ⛔ **警示**: 正常应 **< 1%**。若过高，请检查是否选错了参考物种（Reference Species）或比对参数过于严苛。
+5.  <span style="color:#a90e2d">■</span> **Unmapped: too short (序列过短)**:
+    * **定义**: 经修剪后有效长度不足。
+    * ⛔ **警示**: 正常应 **< 1%**。若过高，说明 fastp 过滤参数可能设置不当，或文库构建时插入片段过短（Small Insert Size）。
+6.  <span style="color:#90558b">■</span> **Unmapped: other (其他)**:
+    * **定义**: 无法归类的未比对序列。
+    * ⚠️ **注意**: 包含嵌合体或不明序列。若比例显著，建议抽取部分序列进行 BLAST 以排查外源污染（如细菌/支原体）。
+:::

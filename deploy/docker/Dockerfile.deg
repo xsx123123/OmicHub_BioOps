@@ -1,0 +1,100 @@
+# OmicHub DEG (differential expression) runtime image.
+# Purpose: run DESeq2 / edgeR DEG analysis inside isolated containers launched by Celery Worker.
+#          Supports replicated designs (DESeq2 / edgeR QL F-test) and no-replicate 1v1 designs
+#          (edgeR exactTest at a fixed BCV — DESeq2 cannot estimate dispersion without replicates).
+# Build context: tool_configs/deg
+# Build command: make docker-build-deg
+# Contract: tool_configs/deg/README.md (inputs, outputs, exit codes)
+#
+# 说明：
+# 1. Bioconductor 3.20 的 R 源码包已从各公共镜像退场且 bioconductor.org 在构建网络不可达，
+#    故与本项目 runtime-images/core.Dockerfile 同路线——micromamba + bioconda 二进制包。
+# 2. Bioc 依赖钉死到 RNAFlow envs/deg_deseq2.yaml 锁文件验证过的 r44 精确版本
+#    （bioconda 对部分数据包的 Depends 镜像不完整，无 pin 时求解器会静默漏装
+#     GenomeInfoDbData，导致 GenomeInfoDb/DESeq2 加载失败）。
+# 3. ENV PATH 钉住 conda bin，保证 Worker `docker run <image> Rscript ...` 无需
+#    环境激活即可用（micromamba 的 entrypoint 只在默认 CMD 下激活）。
+FROM mambaorg/micromamba:2.0.5
+
+LABEL org.opencontainers.image.title="omichub-r-deg" \
+      org.opencontainers.image.description="DESeq2 + edgeR DEG runtime for OmicHub toolbox (incl. no-replicate 1v1 mode)"
+
+ENV PATH="${MAMBA_ROOT_PREFIX}/bin:${PATH}"
+
+# 预置中科大镜像源，加速 bioconda 包下载（见 Protocol/镜像构建国内加速规范_v1.md §4）；
+# 安装以 mambauser 执行，condarc 必须落在其 HOME。
+RUN printf '%s\n' \
+      'show_channel_urls: true' \
+      'default_channels:' \
+      '  - https://mirrors.ustc.edu.cn/anaconda/pkgs/main' \
+      '  - https://mirrors.ustc.edu.cn/anaconda/pkgs/free' \
+      '  - https://mirrors.ustc.edu.cn/anaconda/pkgs/r' \
+      '  - https://mirrors.ustc.edu.cn/anaconda/pkgs/msys2' \
+      'custom_channels:' \
+      '  conda-forge: https://mirrors.ustc.edu.cn/anaconda/cloud' \
+      '  bioconda: https://mirrors.ustc.edu.cn/anaconda/cloud' \
+      '  menpo: https://mirrors.ustc.edu.cn/anaconda/cloud' \
+      'channel_priority: flexible' \
+      'channels:' \
+      '  - conda-forge' \
+      '  - bioconda' \
+      '  - menpo' \
+      '  - defaults' \
+      > /home/mambauser/.condarc \
+    && chown $MAMBA_USER:$MAMBA_USER /home/mambauser/.condarc
+
+COPY --chmod=0555 scripts/run_deseq2.r /opt/deg/run_deseq2.r
+COPY --chmod=0555 scripts/run_edger.r  /opt/deg/run_edger.r
+# GenomeInfoDbData 的 bioconda 包是 8kB 占位器，真数据靠 post-link 从 bioconductor.org
+# 下载——该域名在构建网络不可达，故将纯数据包随构建上下文带入，构建期 R CMD INSTALL 覆盖安装。
+COPY --chown=$MAMBA_USER:$MAMBA_USER --chmod=0755 vendor/GenomeInfoDbData /home/mambauser/deg-vendor/GenomeInfoDbData
+
+USER $MAMBA_USER
+# 版本与 pipelines/RNAFlow/envs/deg_deseq2.yaml 锁文件一致（edgeR 4.4.0 来自 deg_edger.yaml）；
+# 末尾 grep 确保关键包真实进入事务，漏装直接构建失败。
+# conda 包缓存挂 BuildKit cache mount（tarball 不进镜像层），网络抖动时重试只补漏下载；
+# 缓存外置后无需 micromamba clean。
+RUN --mount=type=cache,target=/opt/conda/pkgs,uid=10001,gid=10001,sharing=locked \
+    micromamba install -y -n base -c conda-forge -c bioconda \
+      r-base=4.4.3 \
+      bioconductor-deseq2=1.46.0 \
+      bioconductor-edger=4.4.0 \
+      bioconductor-genomeinfodbdata=1.2.13 \
+      bioconductor-genomeinfodb=1.42.0 \
+      bioconductor-ucsc.utils=1.2.0 \
+      bioconductor-summarizedexperiment=1.36.0 \
+      bioconductor-genomicranges=1.58.0 \
+      r-optparse \
+      r-tidyverse \
+      r-ggplot2 \
+      r-ggrepel \
+      r-ggpubr \
+      r-patchwork \
+      r-log4r \
+      r-crayon \
+      r-cowplot \
+      font-ttf-dejavu \
+    && micromamba list | grep -E "bioconductor-(deseq2|edger|genomeinfodbdata) " \
+    && micromamba run -n base R CMD INSTALL --no-multiarch /home/mambauser/deg-vendor/GenomeInfoDbData \
+    && rm -rf /home/mambauser/deg-vendor
+
+# 强制校验所有必需包可加载（library 级，加载错误不被 quietly 吞掉），
+# 缺包直接构建失败，避免"exit 0 的假成功镜像"。
+RUN micromamba run -n base R -q -e '\
+      required <- c("DESeq2", "edgeR", "optparse", "tidyverse", "ggplot2", "ggrepel", "ggpubr", "patchwork", "log4r", "crayon", "cowplot"); \
+      failed <- character(0); \
+      for (p in required) { \
+        ok <- tryCatch({ suppressPackageStartupMessages(library(p, character.only = TRUE)); TRUE }, \
+                       error = function(e) { cat("LOAD FAIL", p, ":", conditionMessage(e), "\n"); FALSE }); \
+        if (!ok) failed <- c(failed, p); \
+      }; \
+      if (length(failed)) stop("DEG image missing required R packages: ", paste(failed, collapse = ", ")); \
+      cat("DEG runtime OK: all", length(required), "packages loadable\n")'
+
+# 运行期用 root（与 omichub-r-enrichment 同口径）：任务目录由 Web 服务以平台 uid 创建，
+# 容器内 mambauser(10001) 无写权限会导致 R 写不出结果。仅安装期使用 mambauser。
+USER root
+WORKDIR /opt/deg
+# Worker 显式指定脚本与参数运行（docker run ... Rscript /opt/deg/run_edger.r ...）；
+# ENV PATH 已钉住 conda bin，无需环境激活。
+CMD ["Rscript", "/opt/deg/run_deseq2.r"]

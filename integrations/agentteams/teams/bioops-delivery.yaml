@@ -1,0 +1,94 @@
+# 注意：本文件为描述性文档，无任何代码加载（全仓检索仅 README 提及）。
+# 角色事实源是 data/ai/*.yaml 的 features.internal_case_role + features.agentteams，
+# 经 capability registry（agentteams_capability_registry.py）派生并被 gateway/worker 消费。
+# 修改本文件不会改变任何运行时行为；要调整角色/能力请改 data/ai/*.yaml。
+schema_version: "1.0"
+team_id: bioops-delivery
+description: >-
+  AgentTeams-side coordination only. Workers have no OmicHub database, Redis, Docker,
+  shell, or data-volume access; every OmicHub action goes through the Bridge.
+manager:
+  identity: bioops-manager
+  skills: [task-intake, approval-request, case-closeout]
+  forbidden_capabilities: [workflow_submit, database_access, shell]
+approval_gateway:
+  identity: approval-authority
+  purpose: "Human approval card resolution service; signs only short-lived scoped tokens."
+  forbidden_capabilities: [workflow_submit, workflow_cancel, database_access, shell]
+workers:
+  - identity: agent-data
+    skills: [project-preflight, evidence-retrieval]
+    bridge_identity_env: AGENTTEAMS_AGENT_DATA_TOKEN
+    work_inbox: "GET /v1/work-items/assigned"
+    forbidden_capabilities: [workflow_submit, workflow_cancel, shell]
+    # Bridge performs format checks; agent-data supplies the semantic preflight conclusion.
+  - identity: workflow-operator
+    skills: [workflow-submit, workflow-monitor, workflow-cancel]
+    bridge_identity_env: AGENTTEAMS_WORKFLOW_OPERATOR_TOKEN
+    work_inbox: "GET /v1/work-items/assigned"
+    forbidden_capabilities: [database_access, shell, flow_configuration_write]
+  - identity: agent-qc
+    skills: [quality-gate, artifact-inspect]
+    bridge_identity_env: AGENTTEAMS_AGENT_QC_TOKEN
+    work_inbox: "GET /v1/work-items/assigned"
+    forbidden_capabilities: [workflow_submit, workflow_cancel, shell]
+  - identity: agent-delivery
+    skills: [delivery-pack, runbook-capture]
+    bridge_identity_env: AGENTTEAMS_AGENT_DELIVERY_TOKEN
+    work_inbox: "GET /v1/work-items/assigned"
+    forbidden_capabilities: [workflow_submit, workflow_cancel, shell]
+  - identity: agent-code
+    skills: [code-review, reproducibility-advice]
+    bridge_identity_env: AGENTTEAMS_AGENT_CODE_TOKEN
+    work_inbox: "GET /v1/work-items/assigned"
+    forbidden_capabilities: [workflow_submit, workflow_cancel, database_access, shell, file_write]
+  - identity: agent-viz
+    skills: [visualization-review, figure-specification]
+    bridge_identity_env: AGENTTEAMS_AGENT_VIZ_TOKEN
+    work_inbox: "GET /v1/work-items/assigned"
+    forbidden_capabilities: [workflow_submit, workflow_cancel, database_access, shell, file_write]
+  - identity: agent-scrna
+    skills: [scrna-interpretation, cell-annotation-advice]
+    bridge_identity_env: AGENTTEAMS_AGENT_SCRNA_TOKEN
+    work_inbox: "GET /v1/work-items/assigned"
+    forbidden_capabilities: [workflow_submit, workflow_cancel, database_access, shell, file_write]
+  - identity: agent-rnaseq
+    skills: [result_interpretation, rnaseq-planning-advice]
+    bridge_identity_env: AGENTTEAMS_AGENT_RNASEQ_TOKEN
+    work_inbox: "GET /v1/work-items/assigned"
+    forbidden_capabilities: [workflow_submit, workflow_cancel, database_access, shell, file_write]
+  - identity: agent-atacseq
+    skills: [atacseq-planning-advice, peak-interpretation]
+    bridge_identity_env: AGENTTEAMS_AGENT_ATACSEQ_TOKEN
+    work_inbox: "GET /v1/work-items/assigned"
+    forbidden_capabilities: [workflow_submit, workflow_cancel, database_access, shell, file_write]
+  - identity: agent-scrna-upstream
+    skills: [scrna-upstream-qc, cellranger-advice]
+    bridge_identity_env: AGENTTEAMS_AGENT_SCRNA_UPSTREAM_TOKEN
+    work_inbox: "GET /v1/work-items/assigned"
+    forbidden_capabilities: [workflow_submit, workflow_cancel, database_access, shell, file_write]
+  - identity: agent-scrna-integration
+    skills: [scrna-integration, batch-correction-advice]
+    bridge_identity_env: AGENTTEAMS_AGENT_SCRNA_INTEGRATION_TOKEN
+    work_inbox: "GET /v1/work-items/assigned"
+    forbidden_capabilities: [workflow_submit, workflow_cancel, database_access, shell, file_write]
+  - identity: agent-scrna-advanced
+    skills: [scrna-annotation, trajectory-and-communication]
+    bridge_identity_env: AGENTTEAMS_AGENT_SCRNA_ADVANCED_TOKEN
+    work_inbox: "GET /v1/work-items/assigned"
+    forbidden_capabilities: [workflow_submit, workflow_cancel, database_access, shell, file_write]
+  - identity: agent-cloud-ops
+    skills: [platform-health, incident-triage, rollback-plan]
+    bridge_identity_env: AGENTTEAMS_AGENT_CLOUD_OPS_TOKEN
+    work_inbox: "GET /v1/work-items/assigned"
+    forbidden_capabilities: [workflow_submit, workflow_cancel, database_access, shell, file_write]
+  - identity: agent-general
+    skills: [requirements-clarification, cross-domain-synthesis]
+    bridge_identity_env: AGENTTEAMS_AGENT_GENERAL_TOKEN
+    work_inbox: "GET /v1/work-items/assigned"
+    forbidden_capabilities: [workflow_submit, workflow_cancel, database_access, shell, file_write]
+  - identity: agent-mcp-builder
+    skills: [mcp-schema-review, mcp-reproducibility]
+    bridge_identity_env: AGENTTEAMS_AGENT_MCP_BUILDER_TOKEN
+    work_inbox: "GET /v1/work-items/assigned"
+    forbidden_capabilities: [workflow_submit, workflow_cancel, database_access, shell, file_write]

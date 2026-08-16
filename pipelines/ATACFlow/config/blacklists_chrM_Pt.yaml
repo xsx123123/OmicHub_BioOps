@@ -1,0 +1,9 @@
+blacklists:
+  hg38: "resources/blacklist/hg38-blacklist.v2.bed"
+  mm10: "resources/blacklist/mm10-blacklist.v2.bed"
+  dm6:  "resources/blacklist/dm6-blacklist.bed"
+organelle_names:
+  hg38: ["chrM"]
+  mm10: ["chrM"]
+  Lsat: []
+  Sl:   ["ch00", "Pt", "Mt"]

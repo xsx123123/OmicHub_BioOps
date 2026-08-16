@@ -1,0 +1,11 @@
+# 绑定当前用户工作区的只读浏览工具。
+# 白名单需与 data/ai/mcp/workspace_files_prompt.md 指引的工具保持一致，
+# 否则模型会被 prompt 诱导调用未挂载的工具（报“未挂载到该 Agent”）。
+id: workspace
+description: 查看、搜索当前会话用户的工作区文件。
+platform_tools:
+  - list_workspace_files
+  - search_workspace_files
+  - workspace_read_file
+  - workspace_get_file_info
+  - find_session_uploads

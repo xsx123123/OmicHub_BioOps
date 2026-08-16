@@ -1,0 +1,23 @@
+[Unit]
+Description=OmicHub MAS Apptainer Celery worker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=omichub
+Group=omichub
+WorkingDirectory=/opt/omichub/app
+EnvironmentFile=/etc/omichub/mas-apptainer-worker.env
+Environment=PYTHONPATH=/opt/omichub/app/src
+ExecStart=/opt/omichub/app/.venv/bin/celery -A omichub.infrastructure.celery_app.celery worker -Q mas_apptainer --loglevel=info --hostname=mas-apptainer@%%H
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/data/omichub
+
+[Install]
+WantedBy=multi-user.target

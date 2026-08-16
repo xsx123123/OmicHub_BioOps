@@ -1,0 +1,10 @@
+id: agentteams_case
+description: 将需人工审批、跨角色执行和交付验收的重型任务创建为 AgentTeams 协作 Case。
+builtin_tools:
+  - create_agentteams_case
+  - task_result_summary
+  - task_file_preview
+  - workspace_file_preview
+  - artifact_fetch
+  - task_compare_metrics
+  - rule_threshold_lookup

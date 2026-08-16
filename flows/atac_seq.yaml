@@ -1,0 +1,445 @@
+# ============================================================
+# ATAC-seq 染色质可及性分析流程配置
+# 与 /home/zj/pipeline/ATACFlow 配合，参数命名与 ATACFlow config.yaml 保持一致
+# ============================================================
+
+meta:
+  id: atac_seq
+  name: "ATAC-seq 染色质可及性分析"
+  category: epigenomics
+  version: "0.1.0"
+  description: "基于已搭建好的 ATACFlow 流程（Bowtie2/Chromap + MACS2 + TOBIAS）的标准 ATAC-seq 分析。提交后自动生成 ATACFlow 所需 analysis yaml、samples.csv、contrasts.csv。"
+  author: "OmicsHub Team"
+  tags: ["atacseq", "chromatin-accessibility", "Bowtie2", "Chromap", "MACS2", "TOBIAS", "ATACFlow"]
+  icon: "🧪"
+  color: "chart-3"
+  docs_url: "https://github.com/xsx123123/ATACFlow"
+  github_url: "https://github.com/xsx123123/ATACFlow"
+
+ai:
+  enabled: true
+  tool_slug: atac_seq
+  assistant_summary: >
+    适用于有分组信息的 bulk ATAC-seq 染色质可及性分析。
+    输入为原始数据目录（FASTQ），输出包含 QC 报告、Peak  Calling、差异开放区域分析和可视化报告。
+  requires_confirmation: true
+  allowed_execution_modes: [local]
+  allowed_parameters:
+    - project_name
+    - Genome_Version
+    - species
+    - client
+    - raw_data_path
+    - data_deliver
+    - execution_mode
+    - queue_id
+    - Library_Types
+    - mapping_tools
+    - only_qc
+    - report
+    - fastq_screen
+    - diff_peaks
+    - use_pooled_peaks
+    - comparisons
+    - loki_url
+  default_resource_hint:
+    cores: 8
+    memory: "32G"
+    time: "4h"
+  max_samples: 100
+  max_comparisons: 10
+  example_dialogue:
+    - user: "我想分析小鼠 ATAC-seq 数据"
+      assistant: "我可以帮您使用 ATAC-seq 染色质可及性分析流程。请提供样本信息、分组以及原始数据目录路径。"
+
+groups:
+  - id: basic
+    title: "基本信息"
+    desc: "项目标识与执行方式"
+  - id: data
+    title: "参考与数据"
+    desc: "参考基因组、物种与输入输出路径"
+  - id: modules
+    title: "分析模块"
+    desc: "选择本次运行的分析内容"
+    collapsible: false
+  - id: advanced
+    title: "高级参数"
+    desc: "一般无需修改"
+    collapsible: true
+    collapsed: true
+
+parameters:
+  - name: project_name
+    label: "项目名称"
+    type: string
+    required: true
+    default: "OmicsHub_ATAC_seq"
+    help_text: "为该 ATAC-seq 项目命名"
+    placeholder: "PRJNA427322"
+    order: 1
+    ui:
+      group: basic
+      order: 10
+      span: 1
+      widget: input
+
+  - name: client
+    label: "客户 / 课题组"
+    type: string
+    required: true
+    default: "内部测试"
+    help_text: "客户或课题组标识"
+    order: 4
+    ui:
+      group: basic
+      order: 20
+      span: 1
+      widget: input
+
+  - name: execution_mode
+    label: "执行模式"
+    type: select
+    required: true
+    default: "local"
+    help_text: "选择本地执行或集群执行"
+    order: 20
+    select_config:
+      options:
+        - label: "本地执行 (local)"
+          value: "local"
+        - label: "集群执行 (cluster)"
+          value: "cluster"
+    ui:
+      group: basic
+      order: 30
+      span: 1
+      widget: select
+
+  - name: queue_id
+    label: "集群队列"
+    type: string
+    required: true
+    default: "default"
+    help_text: "集群调度队列（仅集群模式需要）"
+    placeholder: "default"
+    order: 21
+    condition:
+      field: "execution_mode"
+      operator: "eq"
+      value: "cluster"
+    ui:
+      group: basic
+      order: 40
+      span: 1
+      widget: input
+
+  - name: Genome_Version
+    label: "参考基因组版本"
+    type: select
+    required: true
+    default: "hg38"
+    help_text: "选择比对使用的参考基因组版本（需已配置在 ATACFlow reference.yaml 中）"
+    order: 2
+    select_config:
+      options:
+        - label: "人类 GRCh38 (hg38)"
+          value: "hg38"
+        - label: "小鼠 GRCm39"
+          value: "GRCm39"
+        - label: "番茄 ITAG4.1"
+          value: "ITAG4.1"
+        - label: "生菜 Lsat_Salinas_v11"
+          value: "Lsat_Salinas_v11"
+        - label: "生菜 Lsat_Salinas_v11_wx"
+          value: "Lsat_Salinas_v11_wx"
+        - label: "生菜 Lsat_Salinas_v8_wx"
+          value: "Lsat_Salinas_v8_wx"
+    ui:
+      group: data
+      order: 10
+      span: 1
+      widget: select
+
+  - name: species
+    label: "物种"
+    type: string
+    required: true
+    default: "Homo_sapiens"
+    help_text: "物种名称，请勿包含空格（ataqv 要求），如 Homo_sapiens"
+    order: 3
+    ui:
+      group: data
+      order: 20
+      span: 1
+      widget: input
+
+  - name: Library_Types
+    label: "链特异性"
+    type: select
+    required: true
+    default: "fr-firststrand"
+    help_text: "文库链特异性类型"
+    order: 22
+    select_config:
+      options:
+        - label: "非链特异性 (fr-unstranded)"
+          value: "fr-unstranded"
+        - label: "反向链 (fr-firststrand)"
+          value: "fr-firststrand"
+        - label: "正向链 (fr-secondstrand)"
+          value: "fr-secondstrand"
+    ui:
+      group: data
+      order: 30
+      span: 1
+      widget: select
+
+  - name: mapping_tools
+    label: "比对工具"
+    type: select
+    required: true
+    default: "bowtie2"
+    help_text: "选择 ATAC-seq 比对引擎"
+    order: 23
+    select_config:
+      options:
+        - label: "Bowtie2（兼容性好，参数精细）"
+          value: "bowtie2"
+        - label: "Chromap（速度快，适合大规模数据）"
+          value: "chromap"
+    ui:
+      group: data
+      order: 40
+      span: 1
+      widget: select
+
+  - name: raw_data_path
+    label: "原始数据目录"
+    type: string
+    required: true
+    help_text: "存放原始 FASTQ 文件的目录路径（ATACFlow 会根据 sample 列自动匹配 _R1.fq.gz / _R2.fq.gz）"
+    placeholder: "/data/project/00.raw_data"
+    order: 10
+    ui:
+      group: data
+      order: 50
+      span: 2
+      widget: path
+
+  - name: data_deliver
+    label: "结果交付目录"
+    type: string
+    required: false
+    help_text: "最终结果输出目录，留空则使用 workflow 父目录下的 data_deliver"
+    placeholder: "/data/project/02.data_deliver"
+    order: 11
+    ui:
+      group: data
+      order: 60
+      span: 2
+      widget: path
+
+  - name: only_qc
+    label: "仅运行 QC"
+    type: boolean
+    required: false
+    default: false
+    help_text: "仅执行质控模块，不进行后续比对/Peak Calling/Diff Peak"
+    order: 30
+    ui:
+      group: modules
+      order: 10
+      subgroup: "质控"
+      exclusive: true
+
+  - name: fastq_screen
+    label: "运行 FastQ Screen 污染检查"
+    type: boolean
+    required: false
+    default: true
+    help_text: "检查样品是否存在外源污染"
+    order: 32
+    ui:
+      group: modules
+      order: 20
+      subgroup: "质控"
+
+  - name: report
+    label: "生成 HTML 报告"
+    type: boolean
+    required: false
+    default: true
+    help_text: "生成完整分析结果报告"
+    order: 31
+    ui:
+      group: modules
+      order: 30
+      subgroup: "报告"
+
+  - name: diff_peaks
+    label: "运行差异 Peak 分析"
+    type: boolean
+    required: false
+    default: true
+    help_text: "使用 DESeq2 进行差异开放区域分析"
+    order: 33
+    ui:
+      group: modules
+      order: 40
+      subgroup: "差异分析"
+
+  - name: use_pooled_peaks
+    label: "使用 Pooled Peaks"
+    type: boolean
+    required: false
+    default: true
+    help_text: "合并组内生物学重复后 call peak（提升弱信号灵敏度）；关闭则使用单样本共识 peaks"
+    order: 34
+    ui:
+      group: modules
+      order: 50
+      subgroup: "差异分析"
+
+  - name: comparisons
+    label: "差异比较组"
+    type: group
+    required: false
+    help_text: "定义需要比较的分组，每组指定对照组和实验组（仅差异 Peak 分析时需要）"
+    order: 40
+    group_config:
+      min_items: 1
+      max_items: 20
+      item_label: "比较组"
+      add_button_text: "+ 添加差异比较组"
+      parameters:
+        - name: Control
+          label: "对照组"
+          type: string
+          required: true
+          help_text: "对照组名称（需与样本表中 group 列一致）"
+          placeholder: "control"
+
+        - name: Treat
+          label: "实验组"
+          type: string
+          required: true
+          help_text: "实验组名称（需与样本表中 group 列一致）"
+          placeholder: "treatment"
+    ui:
+      show_when:
+        field: "diff_peaks"
+        value: true
+      linked_group_column: "group"
+
+  - name: advanced_params
+    label: "高级参数"
+    type: section
+    order: 50
+    section_config:
+      title: "高级分析参数"
+      default_expanded: false
+      description: "Loki 日志等高级设置，一般无需修改"
+      parameters:
+        - name: loki_url
+          label: "Loki 日志服务器 URL"
+          type: string
+          required: false
+          help_text: "可选：ATACFlow 将日志推送到 Loki 的地址"
+          placeholder: "http://loki:3100"
+    ui:
+      group: advanced
+
+# ============================================================
+# 执行配置
+# ============================================================
+execution:
+  engine: snakemake
+  snakefile: "/home/zj/pipeline/ATACFlow/snakefile"
+  config_file_param: "analysisyaml"
+  config_file_name: "analysis.yaml"
+  conda_env: null
+  default_resources:
+    cores: 8
+    memory: "32G"
+    time: "4h"
+  sample_sheet_format: csv
+  extra_args:
+    - "--use-conda"
+    - "--latency-wait 60"
+    - "--rerun-incomplete"
+
+# ============================================================
+# 样本表配置
+# ============================================================
+sample_sheet:
+  columns:
+    - name: sample
+      required: true
+      type: string
+      description: "样本 ID，需与 FASTQ 文件名前缀一致（不含 _R1.fq.gz 等后缀）"
+      example: "S001_Treatment"
+      unique: true
+
+    - name: sample_name
+      required: true
+      type: string
+      description: "样本显示名称"
+      example: "S001"
+
+    - name: group
+      required: true
+      type: string
+      description: "分组信息（用于差异比较）"
+      example: "Treatment"
+
+  validation_rules:
+    - type: unique_combination
+      columns: ["sample"]
+      message: "sample 必须唯一"
+
+  ui:
+    import: [paste, csv, datacenter]
+    group_column: group
+
+# ============================================================
+# 前端参数到底层流程输入文件映射（通用构建器使用）
+# ============================================================
+pipeline_mapping:
+  config_fields:
+    - project_name
+    - Genome_Version
+    - species
+    - client
+    - raw_data_path
+    - data_deliver
+    - execution_mode
+    - queue_id
+    - Library_Types
+    - only_qc
+    - report
+    - fastq_screen
+    - diff_peaks
+    - mapping_tools
+    - peak_calling.use_pooled_peaks
+
+  computed_fields:
+    workflow: "__work_dir__"
+    sample_csv: "__samples_csv__"
+    paired_csv: "__contrasts_csv__"
+
+  list_fields:
+    - raw_data_path
+
+  sample_sheet:
+    output_name: "samples.csv"
+    columns:
+      sample: sample
+      sample_name: sample_name
+      group: group
+
+  comparisons:
+    output_name: "contrasts.csv"
+    columns:
+      Control: Control
+      Treat: Treat

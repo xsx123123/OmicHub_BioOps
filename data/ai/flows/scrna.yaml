@@ -1,0 +1,116 @@
+flow:
+  id: scrna
+  version: 1.1.0
+  display_name: 单细胞转录组分析
+  domain: scrna
+  actor: agent-scrna
+  runtime_image: scrna
+  bridge_workflow: scrna_seq
+  trigger_hints: [单细胞, scRNA, cellranger, scanpy, seurat]
+
+artifacts:
+  - {key: fastq_manifest, type: json_manifest}
+  - {key: cellranger_outs, type: table}
+  - {key: cellranger_metrics, type: metrics}
+  - {key: sample_qc_report, type: review_report}
+  - {key: raw_h5ad, type: h5ad, aliases: [input_h5ad]}
+  - {key: upstream_review, type: review_report}
+  - {key: sample_inclusion_decision, type: decision}
+  - {key: cell_qc_metrics, type: metrics}
+  - {key: doublet_scores, type: metrics}
+  - {key: qc_filtered_h5ad, type: h5ad, aliases: [filtered_h5ad]}
+  - {key: integration_diagnostics, type: metrics}
+  - {key: integrated_h5ad, type: h5ad}
+  - {key: cluster_markers, type: table}
+  - {key: cluster_report, type: review_report}
+  - {key: parameter_snapshot, type: json_manifest}
+  - {key: integration_review, type: review_report}
+  - {key: annotation_evidence, type: table}
+  - {key: annotation_validation_report, type: review_report}
+  - {key: annotated_h5ad, type: h5ad}
+  - {key: pseudobulk_counts, type: table}
+  - {key: de_results, type: table}
+  - {key: pathway_enrichment, type: table}
+  - {key: visualization_bundle, type: visualization_bundle}
+  - {key: trajectory_result, type: table}
+  - {key: annotation_review, type: review_report}
+  - {key: delivery_manifest, type: json_manifest}
+  - {key: runbook, type: runbook}
+
+stages:
+  - key: upstream
+    title: 上游处理与样本 QC
+    assistant_agent_id: agent-scrna-upstream
+    trigger_hints: [fastq, cellranger, chemistry, 文库, 样本质控, 上游, 原始测序]
+    executors:
+      - key: scrna-cellranger
+        queue: scrna_upstream_highmem
+        resource_profile: highmem_16c128g
+        fan_out: per_sample
+        inputs: [fastq_manifest]
+        outputs: [cellranger_outs, cellranger_metrics, sample_qc_report, raw_h5ad]
+        retry_policy: infra_bounded
+    review:
+      skill: upstream-review
+      inputs: [fastq_manifest, cellranger_metrics, sample_qc_report]
+      output: upstream_review
+    gate: {template: sample_inclusion, required: true}
+
+  - key: integrate
+    title: 下游整合、降维和聚类
+    assistant_agent_id: agent-scrna-integration
+    trigger_hints: [双细胞, doublet, 批次效应, harmony, scanvi, 降维, umap, leiden, 聚类, hvg]
+    executors:
+      - key: scrna-integrate-cluster
+        queue: scrna_analysis_highmem
+        resource_profile: highmem_32c256g
+        inputs: [raw_h5ad, sample_inclusion_decision]
+        outputs: [cell_qc_metrics, doublet_scores, qc_filtered_h5ad, integration_diagnostics, integrated_h5ad, cluster_markers, cluster_report, parameter_snapshot]
+        retry_policy: infra_bounded
+    review:
+      skill: integration-review
+      inputs: [cell_qc_metrics, integration_diagnostics, cluster_markers]
+      output: integration_review
+    gate: {template: integration_approval, required: true}
+
+  - key: advanced
+    title: 注释验证与高级分析
+    assistant_agent_id: agent-scrna-advanced
+    trigger_hints: [细胞注释, marker, 单细胞差异表达, scRNA差异表达, pseudobulk, 轨迹, 拟时序, velocity, 细胞通讯]
+    executors:
+      - key: scrna-annotation-validate
+        queue: scrna_analysis
+        resource_profile: standard_8c32g
+        inputs: [integrated_h5ad, cluster_markers]
+        outputs: [annotation_evidence, annotation_validation_report, annotated_h5ad]
+        retry_policy: infra_bounded
+      - key: scrna-pseudobulk-de
+        queue: scrna_analysis
+        resource_profile: standard_8c32g
+        inputs: [annotated_h5ad]
+        outputs: [pseudobulk_counts, de_results, pathway_enrichment]
+        retry_policy: infra_bounded
+      - key: scrna-visualization
+        queue: scrna_analysis
+        resource_profile: standard_8c32g
+        inputs: [annotated_h5ad, de_results]
+        outputs: [visualization_bundle]
+        retry_policy: infra_bounded
+      - key: scrna-trajectory
+        queue: scrna_analysis_highmem
+        resource_profile: highmem_32c256g
+        feature_flag: scrna_trajectory_enabled
+        inputs: [annotated_h5ad]
+        outputs: [trajectory_result]
+        retry_policy: never
+        admission: {requires_approval: trajectory_root_direction}
+    review:
+      skill: annotation-review
+      inputs: [annotation_evidence, cluster_markers]
+      output: annotation_review
+    gate: {template: annotation_revision, required: true}
+
+edges: [[upstream, integrate], [integrate, advanced]]
+delivery:
+  quality_gate: true
+  outputs: [delivery_manifest, runbook]

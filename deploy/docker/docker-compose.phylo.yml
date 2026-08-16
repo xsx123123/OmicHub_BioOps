@@ -1,0 +1,44 @@
+services:
+  phylo-worker:
+    image: omichub/phylo-toolkit:1.0.0
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.phylo
+    command: >
+      celery -A omichub.infrastructure.celery_app.celery:celery_app worker
+      -Q phylo_tree -n phylo@%h
+      --concurrency=2 --prefetch-multiplier=1 --loglevel=info
+    deploy:
+      resources:
+        limits: { cpus: '8.0', memory: 16G }
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - OMP_NUM_THREADS=4
+    volumes:
+      - /data/omichub:/data/omichub:rw
+    depends_on:
+      - redis
+
+  phylo-worker-highmem:
+    image: omichub/phylo-toolkit:1.0.0
+    command: >
+      celery -A omichub.infrastructure.celery_app.celery:celery_app worker
+      -Q phylo_tree_highmem -n phylo-highmem@%h
+      --concurrency=1 --prefetch-multiplier=1 --loglevel=info
+    deploy:
+      resources:
+        limits: { cpus: '16.0', memory: 32G }
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - OMP_NUM_THREADS=8
+    volumes:
+      - /data/omichub:/data/omichub:rw
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"

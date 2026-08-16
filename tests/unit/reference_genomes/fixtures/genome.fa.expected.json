@@ -1,0 +1,14 @@
+{
+  "seq1": {
+    "length": 25,
+    "offset": 22,
+    "linebases": 10,
+    "linewidth": 11
+  },
+  "seq2": {
+    "length": 30,
+    "offset": 56,
+    "linebases": 10,
+    "linewidth": 11
+  }
+}

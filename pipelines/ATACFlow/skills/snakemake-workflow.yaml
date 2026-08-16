@@ -1,0 +1,54 @@
+version: '1.0'
+name: 'Snakemake Workflow'
+description: '管理和运行 ATACFlow 的 Snakemake 生物信息学分析流程'
+skills:
+  - id: 'snakemake_quick_start'
+    name: '快速开始分析'
+    description: |
+      快速启动 ATAC-seq 分析。只需在工作目录准备3个文件：
+      1. config.yaml - 主配置文件（设置项目名、基因组版本、数据路径等）
+      2. samples.csv - 样本信息表（sample, sample_name, group, fq1, fq2）
+      3. contrasts.csv - 对比组配置（contrast, treatment）
+      然后运行 snakemake --cores=80 --use-conda 即可
+    tags: ['ATACFlow', 'quickstart', 'config.yaml', 'samples.csv', 'contrasts.csv']
+
+  - id: 'snakemake_configuration'
+    name: '配置文件说明'
+    description: |
+      ATACFlow 使用多配置文件设计，但通常只需修改 config.yaml：
+      - config.yaml (必须修改) - 主配置，包含项目名、基因组版本、数据路径、流程开关
+      - samples.csv (必须创建) - 样本信息表
+      - contrasts.csv (必须创建) - 对比组配置
+      - reference.yaml (预设，无需修改) - 参考基因组路径，已由管理员配置好
+      - run_parameter.yaml (可选修改) - 软件参数调整
+      - cluster_config.yaml (可选修改) - 集群资源配置
+    tags: ['ATACFlow', 'configuration', 'config.yaml', 'reference.yaml', 'samples.csv']
+
+  - id: 'snakemake_execution'
+    name: '运行流程'
+    description: |
+      在工作目录准备好 config.yaml、samples.csv、contrasts.csv 后运行：
+      标准运行：snakemake --cores=80 -p --conda-frontend mamba --use-conda --config analysisyaml=config.yaml
+      分步运行：snakemake --cores=20 --use-conda 01.qc/  # 仅运行QC
+      集群运行：snakemake --cores=1000 --jobs=200 --cluster-config cluster_config.yaml --cluster "sbatch ..."
+      调试模式：snakemake --cores=1 --dry-run  # 查看任务而不实际运行
+    tags: ['ATACFlow', 'execution', 'snakemake command', 'cluster', 'dry-run']
+
+  - id: 'snakemake_conda_environments'
+    name: 'Conda 环境管理'
+    description: 'Snakemake 使用 --use-conda 自动管理软件依赖。流程会为每个规则自动创建 Conda 环境，无需手动安装软件。使用 --conda-frontend mamba 可加速环境创建。'
+    tags: ['ATACFlow', 'conda', 'mamba', 'environment', 'software dependencies']
+
+  - id: 'snakemake_output_structure'
+    name: '输出目录结构'
+    description: |
+      ATACFlow 输出目录结构：
+      01.qc/ - 质控结果（FastQC、Fastp、MultiQC）
+      02.mapping/ - 比对结果（BAM文件）
+      03.peak_calling/ - Peak识别结果（single/、pooled/、idr/）
+      04.consensus/ - 共识peaks（single/、pooled/）
+      05.ATAC_QC/ - ATAC-seq特异性质控
+      06.deg_enrich/ - 差异分析和富集分析
+      06.motif_analysis/ - 转录因子结合位点分析（TOBIAS）
+      report/ - 最终报告
+    tags: ['ATACFlow', 'output', 'directory structure', 'results']

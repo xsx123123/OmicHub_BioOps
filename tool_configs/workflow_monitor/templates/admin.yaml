@@ -1,0 +1,99 @@
+id: admin
+name: "全平台流程监控"
+version: "1.0.0"
+description: "管理员全平台分析流程运行态势"
+scope: admin
+refresh:
+  mode: websocket
+  fallback_interval_seconds: 5
+permissions:
+  roles: ["admin"]
+filters:
+  - key: status
+    label: "状态"
+    type: select
+    default: all
+    options:
+      - { label: "全部", value: all }
+      - { label: "运行中", value: running }
+      - { label: "失败", value: failed }
+      - { label: "已完成", value: success }
+  - key: flow_id
+    label: "流程"
+    type: flow_select
+    default: all
+  - key: keyword
+    label: "搜索"
+    type: search
+layout:
+  desktop: { columns: 12, row_height: 96 }
+  mobile: { columns: 1, row_height: 88 }
+widgets:
+  - id: running_count
+    type: metric
+    title: "运行中"
+    data_source: summary
+    query: { field: running_count }
+    style: { tone: info }
+    layout:
+      desktop: { x: 0, y: 0, w: 3, h: 1 }
+      mobile: { x: 0, y: 0, w: 1, h: 1 }
+  - id: failed_today
+    type: metric
+    title: "今日失败"
+    data_source: summary
+    query: { field: failed_today }
+    style: { tone: danger }
+    layout:
+      desktop: { x: 3, y: 0, w: 3, h: 1 }
+      mobile: { x: 0, y: 1, w: 1, h: 1 }
+  - id: stale_tasks
+    type: metric
+    title: "疑似卡住"
+    data_source: summary
+    query: { field: stale_task_count }
+    style: { tone: warning }
+    layout:
+      desktop: { x: 6, y: 0, w: 3, h: 1 }
+      mobile: { x: 0, y: 2, w: 1, h: 1 }
+  - id: error_count_10m
+    type: metric
+    title: "10 分钟错误"
+    data_source: summary
+    query: { field: error_count_10m }
+    style: { tone: danger }
+    layout:
+      desktop: { x: 9, y: 0, w: 3, h: 1 }
+      mobile: { x: 0, y: 3, w: 1, h: 1 }
+  - id: all_tasks
+    type: task_table
+    title: "平台任务"
+    data_source: tasks
+    query: { limit: 100 }
+    layout:
+      desktop: { x: 0, y: 1, w: 8, h: 5 }
+      mobile: { x: 0, y: 4, w: 1, h: 5 }
+    columns:
+      - { key: name, label: "任务", action: open_task }
+      - { key: username, label: "用户" }
+      - { key: flow_id, label: "流程" }
+      - { key: status, label: "状态", renderer: status_badge }
+      - { key: progress, label: "进度", renderer: progress_bar }
+      - { key: current_rule, label: "当前 Rule" }
+  - id: realtime_events
+    type: event_stream
+    title: "全局事件"
+    data_source: events
+    query: { limit: 100 }
+    options: { auto_scroll: true, compact: true }
+    layout:
+      desktop: { x: 8, y: 1, w: 4, h: 5 }
+      mobile: { x: 0, y: 9, w: 1, h: 4 }
+  - id: recent_errors
+    type: error_list
+    title: "近期错误"
+    data_source: errors
+    query: { limit: 30 }
+    layout:
+      desktop: { x: 0, y: 6, w: 12, h: 3 }
+      mobile: { x: 0, y: 13, w: 1, h: 3 }

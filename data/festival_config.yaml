@@ -1,0 +1,901 @@
+# ============================================================
+# OmicHub 节日彩蛋系统配置文件
+# 版本: 1.0
+# 说明: 管理员可通过此文件配置节日彩蛋、弹窗、额度赠送
+# 路径: data/festival_config.yaml
+# ============================================================
+
+version: "1.0"
+
+# ── 全局配置 ──
+global:
+  # 系统总开关（紧急情况下可一键关闭）
+  enabled: true
+
+  # 默认生效时间范围
+  defaultActiveWindow:
+    start: "00:00:00"
+    end: "23:59:59"
+
+  # 弹窗全局默认配置
+  popupDefaults:
+    showOncePerUser: true        # 每个用户只展示一次
+    showMaxTimes: 3              # 最多展示次数
+    dismissible: true            # 是否可关闭
+    backdropClose: true          # 点击遮罩关闭
+    escClose: true               # ESC键关闭
+
+  # 额度赠送全局限制
+  quotaDefaults:
+    expiryDays: 30               # 赠送额度有效期（天）
+
+# ── 节日列表 ──
+festivals:
+  # ═══════════════════════════════════════════════════════════
+  # 农历节日
+  # ═══════════════════════════════════════════════════════════
+  - id: spring_festival
+    name: "春节"
+    nameEn: "Spring Festival"
+    category: "traditional"
+    calendarType: "lunar"
+    lunarDate: { month: 1, day: 1 }
+    activeRange: { offsetDays: -1, durationDays: 7 }
+    description: "爆竹声中一岁除，春风送暖入屠苏。——王安石《元日》"
+    popup:
+      enabled: true
+      title: "🎊 新春大吉"
+      content: |
+        在这辞旧迎新的时刻，愿星光为你指引前路。
+        送你 {{bonusAmount}} 饼干大礼包！
+      primaryButton:
+        text: "立即领取 ✨"
+        action: "claim_quota"
+      secondaryButton:
+        text: "了解更多"
+        action: "navigate"
+        link: "/about"
+      animation:
+        enabled: true
+        type: "fireworks"
+        duration: 15
+    quotaBonus:
+      enabled: true
+      amount: 1000
+      unit: "cookie"
+      description: |
+        在这辞旧迎新的时刻，愿星光为你指引前路。
+        送你 {{bonusAmount}} 饼干大礼包！
+    priority: 100
+    enabled: true
+
+  - id: lantern_festival
+    name: "元宵节"
+    nameEn: "Lantern Festival"
+    category: "traditional"
+    calendarType: "lunar"
+    lunarDate: { month: 1, day: 15 }
+    description: "东风夜放花千树，更吹落、星如雨。——辛弃疾《青玉案·元夕》"
+    popup:
+      enabled: true
+      title: "🏮 元宵喜乐"
+      content: "花灯如昼，月圆人团圆。送你 {{bonusAmount}} 饼干！"
+      animation:
+        enabled: true
+        type: "confetti"
+        duration: 15
+    quotaBonus:
+      enabled: true
+      amount: 200
+      unit: "cookie"
+    priority: 80
+    enabled: true
+
+  - id: dragon_boat
+    name: "端午节"
+    nameEn: "Dragon Boat Festival"
+    category: "traditional"
+    calendarType: "lunar"
+    lunarDate: { month: 5, day: 5 }
+    description: "端午临中夏，时清日复长。——李隆基《端午》"
+    popup:
+      enabled: true
+      title: "🐲 端午安康"
+      content: "粽叶飘香，龙舟竞渡。送你 {{bonusAmount}} 饼干！"
+      animation:
+        enabled: true
+        type: "confetti"
+        duration: 8
+    quotaBonus:
+      enabled: true
+      amount: 300
+      unit: "cookie"
+    priority: 80
+    enabled: true
+
+  - id: qixi
+    name: "七夕节"
+    nameEn: "Qixi Festival"
+    category: "traditional"
+    calendarType: "lunar"
+    lunarDate: { month: 7, day: 7 }
+    description: "两情若是久长时，又岂在朝朝暮暮。——秦观《鹊桥仙》"
+    popup:
+      enabled: true
+      title: "💕 七夕快乐"
+      content: "星河为证，爱意绵长。在浩瀚宇宙中相遇，是千万分之一的奇迹。送你 {{bonusAmount}} 饼干！"
+      animation:
+        enabled: true
+        type: "confetti"
+        duration: 12
+    quotaBonus:
+      enabled: true
+      amount: 520
+      unit: "cookie"
+      description: "星河为证，爱意绵长。在浩瀚宇宙中相遇，是千万分之一的奇迹。送你 {{bonusAmount}} 饼干！"
+    priority: 70
+    enabled: true
+
+  - id: mid_autumn
+    name: "中秋节"
+    nameEn: "Mid-Autumn Festival"
+    category: "traditional"
+    calendarType: "lunar"
+    lunarDate: { month: 8, day: 15 }
+    description: "但愿人长久，千里共婵娟。——苏轼《水调歌头·明月几时有》"
+    popup:
+      enabled: true
+      title: "🌕 中秋团圆"
+      content: "月圆人团圆，中秋送福。每一轮明月，都是宇宙送给我们的礼物。送你 {{bonusAmount}} 饼干！"
+      animation:
+        enabled: true
+        type: "fireworks"
+        duration: 20
+    quotaBonus:
+      enabled: true
+      amount: 500
+      unit: "cookie"
+    priority: 90
+    enabled: true
+
+  - id: double_ninth
+    name: "重阳节"
+    nameEn: "Double Ninth Festival"
+    category: "traditional"
+    calendarType: "lunar"
+    lunarDate: { month: 9, day: 9 }
+    description: "遥知兄弟登高处，遍插茱萸少一人。——王维《九月九日忆山东兄弟》"
+    popup:
+      enabled: true
+      title: "🍂 重阳登高"
+      content: "九九重阳，健康长寿。送你 {{bonusAmount}} 饼干！"
+    quotaBonus:
+      enabled: true
+      amount: 200
+      unit: "cookie"
+    priority: 60
+    enabled: true
+
+  # ═══════════════════════════════════════════════════════════
+  # 公历节日
+  # ═══════════════════════════════════════════════════════════
+  - id: new_year
+    name: "元旦"
+    nameEn: "New Year's Day"
+    category: "modern"
+    calendarType: "solar"
+    solarDate: { month: 1, day: 1 }
+    description: "千门万户曈曈日，总把新桃换旧符。——王安石《元日》"
+    popup:
+      enabled: true
+      title: "🎉 新年快乐"
+      content: "新的一年，愿你在星辰大海中探索无限可能。送你 {{bonusAmount}} 饼干开启新一年！"
+      animation:
+        enabled: true
+        type: "confetti"
+        duration: 15
+    quotaBonus:
+      enabled: true
+      amount: 500
+      unit: "cookie"
+    priority: 90
+    enabled: true
+
+  - id: labor_day
+    name: "劳动节"
+    nameEn: "Labor Day"
+    category: "modern"
+    calendarType: "solar"
+    solarDate: { month: 5, day: 1 }
+    description: "春种一粒粟，秋收万颗子。——李绅《悯农》"
+    popup:
+      enabled: true
+      title: "🛠️ 劳动节快乐"
+      content: "劳动最光荣！送你 {{bonusAmount}} 饼干！"
+    quotaBonus:
+      enabled: true
+      amount: 300
+      unit: "cookie"
+    priority: 70
+    enabled: true
+
+  - id: national_day
+    name: "国庆节"
+    nameEn: "National Day"
+    category: "modern"
+    calendarType: "solar"
+    solarDate: { month: 10, day: 1 }
+    activeRange: { offsetDays: 0, durationDays: 7 }
+    description: "山河无恙，烟火寻常，这盛世如您所愿"
+    popup:
+      enabled: true
+      title: "🇨🇳 国庆快乐"
+      content: "盛世华诞，举国同庆。送你 {{bonusAmount}} 饼干！"
+      animation:
+        enabled: true
+        type: "fireworks"
+        duration: 30
+    quotaBonus:
+      enabled: true
+      amount: 1000
+      unit: "cookie"
+      description: "盛世华诞，举国同庆。送你 {{bonusAmount}} 饼干！"
+    priority: 100
+    enabled: true
+
+  - id: valentine
+    name: "情人节"
+    nameEn: "Valentine's Day"
+    category: "modern"
+    calendarType: "solar"
+    solarDate: { month: 2, day: 14 }
+    description: "身无彩凤双飞翼，心有灵犀一点通。——李商隐《无题》"
+    popup:
+      enabled: true
+      title: "❤️ 情人节快乐"
+      content: "爱与被爱，都是幸福。送你 {{bonusAmount}} 饼干！"
+      animation:
+        enabled: true
+        type: "confetti"
+        duration: 15
+    quotaBonus:
+      enabled: true
+      amount: 520
+      unit: "cookie"
+    priority: 70
+    enabled: true
+
+  - id: christmas
+    name: "圣诞节"
+    nameEn: "Christmas"
+    category: "modern"
+    calendarType: "solar"
+    solarDate: { month: 12, day: 25 }
+    description: "Merry Christmas！愿星光与温暖伴你度过这个冬日"
+    popup:
+      enabled: true
+      title: "🎄 圣诞快乐"
+      content: "Merry Christmas！送你 {{bonusAmount}} 饼干！"
+      animation:
+        enabled: true
+        type: "snow"
+        duration: 20
+    quotaBonus:
+      enabled: true
+      amount: 300
+      unit: "cookie"
+    priority: 60
+    enabled: true
+
+  # ═══════════════════════════════════════════════════════════
+  # 24节气
+  # ═══════════════════════════════════════════════════════════
+  - id: li_chun
+    name: "立春"
+    category: "solar_term"
+    calendarType: "solar_term"
+    solarTerm: { name: "立春", index: 0 }
+    description: "律回岁晚冰霜少，春到人间草木知。——张栻《立春偶成》"
+    popup:
+      enabled: true
+      title: "🌱 立春"
+      content: "春回大地，万物复苏。宇宙也开始新一轮的生命循环。送你 {{bonusAmount}} 饼干！"
+      animation:
+        enabled: true
+        type: "confetti"
+        duration: 10
+    quotaBonus:
+      enabled: true
+      amount: 200
+      unit: "cookie"
+      description: "春回大地，万物复苏。宇宙也开始新一轮的生命循环。送你 {{bonusAmount}} 饼干！"
+    priority: 50
+    enabled: true
+
+  - id: yu_shui
+    name: "雨水"
+    category: "solar_term"
+    calendarType: "solar_term"
+    solarTerm: { name: "雨水", index: 1 }
+    description: "好雨知时节，当春乃发生。——杜甫《春夜喜雨》"
+    popup:
+      enabled: true
+      title: "🌧️ 雨水"
+      content: "好雨知时，润物无声。愿新的灵感像雨水一样抵达。送你 {{bonusAmount}} 饼干！"
+      animation:
+        enabled: true
+        type: "confetti"
+        duration: 10
+    quotaBonus:
+      enabled: true
+      amount: 200
+      unit: "cookie"
+      description: "好雨知时，润物无声。愿新的灵感像雨水一样抵达。送你 {{bonusAmount}} 饼干！"
+    priority: 50
+    enabled: true
+
+  - id: jing_zhe
+    name: "惊蛰"
+    category: "solar_term"
+    calendarType: "solar_term"
+    solarTerm: { name: "惊蛰", index: 2 }
+    description: "微雨众卉新，一雷惊蛰始。——韦应物《观田家》"
+    popup:
+      enabled: true
+      title: "⚡ 惊蛰"
+      content: "春雷初动，万物苏醒。愿沉睡的数据也被点亮。送你 {{bonusAmount}} 饼干！"
+      animation:
+        enabled: true
+        type: "confetti"
+        duration: 10
+    quotaBonus:
+      enabled: true
+      amount: 200
+      unit: "cookie"
+      description: "春雷初动，万物苏醒。愿沉睡的数据也被点亮。送你 {{bonusAmount}} 饼干！"
+    priority: 50
+    enabled: true
+
+  - id: chun_fen
+    name: "春分"
+    category: "solar_term"
+    calendarType: "solar_term"
+    solarTerm: { name: "春分", index: 3 }
+    description: "仲春初四日，春色正中分。——徐铉《春分日》"
+    popup:
+      enabled: true
+      title: "🌸 春分"
+      content: "昼夜均分，春色正中。愿你的探索保持优雅平衡。送你 {{bonusAmount}} 饼干！"
+      animation:
+        enabled: true
+        type: "confetti"
+        duration: 10
+    quotaBonus:
+      enabled: true
+      amount: 200
+      unit: "cookie"
+      description: "昼夜均分，春色正中。愿你的探索保持优雅平衡。送你 {{bonusAmount}} 饼干！"
+    priority: 50
+    enabled: true
+
+  - id: qing_ming
+    name: "清明"
+    category: "solar_term"
+    calendarType: "solar_term"
+    solarTerm: { name: "清明", index: 4 }
+    description: "清明时节雨纷纷，路上行人欲断魂。——杜牧《清明》"
+    popup:
+      enabled: true
+      title: "🌿 清明"
+      content: "清明风至，草木澄明。愿每一次分析都清晰可见。送你 {{bonusAmount}} 饼干！"
+      animation:
+        enabled: true
+        type: "confetti"
+        duration: 10
+    quotaBonus:
+      enabled: true
+      amount: 200
+      unit: "cookie"
+      description: "清明风至，草木澄明。愿每一次分析都清晰可见。送你 {{bonusAmount}} 饼干！"
+    priority: 70
+    enabled: true
+
+  - id: gu_yu
+    name: "谷雨"
+    category: "solar_term"
+    calendarType: "solar_term"
+    solarTerm: { name: "谷雨", index: 5 }
+    description: "谷雨如丝复似尘，煮瓶浮蜡正尝新。——范成大《晚春田园杂兴》"
+    popup:
+      enabled: true
+      title: "🌾 谷雨"
+      content: "谷雨生百谷，星尘也滋养生命。送你 {{bonusAmount}} 饼干！"
+      animation:
+        enabled: true
+        type: "confetti"
+        duration: 10
+    quotaBonus:
+      enabled: true
+      amount: 200
+      unit: "cookie"
+      description: "谷雨生百谷，星尘也滋养生命。送你 {{bonusAmount}} 饼干！"
+    priority: 50
+    enabled: true
+
+  - id: li_xia
+    name: "立夏"
+    category: "solar_term"
+    calendarType: "solar_term"
+    solarTerm: { name: "立夏", index: 6 }
+    description: "绿树阴浓夏日长，楼台倒影入池塘。——高骈《山亭夏日》"
+    popup:
+      enabled: true
+      title: "☀️ 立夏"
+      content: "万物并秀，夏日初长。愿能量与灵感同步生长。送你 {{bonusAmount}} 饼干！"
+      animation:
+        enabled: true
+        type: "confetti"
+        duration: 10
+    quotaBonus:
+      enabled: true
+      amount: 200
+      unit: "cookie"
+      description: "万物并秀，夏日初长。愿能量与灵感同步生长。送你 {{bonusAmount}} 饼干！"
+    priority: 50
+    enabled: true
+
+  - id: xiao_man
+    name: "小满"
+    category: "solar_term"
+    calendarType: "solar_term"
+    solarTerm: { name: "小满", index: 7 }
+    description: "夜莺啼绿柳，皓月醒长空。——欧阳修《小满》"
+    popup:
+      enabled: true
+      title: "🌿 小满"
+      content: "小满未满，恰是向上的留白。送你 {{bonusAmount}} 饼干！"
+      animation:
+        enabled: true
+        type: "confetti"
+        duration: 10
+    quotaBonus:
+      enabled: true
+      amount: 200
+      unit: "cookie"
+      description: "小满未满，恰是向上的留白。送你 {{bonusAmount}} 饼干！"
+    priority: 50
+    enabled: true
+
+  - id: mang_zhong
+    name: "芒种"
+    category: "solar_term"
+    calendarType: "solar_term"
+    solarTerm: { name: "芒种", index: 8 }
+    description: "时雨及芒种，四野皆插秧。——陆游《时雨》"
+    popup:
+      enabled: true
+      title: "🌾 芒种"
+      content: "有芒之谷，播种希望。愿你的项目稳稳发芽。送你 {{bonusAmount}} 饼干！"
+      animation:
+        enabled: true
+        type: "confetti"
+        duration: 10
+    quotaBonus:
+      enabled: true
+      amount: 200
+      unit: "cookie"
+      description: "有芒之谷，播种希望。愿你的项目稳稳发芽。送你 {{bonusAmount}} 饼干！"
+    priority: 50
+    enabled: true
+
+  - id: xia_zhi
+    name: "夏至"
+    category: "solar_term"
+    calendarType: "solar_term"
+    solarTerm: { name: "夏至", index: 9 }
+    description: "昼晷已云极，宵漏自此长。——韦应物《夏至避暑北池》"
+    popup:
+      enabled: true
+      title: "☀️ 夏至"
+      content: "昼最长，夜最短。恒星也以最炽烈的姿态燃烧。送你 {{bonusAmount}} 饼干！"
+      animation:
+        enabled: true
+        type: "confetti"
+        duration: 10
+    quotaBonus:
+      enabled: true
+      amount: 200
+      unit: "cookie"
+      description: "昼最长，夜最短。恒星也以最炽烈的姿态燃烧。送你 {{bonusAmount}} 饼干！"
+    priority: 50
+    enabled: true
+
+  - id: xiao_shu
+    name: "小暑"
+    category: "solar_term"
+    calendarType: "solar_term"
+    solarTerm: { name: "小暑", index: 10 }
+    description: "荷风送香气，竹露滴清响。——孟浩然《夏日南亭怀辛大》"
+    popup:
+      enabled: true
+      title: "🌤️ 小暑"
+      content: "小暑微热，万物蓄势。愿你的计算保持从容。送你 {{bonusAmount}} 饼干！"
+      animation:
+        enabled: true
+        type: "confetti"
+        duration: 10
+    quotaBonus:
+      enabled: true
+      amount: 200
+      unit: "cookie"
+      description: "小暑微热，万物蓄势。愿你的计算保持从容。送你 {{bonusAmount}} 饼干！"
+    priority: 50
+    enabled: true
+
+  - id: da_shu
+    name: "大暑"
+    category: "solar_term"
+    calendarType: "solar_term"
+    solarTerm: { name: "大暑", index: 11 }
+    description: "赤日几时过，清风无处寻。——曾几《大暑》"
+    popup:
+      enabled: true
+      title: "🔥 大暑"
+      content: "大暑流金，热意正盛。愿你的结果也滚烫清晰。送你 {{bonusAmount}} 饼干！"
+      animation:
+        enabled: true
+        type: "confetti"
+        duration: 10
+    quotaBonus:
+      enabled: true
+      amount: 200
+      unit: "cookie"
+      description: "大暑流金，热意正盛。愿你的结果也滚烫清晰。送你 {{bonusAmount}} 饼干！"
+    priority: 50
+    enabled: true
+
+  - id: li_qiu
+    name: "立秋"
+    category: "solar_term"
+    calendarType: "solar_term"
+    solarTerm: { name: "立秋", index: 12 }
+    description: "空山新雨后，天气晚来秋。——王维《山居秋暝》"
+    popup:
+      enabled: true
+      title: "🍂 立秋"
+      content: "云天收夏色，木叶动秋声。送你 {{bonusAmount}} 饼干！"
+      animation:
+        enabled: true
+        type: "confetti"
+        duration: 10
+    quotaBonus:
+      enabled: true
+      amount: 200
+      unit: "cookie"
+      description: "云天收夏色，木叶动秋声。送你 {{bonusAmount}} 饼干！"
+    priority: 50
+    enabled: true
+
+  - id: chu_shu
+    name: "处暑"
+    category: "solar_term"
+    calendarType: "solar_term"
+    solarTerm: { name: "处暑", index: 13 }
+    description: "离离原上草，一岁一枯荣。——白居易《赋得古原草送别》"
+    popup:
+      enabled: true
+      title: "🌾 处暑"
+      content: "暑气渐止，清风有信。愿你的流程一路清爽。送你 {{bonusAmount}} 饼干！"
+      animation:
+        enabled: true
+        type: "confetti"
+        duration: 10
+    quotaBonus:
+      enabled: true
+      amount: 200
+      unit: "cookie"
+      description: "暑气渐止，清风有信。愿你的流程一路清爽。送你 {{bonusAmount}} 饼干！"
+    priority: 50
+    enabled: true
+
+  - id: bai_lu
+    name: "白露"
+    category: "solar_term"
+    calendarType: "solar_term"
+    solarTerm: { name: "白露", index: 14 }
+    description: "蒹葭苍苍，白露为霜。——《诗经·秦风·蒹葭》"
+    popup:
+      enabled: true
+      title: "💧 白露"
+      content: "蒹葭苍苍，白露为霜。愿微小信号也被看见。送你 {{bonusAmount}} 饼干！"
+      animation:
+        enabled: true
+        type: "confetti"
+        duration: 10
+    quotaBonus:
+      enabled: true
+      amount: 200
+      unit: "cookie"
+      description: "蒹葭苍苍，白露为霜。愿微小信号也被看见。送你 {{bonusAmount}} 饼干！"
+    priority: 50
+    enabled: true
+
+  - id: qiu_fen
+    name: "秋分"
+    category: "solar_term"
+    calendarType: "solar_term"
+    solarTerm: { name: "秋分", index: 15 }
+    description: "自古逢秋悲寂寥，我言秋日胜春朝。——刘禹锡《秋词》"
+    popup:
+      enabled: true
+      title: "🍁 秋分"
+      content: "昼夜均分，秋意渐浓。送你 {{bonusAmount}} 饼干！"
+      animation:
+        enabled: true
+        type: "confetti"
+        duration: 10
+    quotaBonus:
+      enabled: true
+      amount: 200
+      unit: "cookie"
+      description: "昼夜均分，秋意渐浓。送你 {{bonusAmount}} 饼干！"
+    priority: 50
+    enabled: true
+
+  - id: han_lu
+    name: "寒露"
+    category: "solar_term"
+    calendarType: "solar_term"
+    solarTerm: { name: "寒露", index: 16 }
+    description: "空庭得秋长漫漫，寒露入暮愁衣单。——王安石《八月十九日试院梦冲卿》"
+    popup:
+      enabled: true
+      title: "🌙 寒露"
+      content: "寒露凝光，星河渐冷。愿每份数据都沉淀成答案。送你 {{bonusAmount}} 饼干！"
+      animation:
+        enabled: true
+        type: "confetti"
+        duration: 10
+    quotaBonus:
+      enabled: true
+      amount: 200
+      unit: "cookie"
+      description: "寒露凝光，星河渐冷。愿每份数据都沉淀成答案。送你 {{bonusAmount}} 饼干！"
+    priority: 50
+    enabled: true
+
+  - id: shuang_jiang
+    name: "霜降"
+    category: "solar_term"
+    calendarType: "solar_term"
+    solarTerm: { name: "霜降", index: 17 }
+    description: "停车坐爱枫林晚，霜叶红于二月花。——杜牧《山行》"
+    popup:
+      enabled: true
+      title: "❄️ 霜降"
+      content: "霜降水返壑，风落木归山。愿探索更见轮廓。送你 {{bonusAmount}} 饼干！"
+      animation:
+        enabled: true
+        type: "snow"
+        duration: 10
+    quotaBonus:
+      enabled: true
+      amount: 200
+      unit: "cookie"
+      description: "霜降水返壑，风落木归山。愿探索更见轮廓。送你 {{bonusAmount}} 饼干！"
+    priority: 50
+    enabled: true
+
+  - id: li_dong
+    name: "立冬"
+    category: "solar_term"
+    calendarType: "solar_term"
+    solarTerm: { name: "立冬", index: 18 }
+    description: "冻笔新诗懒写，寒炉美酒时温。——李白《立冬》"
+    popup:
+      enabled: true
+      title: "🧣 立冬"
+      content: "冬意初临，万物收藏。愿 OmicHub 给你一点温暖。送你 {{bonusAmount}} 饼干！"
+      animation:
+        enabled: true
+        type: "snow"
+        duration: 10
+    quotaBonus:
+      enabled: true
+      amount: 200
+      unit: "cookie"
+      description: "冬意初临，万物收藏。愿 OmicHub 给你一点温暖。送你 {{bonusAmount}} 饼干！"
+    priority: 50
+    enabled: true
+
+  - id: xiao_xue
+    name: "小雪"
+    category: "solar_term"
+    calendarType: "solar_term"
+    solarTerm: { name: "小雪", index: 19 }
+    description: "花雪随风不厌看，更多还肯失林峦。——戴叔伦《小雪》"
+    popup:
+      enabled: true
+      title: "🌨️ 小雪"
+      content: "小雪轻落，星光未眠。送你 {{bonusAmount}} 饼干！"
+      animation:
+        enabled: true
+        type: "snow"
+        duration: 10
+    quotaBonus:
+      enabled: true
+      amount: 200
+      unit: "cookie"
+      description: "小雪轻落，星光未眠。送你 {{bonusAmount}} 饼干！"
+    priority: 50
+    enabled: true
+
+  - id: da_xue
+    name: "大雪"
+    category: "solar_term"
+    calendarType: "solar_term"
+    solarTerm: { name: "大雪", index: 20 }
+    description: "大雪满初晨，开门万象新。——薛能《大雪》"
+    popup:
+      enabled: true
+      title: "❄️ 大雪"
+      content: "大雪满弦，天地清宁。愿复杂问题也变得纯净。送你 {{bonusAmount}} 饼干！"
+      animation:
+        enabled: true
+        type: "snow"
+        duration: 10
+    quotaBonus:
+      enabled: true
+      amount: 200
+      unit: "cookie"
+      description: "大雪满弦，天地清宁。愿复杂问题也变得纯净。送你 {{bonusAmount}} 饼干！"
+    priority: 50
+    enabled: true
+
+  - id: dong_zhi
+    name: "冬至"
+    category: "solar_term"
+    calendarType: "solar_term"
+    solarTerm: { name: "冬至", index: 21 }
+    description: "天时人事日相催，冬至阳生春又来。——杜甫《小至》"
+    popup:
+      enabled: true
+      title: "🥟 冬至"
+      content: "冬至大如年。送你 {{bonusAmount}} 饼干！"
+      animation:
+        enabled: true
+        type: "snow"
+        duration: 10
+    quotaBonus:
+      enabled: true
+      amount: 300
+      unit: "cookie"
+      description: "冬至大如年。送你 {{bonusAmount}} 饼干！"
+    priority: 60
+    enabled: true
+
+  - id: xiao_han
+    name: "小寒"
+    category: "solar_term"
+    calendarType: "solar_term"
+    solarTerm: { name: "小寒", index: 22 }
+    description: "小寒连大吕，欢鹊垒新巢。——元稹《咏廿四气诗·小寒》"
+    popup:
+      enabled: true
+      title: "🧊 小寒"
+      content: "小寒料峭，星火仍在。愿你的研究保持热度。送你 {{bonusAmount}} 饼干！"
+      animation:
+        enabled: true
+        type: "snow"
+        duration: 10
+    quotaBonus:
+      enabled: true
+      amount: 200
+      unit: "cookie"
+      description: "小寒料峭，星火仍在。愿你的研究保持热度。送你 {{bonusAmount}} 饼干！"
+    priority: 50
+    enabled: true
+
+  - id: da_han
+    name: "大寒"
+    category: "solar_term"
+    calendarType: "solar_term"
+    solarTerm: { name: "大寒", index: 23 }
+    description: "旧雪未及消，新雪又拥户。——邵雍《大寒吟》"
+    popup:
+      enabled: true
+      title: "❄️ 大寒"
+      content: "大寒岁末，静候春归。愿下一次开始更有力量。送你 {{bonusAmount}} 饼干！"
+      animation:
+        enabled: true
+        type: "snow"
+        duration: 10
+    quotaBonus:
+      enabled: true
+      amount: 200
+      unit: "cookie"
+      description: "大寒岁末，静候春归。愿下一次开始更有力量。送你 {{bonusAmount}} 饼干！"
+    priority: 50
+    enabled: true
+
+  # ═══════════════════════════════════════════════════════════
+  # 特殊节日
+  # ═══════════════════════════════════════════════════════════
+  - id: programmers_day
+    name: "程序员节"
+    nameEn: "Programmers' Day"
+    category: "special"
+    calendarType: "solar"
+    solarDate: { month: 10, day: 24 }
+    description: "Hello World！1024，是二进制与代码的浪漫"
+    popup:
+      enabled: true
+      title: "💻 1024 程序员节"
+      content: "Hello World！祝程序员们节日快乐！送你 {{bonusAmount}} 饼干！"
+      animation:
+        enabled: true
+        type: "confetti"
+        duration: 15
+    quotaBonus:
+      enabled: true
+      amount: 1024
+      unit: "cookie"
+      description: "Hello World！祝程序员们节日快乐！送你 {{bonusAmount}} 饼干！"
+    priority: 85
+    enabled: true
+
+  # ═══════════════════════════════════════════════════════════
+  # 管理员自定义节日（示例）
+  # ═══════════════════════════════════════════════════════════
+  - id: omichub_anniversary
+    name: "OmicHub 周年庆"
+    category: "custom"
+    calendarType: "solar"
+    solarDate: { month: 6, day: 18 }
+    activeRange: { year: 2026, offsetDays: 0, durationDays: 3 }
+    description: "感恩相伴，共赴未来。OmicHub 与你一同探索星辰大海"
+    popup:
+      enabled: true
+      title: "🎂 OmicHub 周年庆"
+      content: "感恩相伴，共赴未来。周年庆特别福利 {{bonusAmount}} 饼干！"
+    quotaBonus:
+      enabled: true
+      amount: 2000
+      unit: "cookie"
+    priority: 120
+    enabled: true
+
+# ── 动画类型定义 ──
+animationTypes:
+  fireworks:
+    name: "烟花"
+    description: "全屏烟花动画"
+    library: "canvas-confetti"
+  snow:
+    name: "雪花"
+    description: "飘雪效果"
+    library: "css"
+  confetti:
+    name: "彩纸"
+    description: "五彩纸屑庆祝"
+    library: "canvas-confetti"
+  star_heart:
+    name: "星河爱心"
+    description: "星星汇聚成爱心"
+    library: "canvas-confetti"
+  moon_glow:
+    name: "月光"
+    description: "月亮发光+星云效果"
+    library: "css"
+  petal:
+    name: "花瓣"
+    description: "花瓣飘落"
+    library: "css"
+  code_rain:
+    name: "代码雨"
+    description: "黑客帝国风格代码雨"
+    library: "css"
+  lantern:
+    name: "灯笼"
+    description: "灯笼飘动"
+    library: "css"

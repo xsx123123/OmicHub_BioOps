@@ -1,0 +1,7 @@
+Sample	Mouse	Human	Vectors	Pseudomonas	Brassica_napus	Agrobacterium_vaccinii	Clavibacter_californiensis	Lactuca_sativa_V11	Zm-B73-REFERENCE-NAM-5.0	ASM14353v4	Penicillium_subrubescens	Streptomyces_clavuligerus	Erwinia_tasmaniensis_Et1_99	Xanthomonas_euvesicatoria_pv.alfalfae	Multiple Genomes	No hits
+1-1_raw_R2_screen	77587.0	15.0	1.0	0.0	1.0	0.0	0.0	0.0	0.0	0.0	0.0	0.0	0.0	0.0	22144.0	239.0
+1-2_raw_R2_screen	77279.0	36.0	2.0	2.0	0.0	0.0	0.0	0.0	0.0	0.0	0.0	0.0	0.0	0.0	22483.0	360.0
+1-3_raw_R2_screen	77541.0	9.0	4.0	0.0	1.0	0.0	0.0	1.0	0.0	0.0	0.0	0.0	0.0	0.0	22177.0	259.0
+2-1_raw_R2_screen	74552.0	47.0	3.0	2.0	5.0	3.0	2.0	1.0	0.0	0.0	0.0	0.0	0.0	0.0	24869.0	509.0
+2-2_raw_R2_screen	70857.0	56.0	4.0	3.0	2.0	0.0	1.0	0.0	1.0	1.0	0.0	0.0	0.0	1.0	28533.0	519.0
+2-3_raw_R2_screen	74981.0	356.0	5.0	3.0	1.0	1.0	0.0	0.0	1.0	0.0	1.0	1.0	1.0	0.0	24089.0	559.0

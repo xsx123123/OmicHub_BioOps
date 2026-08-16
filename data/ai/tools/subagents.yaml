@@ -1,0 +1,4 @@
+id: subagents
+description: 在对话中将相互独立的子任务并行分派给多个专业 Agent 并汇总结果。
+builtin_tools:
+  - parallel_subagents

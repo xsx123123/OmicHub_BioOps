@@ -1,0 +1,67 @@
+domain: omics
+version: 1
+display_name: 组学研究规划
+match:
+  domain_markers: [rna, 转录组, 表达, 基因, 突变, 分组, 组学, 细胞, 样本,
+                   蛋白组, 代谢组, 甲基化, atac, chip, 空间组学]
+intake:
+  questions:
+    - id: modality
+      when_markers_absent: [bulk, 单细胞, 单 cell, scrna, 空间, spatial, snrna, 蛋白组]
+      question: "你的数据属于哪种模态?这会决定后续分析路线和可分配的专家。"
+      options: ["bulk RNA-seq", "单细胞 RNA-seq", "空间转录组", "多组学/其他"]
+    - id: grouping
+      when_markers_present: [分组]
+      when_markers_absent: [突变 vs, 突变与, 野生型, 高表达, 低表达, 敲除, 过表达,
+                            对照, 病例, 治疗前, 治疗后, 响应, 不响应, 敏感, 耐药, 组定义]
+      question: "这两个{subject}分组是如何定义的?"
+      options: ["病例 vs 对照", "治疗/干预 vs 对照", "高值 vs 低值", "其他定义"]
+      subject_rules:
+        - markers: [tp53]
+          subject: "TP53 "
+          options: ["TP53 突变 vs 野生型", "TP53 高表达 vs 低表达",
+                    "TP53 敲除/过表达 vs 对照", "其他定义"]
+    - id: sample_size
+      when_markers_absent: [样本, 细胞, "n=", 病例, 队列]
+      question: "每组大约有多少样本或细胞?目前可提供哪些输入(原始测序、count 矩阵或已处理对象)?"
+      options: ["已有 count/表达矩阵", "已有单细胞对象(h5ad/rds)",
+                "只有原始测序数据", "暂未确定"]
+assignments:
+  rules:
+    - id: scrna-sample-contract
+      when: planning_or_analysis
+      when_message_markers: [单细胞, scrna]
+      agent_match: [agent-scrna-upstream, 单细胞上游]
+      authoritative: true
+      task_id: scrna-sample-contract
+      task: "制定单细胞样本与数据契约：核对每个样本、分组、建库与输入对象，定义细胞/基因 QC、双细胞控制、样本纳入排除和批次记录；针对小鼠 TP53 肺癌研究明确 10 个样本的生物学重复、混杂因素与缺失数据处置。"
+      accepts_inputs: [sample-metadata, fastq, count-matrix, h5ad, rds]
+      produces_outputs: [sample-data-contract, scrna-qc-plan]
+    - id: scrna-integration-clustering
+      when: planning_or_analysis
+      when_message_markers: [单细胞, scrna]
+      agent_match: [agent-scrna-integration, 单细胞整合]
+      authoritative: true
+      task_id: scrna-integration-clustering
+      task: "制定整合、降维与聚类方案：比较批次校正策略，定义 HVG、邻居图、聚类分辨率和稳定性评估；输出可用于肿瘤、髓系与淋巴系细胞细分注释的对象与 marker 鉴定规范。"
+      depends_on: [scrna-sample-contract]
+      accepts_inputs: [sample-data-contract, scrna-qc-plan]
+      produces_outputs: [integrated-scrna-plan, clustering-annotation-plan]
+    - id: scrna-immune-tolerance
+      when: planning_or_analysis
+      when_message_markers: [单细胞, scrna]
+      agent_match: [agent-scrna-advanced, 单细胞注释与高级]
+      authoritative: true
+      task_id: scrna-immune-tolerance
+      task: "围绕肺癌免疫耐受制定机制发现方案：精细注释 TAM 与 T 细胞状态，以样本为统计单位开展 pseudobulk 差异与通路富集，设计 TAM 极化/拟时序及 TAM–T 细胞通讯分析；将 TP53 相关候选基因、免疫抑制轴与需实验验证的机制分层交付。"
+      depends_on: [scrna-integration-clustering]
+      accepts_inputs: [integrated-scrna-plan, clustering-annotation-plan]
+      produces_outputs: [immune-tolerance-analysis-plan, candidate-gene-mechanism-list]
+    - id: rnaseq-domain
+      when: planning_or_analysis
+      when_message_markers: [bulk, rna-seq, 转录组, 表达矩阵]
+      agent_match: [agent-rnaseq, rna-seq 分析师]
+      task_id: domain-analysis
+      task: "直接完成本领域的分析计划、统计方法、关键参数、风险和解释边界。"
+prompt_injections:
+  router_notes: "用户明确写出 RNA-seq、bulk RNA 或转录组,且无单细胞、scRNA、Seurat、Scanpy、Cell Ranger 锚点时,必须选择 agent-rnaseq。"

@@ -1,0 +1,130 @@
+#!/titan3/local_zhang_jian/miniconda3/miniconda3/envs/R/bin/Rscript
+rm(list = ls())
+#---------------------------------------------------#
+suppressMessages(library("yaml"))
+suppressMessages(library("log4r"))
+suppressMessages(library("getopt"))
+suppressMessages(library("stringr"))
+suppressMessages(library("crayon"))
+suppressMessages(library("praise"))
+#---------------------------------------------------#
+# read in seurat object: cds
+# loading LOG function
+logger <- logger()
+file_output <- file_appender(paste0('Seurt2Anndata','-',format(Sys.time()),'-',Sys.info()[["user"]],".log")) 
+my_layout <- function(level, ...) {
+  require(crayon)
+  if (level == 'INFO'){
+    paste0(bold(cyan(format(Sys.time()), " [", level, " ] ➡️ ")),...,'\n',collapse = "\n")
+  }else{
+    if (level == 'WARN'){
+      paste0(bold(yellow(format(Sys.time()), " [", level, " ] ❓ ")),...,'\n',collapse = "\n")
+    }else{
+      if (level == 'ERROR'){
+        paste0(bold(red(format(Sys.time()), " [", level, "] 🧨 ")),...,'\n', collapse = "\n")
+      }else{
+        if (level == 'FATAL'){
+          paste0(bold(bgRed(format(Sys.time()), " [", level, "] 💣 ")),...,'\n', collapse = "")
+        }else{
+          if (level == 'DEBUG'){
+            paste0(bold(blue(format(Sys.time()), " [", level, "] 🔧 ")),...,'\n', collapse = "\n")
+          }
+        }
+      }
+    }
+  }
+}
+logger <- logger(threshold = "INFO",appenders = list(console_appender(my_layout), file_output))
+scRNAseqmultiSampleCommand <- function() {
+  spec <- matrix(
+    c(
+      "SeuratRDS",  "S", 2, "character", "Seurat RDS path",
+      'AnndataH5AD','A',2,"character","Convet h5ad file name & path",
+      "SeuratVersion", "V", 1, "character", "Seurat Object Version (5.0 | 4.0 dafult :5.0)",
+      "CondaENVPATH", "C", 1, "character", "sceasy depend CONDA ENV ",
+      "help", "h", 0, "logical", "Show help message",
+      "version", "v", 0, "logical", "Show script version"
+    ),
+    byrow = TRUE, ncol = 5
+  )
+  # Input run parameter
+  opt <- getopt(spec = spec)
+  # Automatically show help if no parameters are provided
+  if (length(opt) == 0) {
+    cat("\033[1;34mThis is the Seurat object convert Anndata object script!\033[0m\n")
+    cat("\033[1;32mUsage:Seurt2Anndata -S Seurat.rds -A Anndata.h5ad  -SV 5.0 \033[0m\n")
+    cat("   -S, --SeuratRDS       | Seurat RDS path \n")
+    cat("   -A, --AnndataH5AD     | Convet h5ad file name & path \n")
+    cat("   -V, --SeuratVersion   | \033[1;33m[Option]\033[0m  Seurat Object Version (5.0 | 4.0 Dafult : 5.0 ) \n")
+    cat("   -C, --CondaENVPATH    | \033[1;33m[Option]\033[0m sceasy depend CONDA ENV ( Dafult : /titan3/local_zhang_jian/miniconda3/miniconda3/envs/R) \n")
+    cat("   -h, --help            | Show help message\n")
+    cat("   -v, --version         | Show script version\n")
+    quit(status = 0)
+  }
+  # Custom help message
+  if (!is.null(opt$help)) {
+    cat("\033[1;34mThis is the Seurat object convert Anndata object script!\033[0m\n")
+    cat("\033[1;32mUsage:Seurt2Anndata -S Seurat.rds -A Anndata.h5ad  -SV 5.0 \033[0m\n")
+    cat("   -S, --SeuratRDS       | Seurat RDS path \n")
+    cat("   -A, --AnndataH5AD     | Convet h5ad file name & path \n")
+    cat("   -V, --SeuratVersion   | \033[1;33m[Option]\033[0m  Seurat Object Version (5.0 | 4.0 Dafult : 5.0 ) \n")
+    cat("   -C, --CondaENVPATH    | \033[1;33m[Option]\033[0m sceasy depend CONDA ENV ( Dafult : /titan3/local_zhang_jian/miniconda3/miniconda3/envs/R) \n")
+    cat("   -h, --help            | Show help message\n")
+    cat("   -v, --version         | Show script version\n")
+    quit(status = 0)
+  }
+  
+  # Version information
+  if (!is.null(opt$version)) {
+    cat("\033[1;34m Seurt2Anndata : Seurat object convert Anndata object script version: 1.0v\033[0m\n")
+    quit(status = 0)
+  }
+  # Ensure mandatory parameters are provided
+  if (is.null(opt$SeuratRDS) || is.null(opt$AnndataH5AD)) {
+    cat("\033[1;31mError:\033[0m Missing Required parameters!\n")
+    cat("Use '--help' for usage information.\n")
+    quit(status = 1)
+  }
+  if (is.null(opt$SeuratVersion)) {
+    # cat("\033[1;32mWheathe Use multithreds \033[0m\n")
+    opt$SeuratVersion <- '5.0'
+  }
+   if (is.null(opt$CondaENVPATH)) {
+    # cat("\033[1;32mWheathe Use multithreds \033[0m\n")
+    opt$CondaENVPATH <- '/titan3/local_zhang_jian/miniconda3/miniconda3/envs/R'
+  }
+  return(opt)
+}
+check_seurat_version <- function(SeuratVersion,cds){
+  if (SeuratVersion == '5.0'){
+      cds[["RNA"]] <- as(cds[["RNA"]], "Assay")
+      warn(logger, 'Convert Seurat Object RNA Assay')
+  }
+  else{
+      cds <- cds
+      info(logger, 'Don\'t Convert Seurat Object RNA Assay')
+  }
+  return(cds)
+}
+#---------------------------------------------------#
+# main code
+opt <- scRNAseqmultiSampleCommand()
+info(logger, 'Loading Convert Packages')
+suppressMessages(library("Seurat"))
+suppressMessages(library("sceasy"))
+suppressMessages(library("reticulate"))
+info(logger, 'Loading CONDA ENV')
+R_ENV <- opt$CondaENVPATH
+warn(logger, paste0('Seurt2Anndata will activate ',R_ENV))
+use_condaenv(condaenv = R_ENV, required = TRUE)
+rds <- opt$SeuratRDS
+info(logger, paste0('Seurat Object : ',rds))
+h5ad <- opt$AnndataH5AD
+info(logger, paste0('Anndata Object Save at : ',h5ad))
+cds <- readRDS(rds)
+cds <- check_seurat_version(opt$SeuratVersion,cds)
+info(logger, 'Convert Seurat -> Annodata （power by sceasy）')
+sceasy::convertFormat(cds, from="seurat", to="anndata",
+                      outFile=h5ad)
+info(logger, 'Convert Seurat -> Annodata finish !!!')
+#---------------------------------------------------#

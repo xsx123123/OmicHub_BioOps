@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "crates/ebidownload-core",
+    "crates/ebidownload-cli",
+    "crates/ebidownload-gui/src-tauri",
+]
+resolver = "2"

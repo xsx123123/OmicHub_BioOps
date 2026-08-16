@@ -1,0 +1,35 @@
+flow:
+  id: atacseq
+  version: 1.0.0
+  display_name: Bulk ATAC-seq 分析
+  domain: epigenomics
+  actor: agent-atacseq
+  runtime_image: atacseq
+  bridge_workflow: atac_seq
+  trigger_hints: [ATAC-seq, 染色质开放性, peak calling, FRiP, TSS enrichment]
+artifacts:
+  - {key: fastq_manifest, type: json_manifest}
+  - {key: peaks, type: table}
+  - {key: bigwig, type: visualization_bundle}
+  - {key: qc_report, type: review_report}
+  - {key: qc_review, type: review_report}
+  - {key: delivery_manifest, type: json_manifest}
+stages:
+  - key: atacflow
+    title: ATAC-seq 比对、峰识别与质控
+    assistant_agent_id: agent-atacseq
+    executors:
+      - key: atacflow
+        queue: atacseq_analysis
+        resource_profile: standard_8c32g
+        inputs: [fastq_manifest]
+        outputs: [peaks, bigwig, qc_report]
+        retry_policy: infra_bounded
+    review:
+      skill: atacseq-qc-review
+      inputs: [qc_report, peaks]
+      output: qc_review
+    gate: {template: annotation_revision, required: true}
+delivery:
+  quality_gate: true
+  outputs: [delivery_manifest, peaks, bigwig, qc_report, qc_review]

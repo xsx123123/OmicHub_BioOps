@@ -1,0 +1,142 @@
+# OmicHub MCP Server 工具注册表
+# 新增工具组时在此声明元数据，然后在 tools/ 下创建对应模块
+#
+# 约定:
+#   - 每个工具组对应 tools/<group>.py，导出 register(mcp, api) 函数
+#   - 工具名统一前缀 omichub_<group>_<action>
+#   - 破坏性操作必须有 user_confirmed 确认门
+#   - 返回值统一: {success, summary, data, next_steps?}
+
+groups:
+  - id: tasks
+    module: tools.tasks
+    description: "任务管理 — 查看、监控、取消分析任务"
+    tools:
+      - name: omichub_list_tasks
+        description: "列出用户的分析任务"
+        read_only: true
+      - name: omichub_get_task
+        description: "获取任务详情"
+        read_only: true
+      - name: omichub_get_task_progress
+        description: "获取任务进度（轮询用）"
+        read_only: true
+      - name: omichub_get_task_logs
+        description: "获取任务执行日志"
+        read_only: true
+      - name: omichub_cancel_task
+        description: "取消任务"
+        read_only: false
+        requires_confirm: true
+      - name: omichub_get_task_dag
+        description: "获取 DAG 工作流图"
+        read_only: true
+
+  - id: flows
+    module: tools.flows
+    description: "流程目录 — 浏览可用分析流程和参数"
+    tools:
+      - name: omichub_list_flows
+        description: "列出可用分析流程"
+        read_only: true
+      - name: omichub_get_flow_detail
+        description: "获取流程详情和参数"
+        read_only: true
+      - name: omichub_get_flow_parameters
+        description: "获取参数 JSON Schema"
+        read_only: true
+
+  - id: analysis
+    module: tools.analysis
+    description: "分析提交 — 配置并提交分析任务"
+    tools:
+      - name: omichub_submit_analysis
+        description: "提交分析任务"
+        read_only: false
+        requires_confirm: true
+      - name: omichub_preview_analysis
+        description: "验证参数（dry-run）"
+        read_only: true
+
+  - id: downloads
+    module: tools.downloads
+    description: "数据下载 — 公共数据库(SRA/GEO, PRJ/SRR/GSM 登录号, aws/aspera/ftp 高速下载)、多云存储(aliyun/volc/huawei)、HTTP 直链下载到用户 raw_data"
+    tools:
+      - name: omichub_submit_download
+        description: "提交下载任务(SRA/GEO 公共数据库、云存储、直链三类来源)"
+        read_only: false
+        requires_confirm: true
+      - name: omichub_list_downloads
+        description: "列出下载任务"
+        read_only: true
+      - name: omichub_get_download_progress
+        description: "获取逐 run 分阶段下载进度"
+        read_only: true
+
+  - id: files
+    module: tools.files
+    description: "文件浏览 — 查看用户数据和分析结果"
+    tools:
+      - name: list_workspace_files
+        description: "列出当前用户工作区文件和文件夹"
+        read_only: true
+      - name: search_workspace_files
+        description: "递归搜索当前用户工作区文件"
+        read_only: true
+      - name: omichub_list_files
+        description: "列出用户文件"
+        read_only: true
+      - name: omichub_get_file_tree
+        description: "获取文件树"
+        read_only: true
+      - name: omichub_list_directories
+        description: "列出目录"
+        read_only: true
+      - name: omichub_get_task_outputs
+        description: "获取任务输出文件"
+        read_only: true
+      - name: omichub_read_file_content
+        description: "读取文本文件内容"
+        read_only: true
+
+  - id: reports
+    module: tools.reports
+    description: "报告 — 查看分析报告"
+    tools:
+      - name: omichub_list_reports
+        description: "列出报告"
+        read_only: true
+      - name: omichub_get_report
+        description: "获取报告详情"
+        read_only: true
+      - name: omichub_get_report_content
+        description: "获取报告内容"
+        read_only: true
+
+  - id: sandbox
+    module: tools.sandbox
+    description: "沙箱执行 — 在 mambaforge 环境中运行代码"
+    tools:
+      - name: omichub_sandbox_create
+        description: "创建/复用沙箱会话"
+        read_only: false
+      - name: omichub_sandbox_execute
+        description: "执行代码"
+        read_only: false
+      - name: omichub_sandbox_list
+        description: "列出会话"
+        read_only: true
+      - name: omichub_sandbox_destroy
+        description: "销毁会话"
+        read_only: false
+
+  - id: platform
+    module: tools.platform
+    description: "平台信息 — 用户和平台状态"
+    tools:
+      - name: omichub_get_user_info
+        description: "获取用户信息和配额"
+        read_only: true
+      - name: omichub_get_platform_status
+        description: "获取平台状态概览"
+        read_only: true

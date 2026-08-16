@@ -1,0 +1,36 @@
+# OmicHub MCP Server 配置示例
+# 将此配置添加到 AI 助手的 MCP 设置中
+
+# ===== QoderCN CLI / Claude Code (stdio 模式) =====
+# 文件: ~/.qoder-cn/settings.json 或 .qoder/settings.json
+{
+  "mcpServers": {
+    "omichub": {
+      "command": "uv",
+      "args": ["run", "--directory", "/path/to/OmicHub/mcp-server", "python", "main.py"],
+      "env": {
+        "OMICSHUB_BASE_URL": "http://localhost:8000",
+        "OMICSHUB_API_KEY": "omh_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      }
+    }
+  }
+}
+
+# ===== SSE 模式 (远程访问) =====
+# 先启动: cd mcp-server && uv run python main.py --transport sse --port 8900
+{
+  "mcpServers": {
+    "omichub": {
+      "url": "http://your-server:8900/sse"
+    }
+  }
+}
+
+# ===== 获取 API Key =====
+# 1. 登录平台获取 JWT token
+# 2. 创建 API Key:
+#    curl -X POST http://localhost:8000/api/v1/auth/api-keys \
+#      -H "Authorization: Bearer <your-jwt-token>" \
+#      -H "Content-Type: application/json" \
+#      -d '{"name": "QoderCN CLI", "scopes": ["*"]}'
+# 3. 返回的 "key" 字段即为 API Key (仅显示一次)

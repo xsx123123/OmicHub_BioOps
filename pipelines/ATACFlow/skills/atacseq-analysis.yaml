@@ -1,0 +1,25 @@
+version: '1.0'
+name: 'ATAC-seq Analysis'
+description: '技能用于处理 ATAC-seq 测序数据分析，包括质控、比对、peak calling、差异分析等'
+skills:
+  - name: 'atacseq_quality_control'
+    description: 'ATAC-seq 数据质量控制，包括 FastQC、Fastp、MultiQC 等工具的使用'
+    tags: ['ATAC-seq', 'QC', 'quality control', 'FastQC', 'Fastp', 'MultiQC']
+  - name: 'atacseq_alignment'
+    description: 'ATAC-seq 序列比对，支持 Bowtie2 和 Chromap 两种比对工具'
+    tags: ['ATAC-seq', 'alignment', 'mapping', 'Bowtie2', 'Chromap']
+  - name: 'atacseq_peak_calling'
+    description: 'ATAC-seq Peak Calling，支持单样本、合并样本和 IDR 分析'
+    tags: ['ATAC-seq', 'peak calling', 'MACS2', 'IDR', 'consensus peaks']
+  - name: 'atacseq_differential_analysis'
+    description: 'ATAC-seq 差异可及性分析，使用 DESeq2 进行组间比较'
+    tags: ['ATAC-seq', 'differential analysis', 'DESeq2', 'differential peaks']
+  - name: 'atacseq_motif_analysis'
+    description: 'ATAC-seq 转录因子结合位点分析，包括 TOBIAS 足迹分析'
+    tags: ['ATAC-seq', 'motif analysis', 'TOBIAS', 'footprinting', 'transcription factors']
+  - name: 'atacseq_functional_annotation'
+    description: 'ATAC-seq 功能注释，包括 Peak 注释、GO/KEGG 富集分析'
+    tags: ['ATAC-seq', 'annotation', 'HOMER', 'GO enrichment', 'KEGG enrichment']
+  - name: 'plant_atacseq_optimization'
+    description: '针对植物基因组的 ATAC-seq 分析优化，包括细胞器污染过滤'
+    tags: ['ATAC-seq', 'plant', 'organelle contamination', 'chloroplast', 'mitochondria']

@@ -1,0 +1,141 @@
+# Lightweight Worker image: OmicHub/Celery/Snakemake/Micromamba plus Docker CLI
+# for isolated analysis containers. The Web image never starts enrichment containers.
+# RNAFlow, ATACFlow, reference data, and rule Conda environments are runtime resources.
+
+FROM docker:27-cli AS docker-cli
+
+FROM python:3.11-slim AS builder
+
+# 构建期切换中科大 apt 源，加速 apt-get（兼容 debian.sources 与旧版 sources.list）
+RUN if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
+        sed -i 's@//deb.debian.org@//mirrors.ustc.edu.cn@g; s@//security.debian.org@//mirrors.ustc.edu.cn@g' /etc/apt/sources.list.d/debian.sources; \
+    else \
+        sed -i 's@//deb.debian.org@//mirrors.ustc.edu.cn@g; s@//security.debian.org@//mirrors.ustc.edu.cn@g' /etc/apt/sources.list; \
+    fi
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install the pinned uv release from PyPI instead of copying the binary from
+# GHCR. This keeps the build reproducible while avoiding a hard dependency on
+# the GHCR registry, which is commonly unavailable in restricted networks.
+RUN python -m pip install --no-cache-dir --disable-pip-version-check \
+    -i https://pypi.mirrors.ustc.edu.cn/simple "uv==0.6.14"
+
+WORKDIR /app
+
+# uv 不读 /etc/pip.conf，必须显式指定 index（中科大主源 + 阿里云兜底）
+ENV UV_HTTP_TIMEOUT=120 \
+    UV_HTTP_RETRIES=5 \
+    UV_INDEX_URL=https://pypi.mirrors.ustc.edu.cn/simple \
+    UV_EXTRA_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/ \
+    UV_LINK_MODE=copy
+
+COPY pyproject.toml uv.lock* README.md ./
+RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
+    uv sync --frozen --no-dev --extra workflow --no-install-project \
+    --index-url https://pypi.mirrors.ustc.edu.cn/simple/
+
+COPY src/ ./src/
+COPY alembic.ini ./
+COPY alembic/ ./alembic/
+COPY tool_configs/ ./tool_configs/
+RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
+    uv sync --frozen --no-dev --extra workflow \
+    --index-url https://pypi.mirrors.ustc.edu.cn/simple/
+
+RUN uv pip install --python /app/.venv/bin/python --no-cache \
+    --index-url https://pypi.mirrors.ustc.edu.cn/simple/ \
+    "snakemake-logger-plugin-rich-loguru>=0.3.0"
+
+# Optional RocketMQ transport used by the parallel rocketmq-worker service.
+RUN uv pip install --python /app/.venv/bin/python --no-cache \
+    --index-url https://pypi.mirrors.ustc.edu.cn/simple/ \
+    "rocketmq-client-python==2.0.0"
+
+FROM mambaorg/micromamba:2.0.5 AS micromamba
+
+FROM python:3.11-slim AS runtime
+
+ARG OH_MY_ZSH_REF=master
+
+# 构建期切换中科大 apt 源，加速 apt-get（兼容 debian.sources 与旧版 sources.list）
+RUN if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
+        sed -i 's@//deb.debian.org@//mirrors.ustc.edu.cn@g; s@//security.debian.org@//mirrors.ustc.edu.cn@g' /etc/apt/sources.list.d/debian.sources; \
+    else \
+        sed -i 's@//deb.debian.org@//mirrors.ustc.edu.cn@g; s@//security.debian.org@//mirrors.ustc.edu.cn@g' /etc/apt/sources.list; \
+    fi
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        btop \
+        bzip2 \
+        ca-certificates \
+        curl \
+        git \
+        ncbi-blast+ \
+        unzip \
+        util-linux \
+        wget \
+        zsh \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN groupadd --gid 1000 omichub \
+    && useradd --uid 1000 --gid omichub --home-dir /tmp/omichub-home --shell /bin/zsh --no-create-home omichub
+
+RUN set -eux; \
+    curl --fail --location --retry 5 --retry-all-errors \
+      "https://github.com/ohmyzsh/ohmyzsh/archive/refs/heads/${OH_MY_ZSH_REF}.tar.gz" \
+      --output /tmp/oh-my-zsh.tar.gz; \
+    mkdir -p /opt/oh-my-zsh; \
+    tar -xzf /tmp/oh-my-zsh.tar.gz --strip-components=1 -C /opt/oh-my-zsh; \
+    rm /tmp/oh-my-zsh.tar.gz; \
+    chmod -R go-w /opt/oh-my-zsh; \
+    curl --fail --location --retry 5 --retry-all-errors https://ohmyposh.dev/install.sh \
+      --output /tmp/install-oh-my-posh.sh; \
+    bash /tmp/install-oh-my-posh.sh -d /usr/local/bin; \
+    rm /tmp/install-oh-my-posh.sh; \
+    oh-my-posh version; \
+    mkdir -p /etc/zsh; \
+    printf '%s\n' \
+      'if [[ -o interactive ]]; then' \
+      '  export ZSH=/opt/oh-my-zsh' \
+      '  ZSH_THEME=""' \
+      '  plugins=(git)' \
+      '  source "$ZSH/oh-my-zsh.sh"' \
+      '  eval "$(oh-my-posh init zsh)"' \
+      'fi' \
+      > /etc/zsh/zshrc.omichub; \
+    printf '%s\n' 'source /etc/zsh/zshrc.omichub' >> /etc/zsh/zshrc
+
+COPY --from=micromamba /usr/bin/micromamba /usr/local/bin/micromamba
+COPY --from=docker-cli /usr/local/bin/docker /usr/local/bin/docker
+COPY --from=builder /app /app
+COPY deploy/docker/worker-entrypoint.sh /usr/local/bin/worker-entrypoint
+
+RUN printf '%s\n' \
+      '#!/bin/sh' \
+      'exec /usr/local/bin/micromamba "$@"' \
+      > /usr/local/bin/conda \
+    && chmod 0755 /usr/local/bin/conda /usr/local/bin/worker-entrypoint \
+    && mkdir -p /opt/omichub/pipelines /data/omichub /tmp/omichub-home \
+    && printf '%s\n' 'source /etc/zsh/zshrc.omichub' > /tmp/omichub-home/.zshrc \
+    && chmod 0644 /tmp/omichub-home/.zshrc \
+    && chmod 0777 /tmp/omichub-home
+
+WORKDIR /app
+
+ENV APP_ENV=production \
+    HOME=/tmp/omichub-home \
+    MAMBA_ROOT_PREFIX=/data/omichub/.mamba \
+    PATH=/app/.venv/bin:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app/src \
+    SNAKEMAKE_CONDA_PREFIX=/data/omichub/.conda_envs \
+    TERM=xterm-256color \
+    XDG_CACHE_HOME=/data/omichub/.cache
+
+ENTRYPOINT ["/usr/local/bin/worker-entrypoint"]
+CMD ["celery", "-A", "omichub.infrastructure.celery_app.celery", "worker", "-Q", "analysis", "--loglevel=info"]

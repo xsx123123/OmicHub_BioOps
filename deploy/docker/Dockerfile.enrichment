@@ -1,0 +1,69 @@
+# OmicHub GO / KEGG enrichment runtime image.
+# Purpose: run clusterProfiler inside isolated containers launched by Celery Worker.
+# Build context: tool_configs/enrichments
+# Build command: make docker-build-enrichment
+#
+# 说明：
+# 1. 原路线（bioconductor_docker + BiocManager::install 源码编译）依赖
+#    cloud.r-project.org / bioconductor.org——两域名在构建网络均不可达（见
+#    Dockerfile.deg 注释的实测记录），构建必然失败，故与 deg 镜像统一为
+#    micromamba + bioconda 二进制包路线（全部走 USTC 镜像）。
+# 2. ENV PATH 钉住 conda bin，Worker `docker run <image> Rscript ...` 无需环境激活。
+FROM mambaorg/micromamba:2.0.5
+
+LABEL org.opencontainers.image.title="omichub-r-enrichment" \
+      org.opencontainers.image.description="clusterProfiler GO/KEGG enrichment runtime for OmicHub toolbox"
+
+ENV PATH="${MAMBA_ROOT_PREFIX}/bin:${PATH}"
+
+# 预置中科大镜像源，加速 bioconda 包下载（见 Protocol/镜像构建国内加速规范_v1.md §4）；
+# 安装以 mambauser 执行，condarc 必须落在其 HOME。
+RUN printf '%s\n' \
+      'show_channel_urls: true' \
+      'default_channels:' \
+      '  - https://mirrors.ustc.edu.cn/anaconda/pkgs/main' \
+      '  - https://mirrors.ustc.edu.cn/anaconda/pkgs/free' \
+      '  - https://mirrors.ustc.edu.cn/anaconda/pkgs/r' \
+      '  - https://mirrors.ustc.edu.cn/anaconda/pkgs/msys2' \
+      'custom_channels:' \
+      '  conda-forge: https://mirrors.ustc.edu.cn/anaconda/cloud' \
+      '  bioconda: https://mirrors.ustc.edu.cn/anaconda/cloud' \
+      '  menpo: https://mirrors.ustc.edu.cn/anaconda/cloud' \
+      'channel_priority: flexible' \
+      'channels:' \
+      '  - conda-forge' \
+      '  - bioconda' \
+      '  - menpo' \
+      '  - defaults' \
+      > /home/mambauser/.condarc \
+    && chown $MAMBA_USER:$MAMBA_USER /home/mambauser/.condarc
+
+USER $MAMBA_USER
+# conda 包缓存挂 BuildKit cache mount（tarball 不进镜像层），网络抖动时重试只补漏下载。
+RUN --mount=type=cache,target=/opt/conda/pkgs,uid=10001,gid=10001,sharing=locked \
+    micromamba install -y -n base -c conda-forge -c bioconda \
+      bioconductor-clusterprofiler \
+      bioconductor-enrichplot \
+      r-optparse \
+      r-ontologyindex \
+    && micromamba list | grep -E "bioconductor-(clusterprofiler|enrichplot) "
+
+# 强制校验所有必需包可加载，缺包直接构建失败，避免"exit 0 的假成功镜像"。
+RUN micromamba run -n base R -q -e '\
+      required <- c("clusterProfiler", "enrichplot", "optparse", "ontologyIndex"); \
+      failed <- character(0); \
+      for (p in required) { \
+        ok <- tryCatch({ suppressPackageStartupMessages(library(p, character.only = TRUE)); TRUE }, \
+                       error = function(e) { cat("LOAD FAIL", p, ":", conditionMessage(e), "\n"); FALSE }); \
+        if (!ok) failed <- c(failed, p); \
+      }; \
+      if (length(failed)) stop("enrichment image missing required R packages: ", paste(failed, collapse = ", ")); \
+      cat("enrichment runtime OK: all", length(required), "packages loadable\n")'
+
+# 运行期用 root（与 omichub-r-deg 同口径）：任务目录由 Web 服务以平台 uid 创建，
+# 容器内 mambauser(10001) 无写权限会导致 R 写不出结果。仅安装期使用 mambauser。
+USER root
+COPY --chmod=0555 run_enrichment.R /app/run_enrichment.R
+
+WORKDIR /app
+CMD ["Rscript", "/app/run_enrichment.R"]

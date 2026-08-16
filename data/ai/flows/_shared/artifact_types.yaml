@@ -1,0 +1,40 @@
+json_manifest:
+  format: json
+  media_types: [application/json]
+  max_size_gb: 1
+  retention_days: 90
+h5ad:
+  format: h5ad
+  media_types: [application/x-hdf5]
+  max_size_gb: 100
+  retention_days: 180
+review_report:
+  format: json_or_html
+  media_types: [application/json, text/html]
+  max_size_gb: 2
+  retention_days: 180
+metrics:
+  format: json_or_tsv
+  media_types: [application/json, text/tab-separated-values]
+  max_size_gb: 5
+  retention_days: 180
+table:
+  format: tsv_or_parquet
+  media_types: [text/tab-separated-values, application/octet-stream]
+  max_size_gb: 20
+  retention_days: 180
+visualization_bundle:
+  format: html_or_archive
+  media_types: [text/html, application/zip]
+  max_size_gb: 10
+  retention_days: 180
+decision:
+  format: json
+  media_types: [application/json]
+  max_size_gb: 1
+  retention_days: 365
+runbook:
+  format: markdown
+  media_types: [text/markdown]
+  max_size_gb: 1
+  retention_days: 365

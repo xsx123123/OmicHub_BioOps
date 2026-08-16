@@ -1,0 +1,110 @@
+meta:
+  name: "phylogenetic-tree"
+  version: "1.0.0"
+  description: "多序列比对与系统发育树构建工具"
+
+features:
+  multiple_sequence_alignment: true
+  tree_building: true
+  bootstrap_analysis: true
+  model_selection: true
+  format_conversion: true
+
+input_limits:
+  max_file_size_mb: 50
+  max_sequences: 5000
+  max_sequence_length: 50000
+
+execution:
+  celery:
+    queue: "phylo_tree"
+    time_limit_seconds: 7200
+    soft_time_limit_seconds: 3600
+  resources:
+    default_threads: 4
+    max_threads: 16
+    max_memory_mb: 32768
+
+tools:
+  mafft: { binary: "mafft", version: "7.525" }
+  clustalo: { binary: "clustalo", version: "1.2.4" }
+  muscle5: { binary: "muscle", version: "5.1" }
+  fasttree: { binary: "FastTree", version: "2.1.11" }
+  iqtree2: { binary: "iqtree2", version: "2.2.2.7" }
+  mrbayes: { binary: "mb", version: "3.2.7" }
+  phylip: { binary: "seqboot", version: "3.697" }
+
+output:
+  default_formats: ["newick", "statistics"]
+  available_formats:
+    - key: "newick"
+      ext: ".nwk"
+      mime: "text/plain"
+    - key: "nexus"
+      ext: ".nex"
+      mime: "text/plain"
+    - key: "phyloxml"
+      ext: ".xml"
+      mime: "application/xml"
+    - key: "statistics"
+      ext: ".stats.json"
+      mime: "application/json"
+
+supported_methods:
+  alignment_tools:
+    - key: "mafft"
+      label: "MAFFT"
+      description: "通用首选，快速准确"
+    - key: "clustalo"
+      label: "Clustal Omega"
+      description: "适合大规模序列"
+    - key: "muscle5"
+      label: "MUSCLE5"
+      description: "高精度比对"
+    - key: "prealigned"
+      label: "已比对（跳过）"
+      description: "输入文件已是多序列比对结果"
+
+  tree_methods:
+    - key: "nj"
+      label: "Neighbor-Joining"
+      description: "距离法，速度快"
+      supports_bootstrap: true
+    - key: "upgma"
+      label: "UPGMA"
+      description: "距离法，等速率假设"
+      supports_bootstrap: false
+    - key: "fasttree"
+      label: "FastTree"
+      description: "近似最大似然，适合大规模"
+      supports_bootstrap: true
+    - key: "iqtree"
+      label: "IQ-TREE"
+      description: "精确最大似然，自动模型选择"
+      supports_bootstrap: true
+    - key: "mrbayes"
+      label: "MrBayes"
+      description: "贝叶斯推断，后验概率"
+      supports_bootstrap: false
+
+  substitution_models:
+    dna:
+      - "JC69"
+      - "K2P"
+      - "HKY"
+      - "GTR"
+      - "GTR+I"
+      - "GTR+G"
+      - "GTR+I+G"
+      - "auto"
+    protein:
+      - "LG"
+      - "WAG"
+      - "JTT"
+      - "auto"
+
+  bootstrap_types:
+    - key: "standard"
+      label: "标准 Bootstrap"
+    - key: "ultrafast"
+      label: "UFBoot (IQ-TREE)"

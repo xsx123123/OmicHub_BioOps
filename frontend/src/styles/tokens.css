@@ -1,0 +1,125 @@
+:root {
+  --stardust-blue: #2E5BFF;
+  --stardust-purple: #7B4DFF;
+  --stardust-gradient: linear-gradient(135deg, #2E5BFF 0%, #7B4DFF 100%);
+  --stardust-bg-soft: #F4F6FF;
+  --stardust-border-soft: rgba(46, 91, 255, 0.08);
+  --stardust-glow: rgba(46, 91, 255, 0.35);
+  --stardust-text-secondary: #8A91A6;
+  --stardust-card-shadow: 0 2px 8px rgba(30, 50, 100, 0.06);
+
+  --brand-primary: #4C6FFF;
+  --brand-primary-hover: #6381FF;
+  --brand-primary-active: #3D5DE6;
+  --brand-primary-light: #EEF1FF;
+  --brand-gradient: linear-gradient(135deg, #4C6FFF 0%, #7C5CE7 55%, #8B5CF6 100%);
+  --brand-gradient-soft: linear-gradient(135deg, rgba(76, 111, 255, 0.12), rgba(139, 92, 246, 0.1));
+  /* 星尘AI Agent 高亮区渐变（首页 Agent 卡、AgentSandbox hero 同源） */
+  --agent-hero-gradient: linear-gradient(120deg, #1E6FFF 0%, #4F6DF5 45%, #8B5CF6 100%);
+  /* 系统管理入口渐变（蓝→青，与 Agent 蓝紫区分） */
+  --admin-hero-gradient: linear-gradient(120deg, #5B8FF9 0%, #0FC6C2 100%);
+
+  --bg-page: #F5F6FA;
+  --bg-card: #FFFFFF;
+  --text-primary: #1D2129;
+  --text-secondary: #4E5969;
+  --text-tertiary: #86909C;
+
+  --radius-card: 12px;
+  --radius-button: 8px;
+  --shadow-card: 0 1px 2px rgba(29, 33, 41, 0.04), 0 4px 16px rgba(29, 33, 41, 0.06);
+  --shadow-card-hover: 0 4px 8px rgba(76, 111, 255, 0.08), 0 12px 32px rgba(76, 111, 255, 0.12);
+
+  --icon-analysis: #4C6FFF;
+  --icon-data: #0FC6C2;
+  --icon-visualization: #8B5CF6;
+  --icon-system: #5B8FF9;
+  --icon-blue-bg: #EEF2FF;
+  --icon-purple-bg: #F3E8FF;
+  --icon-cyan-bg: #ECFEFF;
+  --icon-green-bg: #ECFDF5;
+  --icon-orange-bg: #FFF7ED;
+  --tag-neutral-bg: #F2F3F5;
+  --tag-neutral-text: #4E5969;
+
+  /* 错误页（404/500 等）渐变背景与装饰光斑 */
+  --error-gradient-1: #165DFF;
+  --error-gradient-2: #3063FF;
+  --error-gradient-3: #6B8DD6;
+  --error-gradient-4: #8E54E9;
+  --error-orb: #A5B4FC;
+  --scrollbar-thumb: rgba(29, 33, 41, 0.15);
+  --scrollbar-thumb-hover: rgba(29, 33, 41, 0.35);
+  --scrollbar-thumb-active: rgba(29, 33, 41, 0.45);
+}
+
+:root[data-theme="dark"] {
+  /* Dark Mode Surface System: base → card → elevated → highlight → glass. */
+  --surface-base: #080B12;
+  --surface-card: #121824;
+  --surface-elevated: #182033;
+  --surface-highlight: #202A40;
+  --surface-glass: rgba(255, 255, 255, 0.06);
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.10);
+  --border-focus: rgba(108, 99, 255, 0.45);
+  --brand-glow: 0 0 40px rgba(99, 102, 241, 0.15);
+  --scrollbar-thumb: rgba(255, 255, 255, 0.15);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.25);
+  --scrollbar-thumb-active: rgba(255, 255, 255, 0.32);
+
+  --stardust-blue: #7691FF;
+  --stardust-purple: #9A7BFF;
+  --stardust-gradient: linear-gradient(135deg, #4D6FFF 0%, #8A68F7 100%);
+  --stardust-bg-soft: rgba(118, 145, 255, 0.14);
+  --stardust-border-soft: rgba(118, 145, 255, 0.22);
+  --stardust-glow: rgba(118, 145, 255, 0.35);
+  --stardust-text-secondary: #9AA1B2;
+  --stardust-card-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+
+  --brand-primary: #7691FF;
+  --brand-primary-hover: #93A8FF;
+  --brand-primary-active: #5D79F4;
+  --brand-primary-light: rgba(118, 145, 255, 0.18);
+  --bg-page: var(--surface-base);
+  --bg-card: var(--surface-card);
+  --text-primary: #F5F7FF;
+  --text-secondary: #A7B0C3;
+  --text-tertiary: #68738A;
+  --tag-neutral-bg: #252B38;
+  --tag-neutral-text: #B8BCC8;
+
+  --error-gradient-1: #0E2F9E;
+  --error-gradient-2: #1D39C4;
+  --error-gradient-3: #3D5A99;
+  --error-gradient-4: #5B3A9E;
+  --error-orb: #3B4A8A;
+}
+
+:root {
+  --studio-bg: #f7f7fb;
+  --studio-card: #ffffff;
+  --studio-border: #e8e8f2;
+  --studio-primary: var(--brand-primary);
+  --studio-primary-soft: var(--brand-primary-light);
+  --studio-text: #2b2b3d;
+  --studio-text-sub: #8a8aa3;
+  --studio-terminal: #1b1b2e;
+  --studio-ok: #2aa876;
+  --studio-warn: #c28a28;
+  --studio-err: #d45367;
+}
+
+:root[data-theme="dark"] {
+  --studio-bg: var(--surface-base);
+  --studio-card: var(--surface-card);
+  --studio-border: var(--border-subtle);
+  --studio-primary: var(--brand-primary);
+  --studio-primary-soft: var(--brand-primary-light);
+  --studio-text: var(--text-primary);
+  --studio-text-sub: var(--text-secondary);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  :root { --studio-glass: #ffffff; }
+}

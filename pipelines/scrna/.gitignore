@@ -1,0 +1,19 @@
+*.RDS
+*.rds
+*.RData
+*.h5ad
+*.fa
+*.fasta
+*.fq
+*.fastq
+*.gz
+data/test_output/
+data/testdata/*.mtx.gz
+data/testdata/*.tsv.gz
+data/testdata/*.tsv
+!data/README.md
+!data/testdata/scRNA-seq.conf
+
+# 排除测试数据
+testdata/
+data/

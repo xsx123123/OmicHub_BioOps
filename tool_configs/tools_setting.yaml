@@ -1,0 +1,218 @@
+# ============================================
+# OmicHub 工具箱前端注册表
+# ============================================
+# 定义「哪些工具会被加载到前端工具箱」+ 每张工具卡片的展示元数据。
+# 前端 GET /api/v1/tools 拉取 enabled=true 的工具，按 order 升序渲染 ToolsHub 卡片。
+#
+# 改完即生效：配置加载器按文件 mtime 自动热重载，无需重启后端；
+# 想强制立即生效可调 POST /api/v1/tools/reload（管理员）。
+#
+# 字段说明：
+#   key         工具唯一标识（同时是前端路由 token，须与 router/index.ts 的 tools/<key> 一致）
+#   title       卡片标题
+#   description 卡片描述
+#   icon        图标字符串 key，前端 ToolsHubView 的 ICON_MAP 映射回 @vicons/ionicons5 组件
+#               （新增图标须在 ICON_MAP 登记，Vue 组件不能由字符串动态 import 而不经打包）
+#   gradient    卡片图标背景渐变（CSS linear-gradient）
+#   route       点击卡片跳转的前端路由
+#   group       工具分组 key：sequence / visualization / genome / function / environment
+#   enabled     false 则不出现在工具箱（软下线，不改代码）
+#   order       卡片排序，升序
+#   config_dir  该工具「功能配置」所在目录（相对仓库根），仅展示用；
+#               展示元数据集中在本文件，功能配置放 tool_configs/<工具名>/（如 jbrowse/、enrichments/）。
+#               无后端配置的纯前端工具（blast / plot）留空。
+#
+# 新增工具：
+#   1. 在 tools 列表追加一项；
+#   2. 若用了新图标，在 frontend ToolsHubView.vue 的 ICON_MAP 登记组件；
+#   3. 若该工具有后端配置，新建 tool_configs/<工具名>/ 目录放 YAML，并在 config_dir 指明；
+#   4. 在 frontend/src/router/index.ts 加 tools/<key> 子路由（指向工具页组件）。
+# --------------------------------------------
+
+tools:
+  - key: "fastq-qc"
+    title: "FASTQ 极速质控"
+    description: "高通量测序数据质量评估与清洗，支持 Phred 过滤、接头去除、长度截断"
+    icon: "ScanOutline"
+    gradient: "linear-gradient(135deg, #165DFF 0%, #6B8DD6 100%)"
+    route: "/tools/fastq-qc"
+    group: "sequence"
+    enabled: true
+    order: 10
+    config_dir: "fastq_qc"
+
+  - key: "jbrowse"
+    title: "Web 基因组浏览器"
+    description: "基于 JBrowse 2，支持 BAM / BigWig / VCF / GFF3 在线浏览，外置 YAML 配置参考基因组"
+    icon: "LayersOutline"
+    gradient: "linear-gradient(135deg, #722ED1 0%, #B37FEB 100%)"
+    route: "/tools/jbrowse"
+    group: "genome"
+    enabled: true
+    order: 20
+    config_dir: "tool_configs/jbrowse"
+
+  - key: "blast"
+    title: "序列检索 BLAST"
+    description: "本地化序列比对检索，支持水稻泛基因组、生菜转录本等自定义数据库"
+    icon: "SearchOutline"
+    gradient: "linear-gradient(135deg, #FF7D00 0%, #FF9A2E 100%)"
+    route: "/tools/blast"
+    group: "sequence"
+    enabled: true
+    order: 30
+    config_dir: ""
+
+  - key: "plot"
+    title: "组学绘图工坊"
+    description: "交互式数据可视化，支持散点图、热图、火山图、箱线图等组学常用图表"
+    icon: "ColorPaletteOutline"
+    gradient: "linear-gradient(135deg, #8E54E9 0%, #B96CD4 100%)"
+    route: "/tools/plot"
+    group: "visualization"
+    enabled: true
+    order: 40
+    config_dir: ""
+
+  - key: "volcano"
+    title: "火山图绘制"
+    description: "差异表达结果可视化，上传 CSV/TSV 自动识别 log2FC 与 p-value，交互式 Plotly 火山图"
+    icon: "BonfireOutline"
+    gradient: "linear-gradient(135deg, #F53F3F 0%, #FF7D00 100%)"
+    route: "/tools/volcano"
+    group: "visualization"
+    enabled: true
+    order: 45
+    config_dir: ""
+
+  - key: "gene-expression-explorer"
+    title: "基因表达矩阵 Explorer"
+    description: "上传基因表达矩阵，一键生成 PCA 降维、样本表达分布与基因方差分析三图联动可视化"
+    icon: "GridOutline"
+    gradient: "linear-gradient(135deg, #722ED1 0%, #165DFF 100%)"
+    route: "/tools/gene-expression-explorer"
+    group: "visualization"
+    enabled: true
+    order: 47
+    config_dir: ""
+
+  - key: "phylogenetic-tree"
+    title: "系统发育树构建"
+    description: "多序列比对与系统发育分析，支持 NJ/UPGMA/最大似然/贝叶斯推断与交互式可视化"
+    icon: "GitBranchOutline"
+    gradient: "linear-gradient(135deg, #1890FF 0%, #36CFC9 100%)"
+    route: "/tools/phylogenetic-tree"
+    group: "genome"
+    enabled: true
+    order: 48
+    config_dir: "tool_configs/phylogenetic-tree"
+
+  - key: "manhattan"
+    title: "曼哈顿图绘制"
+    description: "GWAS / QTL 关联分析结果的可视化，支持染色体级交互式曼哈顿图与图-表联动"
+    icon: "BarChartOutline"
+    gradient: "linear-gradient(135deg, #E74C3C 0%, #9B59B6 50%, #3498DB 100%)"
+    route: "/tools/manhattan"
+    group: "visualization"
+    enabled: true
+    order: 49
+    config_dir: ""
+
+  - key: "kegg-enrichment"
+    title: "GO / KEGG 富集分析"
+    description: "基于本地参考库与 R Docker clusterProfiler 的 GO / KEGG 基因列表富集分析"
+    icon: "BarChartOutline"
+    gradient: "linear-gradient(135deg, #00B42A 0%, #4CDD7A 100%)"
+    route: "/tools/kegg-enrichment"
+    group: "function"
+    enabled: true
+    order: 50
+    config_dir: "tool_configs/enrichments"
+
+  - key: "deg-analysis"
+    title: "DEG 差异表达分析"
+    description: "上传 Counts 矩阵与分组信息，DESeq2 / edgeR 双引擎自动路由；无重复(1v1)样本自动切换 edgeR，输出差异基因表、火山图与 PCA"
+    icon: "StatsChartOutline"
+    gradient: "linear-gradient(135deg, #E84749 0%, #F98D61 100%)"
+    route: "/tools/deg-analysis"
+    group: "analysis"
+    enabled: true
+    order: 51
+    config_dir: "tool_configs/deg"
+
+  - key: "seq-manipulator"
+    title: "序列魔术师"
+    description: "多 FASTA 清洗、IUPAC 转换、六框翻译、ORF/Motif 搜索与序列统计，纯本地运算"
+    icon: "CalculatorOutline"
+    gradient: "linear-gradient(135deg, #0FC6C2 0%, #36CFC9 100%)"
+    route: "/tools/seq-manipulator"
+    group: "sequence"
+    enabled: true
+    order: 60
+    config_dir: ""
+
+  - key: "primer-forge"
+    title: "PrimerForge 引物锻造工坊"
+    description: "专业引物设计工作台，支持 PCR/qPCR、TaqMan 探针、序列定位、合成订单与 Excel 报告导出"
+    icon: "GitNetworkOutline"
+    gradient: "linear-gradient(135deg, #2563EB 0%, #10B981 100%)"
+    route: "/tools/primer-forge"
+    group: "sequence"
+    enabled: true
+    order: 62
+    config_dir: ""
+
+  - key: "format-converter"
+    title: "格式轻量转换器"
+    description: "GFF/GTF/BED 互转、FASTA 序列提取、ID 映射表生成，纯前端零上传"
+    icon: "SwapHorizontalOutline"
+    gradient: "linear-gradient(135deg, #FAAD14 0%, #FFD666 100%)"
+    route: "/tools/format-converter"
+    group: "genome"
+    enabled: true
+    order: 65
+    config_dir: ""
+
+  - key: "id-converter"
+    title: "ID 转换器"
+    description: "基因 Symbol / Ensembl / Entrez / UniProt 互转与列表集合运算，纯本地运算数据不离开浏览器"
+    icon: "GitBranchOutline"
+    gradient: "linear-gradient(135deg, #0FC6C2 0%, #5BD8A6 100%)"
+    route: "/tools/id-converter"
+    group: "sequence"
+    enabled: true
+    order: 64
+    config_dir: ""
+
+  - key: "wetlab-calculators"
+    title: "湿实验计算器"
+    description: "PCR/克隆、NGS 建库、序列处理与溶液配制四大类 12 个常用湿实验计算器，纯本地运算数据不离开浏览器"
+    icon: "CalculatorOutline"
+    gradient: "linear-gradient(135deg, #00B42A 0%, #7BE188 100%)"
+    route: "/tools/wetlab-calculators"
+    group: "sequence"
+    enabled: true
+    order: 66
+    config_dir: ""
+
+  - key: "venn-upset"
+    title: "韦恩图 / UpSet 图"
+    description: "2~6 个基因列表的集合交集可视化，自动切换韦恩图与 UpSet 图，纯本地运算"
+    icon: "GridOutline"
+    gradient: "linear-gradient(135deg, #3491FA 0%, #7BC0FC 100%)"
+    route: "/tools/venn-upset"
+    group: "visualization"
+    enabled: true
+    order: 68
+    config_dir: ""
+
+  - key: "terminal"
+    title: "云端沙盒终端"
+    description: "隔离容器交互式终端，预装 samtools/bedtools/python/R，退出即销毁，数据仅保留在工作目录"
+    icon: "TerminalOutline"
+    gradient: "linear-gradient(135deg, #1e1e1e 0%, #333333 100%)"
+    route: "/tools/terminal"
+    group: "environment"
+    enabled: true
+    order: 70
+    config_dir: "tool_configs/terminal"

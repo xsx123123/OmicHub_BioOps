@@ -1,0 +1,129 @@
+# OmicHub 沙盒终端可用镜像定义
+# 修改本文件后：配置加载器基于 mtime 自动热重载，无需重启后端。
+#
+# 设计原则：
+#   - 镜像定义与运行时配置分离，便于独立扩展不同分析环境
+#   - 新增镜像只需：写 Dockerfile -> 构建镜像 -> 在此新增配置 -> 前端自动展示
+#   - 未启用的镜像不会在前端显示，但可通过修改 enabled 快速开关
+
+version: "1.0"
+
+# 镜像仓库前缀（可选）。若设置，且 image 不以该前缀开头，则自动拼接前缀。
+registry_prefix: ""
+
+# 默认镜像 ID（用户未选择时）
+default_image: "base"
+
+# 可用镜像列表
+images:
+  - id: "base"
+    name: "基础生信"
+    description: "预装 samtools、bcftools、bedtools、fastqc、seqkit、python3、numpy、pandas、biopython、pysam"
+    image: "omichub/sandbox-terminal:latest"
+    tags: ["基础"]
+    icon: "🔧"
+    resources:
+      memory_mb: 512
+      cpu_cores: 1.0
+    env:
+      - name: "OMICHUB_ENV"
+        value: "base"
+      - name: "TERM"
+        value: "xterm-256color"
+    enabled: true
+
+  - id: "scrna"
+    name: "单细胞分析"
+    description: "预装 scanpy、anndata、leiden、Harmony、Scrublet、scVelo，适合 10x 数据质控、聚类与细胞注释"
+    image: "omichub/sandbox-scrna:latest"
+    tags: ["单细胞", "scanpy"]
+    icon: "🧬"
+    resources:
+      memory_mb: 4096
+      cpu_cores: 2.0
+      pid_limit: 200
+    env:
+      - name: "OMICHUB_ENV"
+        value: "scrna"
+      - name: "NUMBA_CACHE_DIR"
+        value: "/tmp"
+      - name: "MPLCONFIGDIR"
+        value: "/tmp"
+    enabled: true
+
+  - id: "gatk"
+    name: "变异检测 GATK & PLINK"
+    description: "预装 GATK4、PLINK1.9、PLINK2、tabix，配合基础 samtools 链完成变异检测与群体遗传分析"
+    image: "omichub/sandbox-gatk:latest"
+    tags: ["变异检测", "WGS", "GWAS"]
+    icon: "🧪"
+    resources:
+      memory_mb: 4096
+      cpu_cores: 4.0
+      pid_limit: 200
+    env:
+      - name: "OMICHUB_ENV"
+        value: "gatk"
+    enabled: true
+
+  - id: "ggplot2"
+    name: "科研绘图 ggplot2"
+    description: "预装 R、tidyverse 绘图组件、ggrepel、cowplot、中文字体及 Python plotnine"
+    image: "omichub/sandbox-ggplot2:latest"
+    tags: ["绘图", "R", "ggplot2"]
+    icon: "📊"
+    resources:
+      memory_mb: 1024
+      cpu_cores: 1.0
+      pid_limit: 100
+    env:
+      - name: "OMICHUB_ENV"
+        value: "ggplot2"
+      - name: "MPLCONFIGDIR"
+        value: "/tmp"
+    enabled: true
+
+  - id: "rnaseq"
+    name: "RNA-seq 流程"
+    description: "预装 hisat2、salmon、kallisto、featureCounts、DESeq2、tximport，覆盖比对、定量到差异表达全流程"
+    image: "omichub/sandbox-rnaseq:latest"
+    tags: ["转录组", "差异表达"]
+    icon: "🧬"
+    resources:
+      memory_mb: 4096
+      cpu_cores: 4.0
+      pid_limit: 200
+    env:
+      - name: "OMICHUB_ENV"
+        value: "rnaseq"
+    enabled: true
+
+  - id: "assembly"
+    name: "基因组组装"
+    description: "预装 SPAdes、flye、QUAST、BUSCO、minimap2，二代三代组装与质量评估一体"
+    image: "omichub/sandbox-assembly:latest"
+    tags: ["组装", "SPAdes", "三代"]
+    icon: "🧫"
+    resources:
+      memory_mb: 8192
+      cpu_cores: 4.0
+      pid_limit: 200
+    env:
+      - name: "OMICHUB_ENV"
+        value: "assembly"
+    enabled: true
+
+  - id: "metagenomics"
+    name: "宏基因组"
+    description: "预装 kraken2、bracken、centrifuge、fastp、MultiQC；数据库需放入 workspace 或 raw_data 后通过 --db 指定"
+    image: "omichub/sandbox-metagenomics:latest"
+    tags: ["宏基因组", "物种注释"]
+    icon: "🦠"
+    resources:
+      memory_mb: 8192
+      cpu_cores: 4.0
+      pid_limit: 200
+    env:
+      - name: "OMICHUB_ENV"
+        value: "metagenomics"
+    enabled: true

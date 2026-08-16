@@ -1,0 +1,7 @@
+name: genrich
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - genrich
+  - samtools

@@ -1,0 +1,91 @@
+# software parameter
+parameter:
+  # Aligner selection: choose between 'bowtie2' or 'chromap'
+  aligner: bowtie2
+  threads:
+    json_md5_verifier: 40   
+    fastqc: 1
+    fastp: 8
+    multiqc: 1
+    fastq_screen: 10
+    bowtie2: 10
+    chromap: 10
+    bam2cram: 8
+    samtools: 8
+    macs2: 1
+    bamCoverage: 8
+    bedtools: 8
+    featurecounts: 16
+    homer: 10
+    rnaflow-cli: 8
+    Report: 10
+    samtools_flagstat: 4
+    samtools_stats: 4
+    addreplacerg: 4
+  validate_fastq_screen:
+    path: ../src/src/fastq_screen/validate_fastq_screen.py
+    path_conf: ../data/fastq_screen.conf_template
+  fastq_screen:
+    run: true
+    path: ../src/src/fastq_screen/fastq_screen
+    dir: ../src/src/fastq_screen/
+    conf: ../src/src/fastq_screen/fastq_screen.conf
+    subset: 100000
+    aligner: Bowtie2
+  bowtie2:
+    DNA_fragment_length: 1000  # animal: 700-1000, plant: 1000-2000
+    mode: "end-to-end"         # "local" or "end-to-end"; end-to-end recommended for plants
+    no_mixed: false            # discard alignments with only one end mapped
+    no_discordant: false       # discard discordant read pairs
+    max_alignments: 1          # -k parameter; set to null to disable
+  filter_bam:
+    flag_filter: 1548    # samtools -F: remove unmapped(4)+mate_unmapped(8)+QC_fail(512)+duplicate(1024)
+    flag_req: 2         # samtools -f: 2=proper pair, 1=paired, 0=no restriction (recommended for plants)
+    mapq: 30
+  filter_pe:
+    path: ../src/src/ATACTools/filter_pe/target/release/filter_pe
+  idr_scripts:
+    path: ../src/src/ATACTools/idr/run_idr_oop.py
+  macs2:
+    qvalue: 0.01
+  draw_tss_plot:
+    referencePoint: TSS
+    range: 3000
+  bamCoverage:
+    binSize: 10
+    smoothLength: 14
+    # normalizeUsing: RPKM
+  AddOrReplaceReadGroups:
+    PL: illumina
+  gatk:
+    filter:
+      rna_seq:
+        window_size: 35        # 窗口大小
+        cluster_size: 3        # 集群数量阈值
+        fs_threshold: 30.0     # Fisher Strand 阈值 (RNA建议30, DNA建议60)
+        qd_threshold: 2.0      # Quality by Depth 阈值
+  generate_atac_matrix:
+    path: ../src/src/ATACTools/tools/generate_atac_matrix/generate_atac_matrix.py
+  merge_peaks:
+    path: ../src/src/ATACTools/tools/merge_peaks.py
+  DEG:
+    PATH: ../src/src/DEG/atac_deseq2_pipeline.r
+    LFC: 1
+    PVAL: 0.05
+  Enrichments:
+    PATH: ../src/src/Enrichments/go_enricher.r
+    PATH_py: ../src/src/Enrichments/deg_enrich_wrapper.py
+    gene_col: ENSEMBL
+    gene_regex: gene:/
+    lib_type: ATAC
+  qc_rsem_ultimate:
+    path: ../src/src/gene_matrix/qc_rsem_ultimate.py
+  trim:
+    length_required: 25
+    quality_threshold: 25
+    adapter_fasta: "../data/Universal_Adapter.fa"
+  ATACFlow_Deliver_Tool:
+    config_path: "../src/src/data-deliver/RNAFlow_Deliver_Tool/config/full_delivery_config.yaml"
+    config_path_report: "../src/src/data-deliver/RNAFlow_Deliver_Tool/config/report.yaml"
+  Report:
+    docker_version: bioreportrna:v0.0.7

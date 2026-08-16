@@ -1,0 +1,940 @@
+{
+    "report_multiqc_command": "/data/jzhang/project/Temp/HYXM-251215018/01.workflow/.snakemake/conda/dd44e70466449bc0b0243173a14052e2_/bin/multiqc 01.qc/fastq_screen_r2 --force --outdir 01.qc/fastq_screen_multiqc_r2/ -i r2-fastq-screen-multiqc-report -n multiqc_r2_fastq_screen_report.html",
+    "report_data_sources": {
+        "FastQ Screen": {
+            "all_sections": {
+                "1-1_raw_R2_screen": "/data/jzhang/project/Temp/HYXM-251215018/01.workflow/01.qc/fastq_screen_r2/1-1_raw_R2_screen.txt",
+                "1-2_raw_R2_screen": "/data/jzhang/project/Temp/HYXM-251215018/01.workflow/01.qc/fastq_screen_r2/1-2_raw_R2_screen.txt",
+                "1-3_raw_R2_screen": "/data/jzhang/project/Temp/HYXM-251215018/01.workflow/01.qc/fastq_screen_r2/1-3_raw_R2_screen.txt",
+                "2-1_raw_R2_screen": "/data/jzhang/project/Temp/HYXM-251215018/01.workflow/01.qc/fastq_screen_r2/2-1_raw_R2_screen.txt",
+                "2-2_raw_R2_screen": "/data/jzhang/project/Temp/HYXM-251215018/01.workflow/01.qc/fastq_screen_r2/2-2_raw_R2_screen.txt",
+                "2-3_raw_R2_screen": "/data/jzhang/project/Temp/HYXM-251215018/01.workflow/01.qc/fastq_screen_r2/2-3_raw_R2_screen.txt"
+            }
+        }
+    },
+    "report_general_stats_data": {},
+    "report_general_stats_headers": {},
+    "report_creation_date": "2026-01-12, 11:40 CST",
+    "report_plot_data": {
+        "fastq_screen_plot": {
+            "id": "fastq_screen_plot",
+            "anchor": "fastq_screen_plot",
+            "plot_type": "bar plot",
+            "layout": {
+                "autosize": true,
+                "height": 444,
+                "hoverlabel": {
+                    "namelength": -1,
+                    "bgcolor": "rgba(255, 255, 255, 0.8)",
+                    "font": {
+                        "color": "black"
+                    }
+                },
+                "margin": {
+                    "b": 65,
+                    "l": 60,
+                    "pad": 5,
+                    "r": 15,
+                    "t": 50
+                },
+                "showlegend": true,
+                "template": {
+                    "layout": {
+                        "colorway": [
+                            "#7cb5ec",
+                            "#434348",
+                            "#90ed7d",
+                            "#f7a35c",
+                            "#8085e9",
+                            "#f15c80",
+                            "#e4d354",
+                            "#2b908f",
+                            "#f45b5b",
+                            "#91e8e1"
+                        ],
+                        "font": {
+                            "family": "'Lucida Grande', 'Open Sans', verdana, arial, sans-serif"
+                        },
+                        "modebar": {
+                            "activecolor": "rgba(0, 0, 0, 1)",
+                            "bgcolor": "rgba(0, 0, 0, 0)",
+                            "color": "rgba(0, 0, 0, 0.5)"
+                        },
+                        "paper_bgcolor": "white",
+                        "plot_bgcolor": "white",
+                        "title": {
+                            "font": {
+                                "size": 20
+                            }
+                        },
+                        "xaxis": {
+                            "color": "rgba(0,0,0,0.3)",
+                            "gridcolor": "rgba(0,0,0,0.05)",
+                            "tickfont": {
+                                "color": "rgba(0,0,0,1)",
+                                "size": 10
+                            },
+                            "zerolinecolor": "rgba(0,0,0,0.05)"
+                        },
+                        "yaxis": {
+                            "color": "rgba(0,0,0,0.3)",
+                            "gridcolor": "rgba(0,0,0,0.05)",
+                            "tickfont": {
+                                "color": "rgba(0,0,0,1)",
+                                "size": 10
+                            },
+                            "zerolinecolor": "rgba(0,0,0,0.05)"
+                        }
+                    }
+                },
+                "title": {
+                    "text": "FastQ Screen: Mapped Reads",
+                    "x": 0.5,
+                    "xanchor": "center"
+                },
+                "xaxis": {
+                    "automargin": true
+                },
+                "yaxis": {
+                    "automargin": true,
+                    "showgrid": false,
+                    "categoryorder": "trace",
+                    "type": "category"
+                },
+                "barmode": "relative",
+                "bargroupgap": 0,
+                "bargap": 0.2,
+                "legend": {
+                    "tracegroupgap": 0,
+                    "traceorder": "normal"
+                },
+                "hovermode": "y unified"
+            },
+            "datasets": [
+                {
+                    "plot_id": "fastq_screen_plot",
+                    "label": "1",
+                    "uid": "fastq_screen_plot",
+                    "dconfig": {
+                        "title": "FastQ Screen: Mapped Reads",
+                        "subtitle": "6 bars"
+                    },
+                    "layout": {
+                        "title": {
+                            "text": "FastQ Screen: Mapped Reads<br><sup>6 bars</sup>"
+                        },
+                        "xaxis": {
+                            "title": {
+                                "text": "Mapped reads"
+                            },
+                            "hoverformat": ",.2f",
+                            "ticksuffix": "",
+                            "autorangeoptions": {
+                                "minallowed": 0,
+                                "maxallowed": 100162.0
+                            }
+                        },
+                        "yaxis": {
+                            "title": null,
+                            "hoverformat": null,
+                            "ticksuffix": ""
+                        },
+                        "showlegend": true
+                    },
+                    "trace_params": {
+                        "hovertemplate": "<b></b>%{meta}: <b>%{x}</b><extra></extra>",
+                        "orientation": "h",
+                        "marker": {
+                            "line": {
+                                "width": 0
+                            }
+                        },
+                        "textposition": "inside",
+                        "insidetextanchor": "start"
+                    },
+                    "pct_range": {
+                        "xaxis": {
+                            "min": 0,
+                            "max": 100
+                        },
+                        "yaxis": {
+                            "min": 0,
+                            "max": 100
+                        }
+                    },
+                    "n_series": 6,
+                    "cats": [
+                        {
+                            "name": "Mouse",
+                            "color": "rgba(124,181,236,1)",
+                            "data": [
+                                74981.0,
+                                70857.0,
+                                74552.0,
+                                77541.0,
+                                77279.0,
+                                77587.0
+                            ],
+                            "data_pct": [
+                                74.98174981749818,
+                                70.87259197023346,
+                                74.55721900533038,
+                                77.54720377630211,
+                                77.15401050298516,
+                                77.59708762139078
+                            ]
+                        },
+                        {
+                            "name": "Human",
+                            "color": "rgba(67,67,72,1)",
+                            "data": [
+                                356.0,
+                                56.0,
+                                47.0,
+                                9.0,
+                                36.0,
+                                15.0
+                            ],
+                            "data_pct": [
+                                0.35600356003560035,
+                                0.056012322710996425,
+                                0.04700329023031612,
+                                0.009000720057604609,
+                                0.03594177432559254,
+                                0.015001950253532959
+                            ]
+                        },
+                        {
+                            "name": "Vectors",
+                            "color": "rgba(144,237,125,1)",
+                            "data": [
+                                5.0,
+                                4.0,
+                                3.0,
+                                4.0,
+                                2.0,
+                                1.0
+                            ],
+                            "data_pct": [
+                                0.005000050000500005,
+                                0.004000880193642601,
+                                0.003000210014701029,
+                                0.004000320025602048,
+                                0.001996765240310697,
+                                0.0010001300169021972
+                            ]
+                        },
+                        {
+                            "name": "Pseudomonas",
+                            "color": "rgba(247,163,92,1)",
+                            "data": [
+                                3.0,
+                                3.0,
+                                2.0,
+                                0.0,
+                                2.0,
+                                0.0
+                            ],
+                            "data_pct": [
+                                0.003000030000300003,
+                                0.003000660145231951,
+                                0.002000140009800686,
+                                0.0,
+                                0.001996765240310697,
+                                0.0
+                            ]
+                        },
+                        {
+                            "name": "Brassica_napus",
+                            "color": "rgba(128,133,233,1)",
+                            "data": [
+                                1.0,
+                                2.0,
+                                5.0,
+                                1.0,
+                                0.0,
+                                1.0
+                            ],
+                            "data_pct": [
+                                0.001000010000100001,
+                                0.0020004400968213006,
+                                0.0050003500245017155,
+                                0.001000080006400512,
+                                0.0,
+                                0.0010001300169021972
+                            ]
+                        },
+                        {
+                            "name": "Agrobacterium_vaccinii",
+                            "color": "rgba(241,92,128,1)",
+                            "data": [
+                                1.0,
+                                0.0,
+                                3.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "data_pct": [
+                                0.001000010000100001,
+                                0.0,
+                                0.003000210014701029,
+                                0.0,
+                                0.0,
+                                0.0
+                            ]
+                        },
+                        {
+                            "name": "Clavibacter_californiensis",
+                            "color": "rgba(228,211,84,1)",
+                            "data": [
+                                0.0,
+                                1.0,
+                                2.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "data_pct": [
+                                0.0,
+                                0.0010002200484106503,
+                                0.002000140009800686,
+                                0.0,
+                                0.0,
+                                0.0
+                            ]
+                        },
+                        {
+                            "name": "Lactuca_sativa_V11",
+                            "color": "rgba(43,144,143,1)",
+                            "data": [
+                                0.0,
+                                0.0,
+                                1.0,
+                                1.0,
+                                0.0,
+                                0.0
+                            ],
+                            "data_pct": [
+                                0.0,
+                                0.0,
+                                0.001000070004900343,
+                                0.001000080006400512,
+                                0.0,
+                                0.0
+                            ]
+                        },
+                        {
+                            "name": "Zm-B73-REFERENCE-NAM-5.0",
+                            "color": "rgba(244,91,91,1)",
+                            "data": [
+                                1.0,
+                                1.0,
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "data_pct": [
+                                0.001000010000100001,
+                                0.0010002200484106503,
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ]
+                        },
+                        {
+                            "name": "ASM14353v4",
+                            "color": "rgba(145,232,225,1)",
+                            "data": [
+                                0.0,
+                                1.0,
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "data_pct": [
+                                0.0,
+                                0.0010002200484106503,
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ]
+                        },
+                        {
+                            "name": "Penicillium_subrubescens",
+                            "color": "rgba(124,181,236,1)",
+                            "data": [
+                                1.0,
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "data_pct": [
+                                0.001000010000100001,
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ]
+                        },
+                        {
+                            "name": "Streptomyces_clavuligerus",
+                            "color": "rgba(67,67,72,1)",
+                            "data": [
+                                1.0,
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "data_pct": [
+                                0.001000010000100001,
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ]
+                        },
+                        {
+                            "name": "Erwinia_tasmaniensis_Et1_99",
+                            "color": "rgba(144,237,125,1)",
+                            "data": [
+                                1.0,
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "data_pct": [
+                                0.001000010000100001,
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ]
+                        },
+                        {
+                            "name": "Xanthomonas_euvesicatoria_pv.alfalfae",
+                            "color": "rgba(247,163,92,1)",
+                            "data": [
+                                0.0,
+                                1.0,
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "data_pct": [
+                                0.0,
+                                0.0010002200484106503,
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ]
+                        },
+                        {
+                            "name": "Multiple Genomes",
+                            "color": "rgb(130,0,0)",
+                            "data": [
+                                24089.0,
+                                28533.0,
+                                24869.0,
+                                22177.0,
+                                22483.0,
+                                22144.0
+                            ],
+                            "data_pct": [
+                                24.089240892408924,
+                                28.539278641301085,
+                                24.87074095186663,
+                                22.178774301944156,
+                                22.4466364489527,
+                                22.146879094282255
+                            ]
+                        },
+                        {
+                            "name": "No hits",
+                            "color": "rgb(204,204,204)",
+                            "data": [
+                                559.0,
+                                519.0,
+                                509.0,
+                                259.0,
+                                360.0,
+                                239.0
+                            ],
+                            "data_pct": [
+                                0.5590055900559006,
+                                0.5191142051251275,
+                                0.5090356324942746,
+                                0.2590207216577326,
+                                0.3594177432559254,
+                                0.23903107403962515
+                            ]
+                        }
+                    ],
+                    "samples": [
+                        "2-3_raw_R2_screen",
+                        "2-2_raw_R2_screen",
+                        "2-1_raw_R2_screen",
+                        "1-3_raw_R2_screen",
+                        "1-2_raw_R2_screen",
+                        "1-1_raw_R2_screen"
+                    ],
+                    "cats_clustered": null,
+                    "samples_clustered": null
+                }
+            ],
+            "pconfig": {
+                "id": "fastq_screen_plot",
+                "title": "FastQ Screen: Mapped Reads",
+                "subtitle": null,
+                "anchor": null,
+                "table_title": null,
+                "height": null,
+                "width": null,
+                "square": false,
+                "logswitch": false,
+                "logswitch_active": false,
+                "logswitch_label": "Log10",
+                "cpswitch": true,
+                "cpswitch_c_active": false,
+                "cpswitch_counts_label": "Counts",
+                "cpswitch_percent_label": "Percentages",
+                "xLog": null,
+                "yLog": null,
+                "xlog": false,
+                "ylog": false,
+                "data_labels": [],
+                "xTitle": null,
+                "yTitle": null,
+                "xlab": null,
+                "ylab": "Mapped reads",
+                "xsuffix": null,
+                "ysuffix": null,
+                "tt_suffix": null,
+                "xLabFormat": null,
+                "yLabFormat": null,
+                "xLabelFormat": null,
+                "yLabelFormat": null,
+                "xlab_format": null,
+                "ylab_format": null,
+                "tt_label": null,
+                "xDecimals": null,
+                "yDecimals": null,
+                "decimalPlaces": null,
+                "x_decimals": null,
+                "y_decimals": null,
+                "tt_decimals": null,
+                "xmin": null,
+                "xmax": null,
+                "ymin": null,
+                "ymax": null,
+                "xFloor": null,
+                "xCeiling": null,
+                "yFloor": null,
+                "yCeiling": null,
+                "x_clipmin": null,
+                "x_clipmax": null,
+                "y_clipmin": null,
+                "y_clipmax": null,
+                "save_data_file": true,
+                "showlegend": null,
+                "xMinRange": null,
+                "yMinRange": null,
+                "x_minrange": null,
+                "y_minrange": null,
+                "xPlotBands": null,
+                "yPlotBands": null,
+                "xPlotLines": null,
+                "yPlotLines": null,
+                "x_bands": null,
+                "y_bands": null,
+                "x_lines": null,
+                "y_lines": null,
+                "series_label": "samples",
+                "flat_if_very_large": true,
+                "stacking": "relative",
+                "hide_empty": null,
+                "hide_zero_cats": true,
+                "sort_samples": true,
+                "cluster_samples": false,
+                "cluster_method": "complete",
+                "cluster_switch_clustered_active": true,
+                "use_legend": null,
+                "suffix": null,
+                "lab_format": null
+            },
+            "add_log_tab": false,
+            "add_pct_tab": true,
+            "l_active": false,
+            "p_active": true,
+            "pct_axis_update": {
+                "ticksuffix": "%",
+                "hoverformat": ".1f"
+            },
+            "axis_controlled_by_switches": [
+                "xaxis"
+            ],
+            "square": false,
+            "flat": false,
+            "defer_render": false,
+            "section_anchor": null,
+            "module_anchor": null,
+            "sort_switch_sorted_active": false,
+            "cluster_switch_clustered_active": true
+        }
+    },
+    "config_analysis_dir": [
+        "01.qc/fastq_screen_r2"
+    ],
+    "config_git_hash": null,
+    "config_intro_text": null,
+    "config_report_comment": null,
+    "config_report_header_info": null,
+    "config_script_path": "/data/jzhang/project/Temp/HYXM-251215018/01.workflow/.snakemake/conda/dd44e70466449bc0b0243173a14052e2_/lib/python3.13/site-packages/multiqc",
+    "config_short_version": "1.31",
+    "config_subtitle": null,
+    "config_title": "r2-fastq-screen-multiqc-report",
+    "config_version": "1.31",
+    "config_output_dir": "/data/jzhang/project/Temp/HYXM-251215018/01.workflow/01.qc/fastq_screen_multiqc_r2",
+    "config_sample_names_rename": [],
+    "config_sample_names_rename_buttons": [],
+    "config_analysis_dir_abs": [
+        "/data/jzhang/project/Temp/HYXM-251215018/01.workflow/01.qc/fastq_screen_r2"
+    ],
+    "report_saved_raw_data": {
+        "multiqc_fastq_screen": {
+            "1-1_raw_R2_screen": {
+                "total_reads": 99987,
+                "Human counts": 21406.0,
+                "Human percentage": 21.41,
+                "Mouse counts": 99725.0,
+                "Mouse percentage": 99.73,
+                "Ecoli counts": 4.0,
+                "Ecoli percentage": 0.0,
+                "PhiX counts": 0.0,
+                "PhiX percentage": 0.0,
+                "Adapters counts": 336.0,
+                "Adapters percentage": 0.34,
+                "Vectors counts": 745.0,
+                "Vectors percentage": 0.75,
+                "MG8 counts": 138.0,
+                "MG8 percentage": 0.14,
+                "ASM584v2 counts": 4.0,
+                "ASM584v2 percentage": 0.0,
+                "ASM14353v4 counts": 234.0,
+                "ASM14353v4 percentage": 0.23,
+                "Lactuca_sativa_V11 counts": 396.0,
+                "Lactuca_sativa_V11 percentage": 0.4,
+                "Aspsy1 counts": 114.0,
+                "Aspsy1 percentage": 0.11,
+                "Penicillium_subrubescens counts": 180.0,
+                "Penicillium_subrubescens percentage": 0.18,
+                "Agrobacterium_vaccinii counts": 0.0,
+                "Agrobacterium_vaccinii percentage": 0.0,
+                "Pseudomonas counts": 1.0,
+                "Pseudomonas percentage": 0.0,
+                "Streptomyces_clavuligerus counts": 2.0,
+                "Streptomyces_clavuligerus percentage": 0.0,
+                "Clavibacter_californiensis counts": 2.0,
+                "Clavibacter_californiensis percentage": 0.0,
+                "Erwinia_tasmaniensis_Et1_99 counts": 2.0,
+                "Erwinia_tasmaniensis_Et1_99 percentage": 0.0,
+                "Xanthomonas_euvesicatoria_pv.alfalfae counts": 0.0,
+                "Xanthomonas_euvesicatoria_pv.alfalfae percentage": 0.0,
+                "plant_vrius_genome counts": 67.0,
+                "plant_vrius_genome percentage": 0.07,
+                "Arabidopsis_thaliana counts": 229.0,
+                "Arabidopsis_thaliana percentage": 0.22999999999999998,
+                "Brassica_napus counts": 422.0,
+                "Brassica_napus percentage": 0.43,
+                "Zm-B73-REFERENCE-NAM-5.0 counts": 746.0,
+                "Zm-B73-REFERENCE-NAM-5.0 percentage": 0.75,
+                "Tomato counts": 321.0,
+                "Tomato percentage": 0.32,
+                "Oryza_sativa counts": 605.0,
+                "Oryza_sativa percentage": 0.61,
+                "No hits counts": 239,
+                "No hits percentage": 0.24
+            },
+            "1-2_raw_R2_screen": {
+                "total_reads": 100162,
+                "Human counts": 21824.0,
+                "Human percentage": 21.799999999999997,
+                "Mouse counts": 99745.0,
+                "Mouse percentage": 99.58000000000001,
+                "Ecoli counts": 7.0,
+                "Ecoli percentage": 0.0,
+                "PhiX counts": 0.0,
+                "PhiX percentage": 0.0,
+                "Adapters counts": 292.0,
+                "Adapters percentage": 0.29000000000000004,
+                "Vectors counts": 728.0,
+                "Vectors percentage": 0.72,
+                "MG8 counts": 127.0,
+                "MG8 percentage": 0.12,
+                "ASM584v2 counts": 7.0,
+                "ASM584v2 percentage": 0.0,
+                "ASM14353v4 counts": 509.0,
+                "ASM14353v4 percentage": 0.51,
+                "Lactuca_sativa_V11 counts": 735.0,
+                "Lactuca_sativa_V11 percentage": 0.74,
+                "Aspsy1 counts": 125.0,
+                "Aspsy1 percentage": 0.13,
+                "Penicillium_subrubescens counts": 375.0,
+                "Penicillium_subrubescens percentage": 0.38,
+                "Agrobacterium_vaccinii counts": 1.0,
+                "Agrobacterium_vaccinii percentage": 0.0,
+                "Pseudomonas counts": 6.0,
+                "Pseudomonas percentage": 0.0,
+                "Streptomyces_clavuligerus counts": 1.0,
+                "Streptomyces_clavuligerus percentage": 0.0,
+                "Clavibacter_californiensis counts": 2.0,
+                "Clavibacter_californiensis percentage": 0.0,
+                "Erwinia_tasmaniensis_Et1_99 counts": 9.0,
+                "Erwinia_tasmaniensis_Et1_99 percentage": 0.01,
+                "Xanthomonas_euvesicatoria_pv.alfalfae counts": 3.0,
+                "Xanthomonas_euvesicatoria_pv.alfalfae percentage": 0.0,
+                "plant_vrius_genome counts": 130.0,
+                "plant_vrius_genome percentage": 0.13,
+                "Arabidopsis_thaliana counts": 546.0,
+                "Arabidopsis_thaliana percentage": 0.54,
+                "Brassica_napus counts": 804.0,
+                "Brassica_napus percentage": 0.7999999999999999,
+                "Zm-B73-REFERENCE-NAM-5.0 counts": 1089.0,
+                "Zm-B73-REFERENCE-NAM-5.0 percentage": 1.09,
+                "Tomato counts": 669.0,
+                "Tomato percentage": 0.6699999999999999,
+                "Oryza_sativa counts": 922.0,
+                "Oryza_sativa percentage": 0.9199999999999999,
+                "No hits counts": 360,
+                "No hits percentage": 0.36
+            },
+            "1-3_raw_R2_screen": {
+                "total_reads": 99992,
+                "Human counts": 21501.0,
+                "Human percentage": 21.5,
+                "Mouse counts": 99701.0,
+                "Mouse percentage": 99.71000000000001,
+                "Ecoli counts": 6.0,
+                "Ecoli percentage": 0.01,
+                "PhiX counts": 0.0,
+                "PhiX percentage": 0.0,
+                "Adapters counts": 273.0,
+                "Adapters percentage": 0.27,
+                "Vectors counts": 648.0,
+                "Vectors percentage": 0.64,
+                "MG8 counts": 121.0,
+                "MG8 percentage": 0.12000000000000001,
+                "ASM584v2 counts": 6.0,
+                "ASM584v2 percentage": 0.01,
+                "ASM14353v4 counts": 224.0,
+                "ASM14353v4 percentage": 0.22,
+                "Lactuca_sativa_V11 counts": 400.0,
+                "Lactuca_sativa_V11 percentage": 0.4,
+                "Aspsy1 counts": 118.0,
+                "Aspsy1 percentage": 0.12000000000000001,
+                "Penicillium_subrubescens counts": 166.0,
+                "Penicillium_subrubescens percentage": 0.16999999999999998,
+                "Agrobacterium_vaccinii counts": 1.0,
+                "Agrobacterium_vaccinii percentage": 0.0,
+                "Pseudomonas counts": 3.0,
+                "Pseudomonas percentage": 0.0,
+                "Streptomyces_clavuligerus counts": 0.0,
+                "Streptomyces_clavuligerus percentage": 0.0,
+                "Clavibacter_californiensis counts": 0.0,
+                "Clavibacter_californiensis percentage": 0.0,
+                "Erwinia_tasmaniensis_Et1_99 counts": 4.0,
+                "Erwinia_tasmaniensis_Et1_99 percentage": 0.0,
+                "Xanthomonas_euvesicatoria_pv.alfalfae counts": 2.0,
+                "Xanthomonas_euvesicatoria_pv.alfalfae percentage": 0.0,
+                "plant_vrius_genome counts": 69.0,
+                "plant_vrius_genome percentage": 0.07,
+                "Arabidopsis_thaliana counts": 224.0,
+                "Arabidopsis_thaliana percentage": 0.22,
+                "Brassica_napus counts": 402.0,
+                "Brassica_napus percentage": 0.4,
+                "Zm-B73-REFERENCE-NAM-5.0 counts": 714.0,
+                "Zm-B73-REFERENCE-NAM-5.0 percentage": 0.72,
+                "Tomato counts": 321.0,
+                "Tomato percentage": 0.32,
+                "Oryza_sativa counts": 571.0,
+                "Oryza_sativa percentage": 0.57,
+                "No hits counts": 259,
+                "No hits percentage": 0.26
+            },
+            "2-1_raw_R2_screen": {
+                "total_reads": 99993,
+                "Human counts": 24031.0,
+                "Human percentage": 24.04,
+                "Mouse counts": 99330.0,
+                "Mouse percentage": 99.33000000000001,
+                "Ecoli counts": 58.0,
+                "Ecoli percentage": 0.06,
+                "PhiX counts": 0.0,
+                "PhiX percentage": 0.0,
+                "Adapters counts": 379.0,
+                "Adapters percentage": 0.38,
+                "Vectors counts": 907.0,
+                "Vectors percentage": 0.91,
+                "MG8 counts": 135.0,
+                "MG8 percentage": 0.13,
+                "ASM584v2 counts": 58.0,
+                "ASM584v2 percentage": 0.06,
+                "ASM14353v4 counts": 1011.0,
+                "ASM14353v4 percentage": 1.01,
+                "Lactuca_sativa_V11 counts": 1613.0,
+                "Lactuca_sativa_V11 percentage": 1.6099999999999999,
+                "Aspsy1 counts": 126.0,
+                "Aspsy1 percentage": 0.13,
+                "Penicillium_subrubescens counts": 806.0,
+                "Penicillium_subrubescens percentage": 0.8099999999999999,
+                "Agrobacterium_vaccinii counts": 16.0,
+                "Agrobacterium_vaccinii percentage": 0.01,
+                "Pseudomonas counts": 35.0,
+                "Pseudomonas percentage": 0.03,
+                "Streptomyces_clavuligerus counts": 16.0,
+                "Streptomyces_clavuligerus percentage": 0.02,
+                "Clavibacter_californiensis counts": 17.0,
+                "Clavibacter_californiensis percentage": 0.02,
+                "Erwinia_tasmaniensis_Et1_99 counts": 41.0,
+                "Erwinia_tasmaniensis_Et1_99 percentage": 0.04,
+                "Xanthomonas_euvesicatoria_pv.alfalfae counts": 26.0,
+                "Xanthomonas_euvesicatoria_pv.alfalfae percentage": 0.03,
+                "plant_vrius_genome counts": 179.0,
+                "plant_vrius_genome percentage": 0.18,
+                "Arabidopsis_thaliana counts": 1463.0,
+                "Arabidopsis_thaliana percentage": 1.4600000000000002,
+                "Brassica_napus counts": 1837.0,
+                "Brassica_napus percentage": 1.85,
+                "Zm-B73-REFERENCE-NAM-5.0 counts": 2028.0,
+                "Zm-B73-REFERENCE-NAM-5.0 percentage": 2.03,
+                "Tomato counts": 1591.0,
+                "Tomato percentage": 1.59,
+                "Oryza_sativa counts": 1669.0,
+                "Oryza_sativa percentage": 1.67,
+                "No hits counts": 509,
+                "No hits percentage": 0.51
+            },
+            "2-2_raw_R2_screen": {
+                "total_reads": 99978,
+                "Human counts": 27735.0,
+                "Human percentage": 27.75,
+                "Mouse counts": 99288.0,
+                "Mouse percentage": 99.30000000000001,
+                "Ecoli counts": 56.0,
+                "Ecoli percentage": 0.060000000000000005,
+                "PhiX counts": 0.0,
+                "PhiX percentage": 0.0,
+                "Adapters counts": 517.0,
+                "Adapters percentage": 0.52,
+                "Vectors counts": 1192.0,
+                "Vectors percentage": 1.19,
+                "MG8 counts": 124.0,
+                "MG8 percentage": 0.12,
+                "ASM584v2 counts": 56.0,
+                "ASM584v2 percentage": 0.060000000000000005,
+                "ASM14353v4 counts": 2407.0,
+                "ASM14353v4 percentage": 2.41,
+                "Lactuca_sativa_V11 counts": 3655.0,
+                "Lactuca_sativa_V11 percentage": 3.66,
+                "Aspsy1 counts": 118.0,
+                "Aspsy1 percentage": 0.12,
+                "Penicillium_subrubescens counts": 1934.0,
+                "Penicillium_subrubescens percentage": 1.9400000000000002,
+                "Agrobacterium_vaccinii counts": 18.0,
+                "Agrobacterium_vaccinii percentage": 0.02,
+                "Pseudomonas counts": 41.0,
+                "Pseudomonas percentage": 0.04,
+                "Streptomyces_clavuligerus counts": 17.0,
+                "Streptomyces_clavuligerus percentage": 0.02,
+                "Clavibacter_californiensis counts": 18.0,
+                "Clavibacter_californiensis percentage": 0.02,
+                "Erwinia_tasmaniensis_Et1_99 counts": 47.0,
+                "Erwinia_tasmaniensis_Et1_99 percentage": 0.05,
+                "Xanthomonas_euvesicatoria_pv.alfalfae counts": 31.0,
+                "Xanthomonas_euvesicatoria_pv.alfalfae percentage": 0.03,
+                "plant_vrius_genome counts": 414.0,
+                "plant_vrius_genome percentage": 0.41,
+                "Arabidopsis_thaliana counts": 3491.0,
+                "Arabidopsis_thaliana percentage": 3.49,
+                "Brassica_napus counts": 4223.0,
+                "Brassica_napus percentage": 4.23,
+                "Zm-B73-REFERENCE-NAM-5.0 counts": 4323.0,
+                "Zm-B73-REFERENCE-NAM-5.0 percentage": 4.32,
+                "Tomato counts": 3660.0,
+                "Tomato percentage": 3.66,
+                "Oryza_sativa counts": 3781.0,
+                "Oryza_sativa percentage": 3.79,
+                "No hits counts": 519,
+                "No hits percentage": 0.52
+            },
+            "2-3_raw_R2_screen": {
+                "total_reads": 99999,
+                "Human counts": 23588.0,
+                "Human percentage": 23.589999999999996,
+                "Mouse counts": 98984.0,
+                "Mouse percentage": 98.97999999999999,
+                "Ecoli counts": 54.0,
+                "Ecoli percentage": 0.060000000000000005,
+                "PhiX counts": 0.0,
+                "PhiX percentage": 0.0,
+                "Adapters counts": 329.0,
+                "Adapters percentage": 0.33,
+                "Vectors counts": 874.0,
+                "Vectors percentage": 0.87,
+                "MG8 counts": 122.0,
+                "MG8 percentage": 0.13,
+                "ASM584v2 counts": 54.0,
+                "ASM584v2 percentage": 0.060000000000000005,
+                "ASM14353v4 counts": 656.0,
+                "ASM14353v4 percentage": 0.66,
+                "Lactuca_sativa_V11 counts": 1032.0,
+                "Lactuca_sativa_V11 percentage": 1.04,
+                "Aspsy1 counts": 115.0,
+                "Aspsy1 percentage": 0.11000000000000001,
+                "Penicillium_subrubescens counts": 467.0,
+                "Penicillium_subrubescens percentage": 0.46,
+                "Agrobacterium_vaccinii counts": 18.0,
+                "Agrobacterium_vaccinii percentage": 0.02,
+                "Pseudomonas counts": 42.0,
+                "Pseudomonas percentage": 0.04,
+                "Streptomyces_clavuligerus counts": 19.0,
+                "Streptomyces_clavuligerus percentage": 0.02,
+                "Clavibacter_californiensis counts": 18.0,
+                "Clavibacter_californiensis percentage": 0.02,
+                "Erwinia_tasmaniensis_Et1_99 counts": 49.0,
+                "Erwinia_tasmaniensis_Et1_99 percentage": 0.05,
+                "Xanthomonas_euvesicatoria_pv.alfalfae counts": 31.0,
+                "Xanthomonas_euvesicatoria_pv.alfalfae percentage": 0.03,
+                "plant_vrius_genome counts": 152.0,
+                "plant_vrius_genome percentage": 0.15,
+                "Arabidopsis_thaliana counts": 920.0,
+                "Arabidopsis_thaliana percentage": 0.9199999999999999,
+                "Brassica_napus counts": 1183.0,
+                "Brassica_napus percentage": 1.18,
+                "Zm-B73-REFERENCE-NAM-5.0 counts": 1355.0,
+                "Zm-B73-REFERENCE-NAM-5.0 percentage": 1.35,
+                "Tomato counts": 1012.0,
+                "Tomato percentage": 1.01,
+                "Oryza_sativa counts": 1121.0,
+                "Oryza_sativa percentage": 1.12,
+                "No hits counts": 559,
+                "No hits percentage": 0.56
+            }
+        }
+    }
+}

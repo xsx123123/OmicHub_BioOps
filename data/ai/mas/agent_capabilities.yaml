@@ -1,0 +1,145 @@
+# MAS 编排器可分派 Agent 的能力登记表
+# =====================================================================
+# 消费方：infrastructure/mas/agent_capabilities.py::load_agent_capabilities
+#   → application/services/mas_plan_validator.py::MASPlanValidator
+#
+# 校验语义（两道闸门）：
+#   1) 计划节点的 agent_id 必须在本表出现，否则报“计划引用了未注册的 MAS Agent”。
+#   2) 节点 resources.required_capabilities 必须是该 Agent 能力集合的子集。
+#
+# 能力键是自由词汇表（kebab-case 功能令牌），不做强枚举；语义以本表和
+# data/ai/flows/*.yaml 的 executor.key 为准。actor 型 Agent（rnaseq/scrna）的
+# executor 能力由 flow_registry.agent_capabilities() 在加载时自动并入，本表只需
+# 补充非 executor 的通用能力（如 quality-gate、artifact-validate、上游下载）。
+#
+# 覆盖原则：data/OmicHub.yaml 中 agents.enabled 的每个“专家”都必须在此登记
+# （router 是纯分派入口、orchestrator 是编排器本身，二者不作为可分派节点，故不登记）。
+# 新增专家时同步在此追加，否则 MAS 模式下该专家会被编排器视为不存在。
+schema_version: "1.0"
+agents:
+  # --- 通用与研究设计 ---
+  agent-general:
+    - intake
+    - research-design
+    - data-contract
+    - quality-control
+    - synthesis
+    - artifact-validate
+
+  # --- BioOps 数据预检（提示词/专用 Skill 待后续实现）---
+  agent-data:
+    - data-contract
+    - metadata-validation
+    - project-preflight
+    - artifact-validate
+
+  # --- BioOps 独立质量审计（提示词/专用 Skill 待后续实现）---
+  agent-qc:
+    - quality-gate
+    - qc-review
+    - evidence-audit
+    - artifact-validate
+
+  # --- BioOps 交付汇总（提示词/专用 Skill 待后续实现）---
+  agent-delivery:
+    # delivery-manifest: MAS 能力令牌；对外 Bridge 契约层名称为 delivery-pack；可执行实现为 data-deliver
+    - delivery-manifest
+    - evidence-pack
+    - runbook-capture
+    - artifact-validate
+
+  # --- Bulk RNA-seq（executor rnaflow/deseq2 由 flows/rnaseq.yaml 自动派生）---
+  agent-rnaseq:
+    - ebi-download
+    - rnaflow
+    - quality-gate
+    - artifact-validate
+
+  # --- Bulk ATAC-seq ---
+  agent-atacseq:
+    - atacflow
+    - peak-calling
+    - differential-accessibility
+    - motif
+    - footprinting
+    - quality-gate
+    - artifact-validate
+
+  # --- 单细胞总入口（executor scrna-* 由 flows/scrna.yaml 自动派生给 actor）---
+  agent-scrna:
+    - scanpy-qc
+    - quality-gate
+    - artifact-validate
+
+  # --- 单细胞子专家：flows/scrna.yaml 中为 assistant_agent_id，承担分诊/审查/咨询 ---
+  agent-scrna-upstream:
+    - scrna-cellranger
+    - sample-qc
+    - upstream-review
+    - artifact-validate
+  agent-scrna-integration:
+    - cell-qc
+    - doublet-detection
+    - batch-integration
+    - clustering
+    - integration-review
+    - artifact-validate
+  agent-scrna-advanced:
+    - cell-annotation
+    - pseudobulk-de
+    - pathway-enrichment
+    - trajectory
+    - cell-communication
+    - annotation-review
+    - artifact-validate
+
+  # --- 云运维工程师 ---
+  agent-cloud-ops:
+    - platform-health
+    - cloud-server
+    - object-storage
+    - nas
+    - block-storage
+    - container-registry
+    - networking
+    - terraform
+    - slurm
+    - incident-response
+    - capacity-review
+    - change-plan
+    - artifact-validate
+
+  # --- 代码实现 ---
+  agent-code:
+    - workspace-inspect
+    - python
+    - r
+    - bash
+    - reproducible-code
+    - artifact-validate
+
+  # --- 可视化交付 ---
+  agent-viz:
+    - deg-volcano
+    - publication-figure
+    - quality-gate
+    - artifact-validate
+
+  # --- 拟人化陪伴入口：可承担轻量 intake/研究设计咨询节点 ---
+  shania:
+    - intake
+    - research-design
+    - artifact-validate
+
+  # --- MCP 构建师：生成/测试/注册工具，可作为工具准备节点 ---
+  agent-mcp-builder:
+    - mcp-build
+    - artifact-validate
+
+  # --- Skill 构建师：把可复用工作流沉淀为候选 Skill ---
+  agent-skill-builder:
+    - skill-design
+    - osdp-review
+    - candidate-generation
+    - dependency-classification
+    - artifact-validate

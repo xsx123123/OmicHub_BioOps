@@ -1,0 +1,12 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress-egress
+  namespace: agentteams-system
+  labels:
+    app.kubernetes.io/part-of: omichub-agentteams
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress

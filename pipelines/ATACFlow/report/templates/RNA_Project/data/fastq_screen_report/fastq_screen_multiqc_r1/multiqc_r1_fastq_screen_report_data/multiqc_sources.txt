@@ -1,0 +1,6 @@
+Module	Section	Sample Name	Source
+FastQ Screen	all_sections	1-1_raw_R1_screen	/data/jzhang/project/Temp/HYXM-251215018/01.workflow/01.qc/fastq_screen_r1/1-1_raw_R1_screen.txt
+FastQ Screen	all_sections	1-3_raw_R1_screen	/data/jzhang/project/Temp/HYXM-251215018/01.workflow/01.qc/fastq_screen_r1/1-3_raw_R1_screen.txt
+FastQ Screen	all_sections	2-1_raw_R1_screen	/data/jzhang/project/Temp/HYXM-251215018/01.workflow/01.qc/fastq_screen_r1/2-1_raw_R1_screen.txt
+FastQ Screen	all_sections	2-2_raw_R1_screen	/data/jzhang/project/Temp/HYXM-251215018/01.workflow/01.qc/fastq_screen_r1/2-2_raw_R1_screen.txt
+FastQ Screen	all_sections	2-3_raw_R1_screen	/data/jzhang/project/Temp/HYXM-251215018/01.workflow/01.qc/fastq_screen_r1/2-3_raw_R1_screen.txt

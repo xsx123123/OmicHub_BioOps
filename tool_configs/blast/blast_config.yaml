@@ -1,0 +1,74 @@
+# OmicHub BLAST 外置运行配置
+#
+# 路径（基于 settings.storage_path）：
+#   数据库索引：{blast_db_root}/{db_key}/
+#   查询上传：  {storage_path}/{blast_uploads_dir}/{user_id}/{task_id}/
+#   任务结果：  {storage_path}/{blast_results_dir}/{user_id}/{task_id}/
+#
+# 本文件按 mtime 热重载。仅 config.py 已声明字段生效，未知字段会被忽略。
+
+meta:
+  name: "BLAST"
+  version: "2.0"
+  description: "本地 NCBI BLAST+ 异步检索、缓存、SSE 与数据库版本管理"
+
+input_limits:
+  # 查询文件与规范化后序列上限
+  max_query_file_size_mb: 20
+  max_query_sequence_length: 50000
+  max_target_seqs: 100
+
+  # 数据库 FASTA 总大小及单个上传分片上限
+  max_database_file_size_mb: 10240
+  database_upload_chunk_size_mb: 16
+
+execution:
+  # false：worker 内本地执行；true：docker run --rm
+  # 当前 worker 镜像已安装 ncbi-blast+，推荐 false。
+  use_docker: false
+  docker_image: "ncbi/blast:latest"
+  num_threads: 10
+  search_timeout: 3000
+  build_timeout: 3600
+
+  # 当前 Celery task 装饰器和 worker 路由使用以下队列名。
+  # 修改时必须同步 tasks.py、celery.py 与 worker 启动参数。
+  search_queue: "blast_search"
+  build_queue: "blast_db_build"
+
+program_map:
+  - query_type: "nucl"
+    db_type: "nucl"
+    program: "blastn"
+  - query_type: "prot"
+    db_type: "prot"
+    program: "blastp"
+  - query_type: "nucl"
+    db_type: "prot"
+    program: "blastx"
+  - query_type: "prot"
+    db_type: "nucl"
+    program: "tblastn"
+  - query_type: "nucl"
+    db_type: "nucl"
+    program: "tblastx"
+
+defaults:
+  evalue: 1.0e-5
+  max_target_seqs: 10
+  result_format: "json"
+
+# 兼容配置模型的静态数据库列表。生产数据库清单以 blast_db.yaml 和
+# PostgreSQL blast_databases 表为准。
+databases: []
+# 示例：
+#   - db_key: "rice_pan_genome_v2"
+#     name: "水稻泛基因组 v2"
+#     db_type: "nucl"
+#     path: "/data/omichub/blast/db/rice_pan_genome_v2/rice_pan_genome_v2"
+#     description: "水稻泛基因组核酸序列库"
+#     source_species: "Oryza sativa"
+#     source_version: "v2.1"
+#     version_group: "rice_pan_genome"
+#     is_active: true
+#     is_public: true

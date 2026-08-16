@@ -1,0 +1,82 @@
+schema_version: "1.0"
+bridge_base_path: /v1
+worker_inbox:
+  request: "GET /work-items/assigned"
+  boundary: "Returns only the authenticated Worker's pending/in_progress work items and logical project/task references."
+worker_claim:
+  request: "POST /cases/{case_id}/work-items/{work_item_id}/claim"
+  boundary: "Atomically moves only the authenticated target's pending work item to in_progress; an expired deadline may be reclaimed."
+skills:
+  project-preflight:
+    actor: data-steward
+    request: "POST /projects/{project_id}/preflight"
+    success_statuses: [passed, blocked]
+    failure_handling: "Return blocked; never submit a task."
+    boundary: read_only
+  workflow-submit:
+    actor: workflow-operator
+    request: "POST /tasks"
+    requires: [approval_token, idempotency_key, allowed_flow]
+    failure_handling: "Retry only with the same idempotency key after transient upstream failures."
+    boundary: "No flow YAML or shell access."
+  workflow-monitor:
+    actor: workflow-operator
+    request: "GET /tasks/{task_id}"
+    failure_handling: "Report timeout; never enlarge resources automatically."
+    boundary: read_only
+  workflow-cancel:
+    actor: workflow-operator
+    request: "POST /tasks/{task_id}/cancel"
+    requires: [approval_token]
+    failure_handling: "Idempotently record the cancellation reason."
+    boundary: approval_required
+  quality-gate:
+    actor: quality-auditor
+    request: "GET /tasks/{task_id}; GET /tasks/{task_id}/artifacts"
+    failure_handling: "Use manual_review if no rule version is available."
+    boundary: "Read-only; artifacts are logical omic:// references, never filesystem paths."
+  # delivery-pack: Bridge 契约层 Skill 名称；可执行实现见 data/ai/skill_marketplace/data-deliver；MAS 能力令牌见 data/ai/mas/agent_capabilities.yaml 的 delivery-manifest。
+  delivery-pack:
+    actor: delivery-reporter
+    request: "POST /cases/{case_id}/evidence"  # 可执行实现：data-deliver；MAS 能力令牌：delivery-manifest
+    failure_handling: "Block delivery if required artifacts are absent."
+    boundary: evidence_only
+  scientific-interpretation:
+    actor: bioops-manager
+    request: "POST /v1/scientific-interpretation"
+    requires: [case_id, agent_id, question, capability]
+    success_statuses: [completed]
+    failure_handling: "Return manual_review or structured rejection; never submit, cancel, or replan a task."
+    boundary: "Gateway allowlists agent capabilities and read-only tools; no raw sessions, tool traces, files, database access, shell, or workflow actions."
+    response_schema: "{schema_version, status, conclusion, recommendations[], evidence_refs[], risks[], agent_id, schema_ver, duration_ms, token_usage, error}"
+    cost_guardrails: "120s default timeout; 5 calls and 200k tokens per case by default, all configurable."
+  code-review:
+    actor: agent-code
+    request: "GET /work-items/assigned; POST /cases/{case_id}/work-items/{work_item_id}/claim; POST /cases/{case_id}/work-items/{work_item_id}"
+    failure_handling: "Return blocked or failed with evidence; never execute code or modify files."
+    boundary: read_only
+  visualization-review:
+    actor: agent-viz
+    request: "GET /work-items/assigned; POST /cases/{case_id}/work-items/{work_item_id}/claim; POST /cases/{case_id}/work-items/{work_item_id}"
+    failure_handling: "Return blocked or failed with evidence; never render, write, or publish files."
+    boundary: read_only
+  scrna-interpretation:
+    actor: agent-scrna
+    request: "GET /work-items/assigned; POST /cases/{case_id}/work-items/{work_item_id}/claim; POST /cases/{case_id}/work-items/{work_item_id}"
+    failure_handling: "Return blocked or failed with evidence; never submit or modify a workflow."
+    boundary: read_only
+  upstream-review:
+    actor: agent-scrna
+    request: "GET /work-items/assigned; POST /cases/{case_id}/work-items/{work_item_id}/claim; POST /cases/{case_id}/work-items/{work_item_id}"
+    failure_handling: "Return blocked with logical artifact references; never run Cell Ranger or access raw FASTQ."
+    boundary: read_only
+  integration-review:
+    actor: agent-scrna
+    request: "GET /work-items/assigned; POST /cases/{case_id}/work-items/{work_item_id}/claim; POST /cases/{case_id}/work-items/{work_item_id}"
+    failure_handling: "Return blocked with QC and integration evidence; never modify a workflow or artifact."
+    boundary: read_only
+  annotation-review:
+    actor: agent-scrna
+    request: "GET /work-items/assigned; POST /cases/{case_id}/work-items/{work_item_id}/claim; POST /cases/{case_id}/work-items/{work_item_id}"
+    failure_handling: "Return evidence, uncertainty and scientific risks; never submit or alter a workflow."
+    boundary: read_only

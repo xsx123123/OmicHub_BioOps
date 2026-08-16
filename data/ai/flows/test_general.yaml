@@ -1,0 +1,27 @@
+flow:
+  id: test_general
+  version: 1.0.0
+  display_name: AgentTeams 通用能力发现验收流程
+  domain: general
+  actor: agent-code
+  runtime_image: analysis-core
+  bridge_workflow: test_general
+  trigger_hints: [通用测试, capability registry]
+artifacts:
+  - {key: input_manifest, type: json_manifest}
+  - {key: result_table, type: table}
+  - {key: delivery_manifest, type: json_manifest}
+stages:
+  - key: transform
+    title: 通用数据转换
+    assistant_agent_id: agent-code
+    executors:
+      - key: general-transform
+        queue: general_analysis
+        resource_profile: standard_8c32g
+        inputs: [input_manifest]
+        outputs: [result_table]
+        retry_policy: infra_bounded
+delivery:
+  quality_gate: true
+  outputs: [delivery_manifest]

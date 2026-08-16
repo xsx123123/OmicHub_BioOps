@@ -1,0 +1,30 @@
+# ATACFlow Path Configuration
+# This file helps AI agents locate the ATACFlow installation
+
+# ATACFlow root directory (contains snakefile)
+ATACFLOW_ROOT: "/home/zj/pipeline/ATACFlow/"
+
+# Conda environment configuration
+CONDA:
+  # Recommended conda environment name for ATACFlow
+  DEFAULT_ENV_NAME: "atacflow"
+  # Whether to auto-activate environment (if false, user will be prompted)
+  AUTO_ACTIVATE: false
+  # Path to conda (auto-detected if empty)
+  CONDA_PATH: ""
+
+# Default config template paths
+CONFIG_TEMPLATES:
+  complete: "/home/zj/pipeline/ATACFlow/skills/examples/config_complete.yaml"
+  standard: "/home/zj/pipeline/ATACFlow/skills/examples/config_standard.yaml"
+  qc_only: "/home/zj/pipeline/ATACFlow/skills/examples/config_qc_only.yaml"
+
+# Snakemake default parameters
+SNAKEMAKE_DEFAULTS:
+  cores: 20
+  use_conda: true
+  conda_frontend: mamba
+
+# Example usage:
+# cd $ATACFLOW_ROOT
+# snakemake --cores 60 --use-conda --config analysisyaml=/path/to/project_config.yaml

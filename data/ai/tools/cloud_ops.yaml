@@ -1,0 +1,14 @@
+id: cloud_ops
+description: 管理员平台运维的只读健康检查、任务状态和流程清单工具。
+platform_tools:
+  - platform_admin_health_check
+  - platform_list_tasks
+  - platform_get_task
+  - platform_list_flows
+  - platform_get_current_time
+  - platform_get_user_info
+  - list_workspace_files
+  - search_workspace_files
+  - workspace_read_file
+  - workspace_get_file_info
+  - find_session_uploads

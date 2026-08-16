@@ -1,0 +1,57 @@
+---
+title: "Batch Effect & Integration"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+source("R/read_manifest.R")
+source("R/read_summary.R")
+source("R/tables.R")
+source("R/plot_helpers.R")
+
+result_dir <- get_result_dir("data")
+manifest <- read_manifest(result_dir)
+batch_summary <- read_summary_for_step(result_dir, manifest, "batch_check")
+integration_summary <- read_summary_for_step(result_dir, manifest, "integration")
+```
+
+## Batch Check
+
+```{r batch-status, results='asis'}
+if (is.null(batch_summary)) {
+  cat("Batch check summary not available.")
+} else {
+  cat(paste0("Status: **", batch_summary$status, "**  "))
+  cat(paste0("Plots: ", batch_summary$metrics$plot_count %||% 0))
+}
+```
+
+```{r batch-plots, fig.cap="Pre-integration batch check plots", out.width="48%"}
+if (!is.null(batch_summary)) display_images(result_dir, batch_summary, max_images = 12)
+```
+
+## Integration
+
+```{r integration-status, results='asis'}
+if (is.null(integration_summary)) {
+  cat("Integration summary not available.")
+} else {
+  cat(paste0("Status: **", integration_summary$status, "**  "))
+  cat(paste0("Method: ", integration_summary$metrics$integration_method %||% manifest$integration_method))
+}
+```
+
+```{r integration-plots, fig.cap="Post-integration diagnostics", out.width="48%"}
+if (!is.null(integration_summary)) display_images(result_dir, integration_summary, max_images = 12)
+```
+
+## Integration Artifacts
+
+```{r integration-artifacts}
+artifacts <- artifact_table(integration_summary)
+if (nrow(artifacts) > 0) {
+  knitr::kable(artifacts[, intersect(c("type", "path", "bytes"), colnames(artifacts)), drop = FALSE], format = "html")
+} else {
+  cat("No integration artifacts recorded.")
+}
+```

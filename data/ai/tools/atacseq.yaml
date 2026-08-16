@@ -1,0 +1,39 @@
+id: atacseq
+description: ATAC-seq 专项流程预检提交、结果读取和功能解释能力。
+builtin_tools:
+  - omichub_plot_volcano
+platform_tools:
+  - platform_list_flows
+  - platform_list_tasks
+  - platform_get_task
+  - platform_submit_download
+  - platform_list_downloads
+  - platform_get_download_progress
+mcp_ids:
+  - 7375dd58-4c5f-59f9-ab27-a407bb961ee8
+  - 9f3a3546-e7d6-4a59-9c61-206ca2e471c7
+  - 15bb9689-f2c9-4d31-aaa3-4f79514e7f92
+skill_ids:
+  - atacflow
+  - atac-tools
+mcp_tools:
+  7375dd58-4c5f-59f9-ab27-a407bb961ee8:
+    - list_available_pipelines
+    - check_workspace_data
+    - atac_seq_prepare
+    - atac_seq_submit
+    - atac_seq_status
+    - atac_seq_results
+  9f3a3546-e7d6-4a59-9c61-206ca2e471c7:
+    - list_species
+    - get_assembly_info
+    - search_genes
+    - lookup_gene
+    - get_transcripts
+    - get_xrefs
+    - get_sequence
+  15bb9689-f2c9-4d31-aaa3-4f79514e7f92:
+    - search_go_terms
+    - get_go_term
+    - validate_go_id
+    - get_ontology_stats

@@ -1,0 +1,125 @@
+# ============================================
+# OmicHub JBrowse 2 基因组浏览器配置
+# ============================================
+# 修改本文件后：调用 POST /api/v1/jbrowse/config/reload 即时生效，
+# 或等待配置加载器基于 mtime 自动热重载。无需重启后端。
+#
+# 路径约定（重要）：
+#   - fasta / fai / file / index 均填【绝对路径】，运行时由 web 容器的
+#     /data/omichub 挂载解析（与 data/OmicHub.yaml 的 storage.data_root 一致）。
+#   - 这些文件会经 nginx 的 /tracks/ 路径对外暴露，供 JBrowse 2 通过 HTTP Range
+#     Request 流式读取。故 /data/omichub 下的引用组与轨道文件必须对 nginx 可读。
+#     （参考基因组与预设轨道已迁至 /data/omichub/omichub_data/jbrowse/，仍位于
+#     data_root 之下，/tracks/ 换算与 nginx alias 无需改动。）
+#   - 索引缺失时，可由「我的文件」面板或 POST /api/v1/jbrowse/index/create 触发
+#     Celery 任务生成（需 worker 镜像内装好 samtools / bcftools / tabix）。
+#
+# 新增参考基因组：在 assemblies 下追加一项即可，无需改代码。
+# 字段缺失/解析失败时回退到内置默认值，浏览器不会报错（只是无可用基因组）。
+
+# --------------------------------------------
+# 参考基因组定义
+# 每个基因组需要：FASTA 文件 + .fai 索引
+# --------------------------------------------
+assemblies:
+  - id: human_hg38
+    name: "人类 (GRCh38/hg38)"
+    species: "Homo sapiens"
+    common_name: "人类"
+    taxonomy_id: "9606"
+    version_id: "human_hg38"
+    version_name: "hg38"
+    assembly_name: "GRCh38.p14"
+    category: "animal"
+    icon: "🧬"
+    is_default: true
+    status: "active"
+    release_date: "2022-02"
+    description: "人类参考基因组 GRCh38"
+    stats:
+      chromosomes: 24
+      total_genes: 60660
+      protein_coding: 19969
+      genome_size: "3.1 Gb"
+      n50: "145 Mb"
+    data_files:
+      fasta:
+        path: "/data/omichub/omichub_data/jbrowse/ref/human_hg38/GRCh38.p14.genome.fa"
+        index_path: "/data/omichub/omichub_data/jbrowse/ref/human_hg38/GRCh38.p14.genome.fa.fai"
+        format: "fasta"
+        build_required: true
+        build_tool: "samtools faidx"
+        build_status: "ready"
+      gff:
+        path: "/data/omichub/omichub_data/jbrowse/tracks/human_hg38/gencode.v50.basic.annotation.gff3"
+        format: "gff3"
+        build_required: true
+        build_tool: "gffutils"
+        build_status: "ready"
+    fasta: "/data/omichub/omichub_data/jbrowse/ref/human_hg38/GRCh38.p14.genome.fa"
+    fai: "/data/omichub/omichub_data/jbrowse/ref/human_hg38/GRCh38.p14.genome.fa.fai"
+
+# --------------------------------------------
+# 预设轨道（公共/共享数据，所有用户可见）
+# 挂载到对应参考基因组下，自动加载。
+# --------------------------------------------
+preset_tracks:
+  human_hg38:
+    - name: "基因注释"
+      file: "/data/omichub/omichub_data/jbrowse/tracks/human_hg38/gencode.v50.basic.annotation.gff3"
+      type: "gff3"
+      color: "#2E7D32"
+
+# --------------------------------------------
+# 用户目录自动扫描
+# {user_id} 会被替换为当前登录用户 ID（JWT subject）
+# --------------------------------------------
+auto_scan:
+  enabled: true
+  # 递归扫描用户整个目录树（jbrowse_service.scan_user_directory 用 os.walk 递归实现），
+  # 覆盖 raw/ 上传、results/{task}/ 分析产物、用户自定义子目录，找到所有可加载轨道文件。
+  # 旧的 bam/、bigwig/、vcf/ 子目录写法是非递归的，会漏掉 raw/ 里的上传文件。
+  scan_paths:
+    - "/data/omichub/users/{user_id}"
+  extensions:
+    - ".bam"
+    - ".cram"
+    - ".bw"
+    - ".gz"
+    - ".bigwig"
+    - ".vcf.gz"
+    - ".bed.gz"
+    - ".gff3.gz"
+  interval: 5  # 分钟（预留，暂未启用 beat）
+  auto_index: true
+
+# --------------------------------------------
+# 上传配置
+# --------------------------------------------
+upload:
+  upload_dir: "/data/omichub/users/{user_id}/uploads/"
+  max_file_size: 10  # GB
+  allowed_types:
+    - ".bam"
+    - ".cram"
+    - ".bw"
+    - ".bigwig"
+    - ".vcf"
+    - ".vcf.gz"
+    - ".bed"
+    - ".bed.gz"
+    - ".gff3"
+    - ".gff3.gz"
+    - ".fasta"
+    - ".fa"
+  auto_index_after_upload: true
+  index_timeout: 3600  # 秒
+
+# --------------------------------------------
+# 浏览器默认配置
+# --------------------------------------------
+defaults:
+  default_assembly: "human_hg38"
+  default_region: "chr1:1000000-2000000"
+  track_height: 100
+  show_labels: true

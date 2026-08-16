@@ -1,0 +1,48 @@
+# ~/.zshrc - OmicHub 沙盒终端 (zsh + oh-my-zsh + oh-my-posh)
+
+export LANG=C.UTF-8
+export LC_ALL=C.UTF-8
+export HOME=/home/omichub
+export ZDOTDIR=/home/omichub
+export XDG_CACHE_HOME=/home/omichub/.cache
+export OMP_CACHE_DIR=/home/omichub/.cache
+export ZSH_CACHE_DIR=/home/omichub/.cache/oh-my-zsh
+export ZSH_COMPDUMP=/home/omichub/.cache/oh-my-zsh/.zcompdump
+export HISTFILE=/home/omichub/.cache/.zsh_history
+
+mkdir -p "$XDG_CACHE_HOME" "$OMP_CACHE_DIR" "$ZSH_CACHE_DIR"
+
+# oh-my-zsh 基础配置
+export ZSH="$HOME/.oh-my-zsh"
+ZSH_THEME="robbyrussell"
+plugins=(git)
+source $ZSH/oh-my-zsh.sh
+
+# oh-my-posh 主题提示符（使用 minimal 主题，避免浏览器 xterm.js 因缺少 Nerd Font 而乱码）
+eval "$(oh-my-posh init zsh --config /usr/share/oh-my-posh/themes/onehalf.minimal.omp.json)"
+
+# 常用别名
+alias ll='ls -alF'
+alias la='ls -A'
+alias l='ls -CF'
+
+# 欢迎信息
+clear
+cat <<'EOF'
+
+  OmicHub 沙盒终端
+  ─────────────────────────────────────
+  工作目录: ~/workspace (即工作台 workspace，持久保存)
+  临时目录: /tmp (容器销毁后清空)
+
+  预装工具: samtools, bcftools, bedtools, fastqc, seqkit, python3
+  Shell   : zsh + oh-my-zsh + oh-my-posh
+  会话超时: 30 分钟无操作自动销毁
+  数据警示: workspace 内删除即删除平台数据，不可恢复，请谨慎操作
+
+EOF
+
+if [[ -n "${OMICHUB_IMAGE_NOTICE:-}" ]]; then
+  echo "  注意: ${OMICHUB_IMAGE_NOTICE}"
+  echo ""
+fi

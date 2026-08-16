@@ -1,0 +1,8 @@
+# 科研证据与功能富集工具包。
+# web_search 由聊天运行时按 Agent 的 web_search 策略动态注入，不需要在此重复注册。
+id: research
+description: 联网证据检索配合 KEGG 富集分析。
+platform_tools:
+  - europe_pmc_search
+builtin_tools:
+  - omichub_run_kegg_enrichment

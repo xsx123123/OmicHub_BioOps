@@ -1,0 +1,31 @@
+defaults:
+  quick:
+    alignment_tool: "mafft"
+    alignment_mode: "FFT_NS_2"
+    tree_method: "fasttree"
+    bootstrap_enabled: false
+
+  standard:
+    alignment_tool: "mafft"
+    alignment_mode: "auto"
+    tree_method: "iqtree"
+    substitution_model: "auto"
+    bootstrap_enabled: true
+    bootstrap_type: "ultrafast"
+    bootstrap_replicates: 1000
+
+  accurate:
+    alignment_tool: "muscle5"
+    tree_method: "iqtree"
+    substitution_model: "auto"
+    bootstrap_enabled: true
+    bootstrap_type: "standard"
+    bootstrap_replicates: 5000
+
+  bayesian:
+    alignment_tool: "mafft"
+    alignment_mode: "L_INS_i"
+    tree_method: "mrbayes"
+    bootstrap_enabled: false
+    mrbayes_ngen: 1000000
+    mrbayes_nchains: 4

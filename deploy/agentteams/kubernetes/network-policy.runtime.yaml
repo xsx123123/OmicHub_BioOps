@@ -1,0 +1,104 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: workers-to-bridge-only
+  namespace: agentteams-system
+spec:
+  podSelector:
+    matchLabels: {app.kubernetes.io/component: worker}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels: {app.kubernetes.io/name: omichub-agentteams-bridge}
+      ports: [{protocol: TCP, port: 8080}]
+    - to:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: kube-system}
+      ports: [{protocol: UDP, port: 53}, {protocol: TCP, port: 53}]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: bridge-runtime-ingress-and-egress
+  namespace: agentteams-system
+spec:
+  podSelector:
+    matchLabels: {app.kubernetes.io/name: omichub-agentteams-bridge}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: {app.kubernetes.io/component: worker}
+      ports: [{protocol: TCP, port: 8080}]
+  egress:
+    # Bridge → Gateway 房间镜像
+    - to:
+        - podSelector:
+            matchLabels: {app.kubernetes.io/name: omichub-agent-gateway}
+      ports: [{protocol: TCP, port: 8081}]
+    - to:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: kube-system}
+      ports: [{protocol: UDP, port: 53}, {protocol: TCP, port: 53}]
+    # Add explicit selectors for the managed Redis and OmicHub API endpoints in values.
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: gateway-ingress-and-egress
+  namespace: agentteams-system
+spec:
+  podSelector:
+    matchLabels: {app.kubernetes.io/name: omichub-agent-gateway}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    # Bridge 的房间镜像与 OmicHub 主后端的建房/发言/反同步调用。
+    - from:
+        - podSelector:
+            matchLabels: {app.kubernetes.io/name: omichub-agentteams-bridge}
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: omichub-system}
+      ports: [{protocol: TCP, port: 8081}]
+  egress:
+    # Matrix homeserver（Tuwunel）
+    - to:
+        - podSelector:
+            matchLabels: {app.kubernetes.io/name: omichub-tuwunel}
+      ports: [{protocol: TCP, port: 6167}]
+    # 共享 Redis 计数器/状态存储与 OmicHub 主后端会诊回源
+    - to:
+        - podSelector:
+            matchLabels: {app.kubernetes.io/name: omichub-agentteams-state}
+      ports: [{protocol: TCP, port: 6379}]
+    - to:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: omichub-system}
+      ports: [{protocol: TCP, port: 8000}]
+    - to:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: kube-system}
+      ports: [{protocol: UDP, port: 53}, {protocol: TCP, port: 53}]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: tuwunel-ingress-only
+  namespace: agentteams-system
+spec:
+  podSelector:
+    matchLabels: {app.kubernetes.io/name: omichub-tuwunel}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    # 仅 Gateway（AppService）与集群 Ingress 中的 Element Web 客户端可触达。
+    - from:
+        - podSelector:
+            matchLabels: {app.kubernetes.io/name: omichub-agent-gateway}
+      ports: [{protocol: TCP, port: 6167}]
+    # 浏览器经 Ingress 访问 Client-Server API 时，按实际 Ingress Controller
+    # 所在 namespace/labels 补一条 from 规则（默认模板不含，按需开启）。
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: kube-system}
+      ports: [{protocol: UDP, port: 53}, {protocol: TCP, port: 53}]

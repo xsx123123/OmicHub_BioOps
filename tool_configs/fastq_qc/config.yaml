@@ -1,0 +1,81 @@
+# ============================================
+# OmicHub FASTQ 极速质控（fastp + MultiQC）配置
+# ============================================
+# API 与 QC Worker 共同读取本文件，并基于 mtime 自动热重载。
+# 已创建任务会将默认参数与允许的前端覆盖项合并为 task.yaml 快照；
+# 因此后续修改本文件不会改变历史任务的可复现性。
+#
+# 配置契约：docs/26.7.18/OmicHub_FASTQ质控模块实现方案.md
+# --------------------------------------------
+
+tool:
+  name: "fastq_qc"
+  display_name: "FASTQ 极速质控"
+  version: "1.0.0"
+  enabled: true
+
+# Worker 镜像需包含 fastp >= 0.24、MultiQC >= 1.29，以及 pyarrow 或 polars。
+image:
+  repository: "omichub/qc-worker"
+  tag: "1.0.0"
+  pull_policy: "IfNotPresent"
+
+# 并发与线程均为平台级资源控制，不向前端开放。
+resources:
+  worker:
+    concurrency: 2
+    cpu_limit: 8
+    mem_limit: "16G"
+  fastp:
+    threads: 8
+
+queue:
+  name: "qc"
+  task_soft_time_limit: 16200
+  task_time_limit: 18000
+  max_retries: 1
+
+fastp:
+  bin: "fastp"
+  timeout_per_sample: 14400
+  defaults:
+    qualified_quality_phred: 19
+    unqualified_percent_limit: 40
+    n_base_limit: 5
+    length_required: 15
+    trim_to_len: 0
+    adapter_trim: true
+    detect_adapter_for_pe: true
+    correction: false
+    compression_level: 6
+  overridable:
+    - "qualified_quality_phred"
+    - "trim_to_len"
+    - "adapter_trim"
+  extra_args: []
+
+multiqc:
+  min_version: "1.29"
+  report_name: "multiqc_report.html"
+  force: true
+  modules:
+    - "fastp"
+  require_parquet: true
+  extra_args: []
+  timeout: 1800
+
+storage:
+  root: "/data/omichub/qc/tasks"
+  subdirs:
+    - "input"
+    - "output"
+    - "reports"
+    - "multiqc"
+    - "logs"
+  zip_lazy: true
+
+validation:
+  on_worker_start:
+    - "check_fastp_binary"
+    - "check_multiqc_version"
+    - "check_data_root_writable"

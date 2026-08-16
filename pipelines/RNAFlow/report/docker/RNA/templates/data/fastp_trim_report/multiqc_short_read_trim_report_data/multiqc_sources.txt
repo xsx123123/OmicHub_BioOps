@@ -1,0 +1,7 @@
+Module	Section	Sample Name	Source
+fastp	all_sections	1-1_raw	/data/jzhang/project/Temp/HYXM-251215018/01.workflow/01.qc/short_read_trim/1-1_raw.trimed.json
+fastp	all_sections	1-2_raw	/data/jzhang/project/Temp/HYXM-251215018/01.workflow/01.qc/short_read_trim/1-2_raw.trimed.json
+fastp	all_sections	1-3_raw	/data/jzhang/project/Temp/HYXM-251215018/01.workflow/01.qc/short_read_trim/1-3_raw.trimed.json
+fastp	all_sections	2-1_raw	/data/jzhang/project/Temp/HYXM-251215018/01.workflow/01.qc/short_read_trim/2-1_raw.trimed.json
+fastp	all_sections	2-2_raw	/data/jzhang/project/Temp/HYXM-251215018/01.workflow/01.qc/short_read_trim/2-2_raw.trimed.json
+fastp	all_sections	2-3_raw	/data/jzhang/project/Temp/HYXM-251215018/01.workflow/01.qc/short_read_trim/2-3_raw.trimed.json

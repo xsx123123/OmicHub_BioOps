@@ -1,0 +1,27 @@
+# edgeR DEG engine environment (run_edger.r).
+#
+# NOTE: intentionally LOOSE (unpinned) for now. Before production rollout,
+# materialize a fully pinned lock in the same style as deg_deseq2.yaml:
+#   mamba create -y -n deg_edger -c bioconda -c conda-forge \
+#       r-base=4.4.3 bioconductor-edger=4.4.0 \
+#       r-optparse r-tidyverse r-ggplot2 r-ggrepel r-ggpubr \
+#       r-patchwork r-log4r r-crayon r-cowplot
+#   mamba env export -n deg_edger --no-builds | sed '/^prefix:/d' > envs/deg_edger.yaml
+#
+# bioconductor-edger pulls in bioconductor-limma automatically.
+name: deg_edger
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - r-base=4.4.3
+  - bioconductor-edger=4.4.0
+  - r-optparse
+  - r-tidyverse
+  - r-ggplot2
+  - r-ggrepel
+  - r-ggpubr
+  - r-patchwork
+  - r-log4r
+  - r-crayon
+  - r-cowplot

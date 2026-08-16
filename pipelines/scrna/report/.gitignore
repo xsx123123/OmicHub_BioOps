@@ -1,0 +1,11 @@
+# Quarto render output
+_site/
+*.html
+*.pdf
+
+# Data directory (users should symlink or copy their own results)
+data/*
+!data/.gitkeep
+
+/.quarto/
+**/*.quarto_ipynb

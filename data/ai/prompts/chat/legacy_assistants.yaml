@@ -1,0 +1,5 @@
+general: agents.general
+rna_seq_analyst: agents.rnaseq
+scrna_analyst: agents.scrna
+code_helper: agents.code
+visualization: agents.visualization

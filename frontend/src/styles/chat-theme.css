@@ -1,0 +1,1200 @@
+/* ============================================================
+   OmicHub AI Chat - Kimi 风格主题变量
+   ============================================================ */
+
+/* 暗黑模式变量（Kimi 风格） */
+:root[data-theme="dark"] {
+  /* 基础背景 */
+  --chat-bg: #000000;
+  --chat-surface: #1a1a1a;
+  --chat-surface-hover: #2a2a2a;
+  --chat-sidebar-bg: #000000;
+
+  /* 边框 */
+  --chat-border: #333333;
+  --chat-border-light: #444444;
+
+  /* 文字 */
+  --chat-text-primary: #ffffff;
+  --chat-text-secondary: #888888;
+  --chat-text-muted: #555555;
+
+  /* 强调色（对齐平台主色，深色模式自动跟随 --arco-primary）*/
+  --chat-accent: var(--arco-primary);
+  --chat-accent-hover: var(--arco-primary-hover);
+  --chat-accent-light: var(--arco-primary-light);
+
+  /* 消息 */
+  --chat-user-bubble: #2a2a2a;
+  --chat-user-text: var(--chat-text-primary);
+  --chat-ai-card: #111111;
+
+  /* 输入框 */
+  --chat-input-bg: #1a1a1a;
+  --chat-input-border: #333333;
+
+  /* 状态色 */
+  --chat-success: #52c41a;
+  --chat-warning: #faad14;
+  --chat-error: #ff4d4f;
+  --chat-info: #4f8ef7;
+
+  /* 模型导航栏 */
+  --chat-nav-bg: #16161e;
+
+  /* 系统状态徽章色 */
+  --chat-status-ready: #10b981;
+  --chat-status-thinking: #6366f1;
+  --chat-status-tool: #f59e0b;
+  --chat-status-search: #818cf8;
+
+  /* 深度思考琥珀色 */
+  --chat-deep-thinking: #f59e0b;
+
+  /* 能力标签色 */
+  --chat-cap-long: #818cf8;
+  --chat-cap-code: #38bdf8;
+  --chat-cap-multi: #f472b6;
+  --chat-cap-bio: #34d399;
+
+  /* 悬浮操作组 */
+  --chat-action-bg: rgba(26, 26, 46, 0.88);
+  --chat-action-border: #475569;
+  --chat-action-hover: #334155;
+
+  /* 文件/标签芯片 */
+  --chat-chip-bg: #252536;
+  --chat-chip-border: #31313f;
+
+  /* 尺寸 */
+  --chat-sidebar-width: 260px;
+  --chat-logo-size: 120px;
+  --chat-max-content-width: 900px;
+
+  /* 阴影 */
+  --chat-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --chat-shadow-md: 0 4px 20px rgba(0, 0, 0, 0.4);
+  --chat-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --chat-shadow-glow: 0 0 40px rgba(79, 142, 247, 0.15);
+
+  /* 圆角 */
+  --chat-radius-sm: 6px;
+  --chat-radius-md: 10px;
+  --chat-radius-lg: 16px;
+  --chat-radius-xl: 20px;
+
+  /* 深色块 / 气泡描边过渡（工作台与 AI 助手两页统一口径） */
+  --code-block-bg: #1f2329;
+  --code-block-header-bg: #161b22;
+  --code-block-border: rgba(255, 255, 255, 0.06);
+  /* 代码执行卡片：头部与输出区背景（随主题切换，勿用 --code-block-bg 硬编码浅色文字场景） */
+  --chat-bg-subtle: #161b22;
+  --chat-bg-code: #1f2329;
+  --bubble-border: #333333;
+  --card-radius: 12px;
+  --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.24), 0 4px 12px rgba(0, 0, 0, 0.16);
+
+  /* 过渡 */
+  --chat-transition-fast: 0.15s ease;
+  --chat-transition-normal: 0.25s ease;
+  --chat-transition-slow: 0.4s ease;
+}
+
+/* 浅色模式变量 */
+:root[data-theme="light"] {
+  --chat-bg: #f5f5f5;
+  --chat-surface: #ffffff;
+  --chat-surface-hover: #f0f0f0;
+  --chat-sidebar-bg: #ffffff;
+
+  --chat-border: #e0e0e0;
+  --chat-border-light: #d0d0d0;
+
+  --chat-text-primary: #1a1a1a;
+  --chat-text-secondary: #666666;
+  --chat-text-muted: #999999;
+
+  --chat-accent: var(--arco-primary);
+  --chat-accent-hover: var(--arco-primary-hover);
+  --chat-accent-light: var(--arco-primary-light);
+
+  --chat-user-bubble: #2563eb;
+  --chat-user-text: var(--text-on-primary);
+  --chat-ai-card: #ffffff;
+
+  --chat-input-bg: #ffffff;
+  --chat-input-border: #e0e0e0;
+
+  --chat-success: #52c41a;
+  --chat-warning: #faad14;
+  --chat-error: #ff4d4f;
+  --chat-info: #2563eb;
+
+  /* 模型导航栏 */
+  --chat-nav-bg: #f8fafc;
+
+  /* 系统状态徽章色 */
+  --chat-status-ready: #16a34a;
+  --chat-status-thinking: #6366f1;
+  --chat-status-tool: #f59e0b;
+  --chat-status-search: #6366f1;
+
+  /* 深度思考琥珀色 */
+  --chat-deep-thinking: #d97706;
+
+  /* 能力标签色 */
+  --chat-cap-long: #4f46e5;
+  --chat-cap-code: #0284c7;
+  --chat-cap-multi: #db2777;
+  --chat-cap-bio: #059669;
+
+  /* 悬浮操作组 */
+  --chat-action-bg: rgba(255, 255, 255, 0.92);
+  --chat-action-border: #cbd5e1;
+  --chat-action-hover: #e2e8f0;
+
+  /* 文件/标签芯片 */
+  --chat-chip-bg: #f1f5f9;
+  --chat-chip-border: #e2e8f0;
+
+  --chat-sidebar-width: 260px;
+  --chat-logo-size: 120px;
+  --chat-max-content-width: 900px;
+
+  --chat-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --chat-shadow-md: 0 4px 20px rgba(0, 0, 0, 0.08);
+  --chat-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.1);
+  --chat-shadow-glow: 0 0 40px rgba(37, 99, 235, 0.1);
+
+  --chat-radius-sm: 6px;
+  --chat-radius-md: 10px;
+  --chat-radius-lg: 16px;
+  --chat-radius-xl: 20px;
+
+  /* 深色块 / 气泡描边过渡（工作台与 AI 助手两页统一口径） */
+  --code-block-bg: #1f2329;
+  --code-block-header-bg: #161b22;
+  --code-block-border: rgba(0, 0, 0, 0.08);
+  /* 代码执行卡片：头部与输出区背景（随主题切换） */
+  --chat-bg-subtle: #f8f9fb;
+  --chat-bg-code: #f5f6f8;
+  --bubble-border: #e5e7eb;
+  --card-radius: 12px;
+  --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.04);
+
+  --chat-transition-fast: 0.15s ease;
+  --chat-transition-normal: 0.25s ease;
+  --chat-transition-slow: 0.4s ease;
+}
+
+/* ============================================================
+   全局滚动条样式
+   ============================================================ */
+
+.kimi-layout ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.kimi-layout ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.kimi-layout ::-webkit-scrollbar-thumb {
+  background: var(--chat-border);
+  border-radius: 3px;
+}
+
+.kimi-layout ::-webkit-scrollbar-thumb:hover {
+  background: var(--chat-text-muted);
+}
+
+/* ============================================================
+   代码高亮主题覆盖
+   ============================================================ */
+
+.kimi-message-item .hljs {
+  background: #0d1117 !important;
+  color: #c9d1d9;
+}
+
+.kimi-message-item .hljs-keyword {
+  color: #ff7b72;
+}
+
+.kimi-message-item .hljs-string {
+  color: #a5d6ff;
+}
+
+.kimi-message-item .hljs-number {
+  color: #79c0ff;
+}
+
+.kimi-message-item .hljs-function {
+  color: #d2a8ff;
+}
+
+.kimi-message-item .hljs-comment {
+  color: #8b949e;
+}
+
+/* ============================================================
+   响应式适配
+   ============================================================ */
+
+@media (max-width: 768px) {
+  :root {
+    --chat-sidebar-width: 0px;
+  }
+
+  .kimi-sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 100;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+  }
+
+  .kimi-sidebar.open {
+    transform: translateX(0);
+  }
+
+  .kimi-empty-state .main-logo {
+    font-size: 42px !important;
+    letter-spacing: 6px !important;
+  }
+
+  .quick-prompts {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ============================================================
+   全局动画关键帧
+   ============================================================ */
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* 骨架屏加载动画 */
+.skeleton-loading {
+  background: linear-gradient(
+    90deg,
+    var(--chat-surface) 25%,
+    var(--chat-surface-hover) 50%,
+    var(--chat-surface) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* ============================================================
+   消息内容 Markdown 样式（v-html 注入，需全局）
+   ============================================================ */
+
+.kimi-message-item .message-body {
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--chat-text-primary);
+}
+.kimi-message-item .message-body p {
+  margin: 0 0 12px;
+}
+.kimi-message-item .message-body p:last-child {
+  margin-bottom: 0;
+}
+.kimi-message-item .message-body ul,
+.kimi-message-item .message-body ol {
+  margin: 8px 0;
+  padding-left: 24px;
+}
+.kimi-message-item .message-body li {
+  margin: 4px 0;
+}
+.kimi-message-item .message-body code:not(.hljs) {
+  background: rgba(79, 142, 247, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--chat-accent);
+}
+.kimi-message-item .message-body pre.hljs {
+  background: var(--code-block-bg, #1f2329);
+  border: 1px solid var(--code-block-border, rgba(0, 0, 0, 0.08));
+  border-radius: 8px;
+  padding: 0;
+  margin: 12px 0;
+  overflow: hidden;
+}
+.kimi-message-item .message-body .code-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  background: var(--code-block-header-bg, #161b22);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.kimi-message-item .message-body .code-lang {
+  font-size: 12px;
+  color: var(--chat-text-muted);
+  text-transform: uppercase;
+}
+.kimi-message-item .message-body .copy-btn {
+  background: transparent;
+  border: 1px solid var(--chat-border);
+  color: var(--chat-text-secondary);
+  padding: 2px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.kimi-message-item .message-body .copy-btn:hover {
+  background: var(--chat-surface-hover);
+  color: var(--chat-text-primary);
+}
+.kimi-message-item .message-body pre.hljs code {
+  display: block;
+  padding: 16px;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.kimi-message-item .message-body blockquote {
+  border-left: 3px solid var(--chat-accent);
+  margin: 12px 0;
+  padding: 8px 16px;
+  background: rgba(79, 142, 247, 0.05);
+  border-radius: 0 8px 8px 0;
+}
+.kimi-message-item .message-body blockquote p {
+  margin: 0;
+}
+.kimi-message-item .message-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+}
+.kimi-message-item .message-body table th,
+.kimi-message-item .message-body table td {
+  padding: 8px 12px;
+  border: 1px solid var(--chat-border);
+  text-align: left;
+}
+.kimi-message-item .message-body table th {
+  background: var(--chat-surface);
+  font-weight: 500;
+}
+.kimi-message-item .message-body a {
+  color: var(--chat-accent);
+  text-decoration: none;
+}
+.kimi-message-item .message-body a:hover {
+  text-decoration: underline;
+}
+
+/* 思考过程 */
+.kimi-message-item.assistant .thought-section {
+  margin-bottom: 10px;
+  background: rgba(79, 142, 247, 0.05);
+  border: 1px solid rgba(79, 142, 247, 0.15);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.kimi-message-item.assistant .thought-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s;
+}
+.kimi-message-item.assistant .thought-toggle:hover {
+  background: rgba(79, 142, 247, 0.08);
+}
+.kimi-message-item.assistant .toggle-icon {
+  transition: transform 0.2s ease;
+}
+.kimi-message-item.assistant .toggle-icon.expanded {
+  transform: rotate(90deg);
+}
+.kimi-message-item.assistant .thought-label {
+  font-size: 13px;
+  color: var(--chat-text-secondary);
+}
+.kimi-message-item.assistant .thought-status {
+  margin-left: auto;
+}
+.kimi-message-item.assistant .thought-content {
+  padding: 10px 12px;
+  border-top: 1px solid rgba(79, 142, 247, 0.1);
+}
+.kimi-message-item.assistant .thought-content pre {
+  margin: 0;
+  font-size: 13px;
+  color: var(--chat-text-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: 'Courier New', monospace;
+  line-height: 1.5;
+}
+
+/* 工具调用结果 */
+.kimi-message-item.assistant .tool-results {
+  margin-top: 12px;
+}
+.kimi-message-item.assistant .tool-card {
+  background: var(--chat-surface);
+  border: 1px solid var(--chat-border);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+.kimi-message-item.assistant .tool-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--chat-surface-hover);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--chat-text-primary);
+}
+.kimi-message-item.assistant .tool-content {
+  padding: 12px 14px;
+}
+.kimi-message-item.assistant .tool-content pre {
+  margin: 0;
+  font-size: 12px;
+  color: var(--chat-text-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* 图表结果 */
+.kimi-message-item.assistant .chart-results {
+  margin-top: 12px;
+}
+.kimi-message-item.assistant .chart-container {
+  background: var(--chat-surface);
+  border: 1px solid var(--chat-border);
+  border-radius: 10px;
+  padding: 16px;
+}
+
+/* ============================================================
+   KimiSidebar 样式（全局，scoped 只保留尺寸）
+   ============================================================ */
+
+.kimi-sidebar .sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--chat-border);
+}
+.kimi-sidebar .sidebar-logo .logo-text {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--chat-text-primary);
+}
+.kimi-sidebar .collapse-btn {
+  color: var(--chat-text-secondary);
+}
+.kimi-sidebar .collapse-btn:hover {
+  color: var(--chat-text-primary);
+}
+.kimi-sidebar .new-session-area {
+  padding: 12px 16px;
+}
+.kimi-sidebar .new-session-btn {
+  width: 100%;
+  height: 40px;
+  border-radius: 10px;
+  font-size: 14px;
+  background: var(--chat-accent);
+  color: #fff;
+}
+.kimi-sidebar .new-session-btn:hover {
+  background: var(--chat-accent-hover);
+}
+.kimi-sidebar .new-session-btn.collapsed {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 8px;
+}
+.kimi-sidebar .new-session-btn .btn-text {
+  flex: 1;
+  text-align: left;
+}
+.kimi-sidebar .new-session-btn .shortcut {
+  font-size: 11px;
+  opacity: 0.6;
+  margin-left: 4px;
+}
+.kimi-sidebar .function-menu {
+  padding: 0 12px;
+  margin-bottom: 16px;
+}
+.kimi-sidebar .menu-section-title {
+  padding: 8px 16px;
+  font-size: 11px;
+  color: var(--chat-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.kimi-sidebar .menu-items {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.kimi-sidebar .menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--chat-text-secondary);
+}
+.kimi-sidebar .menu-item:hover {
+  background: var(--chat-surface-hover);
+  color: var(--chat-text-primary);
+}
+.kimi-sidebar .menu-item.active {
+  background: rgba(79, 142, 247, 0.1);
+  color: var(--chat-accent);
+}
+.kimi-sidebar .menu-icon {
+  flex-shrink: 0;
+}
+.kimi-sidebar .menu-label {
+  flex: 1;
+  font-size: 14px;
+}
+.kimi-sidebar .menu-badge {
+  font-size: 10px;
+  height: 18px;
+  line-height: 16px;
+}
+.kimi-sidebar .history-section {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 12px;
+}
+.kimi-sidebar .history-section .clear-btn {
+  color: var(--chat-text-muted);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.kimi-sidebar .history-section .clear-btn:hover {
+  color: #ff4d4f;
+}
+.kimi-sidebar .history-section:hover .clear-btn {
+  opacity: 1;
+}
+.kimi-sidebar .session-group {
+  margin-bottom: 12px;
+}
+.kimi-sidebar .session-group .group-label {
+  padding: 4px 16px;
+  font-size: 11px;
+  color: var(--chat-text-muted);
+}
+.kimi-sidebar .session-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--chat-text-secondary);
+}
+.kimi-sidebar .session-item:hover {
+  background: var(--chat-surface-hover);
+  color: var(--chat-text-primary);
+}
+.kimi-sidebar .session-item:hover .delete-btn {
+  opacity: 1;
+}
+.kimi-sidebar .session-item.active {
+  background: rgba(79, 142, 247, 0.1);
+  color: var(--chat-accent);
+}
+.kimi-sidebar .session-icon {
+  flex-shrink: 0;
+  opacity: 0.5;
+}
+.kimi-sidebar .session-title {
+  flex: 1;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.kimi-sidebar .delete-btn {
+  opacity: 0;
+  color: var(--chat-text-muted);
+  transition: opacity 0.2s;
+}
+.kimi-sidebar .delete-btn:hover {
+  color: #ff4d4f;
+}
+.kimi-sidebar .history-empty {
+  padding: 24px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--chat-text-muted);
+}
+.kimi-sidebar .user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--chat-border);
+  margin-top: auto;
+}
+.kimi-sidebar .user-info.collapsed {
+  justify-content: center;
+  padding: 12px 8px;
+}
+.kimi-sidebar .user-meta {
+  flex: 1;
+  min-width: 0;
+}
+.kimi-sidebar .user-meta .user-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--chat-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.kimi-sidebar .user-meta .role-tag {
+  margin-top: 2px;
+  font-size: 10px;
+  height: 18px;
+  line-height: 16px;
+}
+.kimi-sidebar .user-menu-btn {
+  color: var(--chat-text-muted);
+  flex-shrink: 0;
+}
+.kimi-sidebar .user-menu-btn:hover {
+  color: var(--chat-text-primary);
+}
+
+/* ============================================================
+   KimiLayout 会话头 / 输入区样式
+   ============================================================ */
+
+.kimi-layout .session-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--chat-border);
+  background: var(--chat-surface);
+  flex-shrink: 0;
+}
+.kimi-layout .session-header .session-title-input {
+  max-width: 400px;
+  background: transparent;
+}
+.kimi-layout .session-header .session-title-input .n-input__input-el {
+  color: var(--chat-text-primary);
+  font-size: 16px;
+  font-weight: 500;
+}
+.kimi-layout .session-actions {
+  display: flex;
+  gap: 8px;
+}
+.kimi-layout .session-actions .action-btn {
+  color: var(--chat-text-secondary);
+}
+.kimi-layout .session-actions .action-btn:hover {
+  color: var(--chat-text-primary);
+}
+.kimi-layout .input-area-wrapper {
+  padding: 16px 24px 24px;
+  background: linear-gradient(to top, var(--chat-bg) 80%, transparent);
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   ModelNavBar 全局模型导航栏
+   ============================================================ */
+
+.model-nav-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 24px;
+  border-bottom: 1px solid var(--chat-border);
+  background: var(--chat-nav-bg);
+  flex-shrink: 0;
+  min-height: 52px;
+}
+.model-nav-bar .nav-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+.model-nav-bar .nav-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.model-nav-bar .nav-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  justify-content: flex-end;
+}
+.model-nav-bar .action-btn {
+  color: var(--chat-text-secondary);
+}
+.model-nav-bar .action-btn:hover {
+  color: var(--chat-text-primary);
+}
+.model-nav-bar .session-title-input {
+  max-width: 280px;
+  min-width: 120px;
+}
+.model-nav-bar .session-title-input .n-input__input-el {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+/* 模型芯片 */
+.model-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  max-width: 320px;
+}
+.model-chip:hover {
+  background: var(--chat-surface-hover);
+}
+.model-chip .model-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--chat-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+.model-chip .model-chevron {
+  color: var(--chat-text-muted);
+  display: flex;
+  align-items: center;
+}
+
+/* 模型类型标签 */
+.model-type-tag {
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 4px;
+  padding: 1px 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.model-type-tag.general {
+  background: var(--chat-surface-hover);
+  color: var(--chat-text-secondary);
+}
+.model-type-tag.bio {
+  background: rgba(16, 185, 129, 0.18);
+  color: var(--chat-cap-bio);
+}
+
+/* 能力标签胶囊 */
+.cap-tag {
+  font-size: 10px;
+  font-weight: 500;
+  border-radius: 3px;
+  padding: 1px 6px;
+  white-space: nowrap;
+  line-height: 1.5;
+}
+.cap-tag.longContext { background: rgba(129, 140, 248, 0.18); color: var(--chat-cap-long); }
+.cap-tag.code { background: rgba(56, 189, 248, 0.18); color: var(--chat-cap-code); }
+.cap-tag.multimodal { background: rgba(244, 114, 182, 0.18); color: var(--chat-cap-multi); }
+.cap-tag.bio { background: rgba(52, 211, 153, 0.18); color: var(--chat-cap-bio); }
+
+/* 系统状态徽章 */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 14px;
+  font-size: 13px;
+  transition: all 0.2s ease;
+}
+.status-badge .status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.status-badge.ready {
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--chat-status-ready);
+}
+.status-badge.ready .status-dot {
+  background: var(--chat-status-ready);
+}
+.status-badge.thinking {
+  background: rgba(99, 102, 241, 0.12);
+  color: var(--chat-status-thinking);
+}
+.status-badge.thinking .status-dot {
+  background: var(--chat-status-thinking);
+  animation: statusPulse 1.5s ease-in-out infinite;
+}
+.status-badge.toolCalling {
+  background: rgba(245, 158, 11, 0.12);
+  color: var(--chat-status-tool);
+}
+.status-badge.toolCalling .status-dot {
+  width: 14px;
+  height: 14px;
+  background: transparent;
+  border: 2px solid var(--chat-status-tool);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: statusSpin 1s linear infinite;
+}
+
+@keyframes statusPulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.3); opacity: 0.6; }
+}
+@keyframes statusSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* 模型切换下拉面板 */
+.model-switcher-panel {
+  width: 360px;
+  max-height: 400px;
+  overflow-y: auto;
+  background: var(--chat-surface);
+  border: 1px solid var(--chat-border);
+  border-radius: 12px;
+  box-shadow: var(--chat-shadow-lg);
+  padding: 6px;
+}
+.model-switcher-panel .group-title {
+  padding: 8px 12px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--chat-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.model-switcher-panel .model-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.1s ease;
+  position: relative;
+}
+.model-switcher-panel .model-item:hover {
+  background: var(--chat-surface-hover);
+}
+.model-switcher-panel .model-item.selected::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--chat-accent);
+}
+.model-switcher-panel .model-item .model-meta {
+  flex: 1;
+  min-width: 0;
+}
+.model-switcher-panel .model-item .model-meta .name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--chat-text-primary);
+}
+.model-switcher-panel .model-item .model-meta .desc {
+  font-size: 12px;
+  color: var(--chat-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.model-switcher-panel .model-item .caps {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+.model-switcher-panel .model-item .fav-btn {
+  color: var(--chat-text-muted);
+  flex-shrink: 0;
+}
+.model-switcher-panel .model-item .fav-btn.active {
+  color: var(--chat-warning);
+}
+
+/* 对话设置面板 */
+.conversation-settings-panel {
+  width: 300px;
+  background: var(--chat-surface);
+  border-left: 1px solid var(--chat-border);
+  padding: 16px;
+}
+.conversation-settings-panel .panel-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--chat-text-primary);
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--chat-border);
+  margin-bottom: 16px;
+}
+.conversation-settings-panel .setting-item {
+  margin-bottom: 18px;
+}
+.conversation-settings-panel .setting-item .setting-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--chat-text-primary);
+  margin-bottom: 4px;
+}
+.conversation-settings-panel .setting-item .setting-desc {
+  font-size: 11px;
+  color: var(--chat-text-muted);
+  margin-bottom: 8px;
+}
+
+/* ============================================================
+   MessageActionBar 消息悬浮操作组
+   ============================================================ */
+
+.message-action-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: var(--chat-action-bg);
+  border: 1px solid var(--chat-action-border);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: var(--chat-shadow-sm);
+  opacity: 0;
+  transform: translateY(4px);
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.message-action-bar.visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+.message-action-bar .action-btn {
+  color: var(--chat-text-secondary);
+  padding: 4px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+}
+.message-action-bar .action-btn:hover {
+  color: var(--chat-text-primary);
+  background: var(--chat-action-hover);
+}
+.message-action-bar .action-btn.danger:hover {
+  color: var(--chat-error);
+}
+.message-action-bar .action-btn.copied {
+  color: var(--chat-status-ready);
+}
+
+/* 删除确认气泡 */
+.delete-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--chat-action-bg);
+  border: 1px solid var(--chat-error);
+  border-radius: 8px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  font-size: 13px;
+  color: var(--chat-text-primary);
+}
+.delete-confirm .confirm-btn {
+  font-size: 12px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.delete-confirm .confirm-btn.cancel { color: var(--chat-text-secondary); }
+.delete-confirm .confirm-btn.delete { color: var(--chat-error); }
+.delete-confirm .confirm-btn:hover { background: var(--chat-action-hover); }
+
+/* ============================================================
+   PromptSidebar 提示词侧栏
+   ============================================================ */
+
+.prompt-sidebar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 320px;
+  background: var(--chat-surface);
+  border-left: 1px solid var(--chat-border);
+  box-shadow: var(--chat-shadow-lg);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  animation: slideInRight 0.3s ease;
+}
+.prompt-sidebar .sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid var(--chat-border);
+}
+.prompt-sidebar .sidebar-header .title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--chat-text-primary);
+}
+.prompt-sidebar .sidebar-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+}
+.prompt-sidebar .group-label {
+  padding: 8px 4px 6px;
+  font-size: 11px;
+  color: var(--chat-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.prompt-sidebar .prompt-card {
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--chat-border);
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  background: var(--chat-bg);
+}
+.prompt-sidebar .prompt-card:hover {
+  border-color: var(--chat-accent);
+  background: var(--chat-surface-hover);
+}
+.prompt-sidebar .prompt-card .card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--chat-text-primary);
+  margin-bottom: 4px;
+}
+.prompt-sidebar .prompt-card .card-desc {
+  font-size: 12px;
+  color: var(--chat-text-secondary);
+  line-height: 1.5;
+}
+.prompt-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 150;
+  animation: fadeIn 0.3s ease;
+}

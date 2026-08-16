@@ -1,0 +1,11 @@
+---
+title: "Frequently Asked Questions"
+---
+
+## 常见问题
+
+**Q: 如何引用该分析流程？**
+A: 请参考 GitHub 仓库的 Citation 部分。
+
+**Q: 数据在哪里下载？**
+A: 原始数据已上传至 NCBI SRA 数据库。

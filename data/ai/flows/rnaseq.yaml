@@ -1,0 +1,48 @@
+flow:
+  id: rnaseq
+  version: 1.0.0
+  display_name: bulk RNA-seq 差异分析
+  domain: rnaseq
+  actor: agent-rnaseq
+  runtime_image: rnaseq
+  bridge_workflow: rna_seq
+  trigger_hints: [RNA-seq, bulk RNA, 差异分析, RNAFlow]
+artifacts:
+  - {key: fastq_manifest, type: json_manifest}
+  - {key: quant_counts, type: table}
+  - {key: de_results, type: table}
+  - {key: de_review, type: review_report}
+  - {key: delivery_manifest, type: json_manifest}
+  - {key: runbook, type: runbook}
+stages:
+  - key: quantify
+    title: 定量与质控
+    executors:
+      - key: rnaflow
+        queue: rnaseq_analysis
+        resource_profile: standard_8c32g
+        inputs: [fastq_manifest]
+        outputs: [quant_counts]
+        retry_policy: infra_bounded
+  - key: differential
+    title: 差异表达与审查
+    executors:
+      - key: deseq2
+        queue: rnaseq_analysis
+        resource_profile: standard_8c32g
+        inputs: [quant_counts]
+        outputs: [de_results]
+        retry_policy: infra_bounded
+    review:
+      skill: de-review
+      inputs: [de_results]
+      output: de_review
+    gate: {template: annotation_revision, required: true}
+edges: [[quantify, differential]]
+delivery:
+  quality_gate: true
+  outputs: [delivery_manifest, runbook]
+  thresholds:
+    mapping_rate: 0.70
+    q30: 0.80
+    duplicate_rate: 0.50

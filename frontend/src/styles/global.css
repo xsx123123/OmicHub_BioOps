@@ -1,0 +1,943 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Apple-inspired interaction timing: quick response, soft settling. */
+  --motion-quick: 140ms;
+  --motion-standard: 220ms;
+  --motion-spring: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --card-state-duration: 300ms;
+  --card-state-easing: cubic-bezier(0.4, 0, 0.2, 1);
+  /* ===== 火山方舟 / Arco Design 色彩体系 ===== */
+  --arco-primary: var(--brand-primary);
+  --arco-primary-hover: var(--brand-primary-hover);
+  --arco-primary-active: var(--brand-primary-active);
+  --arco-primary-light: var(--brand-primary-light);
+  --text-on-primary: #FFFFFF;
+
+  --arco-success: #00B42A;
+  --arco-success-light: #E8FFEA;
+  --arco-warning: #FF7D00;
+  --arco-warning-light: #FFF7E8;
+  --arco-danger: #F53F3F;
+  --arco-danger-light: #FFECE8;
+
+  /* 图表系列色（用于流程卡片、数据可视化） */
+  --kimi-chart-1: #165DFF;
+  --kimi-chart-2: #F53F3F;
+  --kimi-chart-3: #00B42A;
+  --kimi-chart-4: #8E54E9;
+  --kimi-chart-5: #FF7D00;
+  --kimi-chart-6: #14C8D4;
+
+  /* 中性色 */
+  --neutral-bg: var(--bg-page);
+  --neutral-card: var(--bg-card);
+  --neutral-border: #E5E6EB;
+  --neutral-text-1: var(--text-primary);
+  --neutral-text-2: var(--text-secondary);
+  --neutral-text-3: var(--text-tertiary);
+  --neutral-text-4: #C9CDD4;
+  --neutral-hover: #F2F3F8;
+  /* 分段切换器轨道底（.omichub-segmented-toggle），Arco fill-2 对齐 */
+  --neutral-fill-2: #F2F3F5;
+
+  /* 侧边栏专用 */
+  --sidebar-bg: #FFFFFF;
+  --sidebar-border: #E5E6EB;
+  --sidebar-hover: #F2F3F8;
+  --sidebar-active: #E8F3FF;
+  --sidebar-active-text: #165DFF;
+
+  /* 字体 */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+
+  /* 阴影 */
+  --shadow-dropdown: 0 4px 20px rgba(0, 0, 0, 0.08);
+  --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.05);
+
+  /* 圆角 */
+  --radius-lg: 16px;
+  --radius-md: var(--radius-card);
+  --radius-sm: var(--radius-button);
+
+  /* 页面底色（premium Finder 风格） */
+  --page-bg: #F7F9FC;
+
+  /* ===== 间距体系（P2 留白统一）===== */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 20px;
+  --space-2xl: 24px;
+  --space-3xl: 32px;
+  --space-4xl: 40px;
+  --space-5xl: 48px;
+  --card-padding: 24px;
+  --card-gap: 20px;
+  --page-padding: 32px;
+  --section-gap: 32px;
+
+  /* ===== AI 对话内容宽度（消息列表与输入框共享）===== */
+  --chat-content-max-width: 1040px;
+
+  /* ===== Type Scale（字体层级）===== */
+  --font-display-size: 28px;      --font-display-height: 36px;      --font-display-weight: 600;  --font-display-spacing: -0.02em;
+  --font-page-title-size: 24px;   --font-page-title-height: 32px;   --font-page-title-weight: 600; --font-page-title-spacing: -0.02em;
+  --font-section-size: 18px;      --font-section-height: 28px;      --font-section-weight: 600;  --font-section-spacing: -0.01em;
+  --font-card-title-size: 16px;   --font-card-title-height: 24px;   --font-card-title-weight: 500;
+  --font-body-size: 14px;         --font-body-height: 22px;         --font-body-weight: 400;
+  --font-small-size: 13px;        --font-small-height: 20px;        --font-small-weight: 400;
+  --font-caption-size: 12px;      --font-caption-height: 18px;      --font-caption-weight: 400;
+  --font-micro-size: 11px;        --font-micro-height: 16px;        --font-micro-weight: 400;
+}
+
+/* ===== 深色模式（平台统一） ===== */
+:root[data-theme="dark"] {
+  --arco-primary: var(--brand-primary);
+  --arco-primary-hover: var(--brand-primary-hover);
+  --arco-primary-active: var(--brand-primary-active);
+  --arco-primary-light: var(--brand-primary-light);
+
+  --arco-success: #22C55E;
+  --arco-success-light: rgba(34, 197, 94, 0.15);
+  --arco-warning: #F59E0B;
+  --arco-warning-light: rgba(245, 158, 11, 0.15);
+  --arco-danger: #EF4444;
+  --arco-danger-light: rgba(239, 68, 68, 0.15);
+
+  /* 深色模式图表系列色 */
+  --kimi-chart-1: #3B82F6;
+  --kimi-chart-2: #EF4444;
+  --kimi-chart-3: #22C55E;
+  --kimi-chart-4: #A78BFA;
+  --kimi-chart-5: #F59E0B;
+  --kimi-chart-6: #22D3EE;
+
+  --neutral-bg: var(--bg-page);
+  --neutral-card: var(--bg-card);
+  --neutral-border: var(--border-subtle);
+  --neutral-text-1: var(--text-primary);
+  --neutral-text-2: var(--text-secondary);
+  --neutral-text-3: var(--text-tertiary);
+  --neutral-text-4: #4B5163;
+  --neutral-hover: var(--surface-highlight);
+  /* 分段切换器轨道底（.omichub-segmented-toggle），与浅色明暗成对 */
+  --neutral-fill-2: var(--surface-elevated);
+
+  --sidebar-bg: var(--surface-card);
+  --sidebar-border: var(--border-subtle);
+  --sidebar-hover: var(--surface-highlight);
+  --sidebar-active: rgba(59, 130, 246, 0.15);
+  --sidebar-active-text: #3B82F6;
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.18);
+  --shadow-card-hover: 0 8px 24px rgba(0, 0, 0, 0.24);
+  --shadow-dropdown: 0 4px 20px rgba(0, 0, 0, 0.4);
+  --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.24);
+
+  --page-bg: var(--surface-base);
+}
+
+.admin-config-center,
+.admin-config-section--standalone {
+  width: min(100%, 1440px);
+  margin-inline: auto;
+}
+
+.admin-config-section {
+  width: 100%;
+  min-width: 0;
+}
+
+.admin-config-tabs > .n-tabs-nav {
+  margin-bottom: var(--space-xl);
+}
+
+/* 让 AI 助手区域在深色模式下也使用统一的平台深色背景 */
+:root[data-theme="dark"] .kimi-layout {
+  --chat-bg: var(--neutral-bg);
+  --chat-surface: var(--neutral-card);
+  --chat-surface-hover: var(--neutral-hover);
+  --chat-sidebar-bg: var(--neutral-card);
+  --chat-border: var(--neutral-border);
+  --chat-border-light: var(--neutral-border);
+  --chat-text-primary: var(--neutral-text-1);
+  --chat-text-secondary: var(--neutral-text-2);
+  --chat-text-muted: var(--neutral-text-3);
+  --chat-accent: var(--arco-primary);
+  --chat-accent-hover: var(--arco-primary-hover);
+  --chat-accent-light: var(--arco-primary-light);
+  --chat-user-bubble: var(--neutral-hover);
+  --chat-ai-card: var(--neutral-card);
+  --chat-input-bg: var(--neutral-card);
+  --chat-input-border: var(--neutral-border);
+  --chat-nav-bg: var(--neutral-card);
+  --chat-action-bg: rgba(21, 26, 37, 0.92);
+  --chat-action-border: var(--neutral-border);
+  --chat-action-hover: var(--neutral-hover);
+  --chat-chip-bg: var(--neutral-hover);
+  --chat-chip-border: var(--neutral-border);
+  --chat-shadow-sm: var(--shadow-soft);
+  --chat-shadow-md: var(--shadow-card);
+  --chat-shadow-lg: var(--shadow-card-hover);
+}
+
+/* ===== 全局重置 ===== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #app {
+  height: 100vh !important;
+  max-height: 100vh !important;
+  overflow: hidden !important;
+}
+
+html {
+  background: var(--neutral-bg);
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: var(--neutral-text-1);
+  background: var(--neutral-bg);
+}
+
+/* ===== 自定义滚动条 ===== */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+:root[data-theme="dark"] {
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+/* ===== Arco 卡片工具类 ===== */
+.arco-card {
+  background: var(--neutral-card);
+  border-radius: var(--radius-card);
+  padding: 20px;
+  box-shadow: var(--shadow-card);
+}
+
+:where(.n-card, .arco-card, .omichub-card) {
+  background-color: var(--neutral-card);
+  border: 1px solid var(--neutral-border);
+  border-left: 1px solid var(--neutral-border) !important;
+  border-radius: var(--radius-card);
+}
+
+:is(.n-card, .arco-card, .omichub-card, .table-card, .work-card, .result-card, .bottom-table, .table-wrap, .resource-tab) .n-data-table {
+  min-width: 0;
+  background-color: var(--neutral-card);
+}
+
+:is(.n-card, .arco-card, .omichub-card, .table-card, .work-card, .result-card, .bottom-table, .table-wrap, .resource-tab) .n-data-table-wrapper,
+:is(.n-card, .arco-card, .omichub-card, .table-card, .work-card, .result-card, .bottom-table, .table-wrap, .resource-tab) .n-data-table-base-table {
+  max-width: 100%;
+  background-color: var(--neutral-card);
+}
+
+:is(.n-card, .arco-card, .omichub-card, .table-card, .work-card, .result-card, .bottom-table, .table-wrap, .resource-tab) .n-data-table th {
+  background-color: var(--neutral-bg);
+  border-bottom-color: var(--neutral-border);
+}
+
+:is(.n-card, .arco-card, .omichub-card, .table-card, .work-card, .result-card, .bottom-table, .table-wrap, .resource-tab) .n-data-table td {
+  background-color: var(--neutral-card);
+  border-bottom-color: var(--neutral-border);
+}
+
+:is(.n-card, .arco-card, .omichub-card, .table-card, .work-card, .result-card, .bottom-table, .table-wrap, .resource-tab) .n-data-table tr:hover > td {
+  background-color: var(--neutral-hover);
+}
+
+/* 卡片表格分页统一作为独立 footer：避免最后一行分隔线与分页按钮挤在一起，
+   并为最右侧按钮保留安全留白，防止贴边或被卡片圆角裁切。 */
+:is(.n-card, .arco-card, .omichub-card, .table-card, .work-card, .result-card, .bottom-table, .table-wrap, .resource-tab)
+  .n-data-table:has(> .n-data-table__pagination)
+  .n-data-table-td--last-row {
+  border-bottom-color: transparent;
+}
+
+:is(.n-card, .arco-card, .omichub-card, .table-card, .work-card, .result-card, .bottom-table, .table-wrap, .resource-tab)
+  .n-data-table__pagination {
+  box-sizing: border-box;
+  min-height: 52px;
+  margin: 0;
+  padding: 12px 12px 8px;
+  border-top: 1px solid var(--neutral-border);
+  background-color: var(--neutral-card);
+}
+
+:where(.n-card, .arco-card, .omichub-card, .omichub-selectable-card) {
+  position: relative;
+  transition:
+    background-color var(--card-state-duration) var(--card-state-easing),
+    border-color var(--card-state-duration) var(--card-state-easing),
+    box-shadow var(--card-state-duration) var(--card-state-easing),
+    transform var(--card-state-duration) var(--card-state-easing);
+}
+
+:where(.n-card, .arco-card, .omichub-card, .omichub-selectable-card)::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 8px;
+  width: 4px;
+  height: 32px;
+  border-radius: 999px;
+  background: var(--arco-primary);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-50%) scaleY(0.45);
+  transform-origin: center;
+  transition:
+    opacity var(--card-state-duration) var(--card-state-easing),
+    transform var(--card-state-duration) var(--card-state-easing);
+}
+
+:where(.n-card, .arco-card, .omichub-card, .omichub-selectable-card):not(:is(.is-selected, .card--selected, .card--active, .selected, .active, [aria-selected='true'], [aria-checked='true'], [data-selected='true'])):hover {
+  /* 在卡片自身底色上叠色（不透明），避免替换为透明色导致悬停时透出背后内容 */
+  background-color: color-mix(in srgb, var(--arco-primary, #4080ff) 4%, var(--n-color, var(--neutral-card, #fff)));
+  border-color: color-mix(in srgb, var(--arco-primary, #4080ff) 14%, var(--n-border-color, var(--neutral-border)));
+}
+
+:where(.n-card, .arco-card, .omichub-card, .omichub-selectable-card):not(:is(.is-selected, .card--selected, .card--active, .selected, .active, [aria-selected='true'], [aria-checked='true'], [data-selected='true'])):hover::before {
+  opacity: 0.28;
+  transform: translateY(-50%) scaleY(0.72);
+}
+
+:where(.n-card, .arco-card, .omichub-card, .omichub-selectable-card):is(.is-selected, .card--selected, .card--active, .selected, .active, [aria-selected='true'], [aria-checked='true'], [data-selected='true']) {
+  background-color: color-mix(in srgb, var(--arco-primary, #4080ff) 7%, var(--n-color, var(--neutral-card, #fff)));
+  border-color: color-mix(in srgb, var(--arco-primary, #4080ff) 20%, var(--n-border-color, var(--neutral-border)));
+  box-shadow: inset 0 0 0 1px var(--arco-primary);
+}
+
+:where(.n-card, .arco-card, .omichub-card, .omichub-selectable-card):is(.is-selected, .card--selected, .card--active, .selected, .active, [aria-selected='true'], [aria-checked='true'], [data-selected='true'])::before {
+  opacity: 1;
+  transform: translateY(-50%) scaleY(1);
+}
+
+:root[data-theme="dark"] :where(.n-card, .arco-card, .omichub-card, .omichub-selectable-card):not(:is(.is-selected, .card--selected, .card--active, .selected, .active, [aria-selected='true'], [aria-checked='true'], [data-selected='true'])):hover {
+  background-color: var(--surface-highlight);
+  border-color: var(--border-default);
+}
+
+:root[data-theme="dark"] :where(.n-card, .arco-card, .omichub-card, .omichub-selectable-card):is(.is-selected, .card--selected, .card--active, .selected, .active, [aria-selected='true'], [aria-checked='true'], [data-selected='true']) {
+  background-color: var(--surface-highlight);
+  border-color: var(--border-focus);
+}
+
+/* 弹窗 / 抽屉内的卡片必须保持不透明，并禁用全局卡片的左侧装饰条
+   （该装饰条会与弹窗内分区自带的竖条重复，且悬停透明底色会让弹窗"看穿"背后页面）。 */
+.n-modal .n-card,
+.n-modal.n-card,
+.n-drawer .n-card,
+.n-drawer.n-card {
+  background-color: var(--n-color, var(--neutral-card, #fff)) !important;
+  border-color: var(--n-border-color, var(--neutral-border)) !important;
+  opacity: 1;
+}
+.n-modal .n-card::before,
+.n-modal.n-card::before,
+.n-drawer .n-card::before,
+.n-drawer.n-card::before {
+  display: none !important;
+}
+
+.arco-card-hover:hover {
+  box-shadow: var(--shadow-card-hover);
+  transform: translateY(-2px);
+}
+
+.arco-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.arco-card-title {
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+  color: var(--neutral-text-1);
+}
+
+/* ===== Arco 标签工具类 ===== */
+.arco-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+}
+
+.arco-tag-primary {
+  background: var(--arco-primary-light);
+  color: var(--arco-primary);
+}
+
+.arco-tag-success {
+  background: var(--arco-success-light);
+  color: var(--arco-success);
+}
+
+.arco-tag-warning {
+  background: var(--arco-warning-light);
+  color: var(--arco-warning);
+}
+
+.arco-tag-danger {
+  background: var(--arco-danger-light);
+  color: var(--arco-danger);
+}
+
+.arco-tag-gray {
+  background: var(--tag-neutral-bg);
+  color: var(--tag-neutral-text);
+}
+
+/* ===== 状态徽章 ===== */
+.arco-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+}
+
+.arco-status-running {
+  background: var(--arco-primary-light);
+  color: var(--arco-primary);
+}
+
+.arco-status-queued {
+  background: var(--arco-warning-light);
+  color: var(--arco-warning);
+}
+
+.arco-status-completed {
+  background: var(--arco-success-light);
+  color: var(--arco-success);
+}
+
+.arco-status-failed {
+  background: var(--arco-danger-light);
+  color: var(--arco-danger);
+}
+
+/* ===== 通用工具类 ===== */
+.flex { display: flex; }
+.flex-col { display: flex; flex-direction: column; }
+.flex-center { display: flex; justify-content: center; align-items: center; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.flex-1 { flex: 1 1 0%; }
+.text-center { text-align: center; }
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mt-16 { margin-top: 16px; }
+.mt-20 { margin-top: 20px; }
+.mt-24 { margin-top: 24px; }
+.mb-16 { margin-bottom: 16px; }
+.mb-20 { margin-bottom: 20px; }
+.mb-24 { margin-bottom: 24px; }
+
+.gap-12 { gap: 12px; }
+.gap-16 { gap: 16px; }
+.gap-20 { gap: 20px; }
+
+/* ===== 页面容器 ===== */
+.page-container {
+  padding: 24px;
+  min-height: 100%;
+  background: var(--neutral-bg);
+}
+
+.page-title {
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 32px;
+  color: var(--neutral-text-1);
+  margin-bottom: 24px;
+}
+
+.page-subtitle {
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--neutral-text-2);
+}
+
+/* ===== 动画关键帧 ===== */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-32px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.2; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+@keyframes drift {
+  0% { transform: translate(0, 0); }
+  33% { transform: translate(30px, -20px); }
+  66% { transform: translate(-20px, 15px); }
+  100% { transform: translate(0, 0); }
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ===== 动画工具类 ===== */
+.animate-fade-in { animation: fadeIn 0.5s ease-out both; }
+.animate-fade-in-up { animation: fadeInUp 0.5s ease-out both; }
+.animate-fade-in-down { animation: fadeInDown 0.5s ease-out both; }
+.animate-scale-in { animation: scaleIn 0.4s ease-out both; }
+.animate-slide-in-left { animation: slideInLeft 0.4s ease-out both; }
+.animate-float { animation: float 4s ease-in-out infinite; }
+.animate-pulse { animation: pulse 2s ease-in-out infinite; }
+.animate-spin { animation: spin 1s linear infinite; }
+
+/* 错开延迟 */
+.delay-100 { animation-delay: 0.1s; }
+.delay-200 { animation-delay: 0.2s; }
+.delay-300 { animation-delay: 0.3s; }
+.delay-400 { animation-delay: 0.4s; }
+.delay-500 { animation-delay: 0.5s; }
+.delay-600 { animation-delay: 0.6s; }
+.delay-700 { animation-delay: 0.7s; }
+.delay-800 { animation-delay: 0.8s; }
+
+/* ===== Stagger 入场动画（0.05s 递增延迟） ===== */
+@keyframes staggerFadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.stagger-item {
+  opacity: 0;
+  animation: staggerFadeInUp 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+.stagger-item:nth-child(1)  { animation-delay: 0.05s; }
+.stagger-item:nth-child(2)  { animation-delay: 0.10s; }
+.stagger-item:nth-child(3)  { animation-delay: 0.15s; }
+.stagger-item:nth-child(4)  { animation-delay: 0.20s; }
+.stagger-item:nth-child(5)  { animation-delay: 0.25s; }
+.stagger-item:nth-child(6)  { animation-delay: 0.30s; }
+.stagger-item:nth-child(7)  { animation-delay: 0.35s; }
+.stagger-item:nth-child(8)  { animation-delay: 0.40s; }
+.stagger-item:nth-child(9)  { animation-delay: 0.45s; }
+.stagger-item:nth-child(10) { animation-delay: 0.50s; }
+.stagger-item:nth-child(n+11) { animation-delay: 0.55s; }
+
+/* ===== 卡片悬停反馈（上浮 8px + shadow 升级） ===== */
+.card-hover-lift {
+  transition:
+    transform var(--card-state-duration) var(--card-state-easing),
+    box-shadow var(--card-state-duration) var(--card-state-easing);
+}
+
+.card-hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1),
+              0 8px 16px rgba(0, 0, 0, 0.06);
+}
+
+:root[data-theme="dark"] .card-hover-lift:hover {
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35),
+              0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+/* ===== 按钮点击缩放反馈 ===== */
+.btn-press:active {
+  transform: scale(0.97);
+  transition: transform 100ms ease-out;
+}
+
+/* ===== Type Scale 工具类（P1）===== */
+.font-display     { font-size: var(--font-display-size);     line-height: var(--font-display-height);     font-weight: var(--font-display-weight);     letter-spacing: var(--font-display-spacing); }
+.font-page-title  { font-size: var(--font-page-title-size);  line-height: var(--font-page-title-height);  font-weight: var(--font-page-title-weight);  letter-spacing: var(--font-page-title-spacing); }
+.font-section     { font-size: var(--font-section-size);     line-height: var(--font-section-height);     font-weight: var(--font-section-weight);     letter-spacing: var(--font-section-spacing); }
+.font-card-title  { font-size: var(--font-card-title-size);  line-height: var(--font-card-title-height);  font-weight: var(--font-card-title-weight); }
+.font-body        { font-size: var(--font-body-size);        line-height: var(--font-body-height);        font-weight: var(--font-body-weight); }
+.font-small       { font-size: var(--font-small-size);       line-height: var(--font-small-height);       font-weight: var(--font-small-weight); }
+.font-caption     { font-size: var(--font-caption-size);     line-height: var(--font-caption-height);     font-weight: var(--font-caption-weight); }
+.font-micro       { font-size: var(--font-micro-size);       line-height: var(--font-micro-height);       font-weight: var(--font-micro-weight); }
+
+/* 统计数字强化（等宽 + 紧凑字距）*/
+.stat-number {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--neutral-text-1);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===== 统一交互反馈（P1，新代码优先使用；旧 .card-hover-lift 保留不破坏）===== */
+/* 卡片悬停：克制 4px 上浮 + 阴影升级 */
+.card-hover {
+  transition:
+    transform var(--card-state-duration) var(--card-state-easing),
+    box-shadow var(--card-state-duration) var(--card-state-easing);
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card-hover);
+}
+.card-hover-subtle:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card-hover);
+}
+
+/* 文字链接悬停 */
+.link-hover {
+  transition: color var(--motion-quick) ease-out;
+}
+.link-hover:hover {
+  color: var(--arco-primary);
+}
+
+/* 焦点环（a11y）*/
+.focus-ring:focus-visible {
+  outline: 2px solid var(--arco-primary);
+  outline-offset: 3px;
+}
+
+.omichub-segmented-toggle {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid var(--neutral-border);
+  border-radius: 999px;
+  background: var(--neutral-fill-2);
+}
+
+.omichub-segmented-toggle button {
+  padding: 2px 9px;
+  border: none;
+  background: transparent;
+  color: var(--neutral-text-3);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.5;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.omichub-segmented-toggle button:hover {
+  color: var(--neutral-text-1);
+}
+
+.omichub-segmented-toggle button.active {
+  background: var(--arco-primary);
+  color: var(--text-on-primary);
+}
+
+.omichub-segmented-toggle button:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 2px solid var(--arco-primary);
+  outline-offset: -2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .omichub-segmented-toggle button {
+    transition: none;
+  }
+}
+
+/* Native-feeling response without changing the visual language. */
+:where(.n-button, button, [role="button"]):not(:disabled):active {
+  transform: scale(0.97);
+  transition-duration: 100ms !important;
+}
+
+:where(.n-button, button, [role="button"], a, input, textarea, select):focus-visible {
+  outline: 2px solid var(--arco-primary);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .glass-card,
+  .top-nav,
+  .app-sider,
+  .collapsed-submenu-popover.n-popover {
+    background: var(--neutral-card);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :where(.n-button, button, [role="button"], a, input, textarea, select):focus-visible {
+    outline-width: 3px;
+  }
+}
+
+/* ===== 路由过渡动画 ===== */
+.route-enter-active {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.route-leave-active {
+  transition: opacity 0.2s ease;
+}
+.route-enter-from {
+  opacity: 0;
+  transform: translateY(12px);
+}
+.route-leave-to {
+  opacity: 0;
+}
+
+/* ===== 渐变文字工具类 ===== */
+.gradient-text {
+  background: linear-gradient(90deg, #165DFF, #6B8DD6, #165DFF);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 3s linear infinite;
+}
+
+/* ===== 玻璃拟态卡片 ===== */
+.glass-card {
+  background: rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(28px) saturate(170%);
+  -webkit-backdrop-filter: blur(28px) saturate(170%);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+}
+
+/* ===== Naive UI Modal 遮罩毛玻璃化 ===== */
+/* 遮罩 teleport 到 body，scoped 样式打不到，故放全局。
+   默认遮罩为不透明深灰，改为轻透黑 + 4px 模糊，让背后登录卡片若隐若现。 */
+.n-modal-mask {
+  background-color: rgba(0, 0, 0, 0.25) !important;
+  backdrop-filter: blur(10px) saturate(120%);
+  -webkit-backdrop-filter: blur(10px) saturate(120%);
+}
+
+/* ===== 动画渐变背景 ===== */
+.animated-gradient-bg {
+  background: linear-gradient(-45deg, #165DFF, #6B8DD6, #8E54E9, #165DFF);
+  background-size: 400% 400%;
+  animation: gradientShift 12s ease infinite;
+}
+
+@keyframes github-wiggle {
+  0%, 100% { transform: rotate(0deg) scale(1); }
+  20%  { transform: rotate(-15deg) scale(1.2); }
+  40%  { transform: rotate(10deg) scale(1.2); }
+  60%  { transform: rotate(-8deg) scale(1.15); }
+  80%  { transform: rotate(4deg) scale(1.1); }
+}
+
+/* ===== 减少动画偏好 (a11y) ===== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ===== Naive UI 下拉菜单层级 ===== */
+.n-dropdown,
+.n-dropdown-menu {
+  z-index: 2000 !important;
+}
+
+/* ===== 深色模式兜底修复 =====
+   项目中存在大量硬编码浅色样式（#fff、#f0f2f5、#E5E6EB 等）未随主题切换，
+   导致深色模式下出现白底或文字不清晰。此处通过全局覆盖兜底，让旧代码在
+   深色模式下自动使用设计令牌变量；新代码请优先直接使用 var(--*) 或 Tailwind
+   语义色（bg-neutral-card / text-text-primary 等）。
+   ===== */
+:root[data-theme="dark"] {
+  /* Tailwind bg-white 在深色模式下应使用卡片背景（保留彩色按钮上的 white） */
+  .bg-white:not(.btn-keep-white):not([class*="text-white"]) {
+    background-color: var(--neutral-card) !important;
+  }
+
+  /* 常见硬编码白色/浅色背景（inline style 与 class） */
+  [style*="background: #fff"],
+  [style*="background:#fff"],
+  [style*="background-color: #fff"],
+  [style*="background-color:#fff"],
+  [style*="background: #ffffff"],
+  [style*="background:#ffffff"],
+  [style*="background-color: #ffffff"],
+  [style*="background-color:#ffffff"] {
+    background-color: var(--neutral-card) !important;
+  }
+
+  /* 浅灰背景 */
+  [style*="background: #f7f8fa"],
+  [style*="background:#f7f8fa"],
+  [style*="background-color: #f7f8fa"],
+  [style*="background-color:#f7f8fa"],
+  [style*="background: #f0f2f5"],
+  [style*="background:#f0f2f5"],
+  [style*="background-color: #f0f2f5"],
+  [style*="background-color:#f0f2f5"],
+  [style*="background: #f2f3f5"],
+  [style*="background:#f2f3f5"],
+  [style*="background-color: #f2f3f5"],
+  [style*="background-color:#f2f3f5"] {
+    background-color: var(--neutral-hover) !important;
+  }
+
+  /* 常见硬编码主文字颜色 */
+  [style*="color: #1f2329"],
+  [style*="color:#1f2329"],
+  [style*="color: #1D2129"],
+  [style*="color:#1D2129"] {
+    color: var(--neutral-text-1) !important;
+  }
+
+  /* 常见硬编码次要文字颜色 */
+  [style*="color: #8f959e"],
+  [style*="color:#8f959e"],
+  [style*="color: #86909C"],
+  [style*="color:#86909C"],
+  [style*="color: #4e5969"],
+  [style*="color:#4e5969"] {
+    color: var(--neutral-text-2) !important;
+  }
+
+  /* 常见硬编码浅色边框 */
+  [style*="border: 1px solid #E5E6EB"],
+  [style*="border:1px solid #E5E6EB"],
+  [style*="border: 1px solid #e5e6eb"],
+  [style*="border:1px solid #e5e6eb"],
+  [style*="border-color: #E5E6EB"],
+  [style*="border-color:#E5E6EB"],
+  [style*="border-color: #e5e6eb"],
+  [style*="border-color:#e5e6eb"] {
+    border-color: var(--neutral-border) !important;
+  }
+
+  /* Naive UI 组件在深色模式下被业务代码 :deep 覆盖的兜底恢复 */
+  .n-input,
+  .n-input .n-input__input-el,
+  .n-base-selection,
+  .n-base-selection-input,
+  .n-base-selection-input__content,
+  .n-base-selection__border,
+  .n-base-selection__state-border {
+    background-color: transparent !important;
+    color: var(--neutral-text-1) !important;
+  }
+
+  /* Arco 卡片边框使用中性边框变量 */
+  .arco-card {
+    border-color: var(--neutral-border);
+  }
+
+  /* 统计卡片、报告卡片等硬编码白底兜底 */
+  .stat-card,
+  .report-card-minimal,
+  .report-stat-card,
+  .filter-bar,
+  .preview-container,
+  .reg-modal,
+  .floating-ball,
+  .report-card,
+  .task-table-card,
+  .data-card,
+  .bio-tool-panel {
+    background-color: var(--neutral-card) !important;
+  }
+
+  /* 半透明玻璃弹窗深色化 */
+  .reg-modal {
+    background-color: rgba(21, 26, 37, 0.85) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+  }
+
+  /* 常见报告/图表容器浅色渐变背景深色化 */
+  .report-stat-gradient,
+  .stat-icon,
+  .report-type-badge {
+    filter: brightness(0.85) saturate(0.9);
+  }
+}

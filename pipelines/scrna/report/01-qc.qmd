@@ -1,0 +1,73 @@
+---
+title: "Quality Control"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+source("R/read_manifest.R")
+source("R/read_summary.R")
+source("R/tables.R")
+source("R/plot_helpers.R")
+
+result_dir <- get_result_dir("data")
+manifest <- read_manifest(result_dir)
+qc_summary <- read_summary_for_step(result_dir, manifest, "qc")
+doublet_summary <- read_summary_for_step(result_dir, manifest, "doublet")
+ambient_summary <- read_summary_for_step(result_dir, manifest, "ambient_rna")
+```
+
+## Cell Filtering
+
+```{r qc-status, results='asis'}
+if (is.null(qc_summary)) {
+  cat("QC summary not available.")
+} else {
+  cat(paste0("Status: **", qc_summary$status, "**  "))
+  cat(paste0("Samples: ", qc_summary$metrics$sample_count %||% "N/A"))
+}
+```
+
+```{r qc-table}
+qc_table <- render_qc_table(qc_summary)
+if (nrow(qc_table) > 0) {
+  knitr::kable(qc_table, format = "html")
+} else {
+  cat("No QC sample table available.")
+}
+```
+
+```{r qc-plots, fig.cap="Per-sample QC plots", out.width="48%"}
+if (!is.null(qc_summary)) display_images(result_dir, qc_summary, max_images = 20)
+```
+
+## Doublet Detection
+
+```{r doublet-table}
+doublet_table <- render_samples_table(doublet_summary)
+if (nrow(doublet_table) > 0) {
+  knitr::kable(doublet_table, format = "html")
+} else {
+  cat("Doublet summary not available.")
+}
+```
+
+```{r doublet-plots, fig.cap="DoubletFinder diagnostics", out.width="48%"}
+if (!is.null(doublet_summary)) display_images(result_dir, doublet_summary, path_pattern = "Doublet", max_images = 12)
+```
+
+## Ambient RNA
+
+```{r ambient-table}
+ambient_table <- render_samples_table(ambient_summary)
+if (nrow(ambient_table) > 0) {
+  knitr::kable(ambient_table, format = "html")
+} else if (!is.null(ambient_summary)) {
+  knitr::kable(as.data.frame(ambient_summary$metrics$contamination), format = "html")
+} else {
+  cat("Ambient RNA summary not available.")
+}
+```
+
+```{r ambient-plots, fig.cap="Ambient RNA contamination", out.width="70%"}
+if (!is.null(ambient_summary)) display_images(result_dir, ambient_summary, max_images = 6)
+```

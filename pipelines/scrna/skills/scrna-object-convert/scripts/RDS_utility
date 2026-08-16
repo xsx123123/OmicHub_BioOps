@@ -1,0 +1,399 @@
+#!/usr/bin/env Rscript
+rm(list = ls())
+
+# RDS Utility Tool - Specialized RDS operations for single-cell data
+# Provides utilities for RDS file management, inspection, and optimization
+
+#---------------------------------------------------#
+# Load required libraries
+suppressMessages(library("yaml"))
+suppressMessages(library("log4r"))
+suppressMessages(library("getopt"))
+suppressMessages(library("stringr"))
+suppressMessages(library("crayon"))
+suppressMessages(library("praise"))
+suppressMessages(library("Seurat"))
+suppressMessages(library("data.table"))
+#---------------------------------------------------#
+
+# Setup logging
+logger <- logger()
+file_output <- file_appender(paste0('RDS_utility', '-', format(Sys.time()), '-', Sys.info()[["user"]], ".log"))
+
+my_layout <- function(level, ...) {
+  require(crayon)
+  if (level == 'INFO') {
+    paste0(bold(cyan(format(Sys.time()), " [", level, " ] ➡️ ")), ..., '\n', collapse = "\n")
+  } else if (level == 'WARN') {
+    paste0(bold(yellow(format(Sys.time()), " [", level, " ] ❓ ")), ..., '\n', collapse = "\n")
+  } else if (level == 'ERROR') {
+    paste0(bold(red(format(Sys.time()), " [", level, "] 🧨 ")), ..., '\n', collapse = "\n")
+  } else if (level == 'FATAL') {
+    paste0(bold(bgRed(format(Sys.time()), " [", level, "] 💣 ")), ..., '\n', collapse = "")
+  } else if (level == 'DEBUG') {
+    paste0(bold(blue(format(Sys.time()), " [", level, "] 🔧 ")), ..., '\n', collapse = "\n")
+  }
+}
+
+logger <- logger(threshold = "INFO", appenders = list(console_appender(my_layout), file_output))
+
+# Define command line options
+scRNAseq_multiSampleCommand <- function() {
+  spec <- matrix(
+    c(
+      "input",      "i", 2, "character", "Input RDS file path",
+      "output",     "o", 2, "character", "Output RDS file path",
+      "operation",  "p", 2, "character", "Operation to perform (info, subset, merge, optimize, extract)",
+      "cell-type",  "c", 2, "character", "Cell type for subsetting (for subset operation)",
+      "cluster",    "l", 2, "character", "Cluster ID for subsetting (for subset operation)",
+      "metadata",   "m", 2, "character", "Metadata column name for filtering",
+      "metadata-value", "v", 2, "character", "Metadata value for filtering",
+      "help",       "h", 0, "logical", "Show help message",
+      "version",    "v", 0, "logical", "Show script version"
+    ),
+    byrow = TRUE, ncol = 5
+  )
+  
+  # Input run parameter
+  opt <- getopt(spec = spec)
+  
+  # Automatically show help if no parameters are provided
+  if (length(opt) == 0) {
+    cat("\033[1;34mThis is the RDS Utility Tool for single-cell data!\033[0m\n")
+    cat("\033[1;32mUsage: RDS_utility -i input.rds -o output.rds -p info\033[0m\n")
+    cat("   -i, --input           | Input RDS file path\n")
+    cat("   -o, --output          | Output RDS file path (for operations that save files)\n")
+    cat("   -p, --operation       | Operation to perform: info, subset, merge, optimize, extract\n")
+    cat("   -c, --cell-type       | \033[1;33m[Option]\033[0m Cell type for subsetting (for subset operation)\n")
+    cat("   -l, --cluster         | \033[1;33m[Option]\033[0m Cluster ID for subsetting (for subset operation)\n")
+    cat("   -m, --metadata        | \033[1;33m[Option]\033[0m Metadata column name for filtering\n")
+    cat("   -v, --metadata-value  | \033[1;33m[Option]\033[0m Metadata value for filtering\n")
+    cat("   -h, --help            | Show help message\n")
+    cat("   -v, --version         | Show script version\n")
+    cat("\n\033[1;33mSupported operations:\033[0m\n")
+    cat("   • info     : Display information about RDS file contents\n")
+    cat("   • subset   : Extract subset of cells based on cell type or cluster\n")
+    cat("   • merge    : Merge multiple RDS files into one\n")
+    cat("   • optimize : Optimize RDS file size and structure\n")
+    cat("   • extract  : Extract specific components (expression matrix, metadata)\n")
+    quit(status = 0)
+  }
+  
+  # Custom help message
+  if (!is.null(opt$help)) {
+    cat("\033[1;34mThis is the RDS Utility Tool for single-cell data!\033[0m\n")
+    cat("\033[1;32mUsage: RDS_utility -i input.rds -o output.rds -p info\033[0m\n")
+    cat("   -i, --input           | Input RDS file path\n")
+    cat("   -o, --output          | Output RDS file path (for operations that save files)\n")
+    cat("   -p, --operation       | Operation to perform: info, subset, merge, optimize, extract\n")
+    cat("   -c, --cell-type       | \033[1;33m[Option]\033[0m Cell type for subsetting (for subset operation)\n")
+    cat("   -l, --cluster         | \033[1;33m[Option]\033[0m Cluster ID for subsetting (for subset operation)\n")
+    cat("   -m, --metadata        | \033[1;33m[Option]\033[0m Metadata column name for filtering\n")
+    cat("   -v, --metadata-value  | \033[1;33m[Option]\033[0m Metadata value for filtering\n")
+    cat("   -h, --help            | Show help message\n")
+    cat("   -v, --version         | Show script version\n")
+    cat("\n\033[1;33mSupported operations:\033[0m\n")
+    cat("   • info     : Display information about RDS file contents\n")
+    cat("   • subset   : Extract subset of cells based on cell type or cluster\n")
+    cat("   • merge    : Merge multiple RDS files into one\n")
+    cat("   • optimize : Optimize RDS file size and structure\n")
+    cat("   • extract  : Extract specific components (expression matrix, metadata)\n")
+    quit(status = 0)
+  }
+
+  # Version information
+  if (!is.null(opt$version)) {
+    cat("\033[1;34m RDS_utility : RDS Utility Tool version: 1.0v\033[0m\n")
+    quit(status = 0)
+  }
+  
+  # Ensure mandatory parameters are provided
+  if (is.null(opt$input) || is.null(opt$operation)) {
+    cat("\033[1;31mError:\033[0m Missing required parameters (-i input file and -p operation)!\n")
+    cat("Use '--help' for usage information.\n")
+    quit(status = 1)
+  }
+  
+  # Set defaults
+  if (is.null(opt$output) && opt$operation %in% c("subset", "merge", "optimize")) {
+    # Generate default output name based on input and operation
+    input_base <- tools::file_path_sans_ext(basename(opt$input))
+    ext <- tools::file_ext(opt$input)
+    opt$output <- paste0(input_base, "_", opt$operation, ".", ext)
+    warn(logger, paste0("No output file specified. Using default: ", opt$output))
+  }
+  
+  return(opt)
+}
+
+# Function to get RDS file information
+get_rds_info <- function(filepath) {
+  info(logger, paste0("Getting information for RDS file: ", filepath))
+  
+  if (!file.exists(filepath)) {
+    stop(paste0("RDS file does not exist: ", filepath))
+  }
+  
+  # Load the object
+  obj <- readRDS(filepath)
+  
+  # Check if it's a Seurat object
+  if (class(obj)[1] == "Seurat") {
+    cat("\033[1;34mSeurat Object Information:\033[0m\n")
+    cat("Dimensions:", nrow(obj), "genes ×", ncol(obj), "cells\n")
+    cat("Assays present:", paste(names(obj@assays), collapse = ", "), "\n")
+    cat("Active assay:", obj@active.assay, "\n")
+    cat("Dimensions calculated:", obj@calculation.active, "\n")
+    
+    # Show available reductions
+    if (length(obj@reductions) > 0) {
+      cat("Dimensional reductions:", paste(names(obj@reductions), collapse = ", "), "\n")
+    }
+    
+    # Show metadata columns
+    if (ncol(obj@meta.data) > 0) {
+      cat("Metadata columns:", paste(colnames(obj@meta.data), collapse = ", "), "\n")
+    }
+    
+    # Show stored identities
+    if (!is.null(obj@active.ident)) {
+      cat("Active identity:", paste(levels(obj@active.ident), collapse = ", "), "\n")
+    }
+    
+    # Show size information
+    size_bytes <- object.size(obj)
+    cat("Object size in memory:", format(size_bytes, units = "auto"), "\n")
+  } else {
+    cat("\033[1;34mR Object Information:\033[0m\n")
+    cat("Class:", class(obj), "\n")
+    cat("Length/Dimensions:", length(obj), "\n")
+    cat("Object size in memory:", format(object.size(obj), units = "auto"), "\n")
+  }
+}
+
+# Function to subset RDS file based on criteria
+subset_rds <- function(input_path, output_path, cell_type = NULL, cluster = NULL, metadata_col = NULL, metadata_val = NULL) {
+  info(logger, paste0("Subsetting RDS file: ", input_path))
+  
+  # Load the object
+  obj <- readRDS(input_path)
+  
+  if (class(obj)[1] != "Seurat") {
+    stop("Subsetting operation requires a Seurat object")
+  }
+  
+  # Apply filters
+  cells_to_keep <- colnames(obj)
+  
+  if (!is.null(cell_type)) {
+    # Assuming cell type information is in a column named 'celltype', 'cell_type', or 'idents'
+    if ("celltype" %in% colnames(obj@meta.data)) {
+      cells_to_keep <- cells_to_keep[which(obj@meta.data[cells_to_keep, "celltype"] %in% cell_type)]
+    } else if ("cell_type" %in% colnames(obj@meta.data)) {
+      cells_to_keep <- cells_to_keep[which(obj@meta.data[cells_to_keep, "cell_type"] %in% cell_type)]
+    } else if (!is.null(obj@active.ident)) {
+      cells_to_keep <- cells_to_keep[which(as.character(obj@active.ident[cells_to_keep]) %in% cell_type)]
+    } else {
+      stop("Cell type information not found in metadata. Available columns: ", 
+           paste(colnames(obj@meta.data), collapse = ", "))
+    }
+    info(logger, paste0("Filtered to cell type: ", paste(cell_type, collapse = ", ")))
+  }
+  
+  if (!is.null(cluster)) {
+    cluster_vals <- strsplit(cluster, ",")[[1]]
+    cluster_vals <- as.numeric(cluster_vals)
+    
+    if ("seurat_clusters" %in% colnames(obj@meta.data)) {
+      cells_to_keep <- intersect(cells_to_keep, 
+                                which(as.numeric(obj@meta.data[, "seurat_clusters"]) %in% cluster_vals))
+    } else {
+      stop("Cluster information not found in metadata. Available columns: ", 
+           paste(colnames(obj@meta.data), collapse = ", "))
+    }
+    info(logger, paste0("Filtered to clusters: ", paste(cluster_vals, collapse = ", ")))
+  }
+  
+  if (!is.null(metadata_col) && !is.null(metadata_val)) {
+    if (metadata_col %in% colnames(obj@meta.data)) {
+      metadata_vals <- strsplit(metadata_val, ",")[[1]]
+      cells_to_keep <- intersect(cells_to_keep, 
+                                which(as.character(obj@meta.data[cells_to_keep, metadata_col]) %in% metadata_vals))
+      info(logger, paste0("Filtered by ", metadata_col, ": ", paste(metadata_vals, collapse = ", ")))
+    } else {
+      stop("Metadata column '", metadata_col, "' not found in metadata. Available columns: ", 
+           paste(colnames(obj@meta.data), collapse = ", "))
+    }
+  }
+  
+  if (length(cells_to_keep) == 0) {
+    stop("No cells remain after filtering - check your filter criteria")
+  }
+  
+  info(logger, paste0("Keeping ", length(cells_to_keep), " out of ", ncol(obj), " cells"))
+  
+  # Subset the object
+  subset_obj <- obj[, cells_to_keep]
+  
+  # Save the subset object
+  saveRDS(subset_obj, output_path)
+  info(logger, paste0("Subset RDS saved to: ", output_path))
+}
+
+# Function to merge multiple RDS files
+merge_rds <- function(input_paths, output_path) {
+  info(logger, paste0("Merging RDS files: ", paste(input_paths, collapse = ", ")))
+  
+  objects <- list()
+  names_list <- list()
+  
+  for (i in seq_along(input_paths)) {
+    path <- input_paths[i]
+    info(logger, paste0("Loading: ", path))
+    
+    obj <- readRDS(path)
+    if (class(obj)[1] != "Seurat") {
+      stop(paste0("File ", path, " is not a Seurat object"))
+    }
+    
+    # Generate a unique name for the object
+    obj_name <- paste0("Sample_", i)
+    objects[[i]] <- obj
+    names_list[[i]] <- obj_name
+    
+    info(logger, paste0("Loaded object ", obj_name, " with ", ncol(obj), " cells"))
+  }
+  
+  # Merge the objects
+  merged_obj <- merge(x = objects[[1]], 
+                      y = objects[-1], 
+                      add.cell.ids = names_list,
+                      project = "Merged")
+  
+  # Save the merged object
+  saveRDS(merged_obj, output_path)
+  info(logger, paste0("Merged RDS saved to: ", output_path))
+  info(logger, paste0("Merged object has ", ncol(merged_obj), " cells"))
+}
+
+# Function to optimize RDS file (reduce size)
+optimize_rds <- function(input_path, output_path) {
+  info(logger, paste0("Optimizing RDS file: ", input_path))
+  
+  obj <- readRDS(input_path)
+  
+  if (class(obj)[1] == "Seurat") {
+    # Remove unused factor levels in metadata
+    for (col in colnames(obj@meta.data)) {
+      if (is.factor(obj@meta.data[[col]])) {
+        obj@meta.data[[col]] <- droplevels(obj@meta.data[[col]])
+      }
+    }
+    
+    # Remove unused identities
+    if (!is.null(obj@active.ident)) {
+      obj@active.ident <- droplevels(obj@active.ident)
+    }
+    
+    # Remove any large intermediate calculations that are no longer needed
+    # This is conservative - only remove if they're taking significant space
+    if (!is.null(obj@misc$interim_results)) {
+      obj@misc$interim_results <- NULL
+    }
+  }
+  
+  # Save optimized object
+  saveRDS(obj, output_path, compress = "xz")  # Use highest compression
+  info(logger, paste0("Optimized RDS saved to: ", output_path))
+  
+  # Report size reduction
+  original_size <- file.info(input_path)$size
+  new_size <- file.info(output_path)$size
+  reduction <- round((1 - new_size/original_size) * 100, 2)
+  info(logger, paste0("File size reduced by ", reduction, "% (", 
+                      format(original_size, big.mark = ","), " → ", 
+                      format(new_size, big.mark = ","), " bytes)"))
+}
+
+# Function to extract components from RDS
+extract_rds <- function(input_path, output_dir) {
+  info(logger, paste0("Extracting components from RDS: ", input_path))
+  
+  obj <- readRDS(input_path)
+  
+  if (class(obj)[1] != "Seurat") {
+    stop("Extract operation requires a Seurat object")
+  }
+  
+  # Create output directory if it doesn't exist
+  if (!dir.exists(output_dir)) {
+    dir.create(output_dir, recursive = TRUE)
+  }
+  
+  # Extract expression matrix
+  exp_matrix <- GetAssayData(obj, slot = "data")
+  exp_file <- file.path(output_dir, "expression_matrix.csv")
+  write.csv(as.matrix(exp_matrix), exp_file)
+  info(logger, paste0("Expression matrix saved to: ", exp_file))
+  
+  # Extract metadata
+  meta_file <- file.path(output_dir, "metadata.csv")
+  write.csv(obj@meta.data, meta_file)
+  info(logger, paste0("Metadata saved to: ", meta_file))
+  
+  # Extract gene information if available
+  if (!is.null(obj@assays[[obj@active.assay]]@meta.features)) {
+    gene_meta_file <- file.path(output_dir, "gene_metadata.csv")
+    write.csv(obj@assays[[obj@active.assay]]@meta.features, gene_meta_file)
+    info(logger, paste0("Gene metadata saved to: ", gene_meta_file))
+  }
+  
+  # Extract dimensional reductions if available
+  for (reduction_name in names(obj@reductions)) {
+    reduction_data <- obj@reductions[[reduction_name]]@cell.embeddings
+    red_file <- file.path(output_dir, paste0("reduction_", reduction_name, ".csv"))
+    write.csv(reduction_data, red_file)
+    info(logger, paste0("Reduction ", reduction_name, " saved to: ", red_file))
+  }
+  
+  info(logger, paste0("All components extracted to directory: ", output_dir))
+}
+
+#---------------------------------------------------#
+# Main execution
+opt <- scRNAseq_multiSampleCommand()
+
+info(logger, 'Starting RDS utility operations')
+input_path <- opt$input
+output_path <- opt$output
+operation <- opt$operation
+
+info(logger, paste0('Input file: ', input_path))
+info(logger, paste0('Operation: ', operation))
+
+# Perform the requested operation
+if (operation == "info") {
+  get_rds_info(input_path)
+} else if (operation == "subset") {
+  subset_rds(input_path, output_path, 
+             cell_type = opt$`cell-type`, 
+             cluster = opt$cluster,
+             metadata_col = opt$metadata,
+             metadata_val = opt$`metadata-value`)
+} else if (operation == "merge") {
+  # For merge operation, input might be multiple files
+  input_paths <- strsplit(input_path, ",")[[1]]
+  merge_rds(input_paths, output_path)
+} else if (operation == "optimize") {
+  optimize_rds(input_path, output_path)
+} else if (operation == "extract") {
+  output_dir <- ifelse(is.null(output_path), 
+                       paste0(tools::file_path_sans_ext(input_path), "_extracted"), 
+                       output_path)
+  extract_rds(input_path, output_dir)
+} else {
+  stop(paste0("Unknown operation: ", operation, ". Supported: info, subset, merge, optimize, extract"))
+}
+
+info(logger, 'RDS utility operation completed successfully!')
+#---------------------------------------------------#

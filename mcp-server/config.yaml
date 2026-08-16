@@ -1,0 +1,38 @@
+# OmicHub MCP Server 配置
+# 环境变量优先级高于此文件 (OMICSHUB_BASE_URL > server.base_url)
+
+server:
+  name: "OmicHub"
+  description: "OmicHub 多组学分析平台 MCP Server — 任务管理、数据下载、流程分析、结果解读、沙箱执行"
+  # 传输模式: stdio (默认, CLI 助手) | sse (远程访问)
+  transport: "stdio"
+  host: "0.0.0.0"
+  port: 8900
+
+connection:
+  # 平台 API 地址
+  base_url: "http://localhost:8000"
+  # API Key (建议通过环境变量 OMICSHUB_API_KEY 传入，不要提交到版本控制)
+  api_key: ""
+  # HTTP 请求超时 (秒)
+  request_timeout: 60
+
+limits:
+  # 文件预览最大行数
+  max_file_preview_lines: 50
+  # 日志返回最大条数
+  max_log_lines: 100
+  # 沙箱执行默认超时 (秒)
+  sandbox_timeout: 300
+
+# 工具组开关 — 设为 false 可禁用整组工具
+tool_groups:
+  tasks: true        # 任务管理 (list/get/progress/logs/cancel/dag)
+  flows: true        # 流程目录 (list/detail/parameters)
+  analysis: true     # 分析提交 (submit/preview)
+  downloads: true    # 数据下载 (submit/list/progress)
+  files: true        # 文件浏览 (list/tree/directories/outputs/read)
+  reports: true      # 报告 (list/get/content)
+  sandbox: true      # 沙箱执行 (create/execute/list/destroy)
+  platform: true     # 平台信息 (user_info/platform_status)
+  pipelines: true    # 完整分析流程 (RNA-seq/ATAC-seq prepare/submit/status/results)

@@ -1,0 +1,39 @@
+[package]
+name = "data_deliver"
+version = "0.6.0"
+edition = "2021"
+license = "CC-BY-NC-4.0"
+
+[lib]
+name = "data_deliver_rs"
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "data_deliver"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1.0"
+regex = "1.10"
+walkdir = "2.4"
+md5 = "0.7"
+chrono = "0.4"
+clap = { version = "4.4", features = ["derive", "string", "env"] }
+indicatif = "0.17"
+console = "0.15"
+comfy-table = "7.0"
+log = "0.4"
+fern = { version = "0.6", features = ["colored"] }
+rayon = "1.8"
+tokio = { version = "1", features = ["full"] }
+async-trait = "0.1"
+futures = "0.3"
+reqwest = { version = "0.11", features = ["json"] }
+ve-tos-rust-sdk = { version = "2.9.9", features = ["tokio-runtime"] }
+serde = { version = "1.0.228", features = ["derive"] }
+aes-gcm = "0.10.3"
+base64 = "0.22.1"
+dirs = "6.0.0"
+rand = "0.8"
+serde_yaml = "0.9.34"
+pyo3 = { version = "0.20", features = ["extension-module"] }

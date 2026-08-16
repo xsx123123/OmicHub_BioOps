@@ -1,0 +1,88 @@
+# 质控与过滤
+- Software: FastQC
+  Version: v0.12.1
+  Function: 原始数据质量评估
+  Link: "#data-preprocessing-and-quality-control"
+
+- Software: MultiQC
+  Version: v1.31
+  Function: 质控报告整合
+  Link: "#data-preprocessing-and-quality-control"
+
+- Software: Fastq Screen
+  Version: v0.16.0
+  Function: 物种污染筛查
+  Link: "#data-preprocessing-and-quality-control"
+
+- Software: Fastp
+  Version: v1.0.1
+  Function: 数据过滤与接头切除
+  Link: "#data-preprocessing-and-quality-control"
+
+# 比对与定量
+- Software: STAR
+  Version: v2.7.11b
+  Function: 转录组序列比对
+  Link: "#read-alignment-and-quantification"
+
+- Software: Samtools
+  Version: v1.22.1
+  Function: BAM文件排序与索引
+  Link: "#read-alignment-and-quantification"
+
+- Software: Qualimap
+  Version: v2.3
+  Function: 比对结果质量评估
+  Link: "#read-alignment-and-quantification"
+
+- Software: deepTools
+  Version: v3.5.6
+  Function: 覆盖度文件生成 (BigWig)
+  Link: "#read-alignment-and-quantification"
+
+- Software: RSEM
+  Version: v1.3.3
+  Function: 基因表达定量
+  Link: "#read-alignment-and-quantification"
+
+# 差异表达与富集
+- Software: DESeq2
+  Version: v1.46.0
+  Function: 差异表达分析
+  Link: "#differential-expression-and-functional-analysis"
+
+- Software: clusterProfiler
+  Version: v4.14.0
+  Function: GO/KEGG 富集分析
+  Link: "#differential-expression-and-functional-analysis"
+
+# 高级分析 (可选)
+- Software: StringTie
+  Version: v3.0.3
+  Function: 新转录本组装与发现
+  Link: "#advanced-downstream-analyses"
+
+- Software: GffCompare
+  Version: v0.12.10
+  Function: 转录本注释比较
+  Link: "#advanced-downstream-analyses"
+
+- Software: rMATS
+  Version: v4.3.0
+  Function: 可变剪接分析
+  Link: "#advanced-downstream-analyses"
+
+- Software: GATK
+  Version: v4.6.2.0
+  Function: 变异检测 (SNP/Indel)
+  Link: "#advanced-downstream-analyses"
+
+- Software: Picard
+  Version: v3.4.0
+  Function: 重复标记 (MarkDuplicates)
+  Link: "#advanced-downstream-analyses"
+
+- Software: Arriba
+  Version: v2.4.0
+  Function: 基因融合检测
+  Link: "#advanced-downstream-analyses"

@@ -1,0 +1,221 @@
+/*-- scss:defaults --*/
+$theme: "journal" !default;
+
+$body-bg: #ffffff !default;
+$body-color: #27272a !default;
+$primary: #18181b !default;
+$secondary: #71717a !default;
+$border-color: #e4e4e7 !default;
+$link-color: #18181b !default;
+$link-hover-color: #000000 !default;
+$font-family-sans-serif: "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif !default;
+$headings-font-family: "Space Grotesk", "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif !default;
+$headings-font-weight: 600 !default;
+$border-radius: 0 !default;
+$input-btn-padding-y: .5rem !default;
+$input-btn-padding-x: 1rem !default;
+$navbar-padding-y: 1rem !default;
+
+/*-- scss:rules --*/
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  letter-spacing: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+#quarto-content {
+  width: 100%;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  letter-spacing: 0;
+}
+
+a {
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
+
+pre {
+  border: 1px solid $border-color;
+  border-radius: 0;
+  padding: 1rem;
+  background-color: #f4f4f5;
+  color: #27272a;
+}
+
+code {
+  color: #27272a;
+}
+
+.callout, .card {
+  border: 1px solid $border-color;
+  border-left-width: 4px;
+  border-radius: 0;
+  box-shadow: none !important;
+}
+
+.btn {
+  border-radius: 0;
+  box-shadow: none !important;
+}
+
+.btn-primary {
+  background-color: #18181b;
+  border-color: #18181b;
+  color: #ffffff;
+}
+
+.btn-primary:hover {
+  background-color: #000000;
+  border-color: #000000;
+}
+
+.navbar {
+  background-color: rgba(255, 255, 255, 0.72) !important;
+  backdrop-filter: blur(30px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(180%) !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.07) !important;
+  position: sticky;
+  top: 0;
+  z-index: 1030;
+}
+
+.navbar .navbar-brand {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #000000 !important;
+}
+
+.navbar .nav-link {
+  color: #71717a !important;
+  font-weight: 500;
+}
+
+.navbar .nav-link:hover,
+.navbar .nav-link.active {
+  color: #000000 !important;
+}
+
+.navbar-logo {
+  max-height: 34px;
+}
+
+#quarto-sidebar {
+  padding-top: 0;
+}
+
+#quarto-sidebar .sidebar-logo {
+  max-width: 120px !important;
+  margin: 0 auto 1rem auto;
+  display: block;
+}
+
+#quarto-sidebar .sidebar-menu .nav-link {
+  font-size: 0.95rem;
+}
+
+#quarto-sidebar .sidebar-section-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+#quarto-sidebar .sidebar-tools {
+  text-align: left;
+}
+
+#quarto-search, .quarto-search-tools {
+  .search-button, .aa-SubmitIcon {
+    border: 1px solid $border-color !important;
+    background-color: #f4f4f5 !important;
+    color: #27272a !important;
+    border-radius: 0 !important;
+  }
+}
+
+input[type="search"], .aa-Input {
+  background-color: #ffffff !important;
+  border: 1px solid $border-color !important;
+  color: #000000 !important;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  border-bottom: 2px solid #18181b;
+  margin: 1.5rem 0;
+}
+
+table thead th {
+  background-color: #f4f4f5;
+  color: #71717a;
+  font-weight: 700;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 2px solid #18181b;
+  padding: 14px 12px;
+  text-align: left;
+}
+
+table tbody td {
+  background-color: #ffffff;
+  border-bottom: 1px solid #e4e4e7;
+  padding: 12px;
+  font-size: 14px;
+  vertical-align: middle;
+}
+
+table tbody tr:hover td {
+  background-color: #fafafa;
+}
+
+.nav-tabs {
+  border-bottom: 2px solid #18181b !important;
+}
+
+.nav-tabs .nav-link {
+  color: #71717a !important;
+  border: 2px solid transparent !important;
+  border-radius: 0 !important;
+  margin-right: 4px;
+  font-weight: 700;
+}
+
+.nav-tabs .nav-link:hover {
+  color: #18181b !important;
+  background-color: #f4f4f5 !important;
+}
+
+.nav-tabs .nav-link.active {
+  color: #ffffff !important;
+  background-color: #18181b !important;
+  border: 2px solid #18181b !important;
+}
+
+.footer {
+  background: transparent !important;
+  font-size: 0.9rem;
+  color: $secondary;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.footer-icon, .footer-link {
+  color: $secondary;
+  text-decoration: none !important;
+}
+
+.footer-icon:hover, .footer-link:hover {
+  color: $primary;
+}
+
+.footer-sep {
+  margin: 0 0.5rem;
+  color: #d4d4d8;
+}

@@ -1,0 +1,12 @@
+---
+title: AI 生物学解读
+execute: 
+  echo: false
+  warning: false
+---
+
+::: {.callout-tip icon="false" appearance="simple" }
+## <i class="bi bi-robot"></i> AI 生物学解读 (AI Assistant)
+> Note:本报告由AI生成，请谨慎鉴别相关内容 !!!
+{{< include ../data/consolidated_rna_seq_report.md >}}
+:::

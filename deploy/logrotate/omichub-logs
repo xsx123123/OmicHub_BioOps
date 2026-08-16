@@ -1,0 +1,25 @@
+# OmicHub host logrotate policy
+# Install example:
+#   sudo cp deploy/logrotate/omichub-logs /etc/logrotate.d/omichub-logs
+
+/data/omichub/logs/nginx/*.log {
+    daily
+    rotate 14
+    size 100M
+    missingok
+    notifempty
+    compress
+    delaycompress
+    copytruncate
+}
+
+/data/omichub/logs/snakemake/*/*/*.log {
+    daily
+    rotate 7
+    size 200M
+    missingok
+    notifempty
+    compress
+    delaycompress
+    copytruncate
+}

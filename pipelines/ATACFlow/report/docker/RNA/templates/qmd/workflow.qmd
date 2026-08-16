@@ -1,0 +1,210 @@
+---
+title: "分析流程"
+bibliography: ../reference/qc_references.bib
+csl: ../reference/china-national-standard-gb-t-7714-2015-numeric.csl
+format:
+  html:
+    lightbox: true
+    code-copy: true
+---
+
+```{python}
+#| label: setup-import
+#| echo: false
+
+import sys
+import os
+
+script_dir = os.path.abspath(os.path.join(os.getcwd(), '..', 'scripts'))
+
+if script_dir not in sys.path:
+    sys.path.append(script_dir)
+
+try:
+    from visualize_utils import load_software_data
+    from report_utils import software_version_table
+except ImportError as e:
+    print(f"❌ 导入失败: {e}")
+    print(f"🔍 Python 当前在这些地方寻找: {sys.path}")
+```
+
+
+本分析流程涵盖了从原始数据质控、参考基因组比对、表达水平定量到差异表达分析及功能富集的完整环节，确保了分析结果的严谨性与可靠性。
+
+## 1. 流程图 (Pipeline)
+
+下图直观地展示了本项目的数据处理与分析逻辑流向，涵盖了从原始测序数据到最终生物学结果解读的关键节点。
+
+```{mermaid}
+%%| label: fig-pipeline-clean
+%%| fig-cap: "RNA-seq Pipeline (Transparent & Dark Mode Ready)"
+%%| fig-width: 12
+
+%% 初始化配置：使用 base 主题，强制让背景透明，线条用中性色 %%
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'primaryColor': '#E3F2FD',
+      'primaryTextColor': '#2c3e50',
+      'lineColor': '#7f8c8d', 
+      'fontFamily': 'Helvetica'
+    }
+  }
+}%%
+
+graph LR
+
+    %% -------------------- 样式库 -------------------- %%
+    %% 核心技巧：颜色不要太深，也不要太亮，保持中间调 %%
+    
+    %% 普通节点：圆角 + 中性边框 %%
+    classDef base fill:#fff,stroke:#7f8c8d,stroke-width:1px,rx:5,ry:5,color:#333;
+    
+    %% 1. 数据流 (蓝色系) - 在黑夜模式下会显得很亮眼 %%
+    classDef raw fill:#e3f2fd,stroke:#1565c0,stroke-width:2px,rx:5,ry:5,color:#0d47a1;
+    
+    %% 2. 比对流 (绿色系) %%
+    classDef map fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,rx:5,ry:5,color:#1b5e20;
+    
+    %% 3. 分析流 (橙色系) %%
+    classDef core fill:#fff3e0,stroke:#ef6c00,stroke-width:2px,rx:5,ry:5,color:#e65100;
+    
+    %% 4. 高级流 (紫色系) %%
+    classDef adv fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,rx:5,ry:5,color:#4a148c;
+    
+    %% 5. 终点 (深灰底白字) - 注意：fill 用深灰而不是纯黑，stroke 用浅灰，这样在黑底也能看清边界 %%
+    classDef endNode fill:#37474f,stroke:#cfd8dc,stroke-width:2px,rx:15,ry:15,color:#fff;
+
+
+    %% -------------------- 流程图内容 -------------------- %%
+    
+    %% 1. 数据清洗 %%
+    subgraph S1 ["Step 1: Data Cleaning"]
+        direction TB
+        Raw[Raw Data]:::raw --> MD5{MD5}:::base
+        MD5 --> QC1[FastQC & Screen]:::base
+        QC1 --> Trim[Fastp Trimming]:::base
+        Trim --> Clean[Clean Data]:::raw
+    end
+
+    %% 2. 比对 %%
+    subgraph S2 ["Step 2: Alignment"]
+        direction TB
+        Clean --> STAR[STAR Mapping]:::map
+        STAR --> BAM[BAM Processing]:::base
+        BAM --> QMap[Qualimap & Stats]:::base
+    end
+
+    %% 3. 核心定量 %%
+    subgraph S3 ["Step 3: Quantification"]
+        direction TB
+        STAR -.-> RSEM[RSEM Quant]:::core
+        RSEM --> Matrix[Count Matrix]:::core
+        Matrix --> DEG[DESeq2 Analysis]:::core
+        DEG --> Enrich["GO/KEGG & Heatmap"]:::core
+    end
+
+    %% 4. 高级分析 %%
+    subgraph S4 ["Step 4: Advanced Analysis"]
+        direction TB
+        STAR -.-> GATK[Variant Calling]:::adv
+        STAR -.-> rMATS[Alt Splicing]:::adv
+        STAR -.-> Arriba[Gene Fusion]:::adv
+        STAR -.-> StrTie[Novel Transcript]:::adv
+    end
+
+    %% 5. 交付 %%
+    Report(Final Report):::endNode
+
+    %% -------------------- 连线逻辑 -------------------- %%
+    QMap --> Report
+    Enrich --> Report
+    GATK --> Report
+    rMATS --> Report
+    Arriba --> Report
+    StrTie --> Report
+
+    %% -------------------- 关键美化：透明化 Subgraph -------------------- %%
+    %% 这一步把那块黑色的背景去掉了！ %%
+    %% fill:none = 透明 %%
+    %% stroke:#7f8c8d = 中性灰边框 (黑白背景都可见) %%
+    %% stroke-dasharray = 虚线，看起来更轻盈 %%
+    
+    style S1 fill:none,stroke:#7f8c8d,stroke-width:2px,stroke-dasharray: 5 5,color:#7f8c8d
+    style S2 fill:none,stroke:#7f8c8d,stroke-width:2px,stroke-dasharray: 5 5,color:#7f8c8d
+    style S3 fill:none,stroke:#7f8c8d,stroke-width:2px,stroke-dasharray: 5 5,color:#7f8c8d
+    style S4 fill:none,stroke:#7f8c8d,stroke-width:2px,stroke-dasharray: 5 5,color:#7f8c8d
+
+    %% 统一线条颜色为中性灰 %%
+    linkStyle default stroke:#7f8c8d,stroke-width:1px,fill:none;
+```
+
+## 2. 软件版本 (Software)
+
+本项目所涉及的所有生物信息学软件及其具体版本如下表所示。您可以点击软件名称快速跳转至“详细方法”中对应的分析步骤。
+
+```{python}
+#| label: software-table
+#| echo: false
+
+# 加载软件数据 (YAML格式)
+sw_file = "../data/software_versions.yaml"
+df_sw = load_software_data(sw_file)
+sw_ver_map = software_version_table(df_sw,sw_file)
+```
+
+## 3. 详细方法
+
+为了确保分析的可重复性与透明度，以下部分详细阐述了每个分析步骤的具体实施方案。
+
+::: {.panel-tabset}
+
+## 中文 (Chinese)
+
+#### 1. 数据预处理与质量控制 (Data Preprocessing and Quality Control) {#data-preprocessing-and-quality-control}
+
+原始测序数据首先进行了全面的质量控制。使用 **`FastQC`** (`{python} sw_ver_map.get('FastQC', 'v0.12.x')`)[@andrews2010fastqc]和 **`MultiQC`** (`{python} sw_ver_map.get('MultiQC', 'v1.x')`)评估原始 reads 的完整性和测序质量[@MultiQC]。为了筛查潜在的跨物种污染，使用 **`Fastq Screen`** (`{python} sw_ver_map.get('Fastq Screen', 'v0.15.x')`) 进行了比对检测[@FastQ_Screen]。为获得高质量的洁净数据（clean reads），使用 **`Fastp`** (`{python} sw_ver_map.get('Fastp', 'v0.23.x')`) [@chen2018fastp] 软件在默认参数设置下切除接头序列（adapter）并过滤低质量碱基。
+
+#### 2. 序列比对与表达定量 (Read Alignment and Quantification) {#read-alignment-and-quantification}
+
+将清洗后的 reads 比对至参考基因组。比对过程使用 **`STAR`** (`{python} sw_ver_map.get('STAR', 'v2.7.x')`)[@dobin2013star]软件的 two-pass 模式，以增强对剪接位点（splice junction）的发现能力。比对后的 BAM 文件使用 **`Samtools`** (`{python} sw_ver_map.get('Samtools', 'v1.x')`)[@li2009sequence]进行排序（sorting）和构建索引（indexing）。使用 **`Qualimap`** (`{python} sw_ver_map.get('Qualimap', 'v2.2.x')`)[@okonechnikov2016qualimap]和 `Samtools stats` 评估比对质量、覆盖度分布及插入片段大小。为了进行可视化展示，使用 **`deepTools`** (`{python} sw_ver_map.get('deepTools', 'v3.5.x')`) 的 bamCoverage 模块生成了覆盖度轨迹文件（BigWig格式）[@ramirez2014deeptools]。基因和转录本的表达水平使用 **`RSEM`** (`{python} sw_ver_map.get('RSEM', 'v1.3.x')`) 进行定量，计算期望计数（expected counts）、TPM 以及 FPKM 值[@li2011rsem]。
+
+#### 3. 差异表达与功能富集分析 (Differential Expression and Functional Analysis) {#differential-expression-and-functional-analysis}
+
+基于原始计数矩阵，使用 **`DESeq2`** (`{python} sw_ver_map.get('DESeq2', 'v1.40.x')`)进行实验组间的差异表达分析。筛选校正后 $p\text{-value} < 0.05$ 且 $|\log_2(\text{FoldChange})| > 1$ 的基因作为显著差异表达基因 (DEGs)[@love2014moderated]。随后，对差异表达基因进行了基因本体论 (GO) 和 KEGG 通路富集分析，使用的工具包为 **`clusterProfiler`** (`{python} sw_ver_map.get('clusterProfiler', 'v4.x')`)[@yu2012clusterprofiler]。
+
+#### 4. 高级下游分析 (Advanced Downstream Analyses) {#advanced-downstream-analyses}
+
+为深入探索转录组的复杂性，本研究还进行了以下专项分析：
+
+*   **新转录本发现 (Novel Transcript Discovery)**： 使用 **`StringTie`** (`{python} sw_ver_map.get('StringTie', 'v2.x')`) 进行转录本的 de novo 组装[@pertea2020gff]，并利用 **`GffCompare`** (`{python} sw_ver_map.get('GffCompare', 'v0.12.x')`) 与参考基因组注释进行比较，以鉴定新的转录本异构体[@pertea2015stringtie]。
+*   **可变剪接分析 (Alternative Splicing)**： 使用 **`rMATS`** (`{python} sw_ver_map.get('rMATS', 'v4.x')`) 软件检测不同样本组间的差异可变剪接事件[@wang2024rmats]。
+*   **变异检测 (Variant Calling)**： 依据 **`GATK Best Practices`** (`{python} sw_ver_map.get('GATK', 'v4.x')`) 流程鉴定 SNP 和 Indel 变异。分析步骤包括使用 **`Picard`** (`{python} sw_ver_map.get('Picard', 'v2.x')`) 进行重复标记 (Duplicate Marking)、碱基质量分数重校正 (BQSR) 以及变异过滤[@mckenna2010genome]。
+*   **基因融合检测 (Gene Fusion)**： 基于 STAR 的比对结果，使用 **`Arriba`** (`{python} sw_ver_map.get('Arriba', 'v2.x')`) 检测潜在的基因融合事件[@uhrig2021accurate]。
+
+## English
+
+#### Data Preprocessing and Quality Control {#en-data-preprocessing-and-quality-control}
+
+Raw sequencing data were first subjected to comprehensive quality control. The integrity and quality of raw reads were assessed using **`FastQC`** (`{python} sw_ver_map.get('FastQC', 'v0.12.x')`)[@andrews2010fastqc] and **`MultiQC`** (`{python} sw_ver_map.get('MultiQC', 'v1.x')`)[@MultiQC]. Potential cross-species contamination was screened using **`Fastq Screen`** (`{python} sw_ver_map.get('Fastq Screen', 'v0.15.x')`)[@FastQ_Screen]. To obtain high-quality clean reads, adapter sequences and low-quality bases were trimmed using **`Fastp`** (`{python} sw_ver_map.get('Fastp', 'v0.23.x')`) [@chen2018fastp] with default parameters.
+
+#### Read Alignment and Quantification {#en-read-alignment-and-quantification}
+
+Cleaned reads were aligned to the reference genome using **`STAR`** (`{python} sw_ver_map.get('STAR', 'v2.7.x')`)[@dobin2013star] in two-pass mode to enhance splice junction discovery. Post-alignment processing, including sorting and indexing, was carried out using **`Samtools`** (`{python} sw_ver_map.get('Samtools', 'v1.x')`)[@li2009sequence]. Alignment quality, coverage distribution, and insert sizes were evaluated using **`Qualimap`** (`{python} sw_ver_map.get('Qualimap', 'v2.2.x')`)[@okonechnikov2016qualimap] and Samtools stats. For visualization, coverage tracks (BigWig files) were generated using **`deepTools`** (`{python} sw_ver_map.get('deepTools', 'v3.5.x')`)[@ramirez2014deeptools]. Gene and transcript expression levels were quantified using **`RSEM`** (`{python} sw_ver_map.get('RSEM', 'v1.3.x')`)[@li2011rsem] to calculate expected counts, TPM, and FPKM.
+
+#### Differential Expression and Functional Analysis {#en-differential-expression-and-functional-analysis}
+
+Differential expression analysis between experimental groups was performed using **`DESeq2`** (`{python} sw_ver_map.get('DESeq2', 'v1.40.x')`)[@love2014moderated] based on the raw count matrix. Genes with an adjusted $p\text{-value} < 0.05$ and $|\log_2(\text{FoldChange})| > 1$ were considered significantly differentially expressed. Functional enrichment analyses (GO and KEGG) were conducted using **`clusterProfiler`** (`{python} sw_ver_map.get('clusterProfiler', 'v4.x')`)[@yu2012clusterprofiler].
+
+#### Advanced Downstream Analyses {#en-advanced-downstream-analyses}
+
+To explore transcriptomic complexity, several specialized analyses were performed:
+
+*   **Novel Transcript Discovery**: **`StringTie`** (`{python} sw_ver_map.get('StringTie', 'v2.x')`) was used for de novo transcript assembly[@pertea2020gff], followed by **`GffCompare`** (`{python} sw_ver_map.get('GffCompare', 'v0.12.x')`) to compare with reference genome annotations[@pertea2015stringtie].
+*   **Alternative Splicing**: **`rMATS`** (`{python} sw_ver_map.get('rMATS', 'v4.x')`) was used to detect differential alternative splicing events[@wang2024rmats].
+*   **Variant Calling**: SNPs and Indels were identified following the **`GATK Best Practices`** (`{python} sw_ver_map.get('GATK', 'v4.x')`) workflow. Analysis steps included Duplicate Marking with **`Picard`** (`{python} sw_ver_map.get('Picard', 'v2.x')`), Base Quality Score Recalibration (BQSR), and variant filtering[@mckenna2010genome].
+*   **Gene Fusion**: Potential gene fusion events were detected using **`Arriba`** (`{python} sw_ver_map.get('Arriba', 'v2.x')`) based on STAR alignment results[@uhrig2021accurate].
+
+:::
+

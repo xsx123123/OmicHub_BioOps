@@ -1,0 +1,156 @@
+version: 1
+prompts:
+  agents.router:
+    file: router.md
+    kind: system
+    owners:
+    - agent
+  agents.general:
+    file: general.md
+    kind: system
+    owners:
+    - agent
+  agents.rnaseq:
+    file: rnaseq.md
+    kind: system
+    owners:
+    - agent
+    - studio
+  agents.code:
+    file: code.md
+    kind: system
+    owners:
+    - agent
+    - studio
+  agents.visualization:
+    file: visualization.md
+    kind: system
+    owners:
+    - agent
+    - studio
+  agents.scrna:
+    file: scrna.md
+    kind: system
+    owners:
+    - agent
+    - studio
+  agents.orchestrator:
+    file: orchestrator.md
+    kind: system
+    owners:
+    - agent
+    - orchestration
+  chat.legacy_assistants:
+    file: chat/legacy_assistants.yaml
+    kind: mapping
+    owners:
+    - chat
+  studio.system:
+    file: studio/system.md
+    kind: system
+    owners:
+    - studio
+  shared.sandbox_protocol:
+    file: shared/sandbox_protocol.md
+    kind: system
+    owners:
+    - agent
+    - studio
+  studio.capability_catalog:
+    file: studio/capability_catalog.md
+    kind: template
+    owners:
+    - studio
+    variables:
+    - skills_catalog
+    - mcp_catalog
+  tools.omichub_system_hint:
+    file: tools/omichub_system_hint.md
+    kind: template
+    owners:
+    - agent
+    - toolbox
+    variables:
+    - tool_catalog
+  skills.wrapper:
+    file: skills/wrapper.md
+    kind: template
+    owners:
+    - agent
+    - studio
+    variables:
+    - skills
+  skills.index:
+    file: skills/index.md
+    kind: template
+    owners:
+    - agent
+    variables:
+    - skills
+  skills.extracted_skill:
+    file: skills/extracted_skill.md
+    kind: template
+    owners:
+    - studio
+    variables:
+    - name
+    - description
+    - usage_instructions
+    - language
+    - source
+    - session_id
+    - path
+  welcome.admin_system:
+    file: welcome/admin_system.md
+    kind: system
+    owners:
+    - welcome
+  welcome.admin_user:
+    file: welcome/admin_user.md
+    kind: user
+    owners:
+    - welcome
+  copilot.system:
+    file: copilot/system.md
+    kind: system
+    owners:
+    - copilot
+  copilot.tool_use:
+    file: copilot/tool_use.md
+    kind: instructions
+    owners:
+    - copilot
+  user_templates.bio:
+    file: user_templates/bio.yaml
+    kind: mapping
+    owners:
+    - frontend
+  agents.shania:
+    file: shania.md
+    kind: system
+    owners:
+    - agent
+    - studio
+  report.rnaseq_standard:
+    file: report/rnaseq_standard.md.j2
+    kind: template
+    owners:
+    - report
+    variables: []
+  report.rnaseq_compact:
+    file: report/rnaseq_compact.md
+    kind: user
+    owners:
+    - report
+  report.system:
+    file: report/system.md
+    kind: template
+    owners:
+    - report
+    variables:
+    - target_language
+  report.compact_system:
+    file: report/compact_system.md
+    kind: system
+    owners:
+    - report

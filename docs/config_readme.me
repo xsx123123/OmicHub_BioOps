@@ -1,0 +1,183 @@
+# OmicHub YAML 配置总览
+
+本文汇总 OmicHub 当前仓库中的 YAML/YML 配置文件，帮助开发、部署和新增模块时快速定位配置入口。
+
+## 阅读说明
+
+- 本清单以仓库中的项目配置为准，依赖目录（`.venv/`、`frontend/node_modules/`）不纳入。
+- `tool_configs/`、`data/`、`flows/` 下的配置通常会随源码部署或 bind mount 进入容器；不要在容器内直接修改临时副本。
+- 配置是否热重载以“生效方式”列为准。未标注热重载的 YAML，修改后应重启对应服务或重新执行命令。
+- 密钥、密码、Token、数据库 DSN 等敏感值优先使用环境变量；YAML 只保存非敏感默认值、路径、开关和声明式元数据。
+
+## 快速索引
+
+| 配置域 | 目录/文件 | 主要用途 |
+| --- | --- | --- |
+| 应用与站点 | `data/` | 首页内容、Provider、AI Agent、提示词、运行镜像、工作区和节日配置 |
+| 流程 | `flows/` | RNA-seq / ATAC-seq 等 Snakemake 流程声明 |
+| 工具 | `tool_configs/` | 工具箱注册、工具运行参数、参考资源和模板 |
+| 部署 | `deploy/docker/` | Docker Compose 主栈、Worker 栈、生产和跨机覆盖 |
+| 数据集 | `dataset/` | 参考基因组清单 |
+| MCP | `mcp-server/` | MCP Server 与工具注册 |
+| 文档/站点 | `docs/`、`frontend/public/` | 文档站导航、知识库元数据、前端基因组清单 |
+| 脚本包 | `scripts/omichubtools/config/` | `omichubtools` 默认日志和软件元信息 |
+| Skill | `skills/` | 前端设计 Skill 的 Agent 元数据 |
+
+## `data/` 应用配置
+
+| 文件 | 内容 | 加载/生效 |
+| --- | --- | --- |
+| [`data/OmicHub.yaml`](data/OmicHub.yaml) | 首页站点名称、品牌、导航、公告、存储数据根等站点内容 | `core.config.site_content_yaml`；站点内容加载器按 mtime 读取 |
+| [`data/ai/code.yaml`](data/ai/code.yaml) | 代码助手 Agent 声明 | Agent 配置加载器；按 Agent 配置热重载 |
+| [`data/ai/general.yaml`](data/ai/general.yaml) | 通用助手 Agent 声明 | 同上 |
+| [`data/ai/orchestrator.yaml`](data/ai/orchestrator.yaml) | MAS Orchestrator Agent 声明 | MAS 开关开启且服务端显式启用时使用 |
+| [`data/ai/rnaseq.yaml`](data/ai/rnaseq.yaml) | RNA-seq 分析师 Agent 声明 | Agent 配置加载器 |
+| [`data/ai/router.yaml`](data/ai/router.yaml) | 智能路由 Agent 声明 | Agent 配置加载器 |
+| [`data/ai/scrna.yaml`](data/ai/scrna.yaml) | 单细胞分析师 Agent 声明 | Agent 配置加载器 |
+| [`data/ai/shania.yaml`](data/ai/shania.yaml) | 傻妞 Agent 声明 | Agent 配置加载器 |
+| [`data/ai/viz.yaml`](data/ai/viz.yaml) | 可视化助手 Agent 声明 | Agent 配置加载器 |
+| [`data/ai/providers.yaml`](data/ai/providers.yaml) | AI Provider 地址、模型、默认参数和加密配置示例 | `core.config.ai_provider_config_yaml`；密钥使用环境变量/管理端加密值 |
+| [`data/ai/provider_templates.yaml`](data/ai/provider_templates.yaml) | 管理端快速创建 AI Provider 的内置模板 | Provider 模板加载器 |
+| [`data/ai/prompts/registry.yaml`](data/ai/prompts/registry.yaml) | Prompt 名称到文件的注册表 | Prompt Registry；按需读取 |
+| [`data/ai/prompts/chat/legacy_assistants.yaml`](data/ai/prompts/chat/legacy_assistants.yaml) | 旧版助手名称到 Agent Prompt 的映射 | Prompt 兼容层 |
+| [`data/ai/prompts/user_templates/bio.yaml`](data/ai/prompts/user_templates/bio.yaml) | 用户可选的生物信息学提示词模板 | Prompt/模板服务 |
+| [`data/ai/runtime_images.yaml`](data/ai/runtime_images.yaml) | 运行时镜像 profile、镜像标签、能力和资源 | `core.config.runtime_images_yaml`；运行时镜像加载器 |
+| [`data/ai/studio.yaml`](data/ai/studio.yaml) | Studio 默认镜像、资源、会话和产物策略 | Studio 配置加载器；按 mtime 热重载 |
+| [`data/worker_config.yaml`](data/worker_config.yaml) | Worker 跨机器共享目录和 pipeline 宿主路径 | `scripts/render_worker_config.py` 校验并生成 `data/.worker-config.env` |
+| [`data/festival_config.yaml`](data/festival_config.yaml) | 节日彩蛋、动画和日期规则 | Festival YAML loader；支持管理端重载/写回 |
+| [`data/ai/mas/agent_capabilities.yaml`](data/ai/mas/agent_capabilities.yaml) | MAS Agent 可用能力集合 | MAS 配置加载器 |
+| [`data/ai/mas/tool_policies.yaml`](data/ai/mas/tool_policies.yaml) | MAS 工具执行策略、允许镜像和资源约束 | MAS Tool Policy loader |
+
+## 流程配置：`flows/`
+
+| 文件 | 内容 | 生效方式 |
+| --- | --- | --- |
+| [`flows/rna_seq.yaml`](flows/rna_seq.yaml) | RNA-seq 流程元数据、参数、样本表、Snakefile 和 pipeline mapping | 启动/首次访问懒加载；调用 `POST /api/v1/flows/reload` 热重载 |
+| [`flows/atac_seq.yaml`](flows/atac_seq.yaml) | ATAC-seq 流程声明和参数映射 | 同上 |
+
+新增流程通常只需新增 `flows/<flow>.yaml`，遵守流程 YAML schema；不要在 API 中为单个流程增加 `if/elif` 分支。
+
+## 工具配置：`tool_configs/`
+
+### 工具注册与 AI Schema
+
+| 文件 | 内容 | 生效方式 |
+| --- | --- | --- |
+| [`tool_configs/tools_setting.yaml`](tool_configs/tools_setting.yaml) | 工具箱卡片注册：`key/title/description/icon/route/group/enabled/order/config_dir` | Tool Registry 按 mtime 热重载；可调用 `POST /api/v1/tools/reload` |
+| [`tool_configs/tools_schema.yaml`](tool_configs/tools_schema.yaml) | AI 可调用工具的 function schema、执行模式、输入输出字段和确认策略 | Schema loader 按 mtime 热重载 |
+
+### 下载、序列和分析工具
+
+| 文件 | 内容 | 生效方式 |
+| --- | --- | --- |
+| [`tool_configs/download/download_config.yaml`](tool_configs/download/download_config.yaml) | SRA、云存储、HTTP/HTTPS/FTP 直链下载开关；EBIDownload、aria2c、ossutil 等路径；aria2 并发、重试、超时和链接上限 | `src/omichub/tools/download/config.py` 按 mtime 热重载 |
+| [`tool_configs/blast/blast_config.yaml`](tool_configs/blast/blast_config.yaml) | BLAST 输入限制、执行方式、线程、队列、program 映射和默认参数 | BLAST config manager 按 mtime 热重载 |
+| [`tool_configs/blast/blast_db.yaml`](tool_configs/blast/blast_db.yaml) | BLAST 数据库声明清单和版本激活状态 | BLAST 管理端同步/写回；可从 YAML 导入数据库 |
+| [`tool_configs/enrichments/species_config.yaml`](tool_configs/enrichments/species_config.yaml) | GO/KEGG 物种、OrgDb、KEGG 三字码和 ID 类型 | Enrichment config manager 按 mtime 热重载 |
+| [`tool_configs/fastq_qc/config.yaml`](tool_configs/fastq_qc/config.yaml) | fastp、MultiQC、Worker 资源、队列、结果目录和默认参数 | FASTQ QC config manager 按 mtime 热重载；任务会保存参数快照 |
+| [`tool_configs/phylogenetic-tree/config.yaml`](tool_configs/phylogenetic-tree/config.yaml) | 系统发育树工具镜像、资源、队列、输入限制和执行参数 | Phylogenetic config manager 按 mtime 热重载 |
+| [`tool_configs/phylogenetic-tree/defaults.yaml`](tool_configs/phylogenetic-tree/defaults.yaml) | 系统发育树 quick/standard/maximum 等预设参数 | 与上方配置一起由 Phylogenetic config manager 热重载 |
+
+### 基因组、终端和监控
+
+| 文件 | 内容 | 生效方式 |
+| --- | --- | --- |
+| [`tool_configs/jbrowse/jbrowse_config.yaml`](tool_configs/jbrowse/jbrowse_config.yaml) | JBrowse 参考基因组、轨道、自动扫描、上传和默认视图 | JBrowse config manager 按 mtime 热重载；管理员可调用 `/api/v1/jbrowse/config/reload` |
+| [`tool_configs/terminal/terminal_config.yaml`](tool_configs/terminal/terminal_config.yaml) | 沙盒终端开关、镜像、资源上限、生命周期、网络和存储 | Terminal config manager 按 mtime 热重载 |
+| [`tool_configs/terminal/terminal_images.yaml`](tool_configs/terminal/terminal_images.yaml) | 终端可选镜像、工具链标签和资源配置 | Terminal image config manager 按 mtime 热重载 |
+| [`tool_configs/workflow_monitor/templates/default.yaml`](tool_configs/workflow_monitor/templates/default.yaml) | 默认流程监控 Dashboard 模板 | Workflow Monitor 模板加载器 |
+| [`tool_configs/workflow_monitor/templates/user.yaml`](tool_configs/workflow_monitor/templates/user.yaml) | 用户视角流程监控模板 | 同上 |
+| [`tool_configs/workflow_monitor/templates/admin.yaml`](tool_configs/workflow_monitor/templates/admin.yaml) | 管理员视角流程监控模板 | 同上 |
+
+## 部署编排：`deploy/docker/`
+
+这些文件不是业务参数 YAML，而是 Docker Compose 编排文件；修改后需重新执行相应 `docker compose` / Make 命令。
+
+| 文件 | 用途 |
+| --- | --- |
+| [`deploy/docker/docker-compose.yml`](deploy/docker/docker-compose.yml) | 开发主栈：web、db、redis、nginx、beat、flower |
+| [`deploy/docker/docker-compose.prod.yml`](deploy/docker/docker-compose.prod.yml) | 生产环境覆盖：资源、端口、健康检查和安全设置 |
+| [`deploy/docker/docker-compose.worker.yml`](deploy/docker/docker-compose.worker.yml) | 独立 Celery Worker 计算栈 |
+| [`deploy/docker/docker-compose.cross-web.yml`](deploy/docker/docker-compose.cross-web.yml) | 跨机部署 Web 主栈覆盖 |
+| [`deploy/docker/docker-compose.cross-worker.yml`](deploy/docker/docker-compose.cross-worker.yml) | 跨机部署 Worker 栈覆盖 |
+| [`deploy/docker/docker-compose.phylo.yml`](deploy/docker/docker-compose.phylo.yml) | 系统发育树专用 Worker 栈 |
+
+推荐使用 `make docker-up`、`make docker-up-worker` 或 `scripts/worker-compose.sh`，不要绕过 Worker YAML 渲染脚本直接运行跨机 Worker Compose。
+
+## 数据集、文档和前端资源
+
+| 文件 | 内容 | 生效方式 |
+| --- | --- | --- |
+| [`dataset/reference_genomes.yaml`](dataset/reference_genomes.yaml) | 参考基因组、FASTA/索引路径和物种元数据 | 参考基因组服务加载；路径需在运行环境可读 |
+| [`frontend/public/genomes.yaml`](frontend/public/genomes.yaml) | 前端静态基因组清单/兼容数据 | 随前端静态资源发布；修改后重新构建前端 |
+| [`docs/docs/nav.yaml`](docs/docs/nav.yaml) | MkDocs 文档站导航和页面层级 | 构建文档站时读取 |
+| [`docs/knowledge/meta.yaml`](docs/knowledge/meta.yaml) | 实验室知识库标题、分类和 Markdown 文档索引 | 知识库同步脚本读取；新增条目后运行 `scripts/sync_knowledge_from_files.py` |
+| [`docs/ JBrowse_2/jbrowse_config.yaml`](<docs/ JBrowse_2/jbrowse_config.yaml>) | JBrowse 2 外部部署示例配置 | 仅用于 JBrowse 独立部署示例，不是主应用运行时配置 |
+| [`docs/ JBrowse_2/docker-compose-jbrowse.yml`](<docs/ JBrowse_2/docker-compose-jbrowse.yml>) | JBrowse 2 独立 Compose 示例 | 仅用于独立 JBrowse 部署 |
+
+## MCP、脚本和 Skill 配置
+
+| 文件 | 内容 | 生效方式 |
+| --- | --- | --- |
+| [`mcp-server/config.yaml`](mcp-server/config.yaml) | MCP Server 地址、端口、鉴权和环境配置 | MCP Server 启动时读取；环境变量优先 |
+| [`mcp-server/tools.yaml`](mcp-server/tools.yaml) | MCP 工具组、工具模块和描述注册 | MCP Server 启动/重载时读取 |
+| [`scripts/omichubtools/config/default.yaml`](scripts/omichubtools/config/default.yaml) | `omichubtools` 默认日志、标签和输出设置 | Python 包内默认配置 |
+| [`scripts/omichubtools/config/software.yaml`](scripts/omichubtools/config/software.yaml) | `omichubtools` 版本、软件元信息和外部工具声明 | Python 包内软件配置；支持项目级覆盖 |
+| [`skills/omichub-frontend-design/agents/openai.yaml`](skills/omichub-frontend-design/agents/openai.yaml) | Frontend Design Skill 的展示元数据 | Skill/Agent 发现时读取 |
+
+## 核心配置路径与优先级
+
+后端默认路径集中在 [`src/omichub/core/config.py`](src/omichub/core/config.py)。常见优先级如下：
+
+1. 环境变量或 `.env` 覆盖 `Settings` 中的路径、开关和密钥。
+2. `Settings` 指向仓库 YAML 或宿主机运行时 YAML。
+3. 具体模块的 Pydantic 配置模型校验 YAML；未知字段通常忽略，非法值回退上一份有效配置或默认配置。
+4. 任务创建时会保存参数快照的模块（FASTQ、流程、下载等）不会因后续 YAML 修改而改变已提交任务。
+
+### 常用生效命令
+
+```bash
+# 校验 Worker 路径配置，不写出 env 文件
+python3 scripts/render_worker_config.py --check
+
+# 重新渲染 Worker Compose 使用的环境文件
+python3 scripts/render_worker_config.py
+
+# 流程 YAML 热重载
+curl -X POST http://localhost:8000/api/v1/flows/reload
+
+# 工具注册表热重载（管理员）
+curl -X POST http://localhost:8000/api/v1/tools/reload
+
+# JBrowse 配置热重载（管理员）
+curl -X POST http://localhost:8000/api/v1/jbrowse/config/reload
+```
+
+## 修改前检查清单
+
+- [ ] 先确认文件属于运行配置、声明清单、Compose 编排还是文档/生成资源。
+- [ ] 查对应 `core/config.py` 路径字段和 `src/omichub/**/config.py` 加载器，确认字段名和默认值。
+- [ ] YAML 使用 UTF-8、2 空格缩进、`snake_case`；不要写入密钥和机器私有绝对路径，除非该字段明确要求宿主路径。
+- [ ] 修改 Worker/Compose 前运行 `scripts/render_worker_config.py --check`；修改流程后调用流程 reload；修改工具配置后检查对应 loader 的热重载行为。
+- [ ] 修改前端静态 YAML（如 `frontend/public/genomes.yaml`）后重新执行 `npm run build`。
+- [ ] 生产环境配置修改后确认 bind mount/镜像内路径与 Web、Beat、Worker 实际看到的路径一致。
+
+## 任务队列：Celery 与 RocketMQ 并行
+
+默认 `TASK_QUEUE_BACKEND=celery`，现有 Worker、Beat 与 Flower 无需变更。
+启用 RocketMQ 基础设施后，推荐使用灰度模式而不是将相同任务同时投递两次：
+
+```env
+TASK_QUEUE_BACKEND=hybrid
+ROCKETMQ_TASK_ROUTES=["omichub.tools.blast.tasks.*"]
+ROCKETMQ_NAMESRV_ADDR=rocketmq-namesrv:9876
+```
+
+启动 RocketMQ NameServer/Broker 与消费者：
+
+```bash
+make docker-up-rocketmq
+make docker-up-rocketmq-worker
+```
+
+`hybrid` 仅把 `ROCKETMQ_TASK_ROUTES` 匹配的任务投递到 RocketMQ，其他任务继续由 Celery 消费；两套 worker 可并行运行且不会对同一任务重复执行。确认后可将 `TASK_QUEUE_BACKEND` 切换为 `rocketmq`。RocketMQ 任务状态会镜像到现有 Celery Redis result backend，已有的任务状态查询接口保持可用。
