@@ -7,6 +7,7 @@ platform_tools:
   - platform_list_flows
   - platform_get_current_time
   - platform_get_user_info
+  - platform_list_agent_skills
   - list_workspace_files
   - search_workspace_files
   - workspace_read_file

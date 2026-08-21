@@ -55,6 +55,14 @@ async function typeText(el: HTMLElement, text: string) {
 }
 
 describe('KimiChatInput roomMode 发送链路', () => {
+  it('输入框不再展示创建协作 Case 入口', async () => {
+    const { el } = mountComposer({}, () => undefined)
+    await nextTick()
+
+    expect(el.textContent).not.toContain('创建协作 Case')
+    expect(el.querySelector('[aria-label="更多操作"]')).toBeNull()
+  })
+
   it('roomMode 下按 Enter 触发 send emit', async () => {
     const sends: unknown[][] = []
     const { el } = mountComposer({ roomMode: true }, (...args) => sends.push(args))

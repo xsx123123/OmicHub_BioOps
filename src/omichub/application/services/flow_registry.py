@@ -86,12 +86,21 @@ class DeliveryDefinition(_StrictModel):
     thresholds: dict[str, float] = Field(default_factory=dict)
 
 
+class StandardWorkItems(_StrictModel):
+    """O5:Bridge 标准工作项 target 声明;缺省项回落到 _shared/policies.yaml。"""
+
+    quality: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9_-]{1,127}$")
+    delivery: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9_-]{1,127}$")
+    interpret: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9_-]{1,127}$")
+
+
 class FlowDefinition(_StrictModel):
     flow: FlowMeta
     artifacts: list[ArtifactDefinition] = Field(min_length=1)
     stages: list[StageDefinition] = Field(min_length=1)
     edges: list[tuple[str, str]] = Field(default_factory=list)
     delivery: DeliveryDefinition
+    standard_work_items: StandardWorkItems | None = None
 
     @model_validator(mode="after")
     def _validate_unique_keys(self) -> FlowDefinition:
@@ -127,6 +136,8 @@ class ApprovalTemplate(_StrictModel):
 class SharedPolicies(_StrictModel):
     retry_policies: dict[str, RetryPolicy] = Field(default_factory=dict)
     approval_templates: dict[str, ApprovalTemplate] = Field(default_factory=dict)
+    # O5:Bridge 标准工作项(quality/delivery/interpret)的默认 target,flow YAML 可覆盖。
+    standard_work_item_targets: dict[str, str] = Field(default_factory=dict)
 
 
 class ResourceProfile(_StrictModel):
@@ -343,6 +354,30 @@ class FlowRegistry:
 
     def bridge_flow_ids(self) -> set[str]:
         return {item.definition.flow.bridge_workflow for item in self.flows.values()}
+
+    def standard_work_item_targets(self, flow_id: str) -> dict[str, str]:
+        """O5:返回该流程显式声明的标准工作项 target(flow 级覆盖 _shared 默认)。
+
+        只包含显式声明的 kind;未声明的 kind 由消费方(Bridge)走既有缺省,
+        保证迁移期行为完全不变。``flow_id`` 接受 registry 键或 bridge_workflow。
+        """
+        registered = self.flows.get(flow_id) or next(
+            (
+                item
+                for item in self.flows.values()
+                if item.definition.flow.bridge_workflow == flow_id
+            ),
+            None,
+        )
+        if registered is None:
+            return {}
+        declared = registered.definition.standard_work_items
+        targets: dict[str, str] = {}
+        for kind in ("quality", "delivery", "interpret"):
+            target = (getattr(declared, kind) if declared else None) or self.policies.standard_work_item_targets.get(kind)
+            if target:
+                targets[kind] = target
+        return targets
 
     def is_bridge_flow_id(self, flow_id: str) -> bool:
         return flow_id in self.bridge_flow_ids()

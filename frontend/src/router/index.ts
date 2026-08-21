@@ -231,6 +231,18 @@ const routes: RouteRecordRaw[] = [
         meta: { title: 'GO / KEGG 富集分析', requiresAuth: true }
       },
       {
+        path: 'tools/gsea-enrichment',
+        name: 'tools-gsea-enrichment',
+        component: () => import('@/views/BioTools/GseaEnrichmentView.vue'),
+        meta: { title: 'GSEA 富集分析', requiresAuth: true }
+      },
+      {
+        path: 'tools/synteny',
+        name: 'tools-synteny',
+        component: () => import('@/views/BioTools/SyntenyView.vue'),
+        meta: { title: '基因组共线性分析', requiresAuth: true }
+      },
+      {
         path: 'tools/deg-analysis',
         name: 'tools-deg-analysis',
         component: () => import('@/views/BioTools/DegAnalysisView.vue'),
@@ -341,6 +353,12 @@ const routes: RouteRecordRaw[] = [
         name: 'admin-users',
         component: () => import('@/views/AdminUserManagementView.vue'),
         meta: { title: '用户管理', requiresAuth: true }
+      },
+      {
+        path: 'admin/memory',
+        name: 'admin-memory',
+        component: () => import('@/views/AdminMemoryView.vue'),
+        meta: { title: '记忆审计', requiresAuth: true }
       },
       {
         path: 'admin/session-logs',

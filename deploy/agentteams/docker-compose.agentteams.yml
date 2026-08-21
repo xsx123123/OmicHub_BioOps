@@ -28,11 +28,24 @@ services:
     container_name: omichub-agentteams-bridge
     build:
       context: ../../integrations/agentteams/bridge
+      args:
+        # 由 Makefile 部署 target 导出（git rev-parse --short HEAD / UTC 构建时间），缺省 unknown。
+        BRIDGE_BUILD_SHA: ${BRIDGE_BUILD_SHA:-unknown}
+        BRIDGE_BUILD_TIME: ${BRIDGE_BUILD_TIME:-unknown}
+        # 国内构建默认走阿里云 PyPI 镜像；可通过环境变量切换为其他镜像或官方源。
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://mirrors.aliyun.com/pypi/simple/}
     command: ["uvicorn", "omichub_agentteams_bridge.app:app", "--host", "0.0.0.0", "--port", "8080"]
     env_file:
       - ${BRIDGE_ENV_FILE:-./bridge.env}
     environment:
       BRIDGE_CASE_GC_DAYS: ${BRIDGE_CASE_GC_DAYS:-7}
+      # MinIO 持久层（事实源）：bridge 已加入 omichub_net，经服务名直连主栈 minio 容器；
+      # 凭证引用主栈 .env 的 MINIO_ROOT_USER/MINIO_ROOT_PASSWORD，bucket 由主栈 minio-init 创建。
+      BRIDGE_MINIO_ENDPOINT: ${BRIDGE_MINIO_ENDPOINT:-http://minio:9000}
+      BRIDGE_MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-}
+      BRIDGE_MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-}
+      BRIDGE_MINIO_BUCKET: ${BRIDGE_MINIO_BUCKET:-agentteams}
+      BRIDGE_MINIO_SECURE: ${BRIDGE_MINIO_SECURE:-false}
     ports:
       - "${AGENTTEAMS_BRIDGE_BIND_HOST:-127.0.0.1}:${AGENTTEAMS_BRIDGE_PORT:-8088}:8080"
     volumes:

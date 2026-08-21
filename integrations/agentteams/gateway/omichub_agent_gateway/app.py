@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import StreamingResponse
@@ -79,8 +79,14 @@ def create_app(
     app.state.gateway_service = service
 
     @app.get("/healthz", tags=["Health"])
-    async def healthz() -> dict[str, str]:
-        return {"status": "ok"}
+    async def healthz() -> dict[str, Any]:
+        return {
+            "status": "ok",
+            "matrix": {
+                "configured": runtime_settings.matrix_enabled,
+                "identity_count": len(runtime_settings.matrix_identity_map()),
+            },
+        }
 
     @app.post(
         "/v1/scientific-interpretation",

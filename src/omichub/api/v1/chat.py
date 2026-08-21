@@ -11,10 +11,12 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
+from loguru import logger
 from sqlalchemy import select
 
 from omichub.api.deps import CurrentUserId, DbSession
 from omichub.application.schemas.chat import (
+    AgentTeamsUpgradeDecisionRequest,
     ChatAssistantDTO,
     ChatHandoffEventDTO,
     ChatMessageDTO,
@@ -35,6 +37,46 @@ from omichub.application.schemas.skill import SkillDTO
 from omichub.application.services.chat_service import ChatService
 
 router = APIRouter()
+
+
+async def _resume_orchestrator_graph(
+    db: DbSession,
+    *,
+    run_id: str,
+    user_id: str,
+    decision: dict,
+) -> bool:
+    """langgraph 引擎路径：把计划确认决策以 Command(resume=...) 喂回编排图
+    interrupt 点，驱动图继续走 dispatch/aggregate 节点。
+
+    决策已先经 OverdriveRunService.decide_plan 落账（command_id 幂等），
+    图内 decide 委派命中幂等记录直接返回；dispatch 委派先对账 ledger 再触发
+    advance_run，保证不重复确认、不重复派发。无 checkpoint（run 由 legacy
+    路径创建或开关中途切换）时返回 False，由调用方回退既有派发链；
+    其余异常只记录日志——决策已落账，checkpoint 仍在，可重试。
+    """
+    from omichub.infrastructure.execution.checkpointer import postgres_checkpointer
+    from omichub.infrastructure.execution.orchestrator_graph import (
+        build_ledger_resume_deps,
+        build_orchestrator_engine,
+    )
+
+    deps = build_ledger_resume_deps(db, user_id=user_id, commit=db.commit)
+    try:
+        async with postgres_checkpointer() as saver:
+            snapshot = await saver.aget_tuple(
+                {"configurable": {"thread_id": run_id}}
+            )
+            if snapshot is None:
+                return False
+            engine = build_orchestrator_engine(deps, checkpointer=saver)
+            async for _chunk in engine.resume(run_id, decision):
+                # POST JSON 接口不流式透出；进度仍走 overdrive 事件 ledger/SSE 订阅
+                pass
+        return True
+    except Exception:  # noqa: BLE001
+        logger.exception("orchestrator 图 resume 失败 run_id={}", run_id)
+        return False
 
 
 @router.get(
@@ -304,6 +346,35 @@ async def decide_overdrive_plan(
         max_revisions=int(planning_limits.get("max_revision_rounds") or 3),
     )
     await db.commit()
+    from omichub.core.config import get_settings
+
+    use_langgraph_engine = get_settings().orchestrator_engine == "langgraph"
+    # langgraph 路径：approve/cancel 决策以 Command(resume=...) 喂回编排图
+    # interrupt 点，由图的 dispatch 节点（带 ledger 对账）触发派发；revise 仍走
+    # 既有 replan_run 异步链重规划，图在用户确认新版本时经对账继续。
+    if (
+        use_langgraph_engine
+        and request.action in {"approve", "cancel"}
+        and result.get("status") != "COMPLETED"
+    ):
+        resumed = await _resume_orchestrator_graph(
+            db,
+            run_id=run_id,
+            user_id=current_user_id,
+            decision={
+                "action": request.action,
+                "feedback": request.feedback,
+                "command_id": request.command_id,
+            },
+        )
+        if resumed:
+            return result
+        # 无 checkpoint（如开关中途切换、run 由 legacy 路径创建）：回退既有派发
+        logger.warning(
+            "orchestrator 图 resume 不可用 run_id={} action={}，回退 advance_run 派发",
+            run_id,
+            request.action,
+        )
     if request.action == "approve" and result.get("status") != "COMPLETED":
         from omichub.infrastructure.celery_app.tasks.overdrive import advance_run
 
@@ -582,10 +653,38 @@ async def agentteams_case_events(
     )
 
 
+@router.post(
+    "/sessions/{session_id}/agentteams-upgrade",
+    summary="L2→L4 升级建议卡决策（accept 创建协作室房间并移交上下文 / dismiss 不再弹卡）",
+)
+async def decide_agentteams_upgrade(
+    session_id: str,
+    req: AgentTeamsUpgradeDecisionRequest,
+    current_user_id: CurrentUserId,
+    db: DbSession,
+) -> dict:
+    """消费 L2 会话中的协作室升级建议卡（愿景 Phase D，建议不强制、非自动跳转）。"""
+    from omichub.application.services.agentteams_bridge_settings_service import (
+        AgentTeamsBridgeSettingsService,
+    )
+    from omichub.application.services.agentteams_service import AgentTeamsService
+    from omichub.application.services.agentteams_upgrade_advisor import (
+        AgentTeamsUpgradeService,
+    )
+    from omichub.core.config import get_settings
+
+    session = await _get_owned_session(db, session_id, current_user_id)
+    if req.action == "dismiss":
+        return await AgentTeamsUpgradeService(db, agentteams=None).dismiss(session)
+    settings = get_settings()
+    runtime = await AgentTeamsBridgeSettingsService(db, settings).get_runtime_config()
+    agentteams = AgentTeamsService(settings, runtime)
+    return await AgentTeamsUpgradeService(db, agentteams).accept(session, current_user_id)
+
+
 # ============================================================
 # 可用模型列表（供前端选择模型下拉框）
 # ============================================================
-
 
 @router.get("/models", summary="可用模型列表")
 async def list_models(db: DbSession) -> list[dict]:
@@ -913,8 +1012,17 @@ async def create_assistant(
 
 
 @router.get("/skills", response_model=list[SkillDTO], summary="技能列表（启用）")
-async def list_active_skills(db: DbSession) -> list[SkillDTO]:
+async def list_active_skills(
+    current_user_id: CurrentUserId,
+    db: DbSession,
+) -> list[SkillDTO]:
     from omichub.application.services.skill_service import SkillService
+    from omichub.infrastructure.database.models.user import UserModel
 
+    user = await db.get(UserModel, current_user_id)
     service = SkillService(db)
-    return await service.list_skills(active_only=True)
+    return await service.list_skills(
+        active_only=True,
+        user_id=str(current_user_id),
+        is_admin=bool(user and user.role == "admin"),
+    )

@@ -129,6 +129,12 @@ ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV APP_ENV=production
 
+# 部署版本可观测：构建时经 --build-arg 注入，/health 的 git_sha/build_time 由此取值。
+ARG OMICHUB_BUILD_SHA=unknown
+ARG OMICHUB_BUILD_TIME=unknown
+ENV APP_GIT_SHA=${OMICHUB_BUILD_SHA} \
+    APP_BUILD_TIME=${OMICHUB_BUILD_TIME}
+
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1

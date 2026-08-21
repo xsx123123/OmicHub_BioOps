@@ -7,7 +7,7 @@ from fastapi import APIRouter, Query
 from sqlalchemy import desc, func, select
 
 from omichub.api.deps import AdminTotpRequired, CurrentUserId, DbSession
-from omichub.application.schemas.agent_memory import AgentMemoryDTO
+from omichub.application.schemas.agent_memory import AgentMemoryDTO, MemoryOverviewDTO
 from omichub.application.schemas.auth import UserRegisterRequest
 from omichub.application.schemas.user import UserModulesUpdateRequest
 from omichub.application.services.agent_memory_service import AgentMemoryService
@@ -93,6 +93,28 @@ async def list_user_memories(
         include_archived=True,
     )
     return [AgentMemoryDTO(**AgentMemoryService._serialize(memory)) for memory in memories]
+
+
+@router.get("/{user_id}/memory-overview", response_model=MemoryOverviewDTO, summary="查看用户 v2 Agent 记忆")
+async def get_user_memory_overview(
+    user_id: UUID,
+    _admin: AdminRequired,
+    db: DbSession,
+    agent_id: str | None = Query(None, max_length=50),
+    scope: str | None = Query(None, pattern="^(profile|project|preference|summary)$"),
+    include_archived: bool = Query(True),
+) -> MemoryOverviewDTO:
+    from omichub.infrastructure.database.models.user import UserModel
+
+    if await db.get(UserModel, user_id) is None:
+        raise NotFoundError("用户不存在")
+    overview = await AgentMemoryService(db).get_memory_overview(
+        str(user_id),
+        agent_id=agent_id,
+        scope=scope,
+        include_archived=include_archived,
+    )
+    return MemoryOverviewDTO(**overview)
 
 
 @router.post("", summary="管理员添加用户")
@@ -466,20 +488,6 @@ async def delete_user(
         )
     )
     await db.execute(AgentMemoryModel.__table__.delete().where(AgentMemoryModel.user_id == str(user_id)))
-    # mem0 引擎启用时同步清理 mem0 存储中的记忆（26.8.4）
-    from omichub.core.config import get_settings
-
-    if get_settings().mem0_engine_enabled:
-        from loguru import logger
-
-        try:
-            from omichub.infrastructure.memory.mem0_engine import get_mem0_engine
-
-            engine = await get_mem0_engine()
-            await engine.delete_all(str(user_id))
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("mem0 记忆清理失败（用户删除继续）: {}", exc)
-
     # 4) 最后删除用户本体（CASCADE 表由数据库自动清理）
     await db.delete(user)
     await db.commit()

@@ -67,5 +67,7 @@ function submit(answers: string[]): void {
   padding: 0;
   border: 0;
   box-shadow: none;
+  /* 模态内保持原有纯净外观：不播放卡片入场/脉冲动画，避免与 box-shadow: none 打架 */
+  animation: none;
 }
 </style>

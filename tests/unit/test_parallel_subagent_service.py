@@ -6,6 +6,8 @@
 
 from __future__ import annotations
 
+import json
+
 import asyncio
 import time
 from types import SimpleNamespace
@@ -281,6 +283,143 @@ async def test_fanout_accumulates_text_across_tool_rounds(env, monkeypatch) -> N
 
 
 @pytest.mark.asyncio
+async def test_fanout_emits_correlated_tool_reinjection_events(env, monkeypatch) -> None:
+    contexts = {"agent-code": _ctx("agent-code", tools=[{"function": {"name": "workspace_read"}}])}
+    monkeypatch.setattr(pss, "AgentService", lambda db: AgentServiceStub(contexts))
+    events: list[dict] = []
+
+    async def fake_execute(*_args, **_kwargs):
+        return {"success": True, "result": {"content": "upstream"}}
+
+    monkeypatch.setattr(pss, "execute_studio_tool", fake_execute)
+
+    async def handler(messages, _kwargs):
+        if len(messages) == 1:
+            yield ChatChunk(
+                type="tool_calls",
+                metadata={
+                    "tool_calls": [{
+                        "id": "call-1",
+                        "function": {"name": "workspace_read", "arguments": '{"path":"output/upstream.md"}'},
+                    }],
+                },
+            )
+        else:
+            yield ChatChunk(type="text", content="已基于文件完成分析。")
+
+    _patch_provider(monkeypatch, handler)
+    await pss.ParallelSubAgentService().run(
+        user_id="user-1",
+        parent_agent_id="manager",
+        parent_session_id="sess-1",
+        context_summary="",
+        tasks=[{"agent_id": "agent-code", "task": "读取文件并分析", "workspace_access": True}],
+        db=SimpleNamespace(),
+        on_event=events.append,
+    )
+
+    event_types = [event["type"] for event in events]
+    assert event_types.index("worker_tool_call") < event_types.index("worker_tool_started")
+    assert event_types.index("worker_tool_started") < event_types.index("worker_tool_result")
+    assert event_types.index("worker_tool_result") < event_types.index("agent_context_reinjected")
+    assert event_types.index("agent_context_reinjected") < event_types.index("agent_turn_continued")
+    tool_events = [event for event in events if event["type"] in {"worker_tool_call", "worker_tool_started", "worker_tool_result", "agent_context_reinjected"}]
+    assert {event["tool_call_id"] for event in tool_events} == {"call-1"}
+    assert {event["execution_path"] for event in tool_events} == {"agentteams_worker_react"}
+    assert all(event["timestamp"].endswith("+00:00") for event in events if "timestamp" in event)
+
+
+@pytest.mark.asyncio
+async def test_worker_loop_guard_stops_duplicate_tool_calls(env, monkeypatch) -> None:
+    contexts = {"agent-code": _ctx("agent-code", tools=[{"function": {"name": "workspace_read"}}])}
+    monkeypatch.setattr(pss, "AgentService", lambda db: AgentServiceStub(contexts))
+    events: list[dict] = []
+
+    async def fake_execute(*_args, **_kwargs):
+        return {"success": True, "result": {"content": "same result"}}
+
+    monkeypatch.setattr(pss, "execute_studio_tool", fake_execute)
+
+    async def handler(_messages, _kwargs):
+        yield ChatChunk(
+            type="tool_calls",
+            metadata={
+                "tool_calls": [{
+                    "id": "duplicate-call",
+                    "function": {"name": "workspace_read", "arguments": '{"path":"same.csv"}'},
+                }],
+            },
+        )
+
+    _patch_provider(monkeypatch, handler)
+    result = await pss.ParallelSubAgentService().run(
+        user_id="user-1",
+        parent_agent_id="manager",
+        parent_session_id="sess-1",
+        context_summary="",
+        tasks=[{"agent_id": "agent-code", "task": "读取文件", "workspace_access": True}],
+        db=SimpleNamespace(),
+        on_event=events.append,
+        max_rounds=5,
+    )
+
+    guard_events = [
+        event for event in events if event["type"] == "agent_loop_guard_triggered"
+    ]
+    assert len(guard_events) == 1
+    assert guard_events[0]["reason"] == "duplicate_tool_call"
+    assert result["llm_payload"]["results"][0]["status"] == "guarded"
+    assert "重复调用工具" in result["llm_payload"]["results"][0]["error"]
+
+
+@pytest.mark.asyncio
+async def test_worker_no_progress_is_reported_as_partial_success(env, monkeypatch) -> None:
+    contexts = {"agent-code": _ctx("agent-code", tools=[{"function": {"name": "workspace_read"}}])}
+    monkeypatch.setattr(pss, "AgentService", lambda db: AgentServiceStub(contexts))
+    events: list[dict] = []
+
+    async def fake_execute(*_args, **_kwargs):
+        return {"success": True, "result": {"content": "same result"}}
+
+    monkeypatch.setattr(pss, "execute_studio_tool", fake_execute)
+
+    async def handler(messages, _kwargs):
+        call_number = len(messages)
+        yield ChatChunk(
+            type="tool_calls",
+            metadata={
+                "tool_calls": [{
+                    "id": f"call-{call_number}",
+                    "function": {
+                        "name": "workspace_read",
+                        "arguments": json.dumps({"path": f"same-{call_number}.csv"}),
+                    },
+                }],
+            },
+        )
+
+    _patch_provider(monkeypatch, handler)
+    result = await pss.ParallelSubAgentService().run(
+        user_id="user-1",
+        parent_agent_id="manager",
+        parent_session_id="sess-1",
+        context_summary="",
+        tasks=[{"agent_id": "agent-code", "task": "读取文件", "workspace_access": True}],
+        db=SimpleNamespace(),
+        on_event=events.append,
+        max_rounds=5,
+    )
+
+    guard_events = [event for event in events if event["type"] == "agent_loop_guard_triggered"]
+    assert guard_events[0]["reason"] == "no_progress"
+    assert result["llm_payload"]["results"][0]["status"] == "ok"
+    assert result["llm_payload"]["results"][0]["partial"] is True
+    assert result["llm_payload"]["results"][0]["guard_triggered"] is True
+    assert result["llm_payload"]["results"][0].get("error") is None
+    assert "已停止重复调用" in result["llm_payload"]["results"][0]["answer"]
+
+
+@pytest.mark.asyncio
 async def test_fanout_continues_after_model_output_length_limit(env, monkeypatch) -> None:
     contexts = {"agent-scrna": _ctx("agent-scrna")}
     monkeypatch.setattr(pss, "AgentService", lambda db: AgentServiceStub(contexts))
@@ -311,6 +450,65 @@ async def test_fanout_continues_after_model_output_length_limit(env, monkeypatch
     assert calls == 2
     assert "第一部分单细胞方案" in answer
     assert "第二部分免疫耐受机制与交付项" in answer
+
+
+@pytest.mark.asyncio
+async def test_fanout_retries_when_model_returns_empty_content(env, monkeypatch) -> None:
+    """模型偶发空响应（finish_reason=stop 且无正文）时追问重试，不向上返回空答复。"""
+    contexts = {"agent-scrna": _ctx("agent-scrna")}
+    monkeypatch.setattr(pss, "AgentService", lambda db: AgentServiceStub(contexts))
+    calls = 0
+
+    async def handler(messages, _kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            yield ChatChunk(type="done", metadata={"finish_reason": "stop"})
+            return
+        assert "没有包含任何正文内容" in messages[-1]["content"]
+        yield ChatChunk(type="text", content="正常答复。")
+        yield ChatChunk(type="done", metadata={"finish_reason": "stop"})
+
+    _patch_provider(monkeypatch, handler)
+    result = await pss.ParallelSubAgentService().run(
+        user_id="user-1",
+        parent_agent_id="manager",
+        parent_session_id="sess-1",
+        context_summary="",
+        tasks=[{"agent_id": "agent-scrna", "task": "你的职责是什么"}],
+        db=SimpleNamespace(),
+    )
+
+    assert calls == 2
+    assert "正常答复。" in result["llm_payload"]["results"][0]["answer"]
+
+
+@pytest.mark.asyncio
+async def test_fanout_fails_explicitly_after_repeated_empty_content(env, monkeypatch) -> None:
+    """连续空响应超过重试上限后返回显式失败，而不是空答案。"""
+    contexts = {"agent-scrna": _ctx("agent-scrna")}
+    monkeypatch.setattr(pss, "AgentService", lambda db: AgentServiceStub(contexts))
+    calls = 0
+
+    async def handler(messages, _kwargs):
+        nonlocal calls
+        calls += 1
+        yield ChatChunk(type="done", metadata={"finish_reason": "stop"})
+
+    _patch_provider(monkeypatch, handler)
+    result = await pss.ParallelSubAgentService().run(
+        user_id="user-1",
+        parent_agent_id="manager",
+        parent_session_id="sess-1",
+        context_summary="",
+        tasks=[{"agent_id": "agent-scrna", "task": "你的职责是什么"}],
+        db=SimpleNamespace(),
+    )
+
+    first = result["llm_payload"]["results"][0]
+    assert calls == 1 + pss._MAX_EMPTY_RESPONSE_RETRIES
+    assert first["answer"] in (None, "")
+    assert "空内容" in (first["error"] or "")
 
 
 @pytest.mark.asyncio
@@ -665,6 +863,31 @@ async def test_fanout_rejects_non_spawnable(env, monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
+async def test_safe_single_consultation_allows_non_spawnable_target(env, monkeypatch) -> None:
+    contexts = {"agent-manager": _ctx("agent-manager", spawnable=False)}
+    monkeypatch.setattr(pss, "AgentService", lambda db: AgentServiceStub(contexts))
+
+    async def text(messages, kwargs):
+        yield ChatChunk(type="text", content='{"conclusion":"已接单"}')
+
+    _patch_provider(monkeypatch, text)
+    result = await pss.ParallelSubAgentService().run(
+        user_id="user-1",
+        parent_agent_id="agent-general",
+        parent_session_id="sess-1",
+        context_summary="",
+        tasks=[{"agent_id": "agent-manager", "task": "回复用户"}],
+        db=SimpleNamespace(),
+        safe_only=True,
+        runtime_authorized=True,
+        allow_non_spawnable_target=True,
+    )
+
+    assert result["success"] is True
+    assert result["llm_payload"]["results"][0]["answer"] == '{"conclusion":"已接单"}'
+
+
+@pytest.mark.asyncio
 async def test_fanout_child_timeout(env, monkeypatch) -> None:
     env.settings.subagent_child_timeout_seconds = 1
     contexts = {"agent-a": _ctx("agent-a"), "agent-b": _ctx("agent-b")}
@@ -747,7 +970,7 @@ async def test_fanout_child_tool_roundtrip_with_dedicated_session(env, monkeypat
 
 
 @pytest.mark.asyncio
-async def test_budget_exhaustion_with_user_request_becomes_awaiting_input(env, monkeypatch) -> None:
+async def test_repeated_missing_input_tool_call_stops_promptly(env, monkeypatch) -> None:
     contexts = {
         "agent-a": _ctx("agent-a", tools=[{"function": {"name": "workspace_read"}}]),
     }
@@ -785,7 +1008,7 @@ async def test_budget_exhaustion_with_user_request_becomes_awaiting_input(env, m
     )
 
     child = result["llm_payload"]["results"][0]
-    assert model_calls == 6
+    assert model_calls == 2
     assert result["success"] is True
     assert child["status"] == "awaiting_input"
     assert child["packet"]["needs_user_input"] is True

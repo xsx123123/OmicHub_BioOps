@@ -1115,6 +1115,9 @@ class OverdriveRunService:
             phase, label = progress_events[event_type]
             if event_type == "run_completed" and payload.get("planning_only"):
                 label = "方案已生成并完成交付"
+            if event_type in {"assistant_recruited", "assistant_started"}:
+                # 优先使用招募/启动时按人格 status_lines 写入的文案,缺省回退硬编码
+                label = str(payload.get("status_line") or "").strip() or label
             return {
                 "type": "overdrive_progress",
                 **common,

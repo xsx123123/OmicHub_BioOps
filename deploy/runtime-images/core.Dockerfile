@@ -65,6 +65,11 @@ RUN micromamba install -y -n base -c conda-forge -c bioconda \
 # agent 脚本变动频繁，放在重型依赖层之后，改动时不触发 micromamba 重装
 COPY --chown=10001:10001 sandbox_agent.py /opt/omichub/sandbox_agent.py
 
+# sitecustomize.py：Python 启动时自动注入 show_plotly 图表回传 helper，
+# 与聊天轻量沙盒（deploy/sandbox/sitecustomize.py）同一 %%PLOTLY%% 标记协议；
+# plot/scrna 派生镜像自动继承本层
+COPY --chown=10001:10001 sitecustomize.py /opt/conda/lib/python3.12/site-packages/sitecustomize.py
+
 # 终端体验工具（独立层，与科学生态栈解耦）：btop / zsh / oh-my-posh / oh-my-zsh
 # 参考 tool_configs/terminal/docker/Dockerfile；plot/scrna 派生镜像自动继承本层
 RUN micromamba install -y -n base -c conda-forge \

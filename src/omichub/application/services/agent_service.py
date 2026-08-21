@@ -63,6 +63,8 @@ from omichub.infrastructure.mcp.presets import (
 )
 from omichub.tools.schema_loader import schema_loader
 
+logger = logging.getLogger(__name__)
+
 # 内置预设 server 的确定性常量 ID，按名称索引。
 # 用于兼容历史 DB 记录 ID 漂移（记录名相同但 id 与确定性常量不一致）：
 # 组装工具白名单时若按 server.id 未命中，可退回按预设名称匹配白名单。
@@ -758,7 +760,9 @@ class AgentService:
 
     # --- 调度上下文组装 ---
 
-    async def assemble_context(self, agent_id: str, user_id: str | None = None) -> AgentContext | None:
+    async def assemble_context(
+        self, agent_id: str, user_id: str | None = None, tool_query: str | None = None
+    ) -> AgentContext | None:
         """供调度中枢调用：组装一次 LLM 请求所需的全部拼装件。
 
         Agent 自身不存在时返回 None；模型缺失/未启用通过 ChatChunk.error 在调用方处理。
@@ -913,6 +917,22 @@ class AgentService:
                 builtin_tools,
                 agentteams_chat_entry_enabled=await self._agentteams_chat_entry_enabled(),
             )
+            selection_config = schema_loader.get_config().tool_selection
+            if str(selection_config.get("mode", "full")).lower() == "retrieval" and tool_query:
+                pinned_names = {"ask_user", "transfer_to_agent", "web_search"}
+                selected, selection_mode = schema_loader.select_tools(
+                    tool_query, pinned_names=pinned_names
+                )
+                selected_names = {tool.name for tool in selected}
+                logger.info(
+                    "tool_selection mode=%s query=%r recalled_tools=%s",
+                    selection_mode,
+                    tool_query[:500],
+                    sorted(selected_names),
+                )
+                builtin_tools = [
+                    tool for tool in builtin_tools if tool.get("function", {}).get("name") in selected_names
+                ]
             tools.extend(builtin_tools)
 
         # 3. 系统提示词 = Agent 设定 + 技能 L1 索引 + omichub-tools 清单。

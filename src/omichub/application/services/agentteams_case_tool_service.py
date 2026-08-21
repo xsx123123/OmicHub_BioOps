@@ -122,6 +122,7 @@ class AgentTeamsCaseToolService:
         case = await agentteams.create_case(
             case_id=case_id,
             project_id=project_id,
+            project_name=None,
             intent=normalized_objective,
             requester_ref=context.user_id,
             flow_id=flow_id,

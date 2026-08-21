@@ -109,7 +109,7 @@ export interface SharedStudioSession {
 }
 
 /** Studio 会话级权限模式（supervised=关键操作需用户批准；auto=放权自动执行） */
-export type StudioPermissionMode = 'supervised' | 'auto'
+export type StudioPermissionMode = 'supervised' | 'plan' | 'auto'
 
 export interface StudioPermissions {
   mode: StudioPermissionMode
@@ -126,6 +126,7 @@ export interface StudioPendingApproval {
   status: 'pending'
   /** 剩余可审批秒数（Redis TTL） */
   expires_in: number
+  approval_kind?: 'tool' | 'plan'
 }
 
 export interface StudioSessionDetail {
@@ -161,6 +162,14 @@ export interface StudioPlanStep {
 
 export interface StudioPlan {
   steps: StudioPlanStep[]
+}
+
+export interface StudioCheckpoint {
+  checkpoint_id: string
+  created_at: string
+  message: string
+  changed_files: number
+  skipped?: string[]
 }
 
 export interface StudioArtifact {
@@ -242,6 +251,17 @@ export const studioApi = {
   async getSession(sessionId: string): Promise<StudioSessionDetail> {
     const res = await apiClient.get<StudioSessionDetail>(`/studio/sessions/${sessionId}`)
     return res.data
+  },
+
+  async listCheckpoints(sessionId: string): Promise<StudioCheckpoint[]> {
+    const res = await apiClient.get<{ checkpoints: StudioCheckpoint[] }>(
+      `/studio/sessions/${sessionId}/checkpoints`,
+    )
+    return res.data?.checkpoints || []
+  },
+
+  async restoreCheckpoint(sessionId: string, checkpointId: string): Promise<void> {
+    await apiClient.post(`/studio/sessions/${sessionId}/checkpoints/${checkpointId}/restore`)
   },
 
   /** 更新会话级权限模式（supervised/auto，P1 HITL） */

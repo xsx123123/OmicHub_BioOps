@@ -1,7 +1,7 @@
 # OmicHub 用户文件与分析项目目录协议
 
 > **状态**：生效中  
-> **版本**：v1.2（2026-08-03 文件架构迁移后修订）  
+> **版本**：v1.3（2026-08-19 L4 协作室融合修订）
 > **适用范围**：所有会产生用户输入、分析中间文件、结果、报告或可下载产物的新模块。  
 > **目标**：让用户只看到可理解、可管理的项目目录；UUID 仅用于系统内部任务、审计和数据库关联。
 
@@ -131,6 +131,170 @@ await ensure_directory_chain(db, UUID(user_id), relative_run_dir)
 
 Studio/MAS 的会话容器目录属于内部沙箱运行空间，可使用内部运行 ID；如需把产物交付到“我的文件”，必须在交付阶段按本协议登记到项目目录。Studio 报告交付已完成该迁移；MAS 当前尚无面向“我的文件”的交付入口，后续新增交付能力时必须按本协议实现。
 
+## 9. L4 协作室融合架构（v1.3）
+
+L4/AgentTeams Case 不再是游离的房间对象，而是一个绑定用户项目和一次分析运行的
+“协作运行”。Bridge 继续负责 Case 状态机、租约、审计和 Worker 编排；OmicHub
+平台负责项目归属、用户文件目录、运行目录和交付文件登记。Matrix 只是协作消息
+传输层，不拥有用户文件路径。
+
+```text
+用户/协作室首条需求
+        │ project_id 或 project_name
+        ▼
+OmicHub AgentTeams API
+  ├─ 校验/创建用户 Project
+  ├─ create_project_run_dir(user_id, project_name, "agentteams-case")
+  ├─ ensure_directory_chain(user_id, projects/<slug>/runs/<run>/...)
+  └─ 将 project/run protocol ref 写入 Case context_refs
+        │
+        ▼
+AgentTeams Bridge Case
+  ├─ project_ref = {kind: project, id: project_id}
+  ├─ context_refs[].location = projects/<slug>/runs/<run>
+  └─ Worker 仅消费 protocol path，不生成用户可见 UUID 路径
+        │
+        ├─ input/  输入快照
+        ├─ work/   专家和流程中间文件
+        ├─ logs/   Worker/流程日志
+        └─ output/ agent-delivery 报告、manifest、最终产物
+```
+
+### 9.1 Case Run Binding
+
+新 Case 创建请求支持以下两种项目入口，二选一：
+
+```json
+{
+  "project_id": "<existing-project-uuid>",
+  "intent": "完成单细胞 3v3 分析"
+}
+```
+
+```json
+{
+  "project_name": "小鼠单细胞 3v3",
+  "intent": "完成单细胞 3v3 分析"
+}
+```
+
+`project_name` 入口先创建用户 Project，再创建 Case Run。平台必须调用：
+
+```python
+run_dir = get_path_factory().create_project_run_dir(
+    user_id=user_id,
+    project_name=project.name,
+    analysis_name="agentteams-case",
+)
+await ensure_directory_chain(
+    db,
+    UUID(user_id),
+    run_dir.relative_to(get_path_factory().user_root(user_id)).as_posix(),
+)
+```
+
+Case 的 run 绑定使用 `context_refs` 中的 project 引用表达，`location` 是相对用户
+根目录的 protocol path，`meta.run_path` 是同一值的显式索引：
+
+```json
+{
+  "kind": "project",
+  "id": "<project-uuid>",
+  "location": "projects/mouse-sc/sn/runs/agentteams-case-20260819-120000",
+  "meta": {
+    "project_name": "小鼠单细胞 3v3",
+    "run_path": "projects/mouse-sc/sn/runs/agentteams-case-20260819-120000"
+  }
+}
+```
+
+历史 Case 没有该引用时保持只读兼容；不得为历史 Case 强制创建新目录或伪造默认
+项目名。
+
+### 9.2 四层目录职责
+
+| 目录 | L4 写入内容 | 允许读写方 |
+| --- | --- | --- |
+| `input/` | Case 创建时的样本表、比较组、上下文快照 | 平台快照器、受控 Worker |
+| `work/` | 专家中间文件、临时表、转换结果 | 受控 Worker；用户只读预览 |
+| `logs/` | Worker、流程、交付日志 | 平台和管理员；用户只读 |
+| `output/` | 最终产物、`delivery-summary.md`、`agentteams-delivery-manifest.json` | 用户可见、可预览、可下载 |
+
+Worker 不得写入 `raw/`、`tasks/<uuid>/`、`results/` 或 Case UUID 目录。Bridge 的
+manifest 路径是内部审计地址，不是用户文件地址。
+
+### 9.3 MAS Delivery Projection
+
+`agent-delivery` 关闭 Case 后，Bridge 返回 manifest；平台按 Case 的 run binding
+把交付结果投影到 `<run>/output/`：
+
+1. 已存在且位于绑定 run 内的 artifact protocol path 原地登记，不复制出第二份；
+2. 可解析的外部/历史 artifact 先复制到 `output/`，再登记目录表；
+3. 始终写入 `agentteams-delivery-manifest.json` 和 `delivery-summary.md`；
+4. 调用 `ensure_directory_chain()`，确保“我的文件”目录树立即可见；
+5. 预览和下载只接受 Case 绑定 run 下的相对路径，拒绝 `..`、绝对路径和跨 run 路径。
+
+交付报告是幂等投影：同一个 Case 重复读取 manifest 不产生 UUID 新目录，也不覆盖
+用户已经存在的同名最终产物；manifest 文件允许按内容哈希更新。
+
+## 10. Context Reference Protocol
+
+### 10.1 新引用格式
+
+新生成的文件引用必须使用相对用户工作区根目录的路径：
+
+- `projects/<project-slug>/runs/<run>/input/<name>`
+- `projects/<project-slug>/runs/<run>/work/<name>`
+- `projects/<project-slug>/runs/<run>/output/<name>`
+- `projects/<project-slug>/runs/<run>/logs/<name>`
+- `inbox/<name>`
+
+`file://<uuid>` 不得再由 API、Worker 或前端生成。`file://` 仅保留为历史输入的
+兼容解析入口，不属于新协议。
+
+### 10.2 解析和错误分类
+
+预览器以用户根目录为解析根，先检查协议路径安全性，再检查物理文件和目录登记：
+
+| 输入 | 行为 |
+| --- | --- |
+| `projects/...` / `inbox/...` 且文件存在 | 正常预览 |
+| 路径不存在 | 返回“路径不存在” |
+| 路径指向目录 | 返回“路径是目录，不是普通文件” |
+| `file://...` | 返回“ 不支持的引用协议，应为工作区相对路径” |
+| 历史 UUID 且数据库可映射 | 平台先转换为 protocol path，再继续预览 |
+| 历史 UUID 无法映射 | 标记不可读，Case preflight 阻断并回问用户 |
+
+所有引用可读性检查统一使用 `check_context_ref(s)`；创建 Case、启动 planning
+和 Worker preflight 不得各自实现另一套路径判定。
+
+## 11. 兼容、迁移与回滚
+
+- 旧 Case：保持 `project_ref = null` 的只读访问；manifest 和历史 artifact 仍可读取。
+- 旧文件 UUID：平台通过 `FileRecord.storage_path` 做一次性 UUID → protocol path 映射；
+  映射失败不猜测目录、不生成 `file://`，而是显式阻断。
+- 旧目录：`raw/`、`tasks/`、`results/` 只读兼容，新 L4 写入一律进入 project run。
+- 回滚：关闭 L4 run projection 开关时，Bridge Case/审计仍可运行；已创建的项目 run
+  和 output 文件保留，不回写旧 UUID 目录。重新开启时按 Case run binding 幂等补齐
+  manifest 和 Directory 记录。
+- 数据库：本次融合不新增 Case 表列，项目/run 绑定存入 Bridge `context_refs`；因此
+  不需要破坏性迁移。若后续需要查询加速，可新增索引列，但必须提供 forward/backward
+  migration，不能删除历史 context_refs。
+
+## 12. L4 接入验收矩阵
+
+| 验收项 | 证据 |
+| --- | --- |
+| Case 绑定项目 | `project_ref` + `context_refs.location` + `projects/.../runs/...` Directory 记录 |
+| 四层目录存在 | `input/output/work/logs` 由路径工厂创建 |
+| MAS 交付可见 | `output/agentteams-delivery-manifest.json` 与 `output/delivery-summary.md` |
+| protocol path 全链路 | API、preflight、Worker evidence refs、预览器均使用相对路径 |
+| UUID 兼容 | 可映射则转换，不可映射则明确阻断 |
+| 安全边界 | 禁止绝对路径、`..`、跨用户和跨 run 读取 |
+
+手动最小闭环：创建项目 → 从协作室发送需求 → 查看 Case 的 run binding → 执行并
+完成 quality gate → 读取 manifest → 刷新“我的文件” → 在 `output/` 预览并下载报告。
+
 ## 6. 新模块接入检查清单
 
 新增模块合并前逐项确认：
@@ -179,3 +343,4 @@ def submit(..., project_name: str = "My Tool Project"): ...
 | v1.0 | — | 初始版本。 |
 | v1.1 | 2026-08-03 | 对照代码实现核查后修订：明确 `project_slug()` 为模块级函数；说明工厂不强制创建子目录及调用方责任；§3.2/§6/§7 明确禁止 `results/` 等同义目录；§4.1 禁止 Service 层默认项目名；§5 增加各模块真实接入状态与 Studio/MAS 交付差距说明。 |
 | v1.2 | 2026-08-03 | 工厂改为强制创建标准四层目录；迁移 DEG、富集、BLAST、系统发育树、数据下载与 Studio 报告交付；将历史 UUID/`raw_data` 路径限制为只读兼容。 |
+| v1.3 | 2026-08-19 | 增加 L4/AgentTeams Case → Project Run 绑定、MAS 交付投影、protocol path context_refs、UUID 兼容解析和验收矩阵。 |

@@ -603,13 +603,17 @@ onUnmounted(() => {
   position: relative;
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: calc(100% - 40px);
+  margin: 20px 28px 20px 20px;
+  border: 1px solid var(--chat-border, var(--neutral-border));
+  border-radius: 18px;
   overflow: hidden;
   --chat-content-max-width: 1120px;
   background:
     radial-gradient(circle at 12% 0%, rgba(46, 91, 255, 0.08), transparent 32%),
     radial-gradient(circle at 88% 8%, rgba(123, 77, 255, 0.07), transparent 30%),
     linear-gradient(180deg, #f4f6ff 0%, #fafbff 40%, #fff 100%);
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--neutral-text-1) 8%, transparent);
 }
 
 .agent-sandbox::before {
@@ -832,6 +836,7 @@ onUnmounted(() => {
 .is-empty .chat-content-wrapper::-webkit-scrollbar { width: 0; height: 0; }
 
 @media (max-width: 768px) {
+  .agent-sandbox { height: calc(100% - 24px); margin: 12px; border-radius: 14px; }
   .sandbox-header { padding-inline: 16px; }
   .header-right { gap: 6px; }
   .model-selector :deep(.n-base-selection) { min-width: 124px; }

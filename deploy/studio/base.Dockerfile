@@ -50,6 +50,10 @@ RUN pip install -i https://pypi.mirrors.ustc.edu.cn/simple -r /tmp/requirements-
 # 烘焙 sandbox-agent 服务
 COPY sandbox_agent.py /opt/sandbox/sandbox_agent.py
 
+# sitecustomize.py：Python 启动时自动注入 show_plotly 图表回传 helper，
+# 与聊天轻量沙盒（deploy/sandbox/sitecustomize.py）同一 %%PLOTLY%% 标记协议
+COPY sitecustomize.py /usr/local/lib/python3.12/site-packages/sitecustomize.py
+
 USER 10001
 WORKDIR /workspace
 CMD ["sh", "-c", "rm -f /workspace/.agent.sock && exec uvicorn --app-dir /opt/sandbox sandbox_agent:app --uds /workspace/.agent.sock"]

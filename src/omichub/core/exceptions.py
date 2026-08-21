@@ -7,8 +7,9 @@ class OmicHubError(Exception):
     status_code: int = 500
     detail: str = "Internal Server Error"
 
-    def __init__(self, detail: str | None = None):
+    def __init__(self, detail: str | None = None, *, code: str | None = None):
         self.detail = detail or self.detail
+        self.code = code
         super().__init__(self.detail)
 
 
@@ -25,6 +26,13 @@ class ConflictError(OmicHubError):
 class AuthenticationError(OmicHubError):
     status_code = 401
     detail = "Authentication failed"
+
+
+class RateLimitError(OmicHubError):
+    """请求已超过安全限流阈值。"""
+
+    status_code = 429
+    detail = "请求过于频繁，请稍后再试"
 
 
 class AuthorizationError(OmicHubError):

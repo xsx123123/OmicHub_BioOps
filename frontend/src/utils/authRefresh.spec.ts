@@ -36,4 +36,12 @@ describe('createTokenRefreshCoordinator', () => {
     expect(refresh).toHaveBeenCalledTimes(2)
     expect(persist).toHaveBeenCalledTimes(1)
   })
+
+  it('classifies server failures without treating them as logout', async () => {
+    const refresh = vi.fn().mockRejectedValue({ response: { status: 503 } })
+    const coordinator = createTokenRefreshCoordinator({ refresh, persist: vi.fn() })
+
+    await expect(coordinator.refreshAccessToken()).resolves.toBeNull()
+    expect(coordinator.getLastFailureKind()).toBe('server')
+  })
 })

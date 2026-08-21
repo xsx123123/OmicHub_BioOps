@@ -13,6 +13,7 @@ from omichub.application.services.chat_service import (
     _overdrive_preflight_questions,
 )
 from omichub.application.services.domain_registry import DomainRegistry
+from omichub.application.services.overdrive_plan_constraint_service import validate_plan
 
 CATALOG = [
     {"agent_id": "agent-general", "name": "通用助手", "category": "general"},
@@ -192,7 +193,7 @@ def test_default_assignment_builds_tnpd_phylogeny_dag() -> None:
     assert any("Newick/treefile" in item for item in assignments[1]["produces_outputs"])
 
 
-def test_authoritative_assignment_mode_only_returns_declared_phylogeny_dag() -> None:
+def test_authoritative_assignment_mode_returns_only_declared_domain_anchors() -> None:
     request = "我要将tnpd蛋白序列对比到20个基因组进行进化分析与建树"
 
     assignments = _default_overdrive_assignments(
@@ -206,8 +207,16 @@ def test_authoritative_assignment_mode_only_returns_declared_phylogeny_dag() -> 
         "tnpd-homolog-search",
         "tnpd-phylogeny",
     ]
-    assert _default_overdrive_assignments(
+    scrna_assignments = _default_overdrive_assignments(
         "做个单细胞分析计划", CATALOG, authoritative_only=True
+    )
+    assert [item["task_id"] for item in scrna_assignments] == [
+        "scrna-sample-contract",
+        "scrna-integration-clustering",
+        "scrna-immune-tolerance",
+    ]
+    assert _default_overdrive_assignments(
+        "做个代码审查计划", CATALOG, authoritative_only=True
     ) == []
 
 
@@ -249,3 +258,77 @@ def test_empty_domain_registry_safely_degrades(tmp_path, monkeypatch) -> None:
     questions = [{"question": "是否需要代码？"}]
     assert _filter_overdrive_questions(questions, {}) == questions
     assert _default_overdrive_assignments("写个 python 脚本", CATALOG) == []
+
+
+GENERAL_CATALOG = [
+    {"agent_id": "agent-data", "name": "数据管理员", "category": "data"},
+    {"agent_id": "agent-code", "name": "代码助手", "category": "code"},
+    {"agent_id": "agent-delivery", "name": "交付助手", "category": "delivery"},
+    {"agent_id": "agent-viz", "name": "可视化助手", "category": "visualization"},
+    {"agent_id": "agent-general", "name": "通用助手", "category": "general"},
+]
+
+GENERAL_ACCEPTANCE_REQUEST = "对里面的基因做文献检索，整理成文档和网页报告"
+
+
+def test_general_domain_anchors_fire_in_order_for_literature_report_request() -> None:
+    slots = _extract_overdrive_intake_slots(GENERAL_ACCEPTANCE_REQUEST)
+    assignments = _default_overdrive_assignments(
+        GENERAL_ACCEPTANCE_REQUEST, GENERAL_CATALOG, slots, authoritative_only=True
+    )
+
+    assert [item["task_id"] for item in assignments] == [
+        "general-file-processing",
+        "general-literature-search",
+        "general-report-generation",
+    ]
+    assert [item["agent_id"] for item in assignments] == [
+        "agent-data",
+        "agent-data",
+        "agent-delivery",
+    ]
+    assert assignments[1]["depends_on"] == ["general-file-processing"]
+    assert assignments[2]["depends_on"] == ["general-literature-search"]
+
+
+def test_general_domain_anchors_pass_plan_constraint_validation() -> None:
+    registry = chat_module.get_domain_registry()
+    slots = _extract_overdrive_intake_slots(GENERAL_ACCEPTANCE_REQUEST)
+    rules = [
+        rule
+        for rule in registry.assignment_rules(GENERAL_ACCEPTANCE_REQUEST, slots)
+        if rule.authoritative and rule.required
+    ]
+    assignments = _default_overdrive_assignments(
+        GENERAL_ACCEPTANCE_REQUEST, GENERAL_CATALOG, slots, authoritative_only=True
+    )
+    catalog_by_id = {item["agent_id"]: item for item in GENERAL_CATALOG}
+
+    assert validate_plan(assignments, rules, catalog_by_id) == []
+
+    reordered = [dict(item, depends_on=[]) for item in reversed(assignments)]
+    violations = validate_plan(reordered, rules, catalog_by_id)
+    assert any("顺序错误" in item for item in violations)
+    assert validate_plan(assignments[1:], rules, catalog_by_id) == ["缺失必需锚点 general-file-processing"]
+
+
+def test_general_domain_partial_activation_only_emits_requested_anchors() -> None:
+    request = "把结果汇总成网页报告"
+    slots = _extract_overdrive_intake_slots(request)
+    assignments = _default_overdrive_assignments(
+        request, GENERAL_CATALOG, slots, authoritative_only=True
+    )
+
+    assert [item["task_id"] for item in assignments] == ["general-report-generation"]
+
+
+def test_phylo_homolog_search_wording_does_not_trigger_general_anchors() -> None:
+    request = (
+        "我要将 TnpD 蛋白质序列对比到20个基因组进行进化分析与建树；"
+        "已上传 query.faa、20个基因组 FASTA/GFF，将用 DIAMOND 检索同源序列。"
+    )
+    slots = _extract_overdrive_intake_slots(request)
+    rules = chat_module.get_domain_registry().assignment_rules(request, slots)
+
+    assert not [rule for rule in rules if rule.task_id.startswith("general-")]
+    assert [rule.task_id for rule in rules] == ["tnpd-homolog-search", "tnpd-phylogeny"]

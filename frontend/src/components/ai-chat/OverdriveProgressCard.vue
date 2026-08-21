@@ -376,7 +376,7 @@ async function downloadArtifact(artifact: NonNullable<OverdriveProgress['artifac
           <span class="overdrive-progress-card__task-dot" :class="taskStatusClass(task.status)" aria-hidden="true" />
           <span class="overdrive-progress-card__task-copy">
             <strong>{{ task.agentId || task.taskId }}</strong>
-            <span>{{ taskStatusLabel(task.status) }}</span>
+            <span>{{ task.statusLine || taskStatusLabel(task.status) }}</span>
           </span>
           <span v-if="task.errorSummary" class="overdrive-progress-card__task-error" :title="task.errorSummary">!</span>
         </div>

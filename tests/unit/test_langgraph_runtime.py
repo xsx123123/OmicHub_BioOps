@@ -7,7 +7,7 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 from omichub.infrastructure.ai_provider.openai_compatible import ChatChunk
-from omichub.infrastructure.execution.langgraph_nodes import NodeDeps
+from omichub.infrastructure.execution.langgraph_nodes import NodeDeps, llm_call_node, tool_exec_node
 from omichub.infrastructure.execution.langgraph_runtime import LangGraphRuntimeService
 
 USAGE = {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}
@@ -44,6 +44,7 @@ def _make_runtime(
     rounds: list[list[ChatChunk]],
     tool_executor: Any = None,
     max_rounds: int = 8,
+    emit_execution_events: bool = False,
 ) -> tuple[LangGraphRuntimeService, list[list[dict[str, Any]]]]:
     stream, calls = _make_stream(rounds)
     deps = NodeDeps(
@@ -51,6 +52,10 @@ def _make_runtime(
         system_prompt="sys",
         chat_stream=stream,
         tool_executor=tool_executor,
+        emit_execution_events=emit_execution_events,
+        session_id="session-1",
+        run_id="run-1",
+        agent_id="agent-general",
     )
     return LangGraphRuntimeService(deps, max_rounds=max_rounds), calls
 
@@ -147,6 +152,56 @@ async def test_one_tool_round_then_finish() -> None:
         "completion_tokens": 10,
         "total_tokens": 30,
     }
+
+
+async def test_execution_event_sequence_proves_tool_reinjection() -> None:
+    async def _executor(
+        tool_name: str, args: dict[str, Any], tool_call_id: str
+    ) -> dict[str, Any]:
+        return {"success": True, "result": {"value": 42}}
+
+    emitted: list[ChatChunk] = []
+
+    async def _emit(chunk: ChatChunk) -> None:
+        emitted.append(chunk)
+
+    async def _stream(**_kwargs: Any) -> AsyncIterator[ChatChunk]:
+        yield _tool_calls_chunk("get_gene", {"gene": "TP53"})
+        yield ChatChunk(type="done")
+
+    deps = NodeDeps(
+        model_config=None,
+        chat_stream=_stream,
+        tool_executor=_executor,
+        emit=_emit,
+        emit_execution_events=True,
+        session_id="session-1",
+        run_id="run-1",
+        agent_id="agent-general",
+    )
+    state = {
+        "messages": [{"role": "user", "content": "读取 TP53"}],
+        "rounds": 0,
+        "usage": None,
+    }
+    llm_delta = await llm_call_node(state, deps)
+    state["messages"].extend(llm_delta["messages"])
+    await tool_exec_node(state, deps)
+    execution = [chunk for chunk in emitted if chunk.metadata.get("event_type")]
+    event_types = [chunk.type for chunk in execution]
+    assert event_types == [
+        "agent_turn_started",
+        "agent_tool_call",
+        "agent_tool_started",
+        "agent_tool_result",
+        "agent_context_reinjected",
+        "agent_turn_continued",
+    ]
+    assert execution[1].metadata["tool_call_id"] == "call_1"
+    assert execution[4].metadata["tool_call_id"] == "call_1"
+    assert execution[4].metadata["round"] == 1
+    assert execution[5].metadata["round"] == 2
+    assert all(chunk.metadata["execution_path"] == "chat_langgraph" for chunk in execution)
 
 
 async def test_handoff_tool_ends_current_graph_without_another_llm_round() -> None:
@@ -259,7 +314,7 @@ async def test_rounds_exhausted_forces_final_answer_and_sets_flag() -> None:
         max_rounds=2,
     )
 
-    chunks = await _collect(runtime)
+    await _collect(runtime)
 
     assert runtime.rounds_exhausted is True
     # 第 3 轮为强制收尾轮：tool_calls 被清空，正文作为最终答复

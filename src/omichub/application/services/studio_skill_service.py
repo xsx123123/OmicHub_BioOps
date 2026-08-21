@@ -26,6 +26,9 @@ async def extract_skill_from_workspace(
     session: ChatSessionModel,
     req: ExtractStudioSkillRequest,
     skill_service: SkillService,
+    *,
+    owner_id: str,
+    visibility: str,
 ) -> SkillDTO:
     """读取工作区脚本并通过现有 SkillService 持久化，拒绝越界/二进制/未确认内容。"""
     if not req.confirm_no_secrets:
@@ -69,7 +72,7 @@ async def extract_skill_from_workspace(
         session_id=session.session_id,
         path=path,
     )
-    return await skill_service.create_skill(
+    skill = await skill_service.create_skill(
         CreateSkillDTO(
             skill_id=req.skill_id,
             name=req.name,
@@ -78,5 +81,22 @@ async def extract_skill_from_workspace(
             category=req.category,
             icon=req.icon,
             is_active=True,
-        )
+        ),
+        studio_owner_id=owner_id,
+        studio_visibility=visibility,
     )
+    meta = dict(session.sandbox_meta or {})
+    commands = list(meta.get("skill_commands") or [])
+    commands = [item for item in commands if item.get("skill_id") != skill.skill_id]
+    commands.append(
+        {
+            "skill_id": skill.skill_id,
+            "name": skill.name,
+            "description": skill.description,
+            "visibility": visibility,
+            "command": f"/skill:{skill.skill_id}",
+        }
+    )
+    meta["skill_commands"] = commands[-100:]
+    session.sandbox_meta = meta
+    return skill

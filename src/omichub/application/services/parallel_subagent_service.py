@@ -31,6 +31,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from omichub.application.schemas.tool_invocation import ToolInvocationContext
 from omichub.application.services.agent_service import AgentService
+from omichub.application.services.execution_events import execution_metadata
 from omichub.application.services.studio_tools import (
     ASK_USER_TOOL_SCHEMA,
     STUDIO_TOOL_SCHEMAS,
@@ -88,11 +89,16 @@ _OVERDRIVE_WORKSPACE_TOOL_NAMES = frozenset(
 # 20K tokens 的英文/代码输出可能超过 40K 字符，保留足够空间让 Agent 配置生效。
 _ANSWER_CAP_CHARS = 100_000
 _MAX_LENGTH_CONTINUATIONS = 2
+# 模型偶发返回空内容（finish_reason=stop 且无任何正文）时的重试上限，
+# 避免把空答复当作正常结果向上层返回。
+_MAX_EMPTY_RESPONSE_RETRIES = 2
 # 单条工具结果回灌子上下文的字符上限（C5）
 _TOOL_RESULT_CAP_CHARS = 8000
 # 可视化任务可能同时携带研究计划和代码阶段两个上游产物。
 _TASK_INSTRUCTION_MAX_CHARS = 20000
 _CONTEXT_SUMMARY_MAX_CHARS = 12000
+_MAX_DUPLICATE_TOOL_CALLS = 2
+_MAX_REPEATED_TOOL_RESULTS = 2
 
 _WEB_SEARCH_TOOL_SCHEMA: dict[str, Any] = {
     "type": "function",
@@ -193,6 +199,7 @@ class ParallelSubAgentService:
         on_event: Callable[[dict[str, Any]], Awaitable[None] | None] | None = None,
         safe_only: bool = False,
         runtime_authorized: bool = False,
+        allow_non_spawnable_target: bool = False,
         workdir_root: Path | None = None,
         approved_tool_calls: list[dict[str, Any]] | None = None,
         control_check: Callable[[], Awaitable[str | None] | str | None] | None = None,
@@ -228,7 +235,9 @@ class ParallelSubAgentService:
                 return self._error(
                     f"子任务 #{index} 的目标 Agent {item['agent_id']} 不存在或未绑定可用模型"
                 )
-            if not bool((ctx.features or {}).get("subagents_spawnable")):
+            if not bool((ctx.features or {}).get("subagents_spawnable")) and not (
+                allow_non_spawnable_target and safe_only and len(normalized) == 1
+            ):
                 return self._error(
                     f"Agent {item['agent_id']} 未标记为可派生子 Agent"
                     "（需在 Agent YAML 的 features 增加 subagents_spawnable: true）"
@@ -571,6 +580,10 @@ class ParallelSubAgentService:
             "elapsed_s": round(time.monotonic() - started, 1),
             "usage": outcome.get("usage"),
         }
+        if outcome.get("partial"):
+            result["partial"] = True
+        if outcome.get("guard_triggered"):
+            result["guard_triggered"] = True
         await self._emit_event(on_event, {"type": "worker_finished", **result})
         return result
 
@@ -605,10 +618,27 @@ class ParallelSubAgentService:
         reasoning_text = ""
         verified_evidence_refs: list[str] = []
         successful_tool_calls = 0
+        tool_call_signatures: list[str] = []
+        result_signatures: list[str] = []
         length_continuations = 0
+        empty_response_retries = 0
         usage: dict[str, Any] | None = None
         for _round in range(max(1, max_rounds)):
+            round_number = _round + 1
             await self._check_control(control_check)
+            await self._emit_event(
+                on_event,
+                execution_metadata(
+                    "agent_turn_started",
+                    session_id=child_session_id,
+                    run_id=run_id,
+                    agent_id=agent_id,
+                    round_number=round_number,
+                    execution_path="agentteams_worker_react",
+                    index=index,
+                )
+                | {"type": "agent_turn_started", "index": index},
+            )
             text = ""
             tool_calls: list[dict[str, Any]] = []
             finish_reason = ""
@@ -625,10 +655,18 @@ class ParallelSubAgentService:
                         reasoning_text += chunk.content
                         await self._emit_event(
                             on_event,
-                            {
+                            execution_metadata(
+                                "agent_reasoning_delta",
+                                session_id=child_session_id,
+                                run_id=run_id,
+                                agent_id=agent_id,
+                                round_number=round_number,
+                                execution_path="agentteams_worker_react",
+                                index=index,
+                            )
+                            | {
                                 "type": "worker_reasoning_delta",
                                 "index": index,
-                                "agent_id": agent_id,
                                 "content": chunk.content,
                             },
                         )
@@ -649,18 +687,38 @@ class ParallelSubAgentService:
                         function = tool_call.get("function", {}) or {}
                         await self._emit_event(
                             on_event,
-                            {
-                                "type": "worker_tool_call",
-                                "index": index,
-                                "agent_id": agent_id,
-                                "tool_name": str(function.get("name") or "工具"),
-                                "args_summary": str(function.get("arguments") or "")[:2_000],
-                            },
+                            execution_metadata(
+                                "agent_tool_call",
+                                session_id=child_session_id,
+                                run_id=run_id,
+                                agent_id=agent_id,
+                                round_number=round_number,
+                                execution_path="agentteams_worker_react",
+                                index=index,
+                                tool_call_id=str(tool_call.get("id") or ""),
+                                tool_name=str(function.get("name") or "工具"),
+                                args_summary=str(function.get("arguments") or "")[:2_000],
+                            )
+                            | {"type": "worker_tool_call", "index": index},
                         )
                 elif chunk.type == "done":
                     finish_reason = str(chunk.metadata.get("finish_reason") or "").lower()
                     usage = merge_token_usage(usage, chunk.metadata.get("usage"))
                 elif chunk.type == "error":
+                    await self._emit_event(
+                        on_event,
+                        execution_metadata(
+                            "agent_turn_failed",
+                            session_id=child_session_id,
+                            run_id=run_id,
+                            agent_id=agent_id,
+                            round_number=round_number,
+                            execution_path="agentteams_worker_react",
+                            index=index,
+                            error=str(chunk.content or "模型调用失败")[:500],
+                        )
+                        | {"type": "agent_turn_failed", "index": index},
+                    )
                     return {
                         "status": "failed",
                         "answer": None,
@@ -671,6 +729,31 @@ class ParallelSubAgentService:
             if last_text and (not answer_parts or answer_parts[-1] != last_text):
                 answer_parts.append(last_text)
             if not tool_calls:
+                if (
+                    not last_text
+                    and not answer_parts
+                    and finish_reason not in {"length", "max_tokens"}
+                ):
+                    # 模型偶发空响应（仅 reasoning、无正文）：追问重试，兜底报显式失败，
+                    # 不让空答复以"成功"姿态进入会诊信封解析。
+                    if empty_response_retries < _MAX_EMPTY_RESPONSE_RETRIES:
+                        empty_response_retries += 1
+                        messages.append(
+                            {
+                                "role": "user",
+                                "content": (
+                                    "你的上一段回复没有包含任何正文内容。"
+                                    "请直接输出对任务的文字答复，不要留空。"
+                                ),
+                            }
+                        )
+                        continue
+                    return {
+                        "status": "failed",
+                        "answer": None,
+                        "error": "模型连续返回空内容，请稍后重试",
+                        "usage": usage,
+                    }
                 if (
                     finish_reason in {"length", "max_tokens"}
                     and length_continuations < _MAX_LENGTH_CONTINUATIONS
@@ -690,6 +773,21 @@ class ParallelSubAgentService:
                     )
                     continue
                 final_answer = "\n\n".join(answer_parts).strip()
+                await self._emit_event(
+                    on_event,
+                    execution_metadata(
+                        "agent_final_result",
+                        session_id=child_session_id,
+                        run_id=run_id,
+                        agent_id=agent_id,
+                        round_number=round_number,
+                        execution_path="agentteams_worker_react",
+                        index=index,
+                        status="completed",
+                        tool_call_count=successful_tool_calls,
+                    )
+                    | {"type": "agent_final_result", "index": index},
+                )
                 return {
                     "status": "ok",
                     "answer": final_answer[:_ANSWER_CAP_CHARS],
@@ -707,11 +805,51 @@ class ParallelSubAgentService:
                 await self._check_control(control_check)
                 fn = tc.get("function", {}) or {}
                 tool_name = str(fn.get("name") or "")
+                tool_call_id = str(tc.get("id") or "")
                 try:
                     args = json.loads(fn.get("arguments") or "{}")
                 except json.JSONDecodeError:
                     args = {}
                 args = args if isinstance(args, dict) else {}
+                tool_signature = json.dumps(
+                    {"tool": tool_name, "args": args},
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    default=str,
+                )
+                tool_call_signatures.append(tool_signature)
+                if len(tool_call_signatures) >= _MAX_DUPLICATE_TOOL_CALLS and len(
+                    tool_call_signatures
+                ) >= _MAX_DUPLICATE_TOOL_CALLS and all(
+                    signature == tool_call_signatures[-1]
+                    for signature in tool_call_signatures[-_MAX_DUPLICATE_TOOL_CALLS :]
+                ):
+                    reason = "duplicate_tool_call"
+                    await self._emit_event(
+                        on_event,
+                        execution_metadata(
+                            "agent_loop_guard_triggered",
+                            session_id=child_session_id,
+                            run_id=run_id,
+                            agent_id=agent_id,
+                            round_number=round_number,
+                            execution_path="agentteams_worker_react",
+                            index=index,
+                            reason=reason,
+                            tool_name=tool_name,
+                            tool_call_id=tool_call_id,
+                        )
+                        | {"type": "agent_loop_guard_triggered", "index": index},
+                    )
+                    return {
+                        "status": "guarded",
+                        "answer": "\n\n".join(answer_parts).strip()[:_ANSWER_CAP_CHARS] or None,
+                        "thought": reasoning_text.strip() or None,
+                        "error": f"重复调用工具 {tool_name}，已触发运行保护",
+                        "verified_evidence_refs": verified_evidence_refs,
+                        "tool_call_count": successful_tool_calls,
+                        "usage": usage,
+                    }
                 schema = schema_loader.get_tool(tool_name)
                 if tool_name == "ask_user":
                     questions = args.get("questions")
@@ -763,6 +901,21 @@ class ParallelSubAgentService:
                             },
                         }
                 tool_started = time.monotonic()
+                await self._emit_event(
+                    on_event,
+                    execution_metadata(
+                        "agent_tool_started",
+                        session_id=child_session_id,
+                        run_id=run_id,
+                        agent_id=agent_id,
+                        round_number=round_number,
+                        execution_path="agentteams_worker_react",
+                        index=index,
+                        tool_call_id=tool_call_id,
+                        tool_name=tool_name,
+                    )
+                    | {"type": "worker_tool_started", "index": index},
+                )
                 tool_envelope = await self._execute_child_tool(
                     user_id=user_id,
                     agent_id=agent_id,
@@ -775,16 +928,63 @@ class ParallelSubAgentService:
                     ctx=ctx,
                     workspace_access=workspace_access,
                 )
+                result_signature = json.dumps(
+                    tool_envelope, ensure_ascii=False, sort_keys=True, default=str
+                )
+                result_signatures.append(result_signature)
+                if len(result_signatures) >= _MAX_REPEATED_TOOL_RESULTS and all(
+                    signature == result_signatures[-1]
+                    for signature in result_signatures[-_MAX_REPEATED_TOOL_RESULTS :]
+                ):
+                    reason = "no_progress"
+                    await self._emit_event(
+                        on_event,
+                        execution_metadata(
+                            "agent_loop_guard_triggered",
+                            session_id=child_session_id,
+                            run_id=run_id,
+                            agent_id=agent_id,
+                            round_number=round_number,
+                            execution_path="agentteams_worker_react",
+                            index=index,
+                            reason=reason,
+                            tool_name=tool_name,
+                            tool_call_id=tool_call_id,
+                        )
+                        | {"type": "agent_loop_guard_triggered", "index": index},
+                    )
+                    return {
+                        # 保护触发只能表示阶段性结果，不能伪装成可交付完成。
+                        "status": "ok",
+                        "partial": True,
+                        "guard_triggered": True,
+                        "answer": (
+                            "\n\n".join(answer_parts).strip()[:_ANSWER_CAP_CHARS]
+                            or f"已获得 {tool_name} 的重复结果，结果未继续变化；已停止重复调用，建议基于已有结果继续分析。"
+                        ),
+                        "thought": reasoning_text.strip() or None,
+                        "error": None,
+                        "verified_evidence_refs": verified_evidence_refs,
+                        "tool_call_count": successful_tool_calls,
+                        "usage": usage,
+                    }
                 await self._emit_event(
                     on_event,
-                    {
-                        "type": "worker_tool_result",
-                        "index": index,
-                        "agent_id": agent_id,
-                        "tool_name": tool_name,
-                        "success": tool_envelope.get("success") is True,
-                        "duration_ms": round((time.monotonic() - tool_started) * 1000),
-                    },
+                    execution_metadata(
+                        "agent_tool_result",
+                        session_id=child_session_id,
+                        run_id=run_id,
+                        agent_id=agent_id,
+                        round_number=round_number,
+                        execution_path="agentteams_worker_react",
+                        index=index,
+                        tool_call_id=tool_call_id,
+                        tool_name=tool_name,
+                        success=tool_envelope.get("success") is True,
+                        duration_ms=round((time.monotonic() - tool_started) * 1000),
+                        result_summary=self._tool_result_summary(tool_envelope),
+                    )
+                    | {"type": "worker_tool_result", "index": index},
                 )
                 if tool_envelope.get("success") is True:
                     successful_tool_calls += 1
@@ -799,7 +999,52 @@ class ParallelSubAgentService:
                         ],
                     }
                 )
+                await self._emit_event(
+                    on_event,
+                    execution_metadata(
+                        "agent_context_reinjected",
+                        session_id=child_session_id,
+                        run_id=run_id,
+                        agent_id=agent_id,
+                        round_number=round_number,
+                        execution_path="agentteams_worker_react",
+                        index=index,
+                        tool_call_id=tool_call_id,
+                        tool_name=tool_name,
+                    )
+                    | {"type": "agent_context_reinjected", "index": index},
+                )
+            await self._emit_event(
+                on_event,
+                execution_metadata(
+                    "agent_turn_continued",
+                    session_id=child_session_id,
+                    run_id=run_id,
+                    agent_id=agent_id,
+                    round_number=round_number + 1,
+                    execution_path="agentteams_worker_react",
+                    index=index,
+                    reason="tool_results_reinjected",
+                    previous_round=round_number,
+                )
+                | {"type": "agent_turn_continued", "index": index},
+            )
         # 预算耗尽：把最后一段文本作为部分结论返回
+        await self._emit_event(
+            on_event,
+            execution_metadata(
+                "agent_loop_guard_triggered",
+                session_id=child_session_id,
+                run_id=run_id,
+                agent_id=agent_id,
+                round_number=max(1, max_rounds),
+                execution_path="agentteams_worker_react",
+                index=index,
+                reason="max_rounds",
+                max_rounds=max_rounds,
+            )
+            | {"type": "agent_loop_guard_triggered", "index": index},
+        )
         return {
             "status": "budget_exhausted",
             "answer": "\n\n".join(answer_parts).strip()[:_ANSWER_CAP_CHARS] or None,
@@ -809,6 +1054,22 @@ class ParallelSubAgentService:
             "tool_call_count": successful_tool_calls,
             "usage": usage,
         }
+
+    @staticmethod
+    def _tool_result_summary(tool_envelope: dict[str, Any]) -> str:
+        """Return bounded debug context instead of the full raw tool envelope."""
+        if tool_envelope.get("success") is not True:
+            return str(tool_envelope.get("error") or "工具执行失败")[:500]
+        result = tool_envelope.get("result")
+        if isinstance(result, dict):
+            for key in ("summary", "message", "content", "stdout"):
+                value = result.get(key)
+                if isinstance(value, str) and value.strip():
+                    return value.strip()[:500]
+            return "工具执行成功"
+        if isinstance(result, str) and result.strip():
+            return result.strip()[:500]
+        return "工具执行成功"
 
     @staticmethod
     def _tool_evidence_refs(tool_name: str, args: dict[str, Any]) -> list[str]:
@@ -998,6 +1259,10 @@ class ParallelSubAgentService:
             "packet": item.get("packet") or {},
             "verified_evidence_refs": item.get("verified_evidence_refs") or [],
         }
+        if item.get("partial"):
+            view["partial"] = True
+        if item.get("guard_triggered"):
+            view["guard_triggered"] = True
         if item.get("error"):
             view["error"] = item["error"]
         if item.get("workdir"):

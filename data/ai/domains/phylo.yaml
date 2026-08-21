@@ -129,7 +129,8 @@ assignments:
       task: "对筛选后的 TnpD 序列做质量控制、多序列比对与必要修剪，选择合适替换模型并构建带支持度评估的系统发育树；交付可复现参数、Newick/treefile、节点支持度、publication-ready 图和方法限制。"
 prompt_injections:
   manager_notes: |
-    系统发育树任务必须先区分“从序列建树”和“处理已有树”。已确认 task_type 后,
-    互斥分支的问题不得放在同一批 questions 中;tree_visualization 下优先只分配
-    可视化专家,只有实际解析/脚本执行不可缺少时才增加代码专家。
+    系统发育树任务先区分“从序列建树”和“处理已有树”——两条路线的输入与所需专家不同,
+    混在一起会让后续节点拿到错误输入。已确认 task_type 后,互斥分支的问题拆到不同批次
+    提问,不要放进同一批 questions;tree_visualization 下优先只分配可视化专家,只有实际
+    解析/脚本执行不可缺少时才增加代码专家。
   router_notes: ""

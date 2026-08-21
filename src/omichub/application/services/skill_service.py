@@ -110,12 +110,26 @@ class SkillService:
     def __init__(self, db: AsyncSession) -> None:
         self._db = db
 
-    async def list_skills(self, active_only: bool = False) -> list[SkillDTO]:
+    async def list_skills(
+        self,
+        active_only: bool = False,
+        *,
+        user_id: str | None = None,
+        is_admin: bool = False,
+    ) -> list[SkillDTO]:
         query = select(SkillModel).order_by(SkillModel.created_at)
         if active_only:
             query = query.where(SkillModel.is_active == True)  # noqa: E712
         result = await self._db.execute(query)
-        return [self._to_dto(m) for m in result.scalars().all()]
+        skills = result.scalars().all()
+        if not user_id or is_admin:
+            return [self._to_dto(m) for m in skills]
+        return [
+            self._to_dto(skill)
+            for skill in skills
+            if (skill.frontmatter or {}).get("_studio_visibility", "global") == "global"
+            or (skill.frontmatter or {}).get("_studio_owner_id") == user_id
+        ]
 
     async def get_skill(self, skill_id: str) -> SkillDTO:
         result = await self._db.execute(select(SkillModel).where(SkillModel.skill_id == skill_id))
@@ -124,10 +138,23 @@ class SkillService:
             raise NotFoundError(f"技能 '{skill_id}' 不存在")
         return self._to_dto(m)
 
-    async def create_skill(self, req: CreateSkillDTO, actor_id: uuid.UUID | None = None) -> SkillDTO:
+    async def create_skill(
+        self,
+        req: CreateSkillDTO,
+        actor_id: uuid.UUID | None = None,
+        *,
+        studio_owner_id: str | None = None,
+        studio_visibility: str = "global",
+    ) -> SkillDTO:
         existing = await self.get_by_skill_id(req.skill_id)
         if existing:
             raise BusinessError(f"技能 ID '{req.skill_id}' 已存在")
+        frontmatter = None
+        if studio_owner_id:
+            frontmatter = {
+                "_studio_owner_id": studio_owner_id,
+                "_studio_visibility": studio_visibility,
+            }
         model = SkillModel(
             id=uuid.uuid4(),
             skill_id=req.skill_id,
@@ -139,6 +166,7 @@ class SkillService:
             category=req.category,
             is_active=req.is_active,
             is_builtin=False,
+            frontmatter=frontmatter,
         )
         self._db.add(model)
         await self._db.flush()

@@ -1,4 +1,4 @@
-.PHONY: help dev dev-worker dev-rocketmq-worker test lint format type-check migrate migrate-new migrate-merge migrate-rollback docker-network docker-runtime-dirs docker-fix-permissions docker-up docker-up-pgvector pgvector-acceptance polardb-verify knowledge-reindex docker-up-rocketmq docker-up-rocketmq-worker docker-build-enrichment docker-build-deg docker-build-sandboxes docker-build-all-images docker-build-worker docker-up-worker docker-up-all docker-down docker-down-worker docker-down-all docker-logs docker-logs-worker docker-clean docker-purge docker-start docker-reload docker-dev-refresh wait-web clean init-admin init-cookies check-alembic-heads sync-knowledge
+.PHONY: help dev dev-worker dev-rocketmq-worker test test-bridge test-frontend test-all lint format type-check migrate migrate-new migrate-merge migrate-rollback docker-network docker-runtime-dirs docker-fix-permissions docker-up docker-up-pgvector pgvector-acceptance polardb-verify knowledge-reindex docker-up-rocketmq docker-up-rocketmq-worker docker-up-matrix-dev docker-build-enrichment docker-build-deg docker-build-sandboxes docker-build-all-images docker-build-worker docker-up-worker docker-up-all docker-down docker-down-worker docker-down-all docker-logs docker-logs-worker docker-clean docker-purge docker-start docker-reload docker-dev-refresh wait-web clean init-admin init-cookies check-alembic-heads sync-knowledge
 
 help: ## 显示所有可用命令
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -20,6 +20,14 @@ dev-flower: ## 启动 Flower 监控
 
 test: ## 运行测试
 	uv run pytest tests/ -v
+
+test-bridge: ## 运行 AgentTeams Bridge 独立测试工程（MinIO/CaseStore 等，不收编进根 pytest 防双收集）
+	cd integrations/agentteams/bridge && uv run pytest -q
+
+test-frontend: ## 运行前端单测与类型检查
+	cd frontend && npx vitest run && npx vue-tsc --noEmit
+
+test-all: test test-bridge ## 全量测试：根测试（unit/integration/e2e）+ Bridge 测试工程
 
 test-cov: ## 运行测试并生成覆盖率报告
 	uv run pytest tests/ --cov=src/omichub --cov-report=term-missing --cov-report=html
@@ -71,6 +79,18 @@ BRIDGE_GATEWAY_NETWORK ?= $(if $(ENV_OMICHUB_BRIDGE_GATEWAY_NETWORK),$(ENV_OMICH
 ENRICHMENT_DOCKER_IMAGE ?= omichub-r-enrichment:v1
 DEG_DOCKER_IMAGE ?= omichub-r-deg:v1
 ROCKETMQ_IMAGE ?= apache/rocketmq:5.3.2
+# ===== 部署版本可观测：构建期注入 git SHA 短号与 UTC 构建时间 =====
+# 主栈 web/beat/flower 经 OMICHUB_BUILD_* 传入镜像（/health 暴露），
+# AgentTeams Bridge 经 BRIDGE_BUILD_* 传入（/healthz 暴露）；compose 内缺省 unknown。
+GIT_SHA := $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
+BUILD_TIME := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+export OMICHUB_BUILD_SHA ?= $(GIT_SHA)
+export OMICHUB_BUILD_TIME ?= $(BUILD_TIME)
+export BRIDGE_BUILD_SHA ?= $(GIT_SHA)
+export BRIDGE_BUILD_TIME ?= $(BUILD_TIME)
+# 镜像 tag 规范：推送/发布产物必须打 git SHA 短号 tag，禁止 latest 裸推（见 deploy/docker/README.md）。
+IMAGE_TAG ?= $(GIT_SHA)
+export IMAGE_TAG
 DATA_ROOT ?= $(if $(ENV_OMICHUB_DATA_ROOT),$(ENV_OMICHUB_DATA_ROOT),/data/omichub)
 PUID ?= $(shell id -u)
 PGID ?= $(shell id -g)
@@ -100,6 +120,10 @@ agentteams-worker-env: ## 从受控 Bridge 配置生成最小权限的 AgentTeam
 
 docker-up-agentteams: docker-network agentteams-worker-env ## 构建并启动 AgentTeams Bridge、Gateway 与全部生产 Worker
 	$(COMPOSE_AGENTTEAMS) --env-file .env --env-file $(AGENTTEAMS_WORKER_ENV_FILE) --profile agentteams-production up -d --build --force-recreate
+
+docker-up-matrix-dev: ## 启动本机开发用 Matrix(Synapse)+Element 栈（协作室建房链路依赖，独立于主栈/AgentTeams 栈）
+	@echo "=> 启动 matrix-dev（omichub-matrix-dev-synapse / element）..."
+	docker compose -f deploy/agentteams/matrix-dev/docker-compose.yml up -d
 
 docker-runtime-dirs: ## 准备关键运行目录与非 root 容器写入权限（docker-up/reload 自动执行）
 	@echo "=> 准备运行目录权限..."
@@ -167,6 +191,9 @@ docker-build-enrichment: ## 构建 GO / KEGG 富集分析 R 运行时镜像
 
 docker-build-deg: ## 构建 DEG 差异表达分析 R 运行时镜像（DESeq2 + edgeR，支持 1v1 无重复）
 	docker build -t $(DEG_DOCKER_IMAGE) -f deploy/docker/Dockerfile.deg tool_configs/deg
+
+docker-build-synteny: ## 构建 MCScanX 思路的基因组共线性分析运行时镜像
+	docker build -t omichub-synteny:v1 -f deploy/docker/Dockerfile.synteny tool_configs/synteny
 
 docker-build-sandboxes: ## 重建全部沙盒/分析运行时镜像（runtime 三件套 + 旧沙盒池 + studio base/bio + 终端全家桶，任一失败即中止）
 	@echo ""
@@ -267,7 +294,7 @@ docker-stop-all: ## 停止全平台（主栈 + Worker + AgentTeams），可用 d
 	-@$(COMPOSE_WORKER) down --remove-orphans 2>/dev/null || true
 	@echo "=> 停止主栈（web / beat / nginx / db / cache / studio）..."
 	-@$(COMPOSE_MAIN) down --remove-orphans 2>/dev/null || true
-	-@docker ps -a --filter "name=omichub-" -q | xargs -r docker rm -f 2>/dev/null
+	-@docker ps -a --format '{{.Names}}' | grep '^omichub-' | grep -v 'matrix-dev' | xargs -r docker rm -f 2>/dev/null
 	-@docker ps -a --filter "name=studio-" -q | xargs -r docker rm -f 2>/dev/null
 	@echo "✅ 全平台已停止，执行 make docker-reload 可重新拉起"
 
@@ -336,7 +363,7 @@ docker-reload: docker-network ## 重新构建前端并刷新 pgvector 主栈 + R
 	@$(MAKE) --no-print-directory docker-runtime-dirs
 	@echo ""
 	@echo "📦 步骤 1/11：清理残留容器，避免旧容器占用端口或挂载..."
-	-@docker ps -a --filter "name=omichub-" -q | xargs -r docker rm -f 2>/dev/null
+	-@docker ps -a --format '{{.Names}}' | grep '^omichub-' | grep -v 'matrix-dev' | xargs -r docker rm -f 2>/dev/null
 	-@docker ps -a --filter "name=studio-" -q | xargs -r docker rm -f 2>/dev/null
 	-@$(COMPOSE_AGENTTEAMS) down --remove-orphans 2>/dev/null || true
 	-@docker ps -a --filter "name=agentteams-" -q | xargs -r docker rm -f 2>/dev/null
@@ -377,6 +404,7 @@ docker-reload: docker-network ## 重新构建前端并刷新 pgvector 主栈 + R
 	@echo ""
 	@echo "🔗 步骤 9/11：构建并启动 AgentTeams Bridge、Gateway 与生产 Worker..."
 	@$(MAKE) --no-print-directory docker-up-agentteams
+	@$(MAKE) --no-print-directory docker-up-matrix-dev
 	@echo ""
 	@echo "🔧 步骤 10/11：构建并启动 Celery 与 RocketMQ Worker 计算栈..."
 	$(COMPOSE_WORKER) --profile rocketmq up -d --build worker phylo-worker rocketmq-worker

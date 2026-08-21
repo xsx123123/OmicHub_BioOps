@@ -129,6 +129,28 @@ tools:
     order: 50
     config_dir: "tool_configs/enrichments"
 
+  - key: "gsea-enrichment"
+    title: "GSEA 富集分析"
+    description: "基于排序基因列表的 GO / KEGG GSEA 分析，展示 NES、leading edge 与 running score 曲线"
+    icon: "TrendingUpOutline"
+    gradient: "linear-gradient(135deg, #00B42A 0%, #0FC6C2 100%)"
+    route: "/tools/gsea-enrichment"
+    group: "function"
+    enabled: true
+    order: 55
+    config_dir: "tool_configs/gsea"
+
+  - key: "synteny"
+    title: "基因组共线性分析"
+    description: "基于 GFF3 与 BLASTP outfmt6 识别共线性区块，并以交互式 dot plot 展示基因组对应关系"
+    icon: "GitCompareOutline"
+    gradient: "linear-gradient(135deg, #165DFF 0%, #722ED1 100%)"
+    route: "/tools/synteny"
+    group: "genome"
+    enabled: true
+    order: 56
+    config_dir: "tool_configs/synteny"
+
   - key: "deg-analysis"
     title: "DEG 差异表达分析"
     description: "上传 Counts 矩阵与分组信息，DESeq2 / edgeR 双引擎自动路由；无重复(1v1)样本自动切换 edgeR，输出差异基因表、火山图与 PCA"

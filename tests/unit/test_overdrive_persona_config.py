@@ -56,6 +56,12 @@ EXPECTED_TOOL_DECLARATIONS = {
             "mutational-patterns",
         ],
     },
+    # 协作室 Manager 人格（agentteams_manager.yaml）：不可招募的内部编排角色。
+    "agentteams_manager": {
+        "tool_packs": ["workspace", "research", "memory", "agentteams_case"],
+        "mcp_ids": [],
+        "skill_ids": [],
+    },
     "data": {
         "tool_packs": ["workspace", "research", "memory", "handoff", "agentteams_case"],
         "mcp_ids": [],

@@ -249,6 +249,7 @@ async def execute_chat_sandbox(
             stderr_parts: list[str] = []
             images: list[str] = []
             echarts: list[Any] = []
+            plotly_figures: list[Any] = []
             error: str | None = None
 
             async for event in service.execute_code(
@@ -269,6 +270,10 @@ async def execute_chat_sandbox(
                     images.append(str(event.get("data", "")))
                 elif etype == "echarts":
                     echarts.append(event.get("data", {}))
+                elif etype == "plotly":
+                    figure = event.get("data")
+                    if isinstance(figure, dict):
+                        plotly_figures.append(figure)
                 elif etype == "error":
                     error = str(event.get("detail", "执行错误"))
                 elif etype == "done":
@@ -300,6 +305,11 @@ async def execute_chat_sandbox(
                 "images_count": len(images),
                 "echarts_count": len(echarts),
             }
+            if plotly_figures:
+                llm_payload["plotly_count"] = len(plotly_figures)
+                llm_payload["plotly_note"] = (
+                    "plotly 图表已在消息中内联交互预览，无需再引导用户下载 HTML 查看"
+                )
             if artifacts:
                 llm_payload["artifacts"] = [str(item["path"]) for item in artifacts]
                 llm_payload["artifacts_note"] = (
@@ -315,6 +325,8 @@ async def execute_chat_sandbox(
                 "images": images,
                 "echarts": echarts,
             }
+            if plotly_figures:
+                ui_payload["plotly_figures"] = plotly_figures
             if artifacts:
                 ui_payload["artifacts"] = artifacts
             if error:

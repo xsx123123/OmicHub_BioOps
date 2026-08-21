@@ -18,7 +18,12 @@ from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from claim_next import claim_next, execute_readonly_work_item, heartbeat_work_item
+from claim_next import (
+    claim_next,
+    execute_readonly_work_item,
+    heartbeat_work_item,
+    record_work_item_failure,
+)
 
 _EVIDENCE_TOOLS = [
     "task_result_summary",
@@ -198,12 +203,14 @@ def _evidence_refs(assignment: dict[str, Any]) -> list[str]:
         elif kind in {"file", "workspace"} and (location or ref_id):
             value = location or ref_id
             try:
-                # UUID 形式的文件引用使用 file:// 协议，便于 workspace_read_file 解析。
                 uuid.UUID(value)
-                result.append(f"file://{value}")
             except ValueError:
-                # 路径形式的引用保持 file: 前缀，匹配 workspace_file_preview 的 path 参数。
-                result.append(f"file:{value}")
+                # 已经是工作区相对路径（包含 projects/、inbox/ 或 Worker work 相对路径）。
+                result.append(value)
+            else:
+                # 历史 UUID 只能由平台兼容层映射；未映射值显式标记为不可读，
+                # 不再伪造 file:// URI 让预览器把它误判为普通路径。
+                result.append(f"legacy-file:{value}")
         elif kind == "s3" and (location or ref_id):
             result.append(location or ref_id)
     return list(dict.fromkeys(result))
@@ -214,12 +221,37 @@ def run_once(config: ProductionWorkerConfig) -> dict[str, Any]:
     if preview.get("assignment") is None:
         return {"action": "idle", "identity": config.identity}
 
+    preview_assignment = preview["assignment"]
+    trace_id = uuid.uuid4().hex
+    try:
+        agent_id, capability, execution_modes = load_worker_profile(config)
+    except (HTTPError, URLError, RuntimeError, ValueError, json.JSONDecodeError) as exc:
+        try:
+            record_work_item_failure(
+                config.bridge_url,
+                config.identity,
+                config.token,
+                preview_assignment,
+                error=str(exc),
+                trace_id=trace_id,
+            )
+        except (HTTPError, URLError, RuntimeError, ValueError, json.JSONDecodeError):
+            pass
+        raise
+
     claimed = claim_next(config.bridge_url, config.identity, config.token)
     assignment = claimed.get("assignment")
     if assignment is None:
         return {"action": "claim_raced", "identity": config.identity}
 
-    agent_id, capability, execution_modes = load_worker_profile(config)
+    heartbeat_work_item(
+        config.bridge_url,
+        config.identity,
+        config.token,
+        assignment,
+        summary="Worker claimed assignment; preflight started.",
+        trace_id=trace_id,
+    )
     execution_mode = str(assignment["work_item"].get("execution_mode") or "readonly_consultation")
     if execution_mode == "workspace_execution":
         if "workspace_execution" not in execution_modes:
@@ -227,7 +259,6 @@ def run_once(config: ProductionWorkerConfig) -> dict[str, Any]:
                 f"Workspace execution is not declared for identity: {config.identity}"
             )
         capability = "workspace_execution"
-    trace_id = uuid.uuid4().hex
     heartbeat_work_item(
         config.bridge_url,
         config.identity,

@@ -68,6 +68,8 @@ class AgentAbilityCatalog:
             "not_suitable_for": strings("not_suitable_for"),
             "handoff_when": strings("handoff_when"),
             "preferred_inputs": strings("preferred_inputs"),
+            # L2→L4 升级规则（愿景 Phase D）：命中该 Agent 领域即建议升级协作室。
+            "requires_formal_delivery": entry.get("requires_formal_delivery") is True,
         }
 
 

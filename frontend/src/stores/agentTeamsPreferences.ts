@@ -8,7 +8,8 @@ export type AgentTeamsAutonomy = 'cautious' | 'autonomous'
 export type AgentTeamsLanguage = 'zh-CN' | 'en-US'
 
 export interface AgentTeamsPreferences {
-  managerName: string
+  /** 用户手动覆盖的 Manager 称呼；null = 透传后端下发的 manager display_name。 */
+  managerName: string | null
   communicationStyle: AgentTeamsCommunicationStyle
   autonomy: AgentTeamsAutonomy
   language: AgentTeamsLanguage
@@ -18,20 +19,22 @@ export interface AgentTeamsPreferences {
 }
 
 export const DEFAULT_AGENT_TEAMS_PREFERENCES: AgentTeamsPreferences = {
-  managerName: 'Manager',
+  managerName: null,
   communicationStyle: 'professional',
-  autonomy: 'autonomous',
+  autonomy: 'cautious',
   language: 'zh-CN',
   showOnboarding: true,
   autoSplitNewTasks: true,
   expandTechnicalEvents: false,
 }
 
+/** 旧版默认值：迁移期视为「未覆盖」，透传后端 display_name（手册 §7 风险登记）。 */
+const LEGACY_DEFAULT_MANAGER_NAME = 'Manager'
+
 function normalizePreferences(value: unknown): AgentTeamsPreferences {
   const source = value && typeof value === 'object' ? value as Record<string, unknown> : {}
-  const managerName = typeof source.managerName === 'string' && source.managerName.trim()
-    ? source.managerName.trim().slice(0, 24)
-    : DEFAULT_AGENT_TEAMS_PREFERENCES.managerName
+  const rawName = typeof source.managerName === 'string' ? source.managerName.trim().slice(0, 24) : ''
+  const managerName = rawName && rawName !== LEGACY_DEFAULT_MANAGER_NAME ? rawName : null
   return {
     managerName,
     communicationStyle: ['professional', 'friendly', 'concise'].includes(String(source.communicationStyle))
@@ -60,8 +63,20 @@ export const useAgentTeamsPreferencesStore = defineStore('agentTeamsPreferences'
   const settings = ref<AgentTeamsPreferences>({ ...DEFAULT_AGENT_TEAMS_PREFERENCES })
   const saving = ref(false)
   const loaded = ref(false)
+  /** 协作室配置接口（/agent-teams/role-labels）下发的 Manager display_name。 */
+  const serverManagerName = ref('')
 
-  const managerLabel = computed(() => settings.value.managerName || 'Manager')
+  // 命名收敛为单一来源：用户覆盖 > 后端下发 > 本地兜底。
+  const managerLabel = computed(() => settings.value.managerName || serverManagerName.value || 'Manager')
+  /** 房间展示后缀（「· <角色名>」）：与称呼同源；与称呼相同或无后端值时不重复展示。 */
+  const managerRoleSuffix = computed(() => {
+    const backend = serverManagerName.value.trim()
+    return backend && backend !== managerLabel.value ? backend : ''
+  })
+
+  function setServerManagerName(name: unknown) {
+    serverManagerName.value = typeof name === 'string' ? name.trim().slice(0, 24) : ''
+  }
 
   function hydrateFromUser() {
     const root = authStore.user?.preferences
@@ -101,5 +116,5 @@ export const useAgentTeamsPreferencesStore = defineStore('agentTeamsPreferences'
     if (key === 'language') settings.value.language = value === 'English' ? 'en-US' : 'zh-CN'
   }
 
-  return { settings, saving, loaded, managerLabel, hydrateFromUser, save, resetLocal, applyOnboardingAnswer }
+  return { settings, saving, loaded, managerLabel, managerRoleSuffix, serverManagerName, setServerManagerName, hydrateFromUser, save, resetLocal, applyOnboardingAnswer }
 })

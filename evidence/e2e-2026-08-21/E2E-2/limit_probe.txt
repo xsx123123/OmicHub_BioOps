@@ -1,0 +1,6 @@
+limit=1 -> http=200 events_returned=1
+limit=100 -> http=200 events_returned=70
+limit=101 -> http=422 events_returned=0
+limit=200 -> http=422 events_returned=0
+limit=0 -> http=422 events_returned=0
+limit=-1 -> http=422 events_returned=0

@@ -7,7 +7,13 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 
 from omichub.api.deps import CurrentUserId, DbSession
-from omichub.application.schemas.agent_memory import AgentMemoryClearResponse, AgentMemoryDTO
+from omichub.application.schemas.agent_memory import (
+    AgentMemoryClearResponse,
+    AgentMemoryDTO,
+    MemoryBlockDTO,
+    MemoryBlockUpdateRequest,
+    MemoryOverviewDTO,
+)
 from omichub.application.schemas.user import (
     ChangePasswordRequest,
     UserListItem,
@@ -47,6 +53,41 @@ async def list_my_memories(
     return [AgentMemoryDTO(**AgentMemoryService._serialize(memory)) for memory in memories]
 
 
+@router.get("/me/memory-overview", response_model=MemoryOverviewDTO)
+async def get_my_memory_overview(
+    current_user_id: CurrentUserId,
+    db: DbSession,
+    agent_id: str | None = Query(None, max_length=50),
+    scope: str | None = Query(None, pattern="^(profile|project|preference|summary)$"),
+    include_archived: bool = Query(False),
+) -> MemoryOverviewDTO:
+    overview = await AgentMemoryService(db).get_memory_overview(
+        current_user_id,
+        agent_id=agent_id,
+        scope=scope,
+        include_archived=include_archived,
+    )
+    return MemoryOverviewDTO(**overview)
+
+
+@router.patch("/me/memory-blocks/{block_name}", response_model=MemoryBlockDTO)
+async def update_my_memory_block(
+    block_name: str,
+    req: MemoryBlockUpdateRequest,
+    current_user_id: CurrentUserId,
+    db: DbSession,
+    agent_id: str = Query(..., min_length=1, max_length=50),
+) -> MemoryBlockDTO:
+    block = await AgentMemoryService(db).update_memory_block(
+        current_user_id,
+        agent_id,
+        block_name,
+        req.content,
+        req.expected_version,
+    )
+    return MemoryBlockDTO(**block)
+
+
 @router.post("/me/memories/rebuild")
 async def rebuild_my_memories(
     current_user_id: CurrentUserId,
@@ -54,10 +95,13 @@ async def rebuild_my_memories(
 ) -> dict[str, int | str]:
     """为历史上尚未触发沉淀的长会话补投记忆任务。"""
     settings = get_settings()
-    if not settings.mem0_engine_enabled:
+    if not settings.memory_v2_enabled:
         return {"status": "disabled", "queued": 0}
 
-    minimum_messages = max(2, settings.agent_memory_auto_summary_min_messages)
+    minimum_messages = max(
+        2,
+        settings.memory_settle_min_new_messages,
+    )
     sessions = list(
         (
             await db.scalars(

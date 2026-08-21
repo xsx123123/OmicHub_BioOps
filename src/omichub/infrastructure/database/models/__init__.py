@@ -5,7 +5,12 @@
 """
 
 from omichub.infrastructure.database.models.agent import AgentTemplateModel, UserAgentCapabilityModel
-from omichub.infrastructure.database.models.agent_memory import AgentMemoryModel
+from omichub.infrastructure.database.models.agent_memory import (
+    AgentMemoryModel,
+    MemoryBlockModel,
+    MemoryFactModel,
+    MemorySettlementModel,
+)
 from omichub.infrastructure.database.models.agentteams_bridge import AgentTeamsBridgeSettingsModel
 from omichub.infrastructure.database.models.ai import ConversationModel, MessageModel
 from omichub.infrastructure.database.models.ai_metric import (
@@ -22,6 +27,7 @@ from omichub.infrastructure.database.models.blast import (
 )
 from omichub.infrastructure.database.models.chat import (
     AgentTeamsCaseCursorModel,
+    AgentTeamsRoomModel,
     ChatAssistantModel,
     ChatMessageFeedbackModel,
     CollaborationDegradationEventModel,
@@ -98,6 +104,9 @@ __all__ = [
     "UserAgentCapabilityModel",
     "AgentTeamsBridgeSettingsModel",
     "AgentMemoryModel",
+    "MemoryBlockModel",
+    "MemoryFactModel",
+    "MemorySettlementModel",
     "APIKeyModel",
     "UserModel",
     "WorkspaceModel",
@@ -117,6 +126,7 @@ __all__ = [
     "MessageModel",
     "ChatSessionModel",
     "AgentTeamsCaseCursorModel",
+    "AgentTeamsRoomModel",
     "ChatMessageModel",
     "ChatMessageFeedbackModel",
     "ChatAssistantModel",

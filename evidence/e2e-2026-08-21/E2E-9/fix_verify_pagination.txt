@@ -1,0 +1,5 @@
+房间 492ca3ba192c4b279fceed69b49c3130（8 条聚合事件），limit=3 翻页轨迹：
+page1: n=3 next_cursor=set
+page2: n=3 next_cursor=set
+page3: n=2 next_cursor=None
+total unique events: 8 / 8（无重复、无空页带游标、正常终止）

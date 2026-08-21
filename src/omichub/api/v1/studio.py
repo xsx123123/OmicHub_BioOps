@@ -22,10 +22,9 @@ import httpx
 from fastapi import APIRouter, Depends, Header, Query, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from loguru import logger
-from sqlalchemy import text as sql_text
+from sqlalchemy import select, text as sql_text
 
 from omichub.api.deps import CurrentUserId, DbSession, get_active_user_from_token_payload
-from omichub.api.v1.admin.users import AdminRequired
 from omichub.application.schemas.chat import ChatSessionDTO
 from omichub.application.schemas.skill import SkillDTO
 from omichub.application.schemas.studio import (
@@ -66,6 +65,11 @@ from omichub.application.services.studio_context_service import (
     register_artifact_report,
     user_platform_root,
 )
+from omichub.application.services.studio_checkpoints import (
+    ensure_checkpoint_repository,
+    list_checkpoints,
+    restore_checkpoint,
+)
 from omichub.application.services.studio_sharing import (
     build_shared_snapshot,
     create_share,
@@ -76,6 +80,7 @@ from omichub.application.services.studio_sharing import (
     share_is_active,
 )
 from omichub.application.services.studio_skill_service import extract_skill_from_workspace
+from omichub.infrastructure.database.models.user import UserModel
 from omichub.application.services.studio_tools import stream_studio_tool
 from omichub.core.config import get_settings
 from omichub.core.exceptions import (
@@ -355,6 +360,7 @@ async def create_studio_session(
         sandbox_meta={"image": image} if image else None,
         project_id=project_id,
     )
+    await asyncio.to_thread(ensure_checkpoint_repository, dto.session_id)
     _schedule_sandbox_prewarm(dto.session_id, current_user_id, image)
     return dto
 
@@ -391,6 +397,7 @@ async def promote_session_to_studio(
             image = studio_cfg.get("image")
 
     if session.mode == "studio":
+        await asyncio.to_thread(ensure_checkpoint_repository, session.session_id)
         return ChatService._to_session_dto(session)
 
     if target_agent_id:
@@ -410,6 +417,7 @@ async def promote_session_to_studio(
         )
     session.updated_at = datetime.now(UTC)
     await db.flush()
+    await asyncio.to_thread(ensure_checkpoint_repository, session.session_id)
 
     _schedule_sandbox_prewarm(session.session_id, current_user_id, image)
     return ChatService._to_session_dto(session)
@@ -430,6 +438,7 @@ async def create_studio_session_from_report(
         current_user_id, req.report_id, req.agent_id, db
     )
     session = await ChatService(db).get_session(dto.session_id, current_user_id)
+    await asyncio.to_thread(ensure_checkpoint_repository, dto.session_id)
     _schedule_sandbox_prewarm(
         dto.session_id, current_user_id, _sandbox_image(session) if session else None
     )
@@ -534,6 +543,28 @@ async def update_studio_permissions(
     await db.refresh(session)
     permissions = dict((session.sandbox_meta or {}).get("permissions") or {})
     return {"permissions": permissions}
+
+
+@router.get("/sessions/{session_id}/checkpoints", summary="列出工作区检查点")
+async def get_studio_checkpoints(
+    current_user_id: CurrentUserId, service: ChatServiceDep, session_id: str
+) -> dict[str, Any]:
+    await _get_studio_session(service, session_id, current_user_id)
+    return {"checkpoints": await asyncio.to_thread(list_checkpoints, session_id)}
+
+
+@router.post("/sessions/{session_id}/checkpoints/{checkpoint_id}/restore", summary="恢复工作区检查点")
+async def restore_studio_checkpoint(
+    current_user_id: CurrentUserId,
+    service: ChatServiceDep,
+    session_id: str,
+    checkpoint_id: str,
+) -> dict[str, Any]:
+    await _get_studio_session(service, session_id, current_user_id)
+    try:
+        return await asyncio.to_thread(restore_checkpoint, session_id, checkpoint_id)
+    except ValueError as exc:
+        raise BusinessError(str(exc)) from exc
 
 
 # ============================================================
@@ -670,18 +701,25 @@ async def revoke_studio_share(
     "/sessions/{session_id}/skills/extract",
     response_model=SkillDTO,
     status_code=201,
-    summary="管理员将 Studio 脚本提炼为 Skill",
+    summary="将 Studio 脚本提炼为可复用 Skill",
 )
 async def extract_studio_skill(
     current_user_id: CurrentUserId,
-    _admin: AdminRequired,
     service: ChatServiceDep,
     db: DbSession,
     session_id: str,
     req: ExtractStudioSkillRequest,
 ) -> SkillDTO:
     session = await _get_studio_session(service, session_id, current_user_id)
-    return await extract_skill_from_workspace(session, req, SkillService(db))
+    result = await db.execute(select(UserModel.role).where(UserModel.id == current_user_id))
+    visibility = "global" if result.scalar_one_or_none() == "admin" else "private"
+    return await extract_skill_from_workspace(
+        session,
+        req,
+        SkillService(db),
+        owner_id=str(current_user_id),
+        visibility=visibility,
+    )
 
 
 @router.get(

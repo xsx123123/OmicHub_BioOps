@@ -666,9 +666,9 @@ const totpPolicyOptions: { key: SiteSettings['totp_policy']; label: string; desc
                 <h2>Agent 长期记忆</h2>
               </div>
               <p class="platform-setting-card__description">
-                开启后，助手会跨会话记住用户的研究偏好与项目事实（mem0 引擎，加密落盘），
-                并按对话自动沉淀。关闭后记忆召回、写入与自动沉淀全部停用，历史记忆保留。
-                需部署侧 MEM0_ENGINE_ENABLED=true 才具备该能力。
+                开启后，助手会跨会话记住用户的研究偏好与项目事实，并按对话自动沉淀。
+                记忆存储在平台 PostgreSQL 记忆层中；关闭后记忆召回、写入与自动沉淀全部停用，历史记忆保留。
+                具体 v2 灰度由部署侧 memory_v2_enabled 控制。
               </p>
               <div class="platform-setting-card__control">
                 <NSwitch

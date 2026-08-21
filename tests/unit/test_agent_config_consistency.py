@@ -33,6 +33,15 @@ STANDARD_PROMPT_SECTIONS = (
     "转介、交接与协作",
 )
 
+# 各 Agent 提示词对统一骨架的有意豁免（定稿评审后登记；新增豁免须同步更新
+# 对应的提示词规范文档）。
+PROMPT_SECTION_EXEMPTIONS: dict[str, tuple[str, ...]] = {
+    # delivery.md 定稿（2026-08-18，见《Delivery-Agent交付能力升级实现计划》第二节）
+    # 以「交付分级与格式决策」「MD5 完整性协议」等交付专有章节替代通用
+    # 「方法论与专业决策」，交付报告员不自行做分析方法论决策。
+    "prompts/delivery.md": ("方法论与专业决策",),
+}
+
 
 def _load(path: Path) -> dict:
     return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
@@ -160,8 +169,11 @@ def test_all_enabled_agent_prompts_follow_standard_section_order() -> None:
         prompt_file = str(config.get("prompt_file") or "").strip()
         assert prompt_file, f"{name}.yaml 缺少 prompt_file，无法验证源提示词结构"
         text = (AI_DIR / prompt_file).read_text(encoding="utf-8")
+        exemptions = PROMPT_SECTION_EXEMPTIONS.get(prompt_file, ())
         positions = []
         for section in STANDARD_PROMPT_SECTIONS:
+            if section in exemptions:
+                continue
             heading = f"## {section}"
             assert heading in text, f"{prompt_file} 缺少统一章节：{section}"
             positions.append(text.index(heading))

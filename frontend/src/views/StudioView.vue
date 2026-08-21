@@ -119,18 +119,25 @@ const followAi = ref(true)
 const terminalCollapsed = ref(false)
 const hibernateOnLeave = ref(true)
 
-// ---------- 权限模式（supervised/auto，P1 HITL） ----------
+// ---------- 权限模式（supervised/plan/auto） ----------
 const permissionMode = computed(() => store.studioPermissions.mode)
 const isAutoMode = computed(() => permissionMode.value === 'auto')
+const permissionOptions = [
+  { label: '监督', value: 'supervised' },
+  { label: '计划', value: 'plan' },
+  { label: '放权', value: 'auto' },
+]
 const switchingPermissions = ref(false)
 
-async function handlePermissionToggle(auto: boolean) {
+async function handlePermissionChange(mode: 'supervised' | 'plan' | 'auto') {
   if (switchingPermissions.value) return
   switchingPermissions.value = true
   try {
-    await store.setStudioPermissions(auto ? 'auto' : 'supervised')
-    if (auto) {
+    await store.setStudioPermissions(mode)
+    if (mode === 'auto') {
       message.warning('已切换到放权模式：所有工具将自动执行，不再等待批准')
+    } else if (mode === 'plan') {
+      message.info('已切换到计划模式：先批准完整计划，再自动执行本轮步骤')
     } else {
       message.success('已切换到监督模式：关键操作需你批准后执行')
     }
@@ -466,12 +473,13 @@ async function handleAskModalSubmit(answers: string[]): Promise<void> {
   }
 }
 
-/** 新审批/澄清到达时强制滚动到底部，确保用户注意到浮动条与内联卡片 */
+/** 新审批/澄清到达时跟随滚动到底部；仅在距底 100px 阈值内才自动滚动，
+ *  用户上翻阅读时不打断，由"回到底部"红点与输入框上方待回答 pill 提示 */
 watch(
   () => pendingApprovals.value.length + (pendingAsk.value ? 1 : 0),
   (count, prev) => {
     if (count > (prev ?? 0)) {
-      nextTick(() => messageListRef.value?.scrollToBottom(true))
+      nextTick(() => messageListRef.value?.scrollToBottom())
     }
   },
 )
@@ -673,6 +681,7 @@ async function handleExtractSkill() {
   extractingSkill.value = true
   try {
     const skill = await studioApi.extractSkill(sessionId.value, { ...extractSkillForm })
+    await store.fetchSkills()
     showExtractSkill.value = false
     message.success(`已提炼并启用 Skill：${skill.name}`)
   } catch {
@@ -919,16 +928,19 @@ function formatSessionTime(iso: string): string {
         <n-tooltip v-if="sessionId" trigger="hover">
           <template #trigger>
             <span class="perm-switch" :class="{ auto: isAutoMode }">
-              <span class="perm-label">{{ isAutoMode ? '放权模式' : '监督模式' }}</span>
-              <n-switch
-                :value="isAutoMode"
-                size="small"
+              <span class="perm-label">{{ permissionMode === 'auto' ? '放权' : permissionMode === 'plan' ? '计划' : '监督' }}</span>
+              <n-select
+                :value="permissionMode"
+                :options="permissionOptions"
+                size="tiny"
                 :loading="switchingPermissions"
-                @update:value="handlePermissionToggle"
+                :consistent-menu-width="false"
+                style="width: 76px"
+                @update:value="handlePermissionChange"
               />
             </span>
           </template>
-          {{ isAutoMode ? '放权模式：所有工具自动执行，不再等待批准（点击切回监督模式）' : '监督模式：关键操作（执行/写文件/登记产物）需你批准后执行' }}
+          {{ permissionMode === 'auto' ? '放权模式：工具自动执行，仍受循环护栏保护' : permissionMode === 'plan' ? '计划模式：先批准完整计划，再自动执行本轮步骤' : '监督模式：关键操作需逐步批准' }}
         </n-tooltip>
         <span class="sandbox-light" :title="`沙盒状态：${statusInfo.label}`">
           <span class="light-icon" :class="{ pulsing: store.isStreaming && sandboxStatus === 'running' }">{{ statusInfo.icon }}</span> {{ statusInfo.label }}

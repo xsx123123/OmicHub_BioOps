@@ -177,6 +177,17 @@ class PromptInjections(_StrictModel):
     router_notes: str = Field(default="", max_length=800)
 
 
+class RoutingSpec(_StrictModel):
+    """派生注册声明：domain_markers 同时派生到 Planner 评分表与意图路由别名表。
+
+    - planner_agent：该域关键词在 Planner 评分中归属的 Agent（如 agent-general）；
+    - flow_aliases：该域关键词作为哪些 flow.id 的意图路由补充别名。
+    """
+
+    planner_agent: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9_-]{1,127}$")
+    flow_aliases: list[str] = Field(default_factory=list, max_length=40)
+
+
 class DomainPack(_StrictModel):
     domain: str = Field(pattern=r"^[a-z0-9_-]+$")
     version: Literal[1]
@@ -186,6 +197,7 @@ class DomainPack(_StrictModel):
     intake: IntakeSpec = Field(default_factory=IntakeSpec)
     assignments: AssignmentsSpec = Field(default_factory=AssignmentsSpec)
     prompt_injections: PromptInjections = Field(default_factory=PromptInjections)
+    routing: RoutingSpec = Field(default_factory=RoutingSpec)
 
     @model_validator(mode="after")
     def validate_assignment_slot_references(self) -> DomainPack:

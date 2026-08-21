@@ -11,10 +11,20 @@ from pathlib import Path
 from typing import Any
 
 from celery import shared_task
-from omichub.infrastructure.storage import get_path_factory, get_storage_backend
 from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
+
+from omichub.infrastructure.storage import get_path_factory, get_storage_backend
+
+
+def _refresh_instance_status_line(instance: dict[str, Any], phase: str) -> None:
+    """状态迁移时同步人格状态文案;该阶段未配置文案则保留原值。"""
+    from omichub.application.services.agentteams_capability_registry import persona_status_line
+
+    line = persona_status_line(instance.get("persona"), phase)
+    if line:
+        instance["status_line"] = line
 
 
 @shared_task(name="omichub.infrastructure.celery_app.tasks.overdrive.advance_run")
@@ -375,6 +385,13 @@ async def _advance_run(run_id: str) -> dict[str, object]:
                     "source": "manager",
                 },
                 {
+                    "artifact_id": "artifact_bundle",
+                    "path": delivery["archive_path"],
+                    "kind": "delivery",
+                    "status": "validated",
+                    "source": "manager",
+                },
+                {
                     "artifact_id": "project_readme",
                     "path": readme["path"],
                     "kind": "delivery",
@@ -675,6 +692,7 @@ async def _run_manager_review_job(run_id: str, task_id: str, attempt: int) -> di
                     "status": task_status,
                     "finished_at": datetime.now(UTC).isoformat() if task_status == "succeeded" else None,
                 })
+                _refresh_instance_status_line(item, str(task_status))
         run.assistant_instances = instances
         run.manager_reviews = [*run.manager_reviews, review]
         if accepted:
@@ -829,6 +847,7 @@ async def _run_delivery_summary_job(run_id: str) -> dict[str, object]:
             run,
             {
                 "path": f"{relative_root}/delivery/final-report.md",
+                "archive_path": f"{relative_root}/delivery/artifacts.zip",
                 "official_artifacts": official,
             },
             manager_summary=manager_summary,
@@ -944,15 +963,23 @@ async def _run_assistant_job(run_id: str, assistant_instance_id: str) -> dict[st
             if str(item.get("task_id")) == task_id:
                 item.update({"status": "running", "attempt": attempt, "started_at": datetime.now(UTC).isoformat()})
         instances = deepcopy(run.assistant_instances)
+        started_status_line: str | None = None
         for item in instances:
             if item.get("assistant_instance_id") == assistant_instance_id:
                 item["status"] = "running"
+                _refresh_instance_status_line(item, "running")
+                started_status_line = str(item.get("status_line") or "") or None
         run.tasks = tasks
         run.assistant_instances = instances
         await runs.append_event(
             run_id,
             "assistant_started",
-            {"assistant_instance_id": assistant_instance_id, "task_id": task_id, "attempt": attempt},
+            {
+                "assistant_instance_id": assistant_instance_id,
+                "task_id": task_id,
+                "attempt": attempt,
+                "status_line": started_status_line,
+            },
             dedupe_key=f"assistant_started:{task_id}:{attempt}",
         )
         await runs.persist_snapshot(run)
@@ -1165,6 +1192,7 @@ async def _run_assistant_job(run_id: str, assistant_instance_id: str) -> dict[st
             for item in instances:
                 if item.get("assistant_instance_id") == assistant_instance_id:
                     item.update({"status": "reviewing", "finished_at": None})
+                    _refresh_instance_status_line(item, "reviewing")
             run.tasks = tasks
             run.assistant_instances = instances
             if await backend.exists(result_rel):

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import io
+import zipfile
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
@@ -808,3 +810,59 @@ def test_write_readme_covers_delivery_downloads_and_manager_summary(monkeypatch,
     assert "artifacts?path=" in content
     assert "Manager 总结:全部完成。" in content
     assert "task-b: 超时" in content
+
+
+def test_delivery_write_creates_downloadable_artifact_bundle(monkeypatch, tmp_path) -> None:
+    from omichub.application.services import overdrive_execution_service as module
+    from omichub.infrastructure.config.storage_config import StorageConfig
+    from omichub.infrastructure.storage.path_factory import StoragePathFactory
+
+    run = make_run([{"task_id": "task-a", "status": "succeeded"}])
+    run.artifact_index = [
+        {
+            "path": "output/overdrive/session-1/overdrive:test/tasks/task-a/result.md",
+            "kind": "result",
+            "status": "validated",
+            "source": "agent-general",
+        }
+    ]
+
+    def fake_root(session_id: str, run_id: str) -> Path:
+        return tmp_path / session_id / run_id
+
+    factory = StoragePathFactory(StorageConfig(data_root=str(tmp_path), users_subdir="users"))
+
+    class FakeBackend:
+        def __init__(self) -> None:
+            self.files: dict[str, bytes] = {
+                run.artifact_index[0]["path"]: "实体清单\n".encode()
+            }
+
+        async def ensure_dir(self, _path: str) -> None:
+            return None
+
+        async def read(self, path: str) -> bytes:
+            return self.files[path]
+
+        async def write(self, path: str, content: bytes) -> None:
+            self.files[path] = content
+
+    backend = FakeBackend()
+    monkeypatch.setattr(module, "get_path_factory", lambda: factory)
+    monkeypatch.setattr(module, "get_storage_backend", lambda: backend)
+
+    with patch.multiple(
+        module,
+        overdrive_run_root=fake_root,
+        relative_overdrive_run_root=lambda session_id, run_id: f"output/overdrive/{session_id}/{run_id}",
+    ):
+        delivery = asyncio.run(DeliveryAssembler().write(run))
+
+    assert delivery["archive_path"].endswith("/delivery/artifacts.zip")
+    archive_key = next(path for path in backend.files if path.endswith("/delivery/artifacts.zip"))
+    archive = backend.files[archive_key]
+    with zipfile.ZipFile(io.BytesIO(archive)) as bundle:
+        assert bundle.read("final-report.md").startswith(b"# ")
+        assert bundle.read(
+            "output/overdrive/session-1/overdrive:test/tasks/task-a/result.md"
+        ) == "实体清单\n".encode()

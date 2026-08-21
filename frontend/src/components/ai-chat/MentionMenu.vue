@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue'
+import { ref, watch, nextTick, computed } from 'vue'
 import { NIcon, NSpin, NButton } from 'naive-ui'
 import {
   DocumentTextOutline,
   FolderOutline,
   FolderOpenOutline,
+  PeopleOutline,
 } from '@vicons/ionicons5'
 import type { MentionItem } from './types'
 
@@ -32,6 +33,21 @@ const emit = defineEmits<{
 }>()
 
 const listRef = ref<HTMLDivElement>()
+
+/** 列表里出现多种类型（如 Agent + 文件）时才显示分组标题 */
+const hasMultipleKinds = computed(() => new Set(props.items.map((item) => item.kind)).size > 1)
+
+/** 分组标题文案 */
+function groupLabel(kind: MentionItem['kind']): string {
+  if (kind === 'agent') return 'Agent'
+  if (kind === 'directory') return '目录'
+  return '文件'
+}
+
+/** 当前条目是否为该分组的第一项（用于插入分组标题） */
+function isGroupStart(index: number): boolean {
+  return index === 0 || props.items[index - 1].kind !== props.items[index].kind
+}
 
 watch(
   () => props.activeIndex,
@@ -64,7 +80,7 @@ function itemTitle(item: MentionItem): string {
   <div class="mention-menu" @mousedown.prevent>
     <div class="menu-header">
       <span class="header-title">@ 引用</span>
-      <span class="header-sub">输入文件名筛选上下文 · 找智能体请用 /</span>
+      <span class="header-sub">协作室可点名 Agent；也可引用工作区文件</span>
     </div>
 
     <div ref="listRef" v-animate-list.200 class="mention-list" role="listbox" aria-label="@ 引用列表">
@@ -89,41 +105,42 @@ function itemTitle(item: MentionItem): string {
       </div>
 
       <template v-else>
-        <div
-          v-for="(item, index) in items"
-          :key="item.key"
-          class="mention-item"
-          :class="{ active: index === activeIndex }"
-          role="option"
-          :aria-selected="index === activeIndex"
-          :title="itemTitle(item)"
-          @click="emit('select', item)"
-          @mouseenter="emit('hover', index)"
-        >
-          <div class="item-icon" :class="`kind-${item.kind}`">
-            <n-icon size="16">
-              <component :is="item.kind === 'directory' ? FolderOutline : DocumentTextOutline" />
-            </n-icon>
+        <template v-for="(item, index) in items" :key="item.key">
+          <div v-if="hasMultipleKinds && isGroupStart(index)" class="group-label">{{ groupLabel(item.kind) }}</div>
+          <div
+            class="mention-item"
+            :class="{ active: index === activeIndex }"
+            role="option"
+            :aria-selected="index === activeIndex"
+            :title="itemTitle(item)"
+            @click="emit('select', item)"
+            @mouseenter="emit('hover', index)"
+          >
+            <div class="item-icon" :class="`kind-${item.kind}`">
+              <n-icon size="16">
+                <component :is="item.kind === 'directory' ? FolderOutline : item.kind === 'agent' ? PeopleOutline : DocumentTextOutline" />
+              </n-icon>
+            </div>
+            <div class="item-info">
+              <div class="item-name" :class="{ 'file-name': item.kind === 'file' }">{{ item.name }}</div>
+              <div class="item-desc">{{ middleTrunc(item.description) }}</div>
+            </div>
+            <template v-if="item.kind === 'directory'">
+              <n-button
+                size="tiny"
+                secondary
+                type="primary"
+                class="reference-directory"
+                :aria-label="`引用整个目录 ${item.name}`"
+                @click.stop="emit('referenceDirectory', item)"
+              >
+                引用目录
+              </n-button>
+              <span class="item-tag">进入</span>
+            </template>
+            <span v-else class="item-tag">{{ item.kind === 'agent' ? 'Agent' : 'File' }}</span>
           </div>
-          <div class="item-info">
-            <div class="item-name" :class="{ 'file-name': item.kind === 'file' }">{{ item.name }}</div>
-            <div class="item-desc">{{ middleTrunc(item.description) }}</div>
-          </div>
-          <template v-if="item.kind === 'directory'">
-            <n-button
-              size="tiny"
-              secondary
-              type="primary"
-              class="reference-directory"
-              :aria-label="`引用整个目录 ${item.name}`"
-              @click.stop="emit('referenceDirectory', item)"
-            >
-              引用目录
-            </n-button>
-            <span class="item-tag">进入</span>
-          </template>
-          <span v-else class="item-tag">File</span>
-        </div>
+        </template>
       </template>
     </div>
 
@@ -131,7 +148,7 @@ function itemTitle(item: MentionItem): string {
       <span class="footer-agent-hint">想找智能体？输入 <kbd>/</kbd> 试试</span>
       <span><kbd>↑↓</kbd> 导航</span>
       <span><kbd>Enter</kbd> 选择</span>
-      <span><kbd>Esc</kbd> 关闭</span>
+            <span><kbd>Esc</kbd> 关闭</span>
     </div>
   </div>
 </template>
@@ -179,6 +196,14 @@ function itemTitle(item: MentionItem): string {
     padding: 4px;
   }
 
+  .group-label {
+    padding: 6px 12px 2px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--chat-text-secondary);
+  }
+
   .menu-state {
     display: flex;
     align-items: center;
@@ -216,6 +241,7 @@ function itemTitle(item: MentionItem): string {
 
       &.kind-directory { background: var(--icon-cyan-bg); color: #0891b2; }
       &.kind-file { background: var(--icon-blue-bg); color: var(--brand-primary); }
+      &.kind-agent { background: var(--icon-purple-bg, rgba(124, 111, 212, 0.12)); color: var(--icon-visualization, #7c6fd4); }
     }
 
     .item-info { flex: 1; min-width: 0; }

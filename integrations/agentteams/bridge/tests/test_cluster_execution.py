@@ -1620,3 +1620,58 @@ async def test_reclaimed_work_item_is_not_overwritten_by_stale_consultation(tmp_
     assert len(failures) == 1
     assert failures[0]["payload"]["work_item_id"] == "code-01"
     assert not any(event["event_type"] == "skill.finished" for event in events)
+
+
+@pytest.mark.asyncio
+async def test_preflight_work_item_target_resolves_to_canonical_identity(tmp_path) -> None:
+    """BUG-E2E-03 回归：preflight 派单的 legacy target（data-steward）必须在落库前
+    经 role_agent_map 解析为 canonical worker identity（agent-data），否则 inbox/claim
+    精确匹配永远等不到以 canonical identity 轮询的生产 Worker（Case 卡 preflight_running）。
+    """
+    service = make_service(tmp_path, PlanningGateway())
+    await service.create_case(
+        CaseCreateRequest(
+            case_id="alias-case",
+            project_ref=ContextRef(kind="project", id="project-1"),
+            intent="bulk_rnaseq_delivery",
+            requester_ref="user-1",
+            flow_id="rna_seq",
+        ),
+        "bioops-manager",
+    )
+    await service.claim_work_item("alias-case", "plan-01", "agent-rnaseq")
+    await service.execute_readonly_work_item(
+        "alias-case",
+        "plan-01",
+        ReadOnlyExecutionRequest(
+            agent_id="agent-rnaseq",
+            capability="planning_advice",
+            question="Draft a frozen RNA-seq plan.",
+            trace_id="trace-plan-01",
+        ),
+        "agent-rnaseq",
+    )
+    case = await service._cases.get("alias-case")
+
+    preflight = next(item for item in case.work_items if item.work_item_id == "preflight-01")
+    # 派单 target 已解析为 canonical identity，不再是无 Worker 轮询的 data-steward。
+    assert preflight.target == "agent-data"
+
+    # canonical identity 的 inbox 可见且可 claim；legacy 别名 inbox 为空。
+    inbox = await service.list_worker_inbox("agent-data")
+    assert [item.work_item.work_item_id for item in inbox.items] == ["preflight-01"]
+    legacy_inbox = await service.list_worker_inbox("data-steward")
+    assert legacy_inbox.items == []
+
+    claimed = await service.claim_work_item("alias-case", "preflight-01", "agent-data")
+    assert claimed.status == "claimed"
+
+
+@pytest.mark.asyncio
+async def test_unmapped_work_item_target_is_kept_verbatim(tmp_path) -> None:
+    """未在 role_agent_map 登记的 target（如平台内置 workflow-operator）原样保留。"""
+    service = make_service(tmp_path, PlanningGateway())
+
+    assert service._canonical_work_item_target("workflow-operator") == "workflow-operator"
+    # canonical identity 自身映射为自身（幂等）。
+    assert service._canonical_work_item_target("agent-data") == "agent-data"

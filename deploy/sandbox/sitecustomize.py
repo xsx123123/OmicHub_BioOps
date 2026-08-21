@@ -4,7 +4,7 @@ Python 启动时自动执行（对 `docker exec -i <c> python -` 投递的用户
 后端池每次执行都 fork 新 Python 进程，因此启动开销必须极小。
 
 职责：
-1. 注入 show_echarts / show_image / show_df（零开销，立即可用）
+1. 注入 show_echarts / show_image / show_plotly / show_df（零开销，立即可用）
 2. 对 scanpy/numpy/pandas 等重库使用懒加载代理——仅在用户代码实际访问属性时才 import，
    避免每次执行都付出 3-5s 的 scanpy 导入代价
 3. matplotlib 强制 Agg 无头后端
@@ -24,6 +24,10 @@ _warnings.filterwarnings("ignore", category=UserWarning)
 
 _ECHARTS_PREFIX = "%%ECHARTS%%"
 _IMAGE_PREFIX = "%%IMAGE%%"
+_PLOTLY_PREFIX = "%%PLOTLY%%"
+# plotly figure JSON 单行回传上限：超出说明数据量过大，引导降采样，
+# 避免单行撑爆后端落库护栏（tool_invocations 200KB）与前端渲染。
+_PLOTLY_MAX_BYTES = 3 * 1024 * 1024
 
 
 class _LazyModule:
@@ -104,6 +108,27 @@ def show_image(path: str, *, mime: str = "image/png") -> None:
     print(f"{_IMAGE_PREFIX}data:{mime};base64,{b64}", flush=True)
 
 
+def show_plotly(fig: object, *, flush: bool = True) -> None:
+    """输出 plotly Figure 的 JSON，前端按交互式 plotly 渲染（缩放/悬停/图例开关）。
+
+    用法：fig = px.scatter(...); show_plotly(fig)
+    与 fig.write_html("output/figures/xxx.html") 互补：前者内联预览，后者文件交付。
+    """
+    to_json = getattr(fig, "to_json", None)
+    if not callable(to_json):
+        print("[show_plotly] 参数不是 plotly Figure（缺少 to_json），已跳过", file=_sys.stderr)
+        return
+    payload = str(to_json())
+    if len(payload.encode("utf-8")) > _PLOTLY_MAX_BYTES:
+        print(
+            f"[show_plotly] 图表 JSON 超过 {_PLOTLY_MAX_BYTES // 1024 // 1024}MB，"
+            "未回传预览；请降采样后重试",
+            file=_sys.stderr,
+        )
+        return
+    print(_PLOTLY_PREFIX + payload, flush=flush)
+
+
 def show_df(df: object, max_rows: int = 50) -> None:
     """把 DataFrame 以文本表格输出到 stdout。"""
     try:
@@ -119,9 +144,10 @@ def show_df(df: object, max_rows: int = 50) -> None:
 
 _builtins.show_echarts = show_echarts
 _builtins.show_image = show_image
+_builtins.show_plotly = show_plotly
 _builtins.show_df = show_df
 
 print(
-    "[omichub-sandbox] 就绪：show_echarts/show_image/show_df 已注入，sc/np/pd 懒加载",
+    "[omichub-sandbox] 就绪：show_echarts/show_image/show_plotly/show_df 已注入，sc/np/pd 懒加载",
     file=_sys.stderr,
 )

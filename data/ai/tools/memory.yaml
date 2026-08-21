@@ -6,3 +6,4 @@ builtin_tools:
   - omichub_update_memory
   - omichub_forget_memory
   - omichub_search_memory
+  - omichub_update_memory_block

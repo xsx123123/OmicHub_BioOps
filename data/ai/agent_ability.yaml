@@ -17,12 +17,22 @@ agents:
     handoff_when: [需要三个以上专业步骤, 需要正式分析交付, 已识别明确专业领域]
     preferred_inputs: [研究目标, 数据类型, 工作区文件, 物种, 分组信息]
 
+  agentteams-manager:
+    summary: AgentTeams 协作室的部门经理，负责接单、选规划专家、审核计划、协调专家与汇总交付。
+    chat_entry: false
+    capabilities: [需求接单, 规划协调, 计划审核, 进度跟踪, 结果点评, 汇总交付]
+    not_suitable_for: [Work Item 执行, 多步分析流程的实际计算, 未经闸门的写入与审批]
+    handoff_when: [需要领域专家执行专项分析, 需要正式流程交付与质量闸门]
+    preferred_inputs: [研究目标, 数据类型, 样本分组, 物种, 期望交付物]
+
   agent-rnaseq:
     summary: 负责 Bulk RNA-seq 的方案、质控、差异表达、富集和结果解释。
     capabilities: [Bulk RNA-seq, FASTQ质控, 比对与定量, 差异表达, 富集分析, 共表达与结果解释]
     not_suitable_for: [单细胞专属流程, ATAC-seq峰分析, 出版级图形细节优化]
     handoff_when: [输入为单细胞数据, 需要染色质可及性分析, 需要专项绘图或代码调试]
     preferred_inputs: [FASTQ或计数矩阵, 样本表, 分组, 物种, 参考基因组, 研究问题]
+    # L2→L4 升级规则（愿景 Phase D）：命中本领域即建议升级协作室正式交付。
+    requires_formal_delivery: true
 
   agent-atacseq:
     summary: 负责 Bulk ATAC-seq 的质控、峰分析、差异可及性和调控解释。
@@ -30,6 +40,7 @@ agents:
     not_suitable_for: [scATAC-seq专属流程, Bulk RNA-seq全流程, 通用代码工程]
     handoff_when: [输入为单细胞染色质数据, 需要转录组专项执行, 需要复杂脚本调试]
     preferred_inputs: [FASTQ或BAM, fragments, peak文件, 样本表, 物种, 参考组装]
+    requires_formal_delivery: true
 
   agent-scrna:
     summary: 负责单细胞转录组的全流程规划、质控、分析和生物学解释。
@@ -37,6 +48,7 @@ agents:
     not_suitable_for: [原始FASTQ上游细节审计, 批次整合专项复核, 复杂高级单细胞专项]
     handoff_when: [需要上游样本QC审计, 需要整合聚类专项, 需要轨迹或通讯等高级分析]
     preferred_inputs: [h5ad或Seurat对象, 计数矩阵, 元数据, 物种, 批次与分组]
+    requires_formal_delivery: true
 
   agent-scrna-upstream:
     summary: 审查单细胞上游输入、样本级质控和可追溯风险，不直接执行分析。

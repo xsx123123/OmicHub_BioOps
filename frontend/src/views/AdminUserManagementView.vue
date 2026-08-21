@@ -25,6 +25,7 @@ import {
   LockClosedOutline,
   CheckmarkCircle,
   CloseCircleOutline,
+  BulbOutline,
 } from '@vicons/ionicons5'
 import { h, computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -106,6 +107,7 @@ function buildMoreOptions(row: AdminUser) {
     { label: '修改配额', key: 'quota', icon: () => h(NIcon, null, { default: () => h(ServerOutline) }) },
     { label: '💰 快捷充值饼干', key: 'recharge', icon: () => h(NIcon, null, { default: () => h(CashOutline) }) },
     { label: '📄 查看资产流水', key: 'txns', icon: () => h(NIcon, null, { default: () => h(DocumentTextOutline) }) },
+    { label: '查看记忆审计', key: 'memory', icon: () => h(NIcon, null, { default: () => h(BulbOutline) }) },
     // 模块权限：管理员行禁用（防自锁），tooltip 说明原因
     {
       label: () =>
@@ -142,6 +144,7 @@ function handleMoreSelect(key: string, row: AdminUser) {
   else if (key === 'role') toggleRole(row)
   else if (key === 'recharge') openRecharge(row)
   else if (key === 'txns') viewTxns(row)
+  else if (key === 'memory') router.push({ name: 'admin-memory', query: { user_id: row.id } })
   else if (key === 'module-permissions') openModulePermissions(row)
 }
 

@@ -94,6 +94,50 @@ export const agentTeamsFailedStatuses: ReadonlySet<AgentTeamsCaseStatus> = new S
   'remediation_pending',
 ])
 
+/** 尚未进入流程的状态（§1.7 真实状态优先）：房间头部步骤条对这些状态不激活任何
+ *  步骤（全部未开始弱态），避免 received 被误表达为「计划进行中」。 */
+export const agentTeamsPreStartStatuses: ReadonlySet<AgentTeamsCaseStatus> = new Set([
+  'queued',
+  'received',
+])
+
+/** 房间头部五步进度条的固定顺序（计划 → 审批 → 执行 → 质控 → 交付）。 */
+export const AGENT_TEAMS_STAGE_SEQUENCE: Array<{ key: AgentTeamsCaseStage; label: string }> = [
+  { key: 'plan', label: '计划' },
+  { key: 'approval', label: '审批' },
+  { key: 'execution', label: '执行' },
+  { key: 'quality', label: '质控' },
+  { key: 'delivery', label: '交付' },
+]
+
+export interface AgentTeamsStageViewItem {
+  key: AgentTeamsCaseStage
+  label: string
+  index: number
+  state: 'done' | 'current' | 'failed' | 'todo'
+}
+
+/** 五步进度条投影：Case 不存在（未立项房间）或状态缺失时返回 null（不渲染进度条），
+ *  由会话头引导文案承接；激活步骤由 Case 状态映射单一事实源派生。 */
+export function buildAgentTeamsStageView(
+  status: AgentTeamsCaseStatus | '' | null | undefined,
+): AgentTeamsStageViewItem[] | null {
+  if (!status) return null
+  const cancelled = status === 'cancelled'
+  // queued/received 尚未进入流程，步骤条保持「未开始」弱态（全部未激活），
+  // 不与「已接收」状态标签互相矛盾（§1.7）
+  const preStart = agentTeamsPreStartStatuses.has(status)
+  const currentIndex = AGENT_TEAMS_STAGE_SEQUENCE.findIndex((stage) => stage.key === agentTeamsCaseStageMap[status])
+  const failed = agentTeamsFailedStatuses.has(status)
+  return AGENT_TEAMS_STAGE_SEQUENCE.map((stage, index) => {
+    let state: AgentTeamsStageViewItem['state']
+    if (cancelled || preStart || index > currentIndex) state = 'todo'
+    else if (index < currentIndex || status === 'closed') state = 'done'
+    else state = failed ? 'failed' : 'current'
+    return { ...stage, index, state }
+  })
+}
+
 /** 终态 Case（房间同步与部分自动化的边界；发言不受限，见 canSendRoomMessage）。 */
 export const agentTeamsTerminalStatuses: ReadonlySet<AgentTeamsCaseStatus> = new Set([
   'closed',

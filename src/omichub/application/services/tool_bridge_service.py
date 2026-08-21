@@ -11,6 +11,7 @@ from __future__ import annotations
 import importlib
 import inspect
 import json
+import logging
 import re
 from pathlib import Path
 from typing import Any
@@ -22,6 +23,7 @@ from omichub.infrastructure.storage import get_path_factory, get_storage_backend
 from omichub.tools.schema_loader import ToolSchema, ToolsSchemaLoader, schema_loader
 
 _UPLOAD_REF_RE = re.compile(r"^upload://(.+)$")
+logger = logging.getLogger(__name__)
 
 
 class ToolBridgeService:
@@ -53,6 +55,18 @@ class ToolBridgeService:
         schema = self._loader.get_tool(tool_name)
         if schema is None:
             return self._error(f"未知工具: {tool_name}")
+        logger.info("tool_invocation user_id=%s tool=%s mode=%s", user_id, tool_name, schema.invocation_mode)
+
+        if tool_name == "omichub_toolbox_search":
+            query = str(arguments.get("query") or "")
+            limit = int(arguments.get("limit") or 20)
+            catalog = self._loader.toolbox_catalog(query, limit=min(max(limit, 1), 20))
+            raw = {
+                "success": True,
+                "matches": catalog,
+                "summary": f"找到 {len(catalog)} 个与“{query}”相关的工具。",
+            }
+            return self._package(schema, raw)
 
         # analysis_flow 模式：强制需要 ToolInvocationContext
         if schema.invocation_mode == "analysis_flow":
@@ -196,6 +210,8 @@ class ToolBridgeService:
         if mode == "backend_shim":
             return await self._run_shim(user_id, schema, args)
         if mode == "backend_async":
+            if schema.extra and schema.extra.get("celery_service"):
+                return await self._run_service_sync(user_id, schema, args, context)
             return await self._submit_async_arq(user_id, schema.name, schema, args)
         if mode == "open_page":
             return self._open_page_payload(schema, args)
@@ -360,14 +376,26 @@ class ToolBridgeService:
 
         method = getattr(instance, schema.method)
         kwargs = {"user_id": user_id, **args}
+        if context is not None and "db" in inspect.signature(method).parameters:
+            kwargs["db"] = context.db
         if context is not None and "context" in inspect.signature(method).parameters:
             kwargs["context"] = context
         result = await method(**kwargs)
 
         if hasattr(result, "model_dump"):
-            return {"success": True, **result.model_dump()}
+            payload = {"success": True, **result.model_dump()}
+            if payload.get("task_id"):
+                task_id = payload["task_id"]
+                payload.setdefault("progress_url", f"/api/v1/tasks/{task_id}/progress")
+                payload.setdefault("result_url", f"/api/v1/tasks/{task_id}/status")
+            return payload
         if isinstance(result, dict):
-            return {"success": True, **result}
+            payload = {"success": True, **result}
+            if payload.get("task_id"):
+                task_id = payload["task_id"]
+                payload.setdefault("progress_url", f"/api/v1/tasks/{task_id}/progress")
+                payload.setdefault("result_url", f"/api/v1/tasks/{task_id}/status")
+            return payload
         return {"success": True, "result": result}
 
     async def _run_shim(
@@ -444,6 +472,9 @@ class ToolBridgeService:
         return {
             "success": False,
             "is_error": True,
+            # 顶层 error 供事件流摘要（_tool_result_summary）读取真实失败原因，
+            # 避免降级成无信息量的“工具执行失败”。
+            "error": message,
             "llm_payload": {"success": False, "error": message},
             "ui_payload": {"error": message},
         }

@@ -5,9 +5,13 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import shutil
 from collections.abc import AsyncIterator
+from math import ceil
+from pathlib import PurePosixPath
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
+from urllib.parse import urlparse
 
 import httpx
 from loguru import logger
@@ -20,19 +24,42 @@ from omichub.application.services.agentteams_bridge_settings_service import (
 from omichub.application.services.agentteams_capability_registry import (
     get_agentteams_capability_registry,
 )
+from omichub.application.services.agentteams_context_refs import check_context_refs
+from omichub.application.services.agentteams_execution_intent import (
+    ExecutionIntent,
+    classify_execution_intent,
+)
 from omichub.application.services.agentteams_intent_router import infer_intent_route
 from omichub.application.services.agentteams_room_gateway_service import (
     AgentTeamsRoomGatewayService,
 )
 from omichub.application.services.agentteams_title import derive_agentteams_case_title
+from omichub.application.services.file_service import ensure_directory_chain
+from omichub.application.services.project_service import ProjectService
+from omichub.application.services.flow_registry import get_flow_registry
 from omichub.core.config import Settings
 from omichub.core.exceptions import AuthorizationError, BusinessError
 from omichub.infrastructure.cache.redis_client import get_redis
 from omichub.infrastructure.database.models.user import UserModel
+from omichub.infrastructure.database.repositories.file_repository import FileRepositoryImpl
+from omichub.domain.file.entities import DataFile
+from omichub.domain.file.value_objects import FileType
+from omichub.infrastructure.storage.minio_store import MinioStore
+from omichub.infrastructure.storage import get_path_factory
 
 # Bridge 侧预留的 Case 级证据 work_item_id（bridge record_evidence 对 manager 放行，
 # 不要求存在同名 work item）；房间事件不属于任何具体工作项。
 CASE_LEVEL_WORK_ITEM_ID = "case"
+
+# 房间级事件流的 Bridge 内部命名空间前缀（会话-工单解耦 Part 2 方案 b）：
+# 未立项房间的事件流挂在 ``room-<room_id>`` 命名空间记录下，与 Bridge 侧
+# models.ROOM_NAMESPACE_ID_PREFIX 保持一致，改动需同步。
+ROOM_NAMESPACE_ID_PREFIX = "room-"
+
+
+def room_namespace_case_id(room_id: str) -> str:
+    """协作室房间对应的 Bridge 房间命名空间记录 id。"""
+    return f"{ROOM_NAMESPACE_ID_PREFIX}{room_id}"
 
 # 建房时邀请进 Matrix 房间的 Gateway 身份（均为 Gateway 默认 matrix_identities 成员）。
 ROOM_MEMBER_IDENTITIES = ["bioops-manager", "omichub-user"]
@@ -45,14 +72,16 @@ MATRIX_USER_IDENTITY_PREFIX = "omichub-user-"
 # 无 flow_id 的聊天式 Case 缺省规划者；意图路由命中时按流程分析师覆盖。
 DEFAULT_LEAD_PLANNER = "agent-code"
 
-# 聊天式创建的通用 Case 自动确认集合（Redis set）：API 创建时写入，
-# beat 任务消费后移除；Bridge 无 meta 字段且不改 schema，故事实源放在平台侧。
+# 历史自动确认集合：仅供 beat 清理旧标记。新的真实计算不再写入该集合，
+# 必须由用户在当前 Case 的人工审批卡上显式批准。
 AUTO_CONFIRM_CASES_KEY = "agentteams:auto_confirm_cases"
 
 # Bridge 连接状态缓存：避免每次打开协作室页面都同步探测 Bridge /healthz。
 # TTL 10 秒，既减少页面加载延迟，又能在 Bridge 故障时较快感知。
 _CONNECTION_STATUS_CACHE_TTL_SECONDS = 10
 _CONNECTION_STATUS_CACHE_KEY_PREFIX = "agentteams:connection_status"
+_BRIDGE_CASE_EVENTS_PAGE_LIMIT = 100
+_BRIDGE_CASE_DELETE_TIMEOUT_SECONDS = 60
 
 _MATRIX_LOCALPART_ALLOWED = frozenset("abcdefghijklmnopqrstuvwxyz0123456789._=-")
 _MATRIX_USER_SLUG_MAX = 48
@@ -120,6 +149,50 @@ class AgentTeamsService:
         except BusinessError:
             return False
         return health.get("status") == "ok"
+
+    async def flow_capability_check(self, flow_id: str) -> dict[str, Any]:
+        """Return truthful pre-handoff capability status for every Flow stage."""
+        registry = get_flow_registry()
+        registered = registry.flows.get(flow_id) or next(
+            (item for item in registry.flows.values()
+             if item.definition.flow.bridge_workflow == flow_id),
+            None,
+        )
+        if registered is None:
+            return {"flow_id": flow_id, "available": False, "reason": "Flow 未注册", "stages": []}
+        health = await self._request("/v1/health/workers")
+        raw_workers = health.get("workers") if isinstance(health, dict) else []
+        workers = self._merge_worker_heartbeats(
+            raw_workers if isinstance(raw_workers, list) else [],
+            self._worker_identity_aliases(),
+        )
+        workers_by_identity = {
+            str(item.get("identity")): item
+            for item in workers
+            if isinstance(item, dict) and item.get("identity")
+        }
+        stages = []
+        for stage in registered.definition.stages:
+            identity = stage.assistant_agent_id or registered.definition.flow.actor
+            worker = workers_by_identity.get(identity, {})
+            configured = bool(worker.get("configured"))
+            online = bool(worker.get("active"))
+            stages.append({
+                "stage": stage.key,
+                "agent_id": identity,
+                "available": configured and online,
+                "identity_configured": configured,
+                "worker_online": online,
+                "execution_mode": "flow",
+                "reason": "" if configured and online else (
+                    "Bridge 身份未配置" if not configured else "Worker 心跳离线"
+                ),
+            })
+        return {
+            "flow_id": registered.definition.flow.id,
+            "available": all(item["available"] for item in stages),
+            "stages": stages,
+        }
 
     def _connection_status_cache_key(self) -> str:
         url_hash = hashlib.sha256(self._bridge_config.bridge_url.encode()).hexdigest()[:16]
@@ -199,12 +272,14 @@ class AgentTeamsService:
         workers = bridge_health.get("workers") if isinstance(bridge_health.get("workers"), list) else []
         workers = self._merge_worker_heartbeats(workers, self._worker_identity_aliases())
         allowed_flows = bridge_health.get("allowed_flows") if isinstance(bridge_health.get("allowed_flows"), list) else []
+        room_gateway = await AgentTeamsRoomGatewayService().health_check()
         return {
             "connection": status,
             "identities": identities,
             "workers": workers,
             "allowed_flows": allowed_flows,
             "scrna_submit_available": "scrna_seq" in allowed_flows,
+            "room_gateway": room_gateway,
         }
 
     @staticmethod
@@ -335,7 +410,8 @@ class AgentTeamsService:
         *,
         case_id: str,
         project_id: str | None,
-        context_refs: list[dict[str, str]] | None = None,
+        project_name: str | None = None,
+        context_refs: list[dict[str, Any]] | None = None,
         intent: str,
         requester_ref: str,
         flow_id: str | None,
@@ -343,8 +419,21 @@ class AgentTeamsService:
         comparisons: list[dict[str, Any]] | None = None,
         origin_consultation_id: str | None = None,
         consultation_summary: str | None = None,
+        source_case_id: str | None = None,
         db: AsyncSession | None = None,
     ) -> dict[str, Any]:
+        context_refs = await self._normalize_context_refs(
+            list(context_refs or []), requester_ref=requester_ref, db=db
+        )
+        project_name, run_ref = await self._prepare_case_run(
+            requester_ref=requester_ref,
+            project_id=project_id,
+            project_name=project_name,
+            context_refs=context_refs,
+            db=db,
+        )
+        if run_ref is not None:
+            context_refs.append(run_ref)
         case_payload: dict[str, Any] = {
             "case_id": case_id,
             "intent": intent,
@@ -355,28 +444,209 @@ class AgentTeamsService:
             case_payload["project_ref"] = {"kind": "project", "id": project_id}
         if context_refs:
             case_payload["context_refs"] = context_refs
-        if flow_id:
-            case_payload["flow_id"] = flow_id
+        resolved_flow_id = flow_id or self._resolve_chat_flow_id(intent, context_refs)
+        if resolved_flow_id:
+            case_payload["flow_id"] = resolved_flow_id
         else:
             case_payload["lead_planner"] = self._resolve_chat_lead_planner(intent)
         if origin_consultation_id:
             case_payload["origin_consultation_id"] = origin_consultation_id
         if consultation_summary:
             case_payload["consultation_summary"] = consultation_summary
+        if source_case_id:
+            # 终态后"基于上一 Case 继续"的关联引用（Part 2.4），Bridge 原样落审计。
+            case_payload["source_case_id"] = source_case_id
         case = await self._request(
             "/v1/cases",
             method="POST",
             json=case_payload,
         )
-        if db is not None and await self._is_autonomous(db, requester_ref):
-            try:
-                redis = get_redis()
-                await redis.sadd(AUTO_CONFIRM_CASES_KEY, case_id)
-            except Exception as exc:  # noqa: BLE001
-                logger.bind(case_id=case_id).warning(
-                    "AgentTeams auto-confirm marking failed: {}", exc
+        if resolved_flow_id:
+            await self._materialize_flow_stage_work_items(
+                case_id=case_id,
+                flow_id=resolved_flow_id,
+                context_refs=context_refs or [],
+            )
+            if str(case.get("flow_id") or "") == resolved_flow_id:
+                await self._record_flow_capability_failure(
+                    case_id=case_id,
+                    flow_id=resolved_flow_id,
                 )
         return case
+
+    async def _normalize_context_refs(
+        self,
+        refs: list[dict[str, Any]],
+        *,
+        requester_ref: str,
+        db: AsyncSession | None,
+    ) -> list[dict[str, Any]]:
+        """Prefer protocol paths while retaining UUID refs for legacy audit compatibility."""
+        if db is None:
+            return refs
+        try:
+            user_uuid = UUID(requester_ref)
+        except ValueError:
+            return refs
+        factory = get_path_factory()
+        files = FileRepositoryImpl(db)
+        normalized: list[dict[str, Any]] = []
+        for ref in refs:
+            item = dict(ref)
+            if item.get("kind") in {"file", "workspace"}:
+                candidate = str(item.get("location") or item.get("id") or "").strip()
+                try:
+                    file_uuid = UUID(str(item.get("id")))
+                except (TypeError, ValueError):
+                    file_uuid = None
+                if file_uuid is not None and not candidate.startswith(("projects/", "inbox/")):
+                    file_record = await files.get_by_id(user_uuid, file_uuid)
+                    if file_record is not None:
+                        try:
+                            storage_path = Path(file_record.storage_path)
+                            if not storage_path.is_absolute():
+                                storage_path = factory.data_root / storage_path
+                            storage_path = storage_path.resolve()
+                            location = storage_path.relative_to(
+                                factory.user_root(requester_ref).resolve()
+                            ).as_posix()
+                            if location.startswith(("projects/", "inbox/")):
+                                item["location"] = location
+                                item.setdefault("meta", {})["legacy_file_id"] = str(file_uuid)
+                        except ValueError:
+                            pass
+            normalized.append(item)
+        return normalized
+
+    async def _prepare_case_run(
+        self,
+        *,
+        requester_ref: str,
+        project_id: str | None,
+        project_name: str | None,
+        context_refs: list[dict[str, Any]],
+        db: AsyncSession | None,
+    ) -> tuple[str | None, dict[str, Any] | None]:
+        """Create and register the user-visible run directory for a new Case."""
+        if db is None or not project_id:
+            return project_name, None
+        try:
+            user_uuid = UUID(requester_ref)
+        except ValueError:
+            return project_name, None
+        project = await ProjectService(db).get_project(user_uuid, UUID(project_id))
+        resolved_name = project_name or str(project["name"])
+        factory = get_path_factory()
+        run_dir = factory.create_project_run_dir(
+            requester_ref, resolved_name, analysis_name="agentteams-case"
+        )
+        relative_run = run_dir.relative_to(factory.user_root(requester_ref)).as_posix()
+        await ensure_directory_chain(db, user_uuid, relative_run)
+        return resolved_name, {
+            "kind": "project",
+            "id": project_id,
+            "location": relative_run,
+            "meta": {"project_name": resolved_name, "run_path": relative_run},
+        }
+
+    async def _record_flow_capability_failure(self, *, case_id: str, flow_id: str) -> None:
+        """Persist a truthful handoff failure before Manager describes execution."""
+        try:
+            capability = await self.flow_capability_check(flow_id)
+        except Exception as exc:  # noqa: BLE001 - capability failure must be visible, not fatal
+            logger.bind(case_id=case_id, flow_id=flow_id).warning(
+                "AgentTeams Flow capability check failed: {}", exc
+            )
+            capability = {
+                "flow_id": flow_id,
+                "available": False,
+                "reason": "能力检查暂不可用，当前不能确认专项 Worker 状态",
+                "stages": [],
+            }
+        if capability.get("available"):
+            return
+        stage_reasons = [
+            f"{item.get('agent_id')}: {item.get('reason')}"
+            for item in capability.get("stages", [])
+            if isinstance(item, dict) and item.get("reason")
+        ]
+        reason = "；".join(stage_reasons) or str(
+            capability.get("reason") or "专项 Worker 当前不可用"
+        )
+        try:
+            await self.post_case_evidence(
+                case_id,
+                work_item_id=CASE_LEVEL_WORK_ITEM_ID,
+                event_type="case.handoff_failed",
+                summary=f"Flow {flow_id} 暂未交接：{reason}"[:200],
+                payload={
+                    "flow_id": flow_id,
+                    "reason": reason,
+                    "capability": capability,
+                },
+            )
+        except Exception as exc:  # noqa: BLE001 - evidence failure must not fail Case creation
+            logger.bind(case_id=case_id, flow_id=flow_id).warning(
+                "AgentTeams Flow capability failure evidence failed: {}", exc
+            )
+
+    async def _materialize_flow_stage_work_items(
+        self,
+        *,
+        case_id: str,
+        flow_id: str,
+        context_refs: list[dict[str, str]],
+    ) -> None:
+        """把 Flow YAML 阶段投影为可查询的 Case Work Item DAG。"""
+        registry = get_flow_registry()
+        registered = registry.flows.get(flow_id) or next(
+            (
+                item
+                for item in registry.flows.values()
+                if item.definition.flow.bridge_workflow == flow_id
+            ),
+            None,
+        )
+        if registered is None:
+            return
+        previous_id: str | None = None
+        for stage in registered.definition.stages:
+            work_item_id = f"stage-{stage.key}"
+            target = stage.assistant_agent_id or registered.definition.flow.actor
+            payload = {
+                "work_item_id": work_item_id,
+                "parent_work_item_id": previous_id,
+                "target": target,
+                "objective": stage.title,
+                "skill_name": stage.key,
+                "context_refs": [*context_refs, {"kind": "flow_stage", "id": stage.key}],
+                "declared_inputs": context_refs,
+                "declared_outputs": [{"kind": "flow", "id": stage.key}],
+                "read_only": True,
+                "depends_on": [previous_id] if previous_id else [],
+            }
+            try:
+                await self._request(
+                    f"/v1/cases/{case_id}/work-items",
+                    method="POST",
+                    json=payload,
+                )
+            except Exception as exc:  # noqa: BLE001 - expose unavailable stage, preserve Case
+                logger.bind(case_id=case_id, flow_id=flow_id, stage=stage.key).warning(
+                    "AgentTeams Flow stage work item unavailable: {}", exc
+                )
+                try:
+                    await self.post_case_evidence(
+                        case_id,
+                        work_item_id=CASE_LEVEL_WORK_ITEM_ID,
+                        event_type="flow.stage_unavailable",
+                        summary=f"Flow 阶段 {stage.key} 暂不可用",
+                        payload={"flow_id": flow_id, "stage": stage.key, "target": target, "reason": str(exc)[:500]},
+                    )
+                except Exception:
+                    pass
+                continue
+            previous_id = work_item_id
 
     @staticmethod
     def _resolve_chat_lead_planner(intent: str) -> str | None:
@@ -392,6 +662,40 @@ class AgentTeamsService:
             intent,
         )
         return None
+
+    @staticmethod
+    def _resolve_chat_flow_id(
+        intent: str,
+        context_refs: list[dict[str, str]] | None,
+    ) -> str | None:
+        """仅让带明确输入的正式领域请求在创建时绑定既有 Flow。
+
+        ``workspace`` 是聊天 Case 的只读默认引用，``project`` 是建 Case 时自动注入的
+        运行目录，二者都不是用户提供的数据，不能单独视为执行对象；否则"如何进行"
+        一类尚无数据的请求会在澄清完成前就误绑流程、向领域 Agent 派出 plan-01。
+        真正上传的文件/产物引用，或文本内明确的 FASTQ、Cell Ranger、STARsolo 等
+        产物才允许走 Flow。
+        """
+        execution_refs = [
+            ref
+            for ref in context_refs or []
+            if str(ref.get("kind") or "").strip().lower() not in {"workspace", "project"}
+        ]
+        if classify_execution_intent(intent, execution_refs) is not ExecutionIntent.EXECUTE:
+            return None
+        try:
+            route = infer_intent_route(intent)
+        except Exception as exc:  # noqa: BLE001 - routing failure must preserve generic chat Case
+            logger.bind(intent=intent[:160]).warning(
+                "AgentTeams chat Case flow routing failed: {}", exc
+            )
+            return None
+        if route is None:
+            return None
+        logger.bind(flow_id=route.flow_id, lead_planner=route.lead_planner).info(
+            "AgentTeams chat Case bound to inferred domain Flow"
+        )
+        return route.flow_id
 
     @staticmethod
     async def _user_agentteams_preferences(
@@ -431,37 +735,14 @@ class AgentTeamsService:
         db: AsyncSession | None = None,
         task_name: str = "auto-approved",
     ) -> dict[str, Any]:
-        """若用户为 autonomous 模式，自动批准并提交处于 approval_pending 的 Case。
-
-        通用 Case（无 flow_id）直接调用 general-plans/execute；
-        流程 Case 创建 submit work item 后调用 approved-submissions。
-        成功后在 Case 上记录「已根据你的授权自动批准」审计事件。
-        """
+        """保留旧巡检入口，但真实计算始终要求当前用户显式人工审批。"""
         if db is None:
             return {"status": "skipped_no_db", "case_id": case_id}
-        if not await self._is_autonomous(db, requester_ref):
-            return {"status": "skipped_not_autonomous", "case_id": case_id}
-        case = await self._get_case_for_requester(case_id, requester_ref)
-        status_value = str(case.get("status") or "")
-        if status_value == "approved":
-            return {"status": "idempotent_already_approved", "case_id": case_id}
-        if status_value == "executing":
-            return {"status": "idempotent_already_executing", "case_id": case_id}
-        if status_value != "approval_pending":
-            return {"status": "skipped_not_pending", "case_id": case_id, "case_status": status_value}
-        result = await self.approve_and_submit_task(
-            case_id=case_id,
-            requester_ref=requester_ref,
-            task_name=task_name,
-        )
-        await self.post_case_evidence(
-            case_id,
-            work_item_id=CASE_LEVEL_WORK_ITEM_ID,
-            event_type="case.auto_approved",
-            summary="已根据你的授权自动批准",
-            payload={"reason": "user_autonomy_autonomous"},
-        )
-        return {"status": "auto_approved", "case_id": case_id, "result": result}
+        return {
+            "status": "skipped_manual_approval_required",
+            "case_id": case_id,
+            "reason": "真实计算必须由用户在当前 Case 中显式批准",
+        }
 
     async def approve_and_submit_task(
         self,
@@ -615,24 +896,59 @@ class AgentTeamsService:
         requester_ref: str,
         objective: str,
         context_refs: list[dict[str, str]],
+        target_agent_id: str | None = None,
     ) -> None:
         """聊天式 Case（无 flow_id）命中执行意图时启动 planning。
 
         先创建 read_only 的 plan-01 规划工作项，再把 Case 推进到 planning_running。
-        顺序不可颠倒：Bridge 的 reconcile 会把没有 plan-01 的聊天 Case 从
-        planning_running 退回 received（chat_case_skips_auto_planning）。
+        Bridge reconcile 不会为无 flow_id 的聊天 Case 自动创建 planning 工作项，
+        也不会在重复 reconcile 时回退或重复产生 skip 审计事件。
         失败仅记 warning，绝不影响房间回复主流程。
         """
         refs: list[dict[str, str]] = (
             list(context_refs) if context_refs else [{"kind": "workspace", "id": requester_ref}]
         )
+        if context_refs:
+            workspace_root = get_path_factory().user_root(requester_ref).resolve()
+            checks = check_context_refs(
+                refs, workspace_root=workspace_root if workspace_root.exists() else None
+            )
+            unreadable = [item for item in checks if not item.readable]
+            if unreadable:
+                details = [
+                    {"ref": item.ref, "category": item.category, "reason": item.reason}
+                    for item in unreadable
+                ]
+                try:
+                    await self.post_case_evidence(
+                        case_id,
+                        work_item_id=CASE_LEVEL_WORK_ITEM_ID,
+                        event_type="work_item.blocked",
+                        summary="执行计划已阻断：存在不可读的上下文引用",
+                        payload={"reason": "unreadable_context_refs", "references": details},
+                    )
+                except Exception as exc:  # noqa: BLE001 - blocking evidence is best effort
+                    logger.bind(case_id=case_id).warning(
+                        "AgentTeams unreadable context evidence failed: {}", exc
+                    )
+                return
+        target = target_agent_id
+        if not target:
+            try:
+                route = infer_intent_route(objective)
+                target = route.lead_planner if route else None
+            except Exception as exc:  # noqa: BLE001
+                logger.bind(case_id=case_id).warning(
+                    "AgentTeams chat planning target routing failed: {}", exc
+                )
+        target = target or DEFAULT_LEAD_PLANNER
         try:
             await self._request(
                 f"/v1/cases/{case_id}/work-items",
                 method="POST",
                 json={
                     "work_item_id": "plan-01",
-                    "target": "agent-code",
+                    "target": target,
                     "objective": objective,
                     "skill_name": "planning_advice",
                     "context_refs": refs,
@@ -677,7 +993,11 @@ class AgentTeamsService:
     async def delete_case(self, case_id: str, requester_ref: str) -> dict[str, Any]:
         """删除协作 Case：先校验归属，Bridge 侧取消未结束的 Case 并移除记录与审计事件。"""
         await self._get_case_for_requester(case_id, requester_ref)
-        return await self._request(f"/v1/cases/{case_id}", method="DELETE")
+        return await self._request(
+            f"/v1/cases/{case_id}",
+            method="DELETE",
+            timeout=_BRIDGE_CASE_DELETE_TIMEOUT_SECONDS,
+        )
 
     async def revise_case_plan(
         self,
@@ -700,8 +1020,128 @@ class AgentTeamsService:
         )
 
     async def get_manifest(self, case_id: str, requester_ref: str) -> dict[str, Any]:
-        await self._get_case_for_requester(case_id, requester_ref)
-        return await self._request(f"/v1/cases/{case_id}/manifest")
+        return await self.get_manifest_with_delivery(case_id, requester_ref)
+
+    async def get_manifest_with_delivery(
+        self,
+        case_id: str,
+        requester_ref: str,
+        *,
+        db: AsyncSession | None = None,
+    ) -> dict[str, Any]:
+        case = await self._get_case_for_requester(case_id, requester_ref)
+        manifest = await self._request(f"/v1/cases/{case_id}/manifest")
+        if db is not None:
+            await self._materialize_case_delivery(
+                case=case,
+                manifest=manifest,
+                requester_ref=requester_ref,
+                db=db,
+            )
+        return manifest
+
+    async def _materialize_case_delivery(
+        self,
+        *,
+        case: dict[str, Any],
+        manifest: dict[str, Any],
+        requester_ref: str,
+        db: AsyncSession,
+    ) -> None:
+        """Project Bridge delivery metadata into the Case's protocol run output directory."""
+        run_path = ""
+        for ref in case.get("context_refs") or []:
+            if not isinstance(ref, dict) or ref.get("kind") != "project":
+                continue
+            meta = ref.get("meta") if isinstance(ref.get("meta"), dict) else {}
+            run_path = str(meta.get("run_path") or ref.get("location") or "")
+            if "/runs/" in run_path:
+                break
+        if not run_path or not run_path.startswith("projects/") or "/runs/" not in run_path:
+            return
+        try:
+            user_uuid = UUID(requester_ref)
+        except ValueError:
+            return
+        factory = get_path_factory()
+        output_rel = f"{run_path}/output"
+        output_dir = (factory.user_root(requester_ref) / output_rel.removeprefix(""))
+        output_dir.mkdir(parents=True, exist_ok=True)
+        await ensure_directory_chain(db, user_uuid, output_rel)
+        output_refs = case.get("output_refs") or (manifest.get("case") or {}).get("output_refs") or []
+        minio = MinioStore(self._settings, probe=False)
+        for raw_ref in output_refs:
+            if not isinstance(raw_ref, dict):
+                continue
+            location = str(raw_ref.get("location") or raw_ref.get("id") or "").strip()
+            meta = raw_ref.get("meta") if isinstance(raw_ref.get("meta"), dict) else {}
+            local_path = str(meta.get("local_path") or "").strip()
+            filename = PurePosixPath(local_path or location).name
+            if not filename or filename in {".", ".."}:
+                continue
+            destination = output_dir / filename
+            if destination.exists():
+                continue
+            parsed = urlparse(location)
+            try:
+                if parsed.scheme == "s3":
+                    parts = PurePosixPath(parsed.path.lstrip("/")).parts
+                    if parsed.netloc != minio.bucket or len(parts) < 3 or parts[0] != case.get("case_id"):
+                        continue
+                    minio.fetch_case_object(str(case["case_id"]), "/".join(parts[1:]), destination)
+                elif location.startswith(("projects/", "inbox/")):
+                    source = (factory.user_root(requester_ref) / location).resolve()
+                    source.relative_to(factory.user_root(requester_ref).resolve())
+                    if source.is_file():
+                        shutil.copyfile(source, destination)
+            except (OSError, ValueError, BusinessError) as exc:
+                logger.warning("AgentTeams delivery artifact projection skipped {}: {}", location, exc)
+        manifest_path = output_dir / "agentteams-delivery-manifest.json"
+        manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+        summary = str(manifest.get("remediation_summary") or "").strip()
+        task_ids = manifest.get("task_ids") or []
+        report = [
+            "# AgentTeams Case 交付报告",
+            "",
+            f"- Case：`{case.get('case_id', '')}`",
+            f"- 项目运行目录：`{run_path}`",
+            f"- 状态：`{case.get('status', '')}`",
+            f"- 任务：{', '.join(map(str, task_ids)) or '无'}",
+            "",
+            "## 交付说明",
+            summary or "交付 Worker 已完成汇总，详细审计与产物校验见同目录 manifest。",
+            "",
+            "## 产物校验",
+            f"manifest 中登记 {len(manifest.get('artifact_checksums') or {})} 个产物校验项。",
+        ]
+        (output_dir / "delivery-summary.md").write_text("\n".join(report) + "\n", encoding="utf-8")
+        file_repo = FileRepositoryImpl(db)
+        existing = {
+            item.path
+            for item in await file_repo.list_by_user(user_uuid, status=None)
+            if item.source == "agentteams"
+        }
+        for output_file in sorted(output_dir.iterdir()):
+            if not output_file.is_file():
+                continue
+            storage_path = output_file.relative_to(factory.data_root).as_posix()
+            if storage_path in existing:
+                continue
+            payload = output_file.read_bytes()
+            await file_repo.save(
+                DataFile(
+                    id=uuid4(),
+                    user_id=user_uuid,
+                    path=storage_path,
+                    original_name=output_file.name,
+                    size=len(payload),
+                    checksum=hashlib.sha256(payload).hexdigest(),
+                    file_type=FileType.REPORT if output_file.suffix == ".md" else FileType.OTHER,
+                    directory=output_rel,
+                    source="agentteams",
+                )
+            )
+        await db.flush()
 
     async def refresh_case(self, case_id: str, requester_ref: str) -> dict[str, Any]:
         await self._get_case_for_requester(case_id, requester_ref)
@@ -756,15 +1196,77 @@ class AgentTeamsService:
         limit: int = 100,
     ) -> dict[str, Any]:
         await self._get_case_for_requester(case_id, requester_ref)
-        params = {"limit": limit}
+        params = {"limit": max(1, min(limit, _BRIDGE_CASE_EVENTS_PAGE_LIMIT))}
         if cursor:
             params["cursor"] = cursor
         return await self._request(f"/v1/cases/{case_id}/events", params=params)
 
+    async def get_room_response_timing_summary(
+        self,
+        case_id: str,
+        requester_ref: str,
+        *,
+        limit: int = 1000,
+    ) -> dict[str, Any]:
+        """Aggregate persisted Manager response timing events for a Case."""
+        event_page = await self.get_case_events(case_id, requester_ref, limit=limit)
+        event_items = list(event_page.get("events", []))
+        next_cursor = event_page.get("next_cursor")
+        while next_cursor and len(event_items) < limit:
+            event_page = await self.get_case_events(
+                case_id,
+                requester_ref,
+                cursor=str(next_cursor),
+                limit=limit - len(event_items),
+            )
+            page_items = event_page.get("events", [])
+            if not isinstance(page_items, list) or not page_items:
+                break
+            event_items.extend(page_items)
+            next_cursor = event_page.get("next_cursor")
+        timings = [
+            event.get("payload") or {}
+            for event in event_items
+            if isinstance(event, dict) and event.get("event_type") == "room.response_timing"
+        ]
+        durations = [
+            max(0, int(item.get("duration_ms") or 0))
+            for item in timings
+            if isinstance(item, dict) and item.get("duration_ms") is not None
+        ]
+
+        def percentile(values: list[int]) -> int:
+            if not values:
+                return 0
+            ordered = sorted(values)
+            return ordered[max(0, ceil(len(ordered) * 0.95) - 1)]
+
+        stage_values: dict[str, list[int]] = {}
+        for item in timings:
+            if not isinstance(item, dict):
+                continue
+            stage_ms = item.get("stage_ms")
+            if not isinstance(stage_ms, dict):
+                continue
+            for stage, value in stage_ms.items():
+                try:
+                    stage_values.setdefault(str(stage), []).append(max(0, int(value)))
+                except (TypeError, ValueError):
+                    continue
+        return {
+            "case_id": case_id,
+            "sample_count": len(durations),
+            "p95_duration_ms": percentile(durations),
+            "stage_p95_ms": {
+                stage: percentile(values) for stage, values in sorted(stage_values.items())
+            },
+            "latest_duration_ms": durations[-1] if durations else 0,
+        }
+
     async def provision_case_room(
         self, case_id: str, *, requester_ref: str = ""
     ) -> dict[str, Any] | None:
-        """Best-effort Matrix 房间供给；失败仅记录日志，Case 创建不受影响。
+        """Best-effort Matrix 房间供给；失败记录为 Case 证据但不阻断创建。
 
         房间标识通过 ``room.created`` Case 证据事件持久化（bridge 审计流即映射存储，
         bridge 侧房间镜像钩子凭它绑定 case_id → room_id）；同时在 Redis 登记
@@ -787,10 +1289,16 @@ class AgentTeamsService:
             room = await gateway.create_room(case_id, identities)
         except Exception as exc:  # noqa: BLE001 - 建房失败不得阻断 Case 创建
             logger.warning("agentteams case {} room provisioning failed: {}", case_id, exc)
+            await self._record_room_provision_failure(case_id, reason="gateway_request_failed", exc=exc)
             return None
         room_id = str(room.get("room_id") or "")
         if not room_id:
             logger.warning("agentteams case {} room provisioning returned no room_id", case_id)
+            await self._record_room_provision_failure(
+                case_id,
+                reason="gateway_invalid_response",
+                detail="Gateway response did not contain room_id",
+            )
             return None
         try:
             await self.post_case_evidence(
@@ -813,6 +1321,90 @@ class AgentTeamsService:
         await record_room_binding(case_id, room_id, requester_ref)
         return room
 
+    async def _record_room_provision_failure(
+        self,
+        case_id: str,
+        *,
+        reason: str,
+        exc: Exception | None = None,
+        detail: str | None = None,
+    ) -> None:
+        """Persist a visible fallback event so Matrix degradation is diagnosable from the Case."""
+        try:
+            await self.post_case_evidence(
+                case_id,
+                work_item_id=CASE_LEVEL_WORK_ITEM_ID,
+                event_type="room.provisioning_failed",
+                summary="协作房间创建失败，已降级为平台事件流",
+                payload={
+                    "provider": "matrix",
+                    "reason": reason,
+                    "detail": (detail or str(exc or "unknown failure"))[:1_000],
+                    "recovery": "检查 Gateway 配置、网络连通性和 Matrix 服务后重试建房",
+                },
+            )
+        except BusinessError as evidence_exc:
+            logger.warning(
+                "agentteams case {} room provisioning failure evidence failed: {}",
+                case_id,
+                evidence_exc,
+            )
+
+    async def create_room_namespace(
+        self, *, room_id: str, title: str, requester_ref: str
+    ) -> dict[str, Any]:
+        """在 Bridge 创建房间命名空间记录，承载未立项房间的级事件流。
+
+        命名空间记录（record_kind=room_namespace）复用 Case 事件流/恢复/SSE/镜像
+        链路，但不进用户 Case 列表、配额与 GC（Bridge 侧保证）。
+        """
+        return await self._request(
+            "/v1/cases",
+            method="POST",
+            json={
+                "case_id": room_namespace_case_id(room_id),
+                "record_kind": "room_namespace",
+                "intent": f"协作室房间会话：{title.strip()[:200]}",
+                "requester_ref": requester_ref,
+            },
+        )
+
+    async def bind_case_room(
+        self,
+        case_id: str,
+        *,
+        room_id: str,
+        matrix_room_id: str | None,
+        requester_ref: str,
+    ) -> dict[str, Any] | None:
+        """立项确认后把既有房间绑定到新 Case。
+
+        房间已有 Matrix 房间时直接复用（把 room.created 证据写到 Case 审计流，
+        让 Bridge 房间镜像钩子把 Case 事件镜像进同一房间）；没有则按原逻辑建房。
+        """
+        if not matrix_room_id:
+            return await self.provision_case_room(case_id, requester_ref=requester_ref)
+        try:
+            await self.post_case_evidence(
+                case_id,
+                work_item_id=CASE_LEVEL_WORK_ITEM_ID,
+                event_type="room.created",
+                summary="协作房间已创建",
+                payload={
+                    "provider": "matrix",
+                    "room_id": matrix_room_id,
+                    "reused_from_room_id": room_id,
+                },
+            )
+        except BusinessError as exc:
+            logger.warning("agentteams case {} room binding evidence failed: {}", case_id, exc)
+        from omichub.application.services.agentteams_room_sync_service import (
+            record_room_binding,
+        )
+
+        await record_room_binding(case_id, matrix_room_id, requester_ref)
+        return {"room_id": matrix_room_id}
+
     async def post_room_message(
         self,
         case_id: str,
@@ -820,6 +1412,7 @@ class AgentTeamsService:
         content: str,
         *,
         context_refs: list[dict[str, str]] | None = None,
+        client_message_id: str | None = None,
     ) -> dict[str, Any]:
         """记录一条用户房间发言（``room.user_message`` 审计事件）。
 
@@ -830,16 +1423,204 @@ class AgentTeamsService:
         case = await self._request(f"/v1/cases/{case_id}")
         if case.get("requester_ref") != requester_ref:
             raise AuthorizationError("无权操作该协作案例")
-        payload: dict[str, Any] = {"actor": requester_ref, "content": content.strip()}
+        from omichub.application.services.agentteams_mention_resolver import resolve_room_mentions
+
+        registry = get_agentteams_capability_registry()
+        role_labels = registry.role_labels()
+        participant_targets = {
+            str(item.get("target"))
+            for item in case.get("work_items", [])
+            if isinstance(item, dict) and item.get("target")
+        }
+        allowed_agent_ids = set(participant_targets)
+        allowed_agent_ids.update(
+            str(label.get("agent_id"))
+            for role, label in role_labels.items()
+            if role in participant_targets and label.get("agent_id")
+        )
+        dispatch = resolve_room_mentions(
+            content,
+            registry=registry,
+            role_labels=role_labels,
+            allowed_agent_ids=allowed_agent_ids or None,
+        )
+        if client_message_id:
+            existing = await self.get_case_events(case_id, requester_ref, limit=200)
+            existing_events = list(existing.get("events", []))
+            next_cursor = existing.get("next_cursor")
+            while next_cursor and len(existing_events) < 200:
+                existing = await self.get_case_events(
+                    case_id,
+                    requester_ref,
+                    cursor=str(next_cursor),
+                    limit=200 - len(existing_events),
+                )
+                page_events = existing.get("events", [])
+                if not isinstance(page_events, list) or not page_events:
+                    break
+                existing_events.extend(page_events)
+                next_cursor = existing.get("next_cursor")
+            for event in existing_events:
+                if not isinstance(event, dict) or event.get("event_type") != "room.user_message":
+                    continue
+                event_payload = event.get("payload") or {}
+                if not isinstance(event_payload, dict):
+                    continue
+                nested_payload = event_payload.get("payload")
+                if isinstance(nested_payload, dict):
+                    event_payload = nested_payload
+                if event_payload.get("client_message_id") == client_message_id:
+                    return {
+                        "event_id": event.get("event_id"),
+                        "deduplicated": True,
+                        "dispatch": dispatch,
+                    }
+        payload: dict[str, Any] = {
+            "actor": requester_ref,
+            "content": content.strip(),
+            "mentions": dispatch["mentions"],
+            "target_agent_id": dispatch["target_agent_id"],
+            "dispatch_mode": dispatch["dispatch_mode"],
+        }
+        if dispatch.get("unknown_mentions"):
+            payload["mention_resolution_note"] = (
+                "以下点名对象不是当前 Case 参与者，已交由 Manager 评估："
+                + "、".join(dispatch["unknown_mentions"])
+            )
+        if client_message_id:
+            payload["client_message_id"] = client_message_id
         if context_refs:
             payload["context_refs"] = context_refs
-        return await self.post_case_evidence(
+        result = await self.post_case_evidence(
             case_id,
             work_item_id=CASE_LEVEL_WORK_ITEM_ID,
             event_type="room.user_message",
             summary=content.strip()[:80],
             payload=payload,
         )
+        return {**result, "dispatch": dispatch}
+
+    async def apply_change_decision(
+        self,
+        case_id: str,
+        requester_ref: str,
+        *,
+        work_item_ids: list[str],
+        decision: str,
+        rationale: str = "",
+    ) -> dict[str, Any]:
+        """Record a user change decision; only cancel mutates execution immediately."""
+        if decision not in {"resume", "replan", "branch", "cancel"}:
+            raise BusinessError("不支持的变更决策")
+        case = await self._get_case_for_requester(case_id, requester_ref)
+        requested_ids = {str(item_id) for item_id in work_item_ids if item_id}
+        items = [
+            item for item in case.get("work_items", [])
+            if isinstance(item, dict) and str(item.get("work_item_id")) in requested_ids
+        ]
+        if not items:
+            raise BusinessError("未找到可处理的受影响工作项")
+        statuses = {"claimed", "running", "in_progress", "awaiting_approval", "planning_running"}
+        active_items = [item for item in items if str(item.get("status") or "").lower() in statuses]
+        if not active_items and decision != "resume":
+            raise BusinessError("受影响工作项已经离开运行态，无法重复提交该决策")
+
+        changed_items: list[str] = []
+        if decision in {"cancel", "replan"}:
+            for item in active_items:
+                item_id = str(item["work_item_id"])
+                await self._request(
+                    f"/v1/cases/{case_id}/work-items/{item_id}",
+                    method="POST",
+                    json={
+                        "status": "cancelled",
+                        "summary": (
+                            rationale.strip()[:4_000]
+                            or ("用户确认终止该变更支线" if decision == "cancel" else "重规划前冻结旧工作项")
+                        ),
+                    },
+                )
+                changed_items.append(item_id)
+                await self.post_case_evidence(
+                    case_id,
+                    work_item_id=item_id,
+                    event_type="work_item.interrupted",
+                    summary="工作项已在安全边界停止，等待变更后续编排",
+                    payload={
+                        "work_item_id": item_id,
+                        "stop_level": "queued",
+                        "previous_status": item.get("status"),
+                        "reusable_artifacts": item.get("output_refs") or [],
+                        "resume_hint": "原工作项已保留审计与产物引用",
+                        "decision": decision,
+                    },
+                )
+
+        created_work_item_ids: list[str] = []
+        rerouted_targets: dict[str, str] = {}
+        if decision in {"replan", "branch"}:
+            suffix = uuid4().hex[:8]
+            for item in items:
+                item_id = str(item["work_item_id"])
+                new_id = f"{item_id}-{decision}-{suffix}"
+                target = item.get("target")
+                if decision == "replan":
+                    try:
+                        route = infer_intent_route(
+                            f"{case.get('intent') or ''}\n{item.get('objective') or ''}"
+                        )
+                    except Exception as exc:  # noqa: BLE001 - preserve old target on route failure
+                        route = None
+                        logger.bind(case_id=case_id, work_item_id=item_id).warning(
+                            "AgentTeams replan target routing failed: {}", exc
+                        )
+                    if route is not None:
+                        target = route.lead_planner
+                if decision == "replan" and target:
+                    rerouted_targets[item_id] = str(target)
+                await self._request(
+                    f"/v1/cases/{case_id}/work-items",
+                    method="POST",
+                    json={
+                        "work_item_id": new_id,
+                        "parent_work_item_id": item_id,
+                        "target": target,
+                        "objective": (
+                            f"根据用户变更决策重新规划：{item.get('objective') or ''}"
+                            if decision == "replan"
+                            else f"并行验证支线：{item.get('objective') or ''}"
+                        )[:1_000],
+                        "skill_name": item.get("skill_name") or "change-branch",
+                        "context_refs": item.get("context_refs") or [],
+                        "declared_inputs": item.get("declared_inputs") or [],
+                        "declared_outputs": item.get("declared_outputs") or [],
+                        "read_only": True,
+                        "execution_mode": "readonly_consultation",
+                        "depends_on": [],
+                        "idempotency_key": f"{case_id}:{new_id}",
+                    },
+                )
+                created_work_item_ids.append(new_id)
+
+        payload = {
+            "work_item_ids": [str(item["work_item_id"]) for item in items],
+            "decision": decision,
+            "rationale": rationale.strip()[:4_000],
+            "execution_status": (
+                "cancelled" if decision == "cancel" else "recorded_pending_replan"
+            ),
+            "changed_work_item_ids": changed_items,
+            "created_work_item_ids": created_work_item_ids,
+            "rerouted_targets": rerouted_targets,
+        }
+        await self.post_case_evidence(
+            case_id,
+            work_item_id=CASE_LEVEL_WORK_ITEM_ID,
+            event_type="work_item.resume_decision",
+            summary=f"用户已提交变更决策：{decision}",
+            payload=payload,
+        )
+        return {"case_id": case_id, **payload}
 
     async def post_case_evidence(
         self,
@@ -859,6 +1640,32 @@ class AgentTeamsService:
                 "event_type": event_type,
                 "summary": summary[:4_000] or event_type,
                 "payload": payload or {},
+            },
+        )
+
+    async def record_room_response_timing(
+        self,
+        case_id: str,
+        *,
+        requester_ref: str,
+        response_status: str,
+        duration_ms: int,
+        stage_ms: dict[str, int],
+    ) -> dict[str, Any]:
+        """Persist response timing as queryable Case evidence for latency baselines."""
+        await self._get_case_for_requester(case_id, requester_ref)
+        return await self.post_case_evidence(
+            case_id,
+            work_item_id=CASE_LEVEL_WORK_ITEM_ID,
+            event_type="room.response_timing",
+            summary=f"Manager 响应耗时 {duration_ms}ms",
+            payload={
+                "response_status": response_status,
+                "duration_ms": max(0, int(duration_ms)),
+                "stage_ms": {
+                    str(key): max(0, int(value))
+                    for key, value in stage_ms.items()
+                },
             },
         )
 
@@ -936,11 +1743,51 @@ class AgentTeamsService:
             response = await self._bridge_client().request(method, path, headers=headers, **kwargs)
             response.raise_for_status()
         except httpx.HTTPStatusError as exc:
+            response_body = exc.response.text[:1000]
+            trace_id = exc.response.headers.get("x-request-id") or exc.response.headers.get(
+                "x-trace-id"
+            )
+            response_payload: dict[str, Any] = {}
+            try:
+                decoded_body = exc.response.json()
+                if isinstance(decoded_body, dict):
+                    response_payload = decoded_body
+            except ValueError:
+                pass
+            detail = response_payload.get("detail")
+            bridge_code = response_payload.get("code")
+            if isinstance(detail, dict):
+                bridge_code = detail.get("code") or bridge_code
+                detail_message = detail.get("message") or detail.get("detail")
+            else:
+                detail_message = detail
+            logger.warning(
+                "AgentTeams Bridge request failed: method={} path={} status={} code={} trace_id={} body={}",
+                method,
+                path,
+                exc.response.status_code,
+                bridge_code,
+                trace_id,
+                response_body,
+            )
             if exc.response.status_code == 404:
                 raise BusinessError("协作案例不存在") from exc
-            raise BusinessError("Agent 协作中心暂时不可用") from exc
+            if bridge_code == "LIMIT_EXCEEDED":
+                raise BusinessError(
+                    "协作事件查询范围无效，请缩小查询范围",
+                    code="LIMIT_EXCEEDED",
+                ) from exc
+            if isinstance(detail_message, str) and detail_message:
+                logger.debug("AgentTeams Bridge error detail: {}", detail_message)
+            raise BusinessError("Agent 协作中心暂时不可用", code=bridge_code) from exc
         except httpx.HTTPError as exc:
-            raise BusinessError("Agent 协作中心暂时不可用") from exc
+            logger.warning(
+                "AgentTeams Bridge request unavailable: method={} path={} error={}",
+                method,
+                path,
+                exc.__class__.__name__,
+            )
+            raise BusinessError("Agent 协作中心暂时不可用", code="BRIDGE_UNAVAILABLE") from exc
         payload = response.json()
         if not isinstance(payload, dict):
             raise BusinessError("Agent 协作中心返回了无效数据")

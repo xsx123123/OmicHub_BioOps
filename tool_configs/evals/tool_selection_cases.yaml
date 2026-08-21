@@ -1,0 +1,33 @@
+cases:
+  - {query: "帮我看看这些基因富集到什么通路", expected_tool: omichub_run_kegg_enrichment, acceptable_alternatives: [], notes: "基因列表 ORA"}
+  - {query: "做 GO 注释", expected_tool: omichub_run_kegg_enrichment, acceptable_alternatives: [], notes: "GO 富集"}
+  - {query: "KEGG enrichment for these genes", expected_tool: omichub_run_kegg_enrichment, acceptable_alternatives: [], notes: "英文别名"}
+  - {query: "画个火山图", expected_tool: omichub_plot_volcano, acceptable_alternatives: [], notes: "口语化火山图"}
+  - {query: "visualize DEG log2FC and padj", expected_tool: omichub_plot_volcano, acceptable_alternatives: [], notes: "英文差异表达图"}
+  - {query: "GWAS 曼哈顿图", expected_tool: omichub_plot_manhattan, acceptable_alternatives: [], notes: "GWAS"}
+  - {query: "plot QTL association loci", expected_tool: omichub_plot_manhattan, acceptable_alternatives: [], notes: "QTL"}
+  - {query: "RNA-seq counts 两组差异分析", expected_tool: omichub_run_deg_analysis, acceptable_alternatives: [], notes: "counts"}
+  - {query: "用 DESeq2 找差异基因", expected_tool: omichub_run_deg_analysis, acceptable_alternatives: [], notes: "DESeq2"}
+  - {query: "构建系统发育树", expected_tool: omichub_build_phylogenetic_tree, acceptable_alternatives: [], notes: "建树"}
+  - {query: "NJ tree from aligned FASTA", expected_tool: omichub_build_phylogenetic_tree, acceptable_alternatives: [], notes: "英文树算法"}
+  - {query: "找一个做共线性分析的工具", expected_tool: omichub_toolbox_search, acceptable_alternatives: [], notes: "发现入口"}
+  - {query: "工具箱里有 GSEA 吗", expected_tool: omichub_toolbox_search, acceptable_alternatives: [], notes: "发现入口"}
+  - {query: "帮我打开 DEG 工作台", expected_tool: omichub_run_deg_analysis, acceptable_alternatives: [], notes: "工作台"}
+  - {query: "火山图 DEG plot", expected_tool: omichub_plot_volcano, acceptable_alternatives: [], notes: "混合表述"}
+  - {query: "曼哈顿图 SNP", expected_tool: omichub_plot_manhattan, acceptable_alternatives: [], notes: "SNP"}
+  - {query: "富集气泡图", expected_tool: omichub_run_kegg_enrichment, acceptable_alternatives: [], notes: "富集结果"}
+  - {query: "edgeR 分析表达差异", expected_tool: omichub_run_deg_analysis, acceptable_alternatives: [], notes: "edgeR"}
+  - {query: "maximum likelihood phylogeny", expected_tool: omichub_build_phylogenetic_tree, acceptable_alternatives: [], notes: "ML"}
+  - {query: "GO BP MF CC 富集", expected_tool: omichub_run_kegg_enrichment, acceptable_alternatives: [], notes: "GO 分类"}
+  - {query: "differential expression plot", expected_tool: omichub_plot_volcano, acceptable_alternatives: [omichub_run_deg_analysis], notes: "允许先分析"}
+  - {query: "有一张 counts matrix", expected_tool: omichub_run_deg_analysis, acceptable_alternatives: [], notes: "原始计数"}
+  - {query: "查看 QTL 显著位点", expected_tool: omichub_plot_manhattan, acceptable_alternatives: [], notes: "关联位点"}
+  - {query: "比较序列亲缘关系", expected_tool: omichub_build_phylogenetic_tree, acceptable_alternatives: [], notes: "序列关系"}
+  - {query: "通路分析", expected_tool: omichub_run_kegg_enrichment, acceptable_alternatives: [], notes: "功能富集"}
+  - {query: "我有全基因 log2FC 排序，帮我跑 GSEA", expected_tool: omichub_run_gsea, acceptable_alternatives: [], notes: "排序基因集富集"}
+  - {query: "用 GFF3 和 BLASTP 结果画基因组共线性 dot plot", expected_tool: omichub_run_synteny, acceptable_alternatives: [], notes: "共线性分析"}
+  - {query: "帮我写一封邮件", expected_tool: null, acceptable_alternatives: [], notes: "非工具箱"}
+  - {query: "今天北京天气如何", expected_tool: null, acceptable_alternatives: [], notes: "网络问答"}
+  - {query: "解释一下什么是转录组", expected_tool: null, acceptable_alternatives: [], notes: "知识问答"}
+  - {query: "整理这段会议纪要", expected_tool: null, acceptable_alternatives: [], notes: "通用写作"}
+  - {query: "生成项目周报", expected_tool: null, acceptable_alternatives: [], notes: "非生信工具"}

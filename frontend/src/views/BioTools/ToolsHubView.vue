@@ -8,6 +8,7 @@ import {
   AppsOutline, FlaskOutline, BonfireOutline, CalculatorOutline, SwapHorizontalOutline,
   TerminalOutline, GitNetworkOutline, GitBranchOutline, GridOutline, StatsChartOutline,
   ChevronForwardOutline,
+  TrendingUpOutline, GitCompareOutline,
 } from '@vicons/ionicons5'
 import ToolCard from '@/components/bio-tools/ToolCard.vue'
 import PageHeader from '@/components/PageHeader.vue'
@@ -55,6 +56,8 @@ const ICON_MAP: Record<string, Component> = {
   GitBranchOutline,
   GridOutline,
   StatsChartOutline,
+  TrendingUpOutline,
+  GitCompareOutline,
 }
 
 function resolveIcon(key: string): Component {

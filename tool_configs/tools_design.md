@@ -1061,6 +1061,85 @@ const plotlyCharts = computed(() => {
 | 工具结果没关联到工具卡片 | `tool_call_id` 为空或前后端不匹配 | 检查 LLM provider 是否返回 tool_call id |
 | 图表渲染报错 | Plotly figure 结构非法 | 用 `python -m omichub.tools.shims.xxx` 单独测试返回值 |
 
+### 15.8 Description 工程规范与工具检索（2026-08-18）
+
+工具 Schema 的 `description` 是 Agent 路由与工具选择的主语义契约，不是前端营销文案。所有
+`category` 为 `toolbox`、`enrichment`、`visualization`、`analysis`、`sequence` 或 `genome`
+的 `omichub_` 工具必须满足下列规则：
+
+1. 长度为 80--300 个字符，动词开头，先描述输入到输出的能力句。
+2. 紧接“适用于”列出 2--3 个自然语言说法或任务特征，使口语请求可被稳定匹配。
+3. 紧接边界句，明确“不适用于什么、应改用哪个工具”，近似功能以本节分工矩阵为准。
+4. 紧接“输入”说明关键字段、格式与 `upload://file_id` 支持范围；不得声称 Schema 未声明的格式。
+5. 禁用“极速”“专业”“一站式”等营销词；每个条目必须有非空 `keywords`，包含中文同义词、英文别名和常见缩写。
+
+近似工具分工矩阵：
+
+| 易混淆组 | 分工约定 |
+|---|---|
+| 组学绘图工坊 / 火山图 / 表达矩阵 Explorer / 富集气泡图 | 自由探索绘图用工坊；含 log2FC+padj 的 DEG 结果用火山图；表达矩阵 PCA、分布、方差用 Explorer；已有富集结果的气泡图属于富集页。 |
+| 序列魔术师 / 格式轻量转换器 | 序列清洗、翻译、ORF、Motif 用序列魔术师；GFF/GTF/BED 等文件互转用格式转换器。 |
+| DEG / GO-KEGG 富集 / GSEA | 原始 counts 矩阵用 DEG；无排序基因列表用 GO/KEGG 富集；全基因排序列表（如 log2FC）用 GSEA。 |
+| BLAST / 基因组共线性 | BLAST 负责产生序列比对命中；共线性分析消费 GFF3 加 BLASTP outfmt6 或平台 BLAST 结果，输出共线性区块与 dot plot。 |
+
+#### 15.8.1 检索化注入
+
+`tools_schema.yaml` 顶层 `tool_selection` 控制注入方式：
+
+```yaml
+tool_selection:
+  mode: full       # full | retrieval；默认 full，保持既有 Agent 行为
+  top_n: 8
+```
+
+- `full`：注入全部允许的 builtin tools，是默认兼容模式。
+- `retrieval`：工具数大于 15 时按 `name + description + keywords` 召回 Top-N，并与 Agent 明确
+  pinned 的工具合并；索引/召回异常或工具数不大于 15 时必须回落 `full` 并记录结构化日志。
+- `omichub_toolbox_search(query)` 是渐进披露的发现工具，返回候选工具名和一句话摘要。当前上下文
+  已有明确工具时不得先调用它；未召回或用户只描述目标时可调用一次再选择具体工具。
+- 检索实现必须随 `tools_schema.yaml` mtime 变化重建；中文分词可使用 jieba，并保留确定性的
+  无外部服务降级排序，禁止因检索失败阻断工具调用。
+- 观测日志至少包含 `query`、`selection_mode`、`recalled_tools` 与本轮 `invoked_tool`；当前实现分别
+  由 `AgentService` 的 `tool_selection` 日志与 `ToolBridgeService` 的 `tool_invocation` 日志记录。评测
+  必须使用离线固定数据集，不调用真实 LLM。
+
+#### 15.8.2 评测与 Lint 基线
+
+- 评测数据在 `tool_configs/evals/tool_selection_cases.yaml`，每次扩展工具箱时增加正向、英文/缩写、
+  易混淆和非工具箱负向用例；基线至少 30 条且负向至少 5 条。
+- 执行 `python scripts/tool_selection_eval.py --mode full|retrieval` 输出逐条命中和 Top-1；报告记录日期、
+  git revision、full 与 retrieval 两种模式及召回配置。本轮 2026-08-18 在 32 条固定用例上，full 与
+  retrieval 均为 `28/32（87.50%）`；结果见 `tool_configs/evals/tool_selection_full_report.md` 与
+  `tool_configs/evals/tool_selection_retrieval_report.md`。新增工具入口后该值较上一轮下降，说明需要继续
+  优化同义词权重和负向判定；该值是本轮实现后的可复现评测，不能倒填为改写前基线。
+- `tests/unit/tools/test_tool_schema_lint.py` 必须校验命名唯一、描述长度、禁用词、四成分、keywords
+  以及 Schema 参数说明。新增工具未通过 lint 不得上线。
+
+#### 15.8.3 GSEA 与共线性工具契约
+
+**GSEA 富集分析**：复用 `deploy/docker/Dockerfile.enrichment` 的 clusterProfiler 运行时和富集任务
+的用户隔离模型。输入为 `gene_id + score` 两列的排序列表、物种、GO_BP/MF/CC 或 KEGG、p/q cutoff；
+容器输出 CSV（ID、Description、NES、pvalue、p.adjust、qvalue、setSize、leading edge）和 running-score
+JSON。当前工作区通过 Plotly 展示英文 running-score 曲线、Top term 表，并支持 CSV、PNG、SVG 下载及
+300/600/1000 DPI PNG 导出；当前一次任务选择单一 gene-set 来源，跨来源分栏展示仍需在多来源提交契约
+落地后验收。任务目录遵循
+`{data_mount}/users/{user_id}/gsea/{project_slug}/{task_id}/`，任何
+查询和下载均以 JWT 用户 ID 校验归属。Agent 工具名为 `omichub_run_gsea`，采用 `backend_async`，
+LLM 回灌最多 Top 10 term 的 ID/NES/p.adjust，UI 回灌 `task_id` 和 `progress_url`。
+
+**基因组共线性分析**：输入 GFF3、BLASTP outfmt6（上传、`upload://file_id` 或平台 BLAST 结果）；专用
+镜像为 `deploy/docker/Dockerfile.synteny`，构建上下文为 `tool_configs/synteny/`，必须提供
+`make docker-build-synteny`。Worker 复用 BLAST 的异步任务/归属校验架构，容器只输出 block TSV/JSON，
+dot plot 由前端 Plotly `scattergl` 绘制，当前支持区块表与 JSON 下载。超过 50,000 个基因对时必须提示
+用户先按染色体过滤，而不是尝试渲染全部点。Agent 工具名为 `omichub_run_synteny`，返回区块数、最大区块与 Top 染色体对摘要；BLAST 和
+共线性描述必须互相说明“BLAST 结果可作为共线性输入”。
+
+> 当前仓库的 `ToolBridgeService.backend_async` 默认使用 ARQ；声明
+> `extra.celery_service: true` 的工具会经受控 service 提交对应 Celery task。新增高计算工具必须使用其中一条
+> 已验证路径，且 Agent 返回的 `task_id`、`progress_url`、`result_url` 必须真实可查询；禁止注册会返回
+> “未找到 ARQ 执行器”的伪异步工具。2026-08-18 本机仅验证了 `make -n docker-build-synteny`，
+> `omichub-synteny:v1` 和 `omichub-r-enrichment:v1` 均未在本机存在，镜像构建与真实 Worker E2E 仍是上线门禁。
+
 ---
 
 ## 十六、Apple Design 交互与动效规范(工具箱)

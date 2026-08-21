@@ -72,6 +72,32 @@ class FixtureOmicHubClient:
         )
 
 
+@pytest.mark.asyncio
+async def test_healthz_exposes_build_metadata(tmp_path: Path) -> None:
+    settings = BridgeSettings(
+        case_store_path=str(tmp_path / "cases.json"),
+        audit_log_path=str(tmp_path / "audit.jsonl"),
+        worker_token_store_path=str(tmp_path / "tokens.json"),
+        manifest_dir=str(tmp_path / "manifests"),
+        build_sha="abc123",
+        build_time="2026-08-19T00:00:00Z",
+    )
+    app = create_app(settings, FixtureOmicHubClient(settings, []))
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://bridge.test"
+    ) as client:
+        response = await client.get("/healthz")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "ok",
+        "case_store_skipped_cases": 0,
+        "build_sha": "abc123",
+        "build_time": "2026-08-19T00:00:00Z",
+        "minio_enabled": False,
+    }
+
+
 class LoopLocalASGIClient:
     """Create the Bridge app and HTTPX transport inside each test event loop."""
 
@@ -644,6 +670,7 @@ async def test_case_success_path_generates_quality_evidence_and_manifest(client)
     assert closed.status_code == 200
     assert closed.json()["status"] == "closed"
     assert closed.json()["manifest"]["task_ids"] == ["task-001"]
+    assert closed.json()["manifest"]["artifact_checksums"] == {"artifact-001": "abc123"}
     assert closed.json()["manifest"]["omic_task_snapshots"][0]["id"] == "task-001"
     assert [item["status"] for item in closed.json()["manifest"]["case"]["work_items"]] == [
         "completed",
@@ -867,6 +894,48 @@ async def test_case_and_audit_indexes_restore_from_disk(settings) -> None:
     assert await restored_audit.get_receipt("restore-key") == receipt
 
 
+def test_case_store_rejects_corrupt_state_file(settings, caplog) -> None:
+    Path(settings.case_store_path).write_text("{broken-json", encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match="state file is invalid"):
+        CaseStore(settings.case_store_path)
+
+    assert "cannot be read or parsed" in caplog.text
+
+
+def test_case_store_reports_skipped_invalid_case_records(settings, caplog) -> None:
+    Path(settings.case_store_path).write_text(
+        json.dumps({"bad-case": {"case_id": "bad-case"}, "not-an-object": "invalid"}),
+        encoding="utf-8",
+    )
+
+    store = CaseStore(settings.case_store_path)
+
+    assert store.skipped_case_count == 2
+    assert "Skipping invalid CaseStore entry" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_events_endpoint_enforces_limit_contract(client) -> None:
+    request_client, _ = client
+    await create_case(request_client, "bioops_limit_contract")
+    request_headers = headers("bioops-manager", "manager")
+
+    lower = await request_client.get(
+        "/v1/cases/bioops_limit_contract/events?limit=0", headers=request_headers
+    )
+    upper = await request_client.get(
+        "/v1/cases/bioops_limit_contract/events?limit=101", headers=request_headers
+    )
+    valid = await request_client.get(
+        "/v1/cases/bioops_limit_contract/events?limit=100", headers=request_headers
+    )
+
+    assert lower.status_code == 422
+    assert upper.status_code == 422
+    assert valid.status_code == 200
+
+
 @pytest.mark.asyncio
 async def test_manager_assigns_three_workers_and_only_targets_can_report(client) -> None:
     request_client, _ = client
@@ -943,7 +1012,8 @@ async def test_manager_assigns_three_workers_and_only_targets_can_report(client)
 
 
 @pytest.mark.asyncio
-async def test_external_worker_inbox_poll_is_recorded_on_the_assigned_case(client) -> None:
+async def test_external_worker_inbox_poll_does_not_spam_the_audit_stream(client) -> None:
+    """Inbox 轮询是 operational 心跳：只进内存心跳表，不再写审计事件流。"""
     request_client, _ = client
     await create_case(request_client, "bioops_inbox_audit")
     assigned = await request_client.post(
@@ -963,14 +1033,16 @@ async def test_external_worker_inbox_poll_is_recorded_on_the_assigned_case(clien
         "/v1/work-items/assigned", headers=headers("agent-code", "code")
     )
     assert inbox.status_code == 200
+    assert [item["work_item"]["work_item_id"] for item in inbox.json()["items"]] == ["code-01"]
 
     events = await request_client.get(
         "/v1/cases/bioops_inbox_audit/events", headers=headers("bioops-manager", "manager")
     )
-    assert ("agent-code", "worker.inbox_polled", "code-01") in {
-        (event["actor"], event["event_type"], event["payload"].get("work_item_id"))
+    assert not [
+        event
         for event in events.json()["events"]
-    }
+        if event["event_type"] == "worker.inbox_polled"
+    ]
 
 
 @pytest.mark.asyncio
@@ -1228,6 +1300,19 @@ async def test_reconcile_skips_planning_for_chat_case_without_flow_id(client, se
     assert len(skip_events) == 1
     assert skip_events[0]["payload"]["from_status"] == "received"
     assert skip_events[0]["payload"]["to_status"] == "received"
+
+    repeated = await request_client.post(
+        "/v1/cases/bioops_chat_skip_plan/reconcile", headers=headers("bioops-manager", "manager")
+    )
+    assert repeated.status_code == 200
+    audit_events = [json.loads(line) for line in Path(settings.audit_log_path).read_text(encoding="utf-8").splitlines()]
+    repeated_skip_events = [
+        event
+        for event in audit_events
+        if event["event_type"] == "case.reconciled"
+        and event.get("payload", {}).get("reason") == "chat_case_skips_auto_planning"
+    ]
+    assert len(repeated_skip_events) == 1
 
 
 @pytest.mark.asyncio
@@ -1566,3 +1651,158 @@ async def test_worker_claim_is_atomic_and_target_scoped(client) -> None:
     )
     assert inbox.status_code == 200
     assert inbox.json()["items"][0]["work_item"]["status"] == "claimed"
+
+
+@pytest.mark.asyncio
+async def test_standard_work_item_targets_come_from_flow_config(client, settings) -> None:
+    """O5:flow YAML standard_work_items 经 capability snapshot 派生后,无需改 service 即可调度。"""
+    settings.apply_capability_snapshot(
+        {
+            "allowed_flow_ids": ["rna_seq"],
+            "flow_agent_map": {"rna_seq": "agent-rnaseq"},
+            "flow_quality_gate_map": {"rna_seq": True},
+            "flow_standard_work_items": {
+                "rna_seq": {
+                    "quality": "agent-viz",
+                    "delivery": "agent-code",
+                    "interpret": "agent-atacseq",
+                }
+            },
+        }
+    )
+    request_client, _ = client
+    await create_case(request_client, "bioops_swi")
+    for work_item_id, target, skill_name in [
+        ("preflight-01", "data-steward", "project-preflight"),
+        ("submit-01", "workflow-operator", "workflow-submit"),
+    ]:
+        assigned = await request_client.post(
+            "/v1/cases/bioops_swi/work-items",
+            headers=headers("bioops-manager", "manager"),
+            json={
+                "work_item_id": work_item_id,
+                "target": target,
+                "objective": f"Run {skill_name}",
+                "skill_name": skill_name,
+            },
+        )
+        assert assigned.status_code == 201
+    preflight = await request_client.post(
+        "/v1/projects/project-1/preflight",
+        headers=headers("data-steward", "steward"),
+        json={
+            "case_id": "bioops_swi",
+            "work_item_id": "preflight-01",
+            "flow_id": "rna_seq",
+            "sample_sheet": [{"sample": "S01"}],
+        },
+    )
+    assert preflight.status_code == 200
+    approval = await request_client.post(
+        "/v1/approvals",
+        headers=headers("approval-authority", "approval"),
+        json={"case_id": "bioops_swi", "action": "submit_task", "flow_id": "rna_seq"},
+    )
+    submitted = await request_client.post(
+        "/v1/tasks",
+        headers=headers("workflow-operator", "operator"),
+        json={
+            "case_id": "bioops_swi",
+            "work_item_id": "submit-01",
+            "idempotency_key": "bioops-swi-submit-v1",
+            "approval_token": approval.json()["token"],
+            "task": {"flow_id": "rna_seq", "name": "SWI", "sample_sheet": [{"sample": "S01"}]},
+        },
+    )
+    assert submitted.status_code == 201
+
+    reconciled = await request_client.post(
+        "/v1/cases/bioops_swi/reconcile", headers=headers("bioops-manager", "manager")
+    )
+    assert reconciled.status_code == 200
+    work_items = {item["work_item_id"]: item for item in reconciled.json()["work_items"]}
+    # 配置化 target 生效:interpret/quality 不再使用硬编码缺省。
+    assert work_items["interpret-01"]["target"] == "agent-atacseq"
+    assert work_items["quality-01"]["target"] == "agent-viz"
+
+    quality = await request_client.post(
+        "/v1/tasks/task-001/quality-gate",
+        headers=headers("agent-viz", "viz"),
+        json={
+            "case_id": "bioops_swi",
+            "work_item_id": "quality-01",
+            "rule_version": "rna-qc-1.0",
+            "decision": "passed",
+            "summary": "Configured target works.",
+        },
+    )
+    assert quality.status_code == 200
+    current = await request_client.get(
+        "/v1/cases/bioops_swi", headers=headers("bioops-manager", "manager")
+    )
+    delivery = next(
+        item for item in current.json()["work_items"] if item["work_item_id"] == "delivery-01"
+    )
+    assert delivery["target"] == "agent-code"
+    closed = await request_client.post(
+        "/v1/cases/bioops_swi/close",
+        headers=headers("agent-code", "code"),
+        json={"case_id": "bioops_swi", "quality_decision": "passed"},
+    )
+    assert closed.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_standard_work_item_targets_fall_back_to_legacy_defaults(client) -> None:
+    """O5 迁移期兼容:snapshot 未声明 standard_work_items 时沿用硬编码缺省。"""
+    request_client, _ = client
+    await create_case(request_client, "bioops_swi_default")
+    for work_item_id, target, skill_name in [
+        ("preflight-01", "data-steward", "project-preflight"),
+        ("submit-01", "workflow-operator", "workflow-submit"),
+    ]:
+        assigned = await request_client.post(
+            "/v1/cases/bioops_swi_default/work-items",
+            headers=headers("bioops-manager", "manager"),
+            json={
+                "work_item_id": work_item_id,
+                "target": target,
+                "objective": f"Run {skill_name}",
+                "skill_name": skill_name,
+            },
+        )
+        assert assigned.status_code == 201
+    await request_client.post(
+        "/v1/projects/project-1/preflight",
+        headers=headers("data-steward", "steward"),
+        json={
+            "case_id": "bioops_swi_default",
+            "work_item_id": "preflight-01",
+            "flow_id": "rna_seq",
+            "sample_sheet": [{"sample": "S01"}],
+        },
+    )
+    approval = await request_client.post(
+        "/v1/approvals",
+        headers=headers("approval-authority", "approval"),
+        json={"case_id": "bioops_swi_default", "action": "submit_task", "flow_id": "rna_seq"},
+    )
+    await request_client.post(
+        "/v1/tasks",
+        headers=headers("workflow-operator", "operator"),
+        json={
+            "case_id": "bioops_swi_default",
+            "work_item_id": "submit-01",
+            "idempotency_key": "bioops-swi-default-submit-v1",
+            "approval_token": approval.json()["token"],
+            "task": {"flow_id": "rna_seq", "name": "SWI default", "sample_sheet": [{"sample": "S01"}]},
+        },
+    )
+
+    reconciled = await request_client.post(
+        "/v1/cases/bioops_swi_default/reconcile", headers=headers("bioops-manager", "manager")
+    )
+    assert reconciled.status_code == 200
+    work_items = {item["work_item_id"]: item for item in reconciled.json()["work_items"]}
+    assert work_items["interpret-01"]["target"] == "agent-rnaseq"
+    assert work_items["quality-01"]["target"] == "quality-auditor"

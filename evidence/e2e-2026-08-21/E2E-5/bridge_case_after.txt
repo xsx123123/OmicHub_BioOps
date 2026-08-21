@@ -1,0 +1,1 @@
+{"detail":"Case not found"}HTTP 404

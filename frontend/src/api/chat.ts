@@ -17,6 +17,7 @@ export interface ActiveOverdriveRunSnapshot {
   status: string
   plan?: Record<string, unknown>
   tasks?: Array<Record<string, unknown>>
+  assistant_instances?: Array<Record<string, unknown>>
   artifact_index?: Array<Record<string, unknown>>
   event_cursor?: number
 }

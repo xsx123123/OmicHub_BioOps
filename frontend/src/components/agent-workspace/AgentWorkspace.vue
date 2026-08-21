@@ -37,9 +37,18 @@ const agentPickerCopy = computed(() =>
 /** 统一入口 Agent：星尘 AI 负责理解任务并分派给可用专家。 */
 const ROUTER_AGENT_ID = 'agent-router'
 
-/** 首次进入默认开启星尘 AI 调度会话；“新建对话”也可直接选择专家。 */
+/** 首次进入默认恢复最近一次会话；没有历史会话时才新建星尘 AI 调度会话。
+ *  “新建对话”入口（startSessionFromAgent）不受影响。 */
 function ensureDefaultSession() {
   if (store.currentSession) return
+  // 跳过未落库的临时会话（sess-）与工作台会话（工作台会话由 Studio 页面承载）
+  const recent = store.sessions.find(
+    (s) => !s.id.startsWith('sess-') && s.mode !== 'studio' && !store.studioSessionIds.has(s.id),
+  )
+  if (recent) {
+    void store.selectSession(recent.id)
+    return
+  }
   const routerAgent =
     store.activeAgents.find((a) => a.id === ROUTER_AGENT_ID) ||
     store.activeAgents.find((a) => a.features?.router) ||

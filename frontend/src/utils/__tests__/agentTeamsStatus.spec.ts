@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   agentTeamsCaseCategory,
+  buildAgentTeamsStageView,
   agentTeamsCaseStageMap,
   agentTeamsFailedStatuses,
   canSendRoomMessage,
@@ -83,5 +84,30 @@ describe('formatAgentTeamsStatus', () => {
     expect(formatAgentTeamsStatus('unknown_status_xyz')).toBe('未知状态（unknown_status_xyz）')
     expect(errorSpy).toHaveBeenCalledWith('[AgentTeams] 缺失状态文案映射：unknown_status_xyz')
     errorSpy.mockRestore()
+  })
+})
+
+describe('buildAgentTeamsStageView', () => {
+  it('returns null without a case status so the stage bar stays hidden for case-less rooms', () => {
+    expect(buildAgentTeamsStageView(undefined)).toBeNull()
+    expect(buildAgentTeamsStageView(null)).toBeNull()
+    expect(buildAgentTeamsStageView('')).toBeNull()
+  })
+
+  it('marks the current stage from the status mapping', () => {
+    const view = buildAgentTeamsStageView('executing')
+    expect(view).toHaveLength(5)
+    expect(view?.map((stage) => stage.state)).toEqual(['done', 'done', 'current', 'todo', 'todo'])
+  })
+
+  it('keeps all stages inactive for pre-start statuses', () => {
+    expect(buildAgentTeamsStageView('queued')?.every((stage) => stage.state === 'todo')).toBe(true)
+    expect(buildAgentTeamsStageView('received')?.every((stage) => stage.state === 'todo')).toBe(true)
+  })
+
+  it('marks failed stages and treats closed as fully done', () => {
+    expect(buildAgentTeamsStageView('execution_failed')?.[2].state).toBe('failed')
+    expect(buildAgentTeamsStageView('closed')?.every((stage) => stage.state === 'done')).toBe(true)
+    expect(buildAgentTeamsStageView('cancelled')?.every((stage) => stage.state === 'todo')).toBe(true)
   })
 })

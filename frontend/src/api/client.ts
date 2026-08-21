@@ -100,7 +100,9 @@ apiClient.interceptors.response.use(
 
       const accessToken = await tokenRefreshCoordinator.refreshAccessToken()
       if (!accessToken) {
-        clearAuthAndRedirectToLogin()
+        if (tokenRefreshCoordinator.getLastFailureKind() === 'unauthorized') {
+          clearAuthAndRedirectToLogin()
+        }
         return Promise.reject(error)
       }
 

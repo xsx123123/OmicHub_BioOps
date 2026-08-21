@@ -7,7 +7,7 @@ import json
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
-from typing import Annotated, get_args
+from typing import Annotated, Any, get_args
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
@@ -16,6 +16,7 @@ from .audit import AuditStore, json_default
 from .case_store import CaseStore
 from .client import GatewayClient, OmicHubClient
 from .config import BridgeSettings
+from .minio_store import MinioBridgeStorage
 from .models import (
     ApprovalRequest,
     CancelTaskRequest,
@@ -70,6 +71,28 @@ async def _case_gc_loop(service: BridgeService) -> None:
         await asyncio.sleep(24 * 60 * 60)
 
 
+async def _work_item_watchdog_loop(service: BridgeService, interval_seconds: float) -> None:
+    """Periodically reclaim lost Workers' leases so killed Workers never stall a Case.
+
+    The sweep goes through the shared CaseStore lock, so it is safe with multiple
+    Bridge replicas; whichever replica sweeps first records the timeline events.
+    """
+    logger = logging.getLogger(__name__)
+    while True:
+        try:
+            summary = await service.sweep_work_items()
+            if summary["requeued"] or summary["timed_out"] or summary["retry_promoted"]:
+                logger.info(
+                    "Bridge work item sweep: %d requeued, %d timed out, %d retry-promoted",
+                    summary["requeued"],
+                    summary["timed_out"],
+                    summary["retry_promoted"],
+                )
+        except Exception:
+            logger.exception("Bridge work item sweep failed")
+        await asyncio.sleep(interval_seconds)
+
+
 async def authenticate_identity(
     request: Request,
     x_bridge_identity: str | None = Header(default=None),
@@ -87,6 +110,7 @@ def create_app(
     settings: BridgeSettings | None = None,
     client: OmicHubClient | None = None,
     gateway_client: GatewayClient | None = None,
+    minio_storage: MinioBridgeStorage | None = None,
 ) -> FastAPI:
     runtime_settings = settings or BridgeSettings()
     runtime_client = client or OmicHubClient(runtime_settings)
@@ -95,17 +119,26 @@ def create_app(
         runtime_settings.gateway_url and runtime_settings.gateway_manager_token
     ):
         runtime_gateway_client = GatewayClient(runtime_settings)
+    if minio_storage is None:
+        minio_storage = MinioBridgeStorage.from_settings(runtime_settings)
+    if minio_storage is None:
+        # 非生产允许的回退路径：Redis/本地文件模式。生产由 BridgeSettings 校验器拦截。
+        logging.getLogger(__name__).warning(
+            "BRIDGE_MINIO_ENDPOINT 未配置：Bridge 持久层回退到 Redis/本地文件模式（仅限非生产环境）"
+        )
     room_mirror = AuditRoomMirror(runtime_gateway_client)
     audit_store = AuditStore(
         runtime_settings.audit_log_path,
         runtime_settings.state_store_url,
         f"{runtime_settings.state_store_key_prefix}:audit",
         on_event=room_mirror.observe if room_mirror.enabled else None,
+        minio_storage=minio_storage,
     )
     case_store = CaseStore(
         runtime_settings.case_store_path,
         runtime_settings.state_store_url,
         f"{runtime_settings.state_store_key_prefix}:cases",
+        minio_storage=minio_storage,
     )
     worker_token_store = WorkerTokenStore(
         runtime_settings.worker_token_store_path,
@@ -132,6 +165,13 @@ def create_app(
         gc_task: asyncio.Task[None] | None = None
         if case_gc_autorun_enabled(runtime_settings):
             gc_task = asyncio.create_task(_case_gc_loop(service))
+        watchdog_task: asyncio.Task[None] | None = None
+        if runtime_settings.work_item_sweep_interval_seconds > 0:
+            watchdog_task = asyncio.create_task(
+                _work_item_watchdog_loop(
+                    service, runtime_settings.work_item_sweep_interval_seconds
+                )
+            )
         if runtime_settings.omichub_integration_token:
             try:
                 await service.refresh_capabilities()
@@ -151,6 +191,10 @@ def create_app(
 
                 asyncio.create_task(_retry_capabilities())
         yield
+        if watchdog_task is not None:
+            watchdog_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await watchdog_task
         if gc_task is not None:
             gc_task.cancel()
             with suppress(asyncio.CancelledError):
@@ -170,11 +214,30 @@ def create_app(
     )
     app.state.bridge_service = service
     app.state.bridge_settings = runtime_settings
+    app.state.case_store = case_store
     app.state.worker_token_store = worker_token_store
+    logging.getLogger(__name__).info(
+        "AgentTeams Bridge started build_sha=%s build_time=%s",
+        runtime_settings.build_sha,
+        runtime_settings.build_time,
+    )
 
     @app.get("/healthz", tags=["Health"])
-    async def healthz() -> dict[str, str]:
-        return {"status": "ok"}
+    async def healthz() -> dict[str, Any]:
+        health: dict[str, Any] = {
+            "status": "ok",
+            "case_store_skipped_cases": case_store.skipped_case_count,
+            "build_sha": runtime_settings.build_sha,
+            "build_time": runtime_settings.build_time,
+        }
+        if minio_storage is not None:
+            minio_health = minio_storage.health()
+            health["minio_enabled"] = True
+            health["minio_reachable"] = minio_health["reachable"]
+            health["minio_last_write_latency_ms"] = minio_health["last_write_latency_ms"]
+        else:
+            health["minio_enabled"] = False
+        return health
 
     @app.get("/v1/metrics", tags=["Observability"])
     async def get_metrics(
@@ -250,7 +313,13 @@ def create_app(
         except ValueError as exc:
             raise HTTPException(status_code=422, detail="limit must be an integer") from exc
         if not 1 <= page_limit <= 100:
-            raise HTTPException(status_code=422, detail="limit must be between 1 and 100")
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "code": "LIMIT_EXCEEDED",
+                    "message": "limit must be between 1 and 100",
+                },
+            )
         return (
             await service.list_cases(
                 requester_ref,
@@ -340,8 +409,16 @@ def create_app(
     ) -> dict:
         """Issue a revocable per-worker token; the raw value is returned exactly once."""
         require_role(identity, "bioops-manager")
-        known_identities = set(runtime_settings.identity_secrets()) | service.worker_identities()
-        if payload.identity not in known_identities:
+        # 可铸造身份仅限外部 Worker（注册表岗位 + analysis-worker）；平台身份
+        # （approval-authority、bioops-manager 等 BRIDGE_IDENTITIES 静态身份）一律 403，
+        # 杜绝持 manager 凭证自铸 approval-authority token 绕过人工审批（审查 B1）。
+        mintable_identities = service.worker_identities() | {"analysis-worker"}
+        if payload.identity not in mintable_identities:
+            if payload.identity in runtime_settings.identity_secrets():
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Platform identities cannot be minted as worker tokens",
+                )
             raise HTTPException(status_code=422, detail="Unknown Worker identity")
         token, record = await worker_token_store.issue(
             identity=payload.identity,
@@ -484,7 +561,13 @@ def create_app(
         except ValueError as exc:
             raise HTTPException(status_code=422, detail="limit must be an integer") from exc
         if not 1 <= page_limit <= 100:
-            raise HTTPException(status_code=422, detail="limit must be between 1 and 100")
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "code": "LIMIT_EXCEEDED",
+                    "message": "limit must be between 1 and 100",
+                },
+            )
         return (
             await service.get_case_events(case_id, identity, cursor=cursor, limit=page_limit)
         ).model_dump(mode="json")
@@ -599,9 +682,6 @@ def create_app(
         identity: Annotated[str, Depends(authenticate_identity)],
         service: Annotated[BridgeService, Depends(get_service)],
     ) -> dict:
-        require_role(
-            identity, "bioops-manager", "workflow-operator", "quality-auditor", "delivery-reporter"
-        )
         return await service.get_task(task_id, identity)
 
     @app.get("/v1/tasks/{task_id}/events", tags=["Tasks"])
@@ -610,9 +690,6 @@ def create_app(
         identity: Annotated[str, Depends(authenticate_identity)],
         service: Annotated[BridgeService, Depends(get_service)],
     ) -> dict:
-        require_role(
-            identity, "bioops-manager", "workflow-operator", "quality-auditor", "delivery-reporter"
-        )
         return await service.get_task(task_id, identity)
 
     @app.get("/v1/tasks/{task_id}/artifacts", tags=["Tasks"])
@@ -621,7 +698,6 @@ def create_app(
         identity: Annotated[str, Depends(authenticate_identity)],
         service: Annotated[BridgeService, Depends(get_service)],
     ) -> dict:
-        require_role(identity, "quality-auditor", "delivery-reporter")
         return await service.get_artifacts(task_id, identity)
 
     @app.post("/v1/tasks/{task_id}/quality-gate", tags=["Quality"])
@@ -631,7 +707,6 @@ def create_app(
         identity: Annotated[str, Depends(authenticate_identity)],
         service: Annotated[BridgeService, Depends(get_service)],
     ) -> dict:
-        require_role(identity, "quality-auditor")
         return (await service.quality_gate(task_id, payload, identity)).model_dump(mode="json")
 
     @app.post("/v1/tasks/{task_id}/cancel", tags=["Tasks"])
@@ -653,13 +728,15 @@ def create_app(
         identity: Annotated[str, Depends(authenticate_identity)],
         service: Annotated[BridgeService, Depends(get_service)],
     ) -> dict:
+        # B2：身份白名单收口——平台身份（bioops-manager/workflow-operator）与
+        # 已登记 Worker 身份可写；approval-authority 等其余平台身份一律 403。
+        # 写约束（target 绑定/租约/因果锚点/命名空间）在 service.record_evidence 强制。
         require_role(
             identity,
             "bioops-manager",
-            "data-steward",
             "workflow-operator",
-            "quality-auditor",
-            "delivery-reporter",
+            "analysis-worker",
+            *service.worker_identities(),
         )
         return (await service.record_evidence(case_id, payload, identity)).model_dump(mode="json")
 
@@ -670,7 +747,6 @@ def create_app(
         identity: Annotated[str, Depends(authenticate_identity)],
         service: Annotated[BridgeService, Depends(get_service)],
     ) -> dict:
-        require_role(identity, "delivery-reporter")
         if payload.case_id != case_id:
             raise HTTPException(status_code=400, detail="Case path and payload mismatch")
         return (await service.close_case(payload, identity)).model_dump(mode="json")

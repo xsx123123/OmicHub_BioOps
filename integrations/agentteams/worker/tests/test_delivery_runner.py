@@ -50,3 +50,15 @@ def test_delivery_runner_requires_quality_decision(monkeypatch) -> None:
 
     assert result["action"] == "manual_review"
     assert result["reason"] == "missing_or_invalid_quality_decision"
+
+
+def test_delivery_runner_backoff_grows_exponentially_and_caps() -> None:
+    backoff = delivery_runner.backoff_seconds
+    assert backoff(5, 0) == 5
+    assert backoff(5, 1) == 10
+    assert backoff(5, 2) == 20
+    assert backoff(5, 3) == 40
+    # 封顶 5 分钟
+    assert backoff(5, 10) == 300.0
+    # 负数失败计数按 0 处理
+    assert backoff(5, -1) == 5

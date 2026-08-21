@@ -334,7 +334,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title=settings.app_name,
         description="私有化多组学分析平台",
-        version="0.1.0",
+        version=settings.app_version,
         docs_url="/docs" if settings.app_debug else None,
         redoc_url="/redoc" if settings.app_debug else None,
         lifespan=lifespan,
@@ -368,6 +368,11 @@ def create_app() -> FastAPI:
         RateLimitMiddleware,
         max_requests=settings.rate_limit_max,
         window_seconds=settings.rate_limit_window,
+        ban_enabled=settings.rate_limit_ban_enabled,
+        ban_threshold=settings.rate_limit_ban_threshold,
+        ban_window_seconds=settings.rate_limit_ban_window,
+        ban_seconds=settings.rate_limit_ban_seconds,
+        trusted_networks=settings.rate_limit_trusted_networks,
         enabled=settings.rate_limit_enabled,
     )
 
@@ -384,9 +389,12 @@ def create_app() -> FastAPI:
     # 全局异常处理
     @app.exception_handler(OmicHubError)
     async def omichub_error_handler(request: Request, exc: OmicHubError) -> JSONResponse:
+        content: dict[str, Any] = {"detail": exc.detail}
+        if exc.code:
+            content["code"] = exc.code
         return JSONResponse(
             status_code=exc.status_code,
-            content={"detail": exc.detail},
+            content=content,
         )
 
     # 请求参数校验失败：返回 422 及具体字段错误，避免被下方兜底 500 吞掉。
@@ -442,10 +450,15 @@ def create_app() -> FastAPI:
         async def _redirect_flows_path(request: Request, path: str) -> RedirectResponse:
             return RedirectResponse(url=f"/api/v1/flows/{path}{request.query_params}")
 
-    # 健康检查
+    # 健康检查：附带部署版本信息，用于核对运行实例与仓库 commit 一致
     @app.get("/health", tags=["system"])
     async def health_check() -> dict[str, str]:
-        return {"status": "ok"}
+        return {
+            "status": "ok",
+            "version": settings.app_version,
+            "git_sha": settings.app_git_sha,
+            "build_time": settings.app_build_time,
+        }
 
     return app
 

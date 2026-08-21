@@ -84,7 +84,51 @@ OmicHub 是面向生物信息学任务、数据资产与 AI 工作流的科学�
 | 边框/轨道 | `--neutral-border` | `#E5E6EB` | `#2A3040`。 |
 | 悬停底色 | `--neutral-hover` | `#F2F3F8` | 使用深色主题的语义变量或半透明主色。 |
 
-### 3.3 间距、圆角、阴影与排版
+### 3.3 Dark Mode Surface System
+
+OmicHub 深色工作台使用五级 Surface 空间层级，替代“页面背景 + 卡片”的二级结构。所有深色页面、Dashboard、对话区域和浮层优先消费这些语义令牌，不在业务组件中重复写 hex 或 rgba 颜色。
+
+#### 3.3.1 五级 Surface
+
+| 层级 | 令牌 | 深色值 | 使用场景 | 约束 |
+| --- | --- | --- | --- | --- |
+| Surface Base | `--surface-base` | `#080B12` | `body`、页面背景、Dashboard 空白区域、主容器 | 禁止使用 `#000000` 作为页面底色。 |
+| Surface Card | `--surface-card` | `#121824` | 普通信息卡、快捷入口、统计卡、图表主体 | 使用低存在感边框，不添加明显阴影。 |
+| Surface Elevated | `--surface-elevated` | `#182033` | 系统状态、当前任务、AI 输出、图表标题区、重要信息 | 相比普通卡片更亮，可使用 `--border-default`。 |
+| Surface Highlight | `--surface-highlight` | `#202A40` | `hover`、`active`、`selected` 等短时交互状态 | 不用于大面积常驻背景。选中态优先使用 `--border-focus`。 |
+| Surface Glass | `--surface-glass` | `rgba(255,255,255,0.06)` | Header、Hero、Modal 等特殊结构区 | 搭配 `backdrop-filter: blur(16px)`；减少透明度时必须退化为不透明 Surface。 |
+
+#### 3.3.2 Border 与文字层级
+
+- `--border-subtle`（`rgba(255,255,255,0.06)`）用于普通卡片、分隔线和 Header 底边。
+- `--border-default`（`rgba(255,255,255,0.10)`）用于 hover 或高优先级卡片边界。
+- `--border-focus`（`rgba(108,99,255,0.45)`）用于焦点、选中和品牌交互状态。
+- 深色文字使用 `--text-primary: #F5F7FF`、`--text-secondary: #A7B0C3`、`--text-tertiary: #68738A`；不得让所有文字都使用纯白。
+- 滚动条使用 `--scrollbar-thumb`、`--scrollbar-thumb-hover`、`--scrollbar-thumb-active`，宽度固定为 `6px`，避免使用高对比亮色滚动条。
+
+#### 3.3.3 卡片 Elevation 与 Glow
+
+- 普通卡片消费 `--surface-card`，边框使用 `--border-subtle`，默认不使用明显阴影。
+- 重点卡片消费 `--surface-elevated`，边框可使用 `--border-default`；Dashboard 系统状态卡属于此类。
+- 卡片 hover 仅做 `translateY(-2px)` 与 Surface Highlight 提升，过渡时间使用 `220ms`，并在 `prefers-reduced-motion: reduce` 下关闭位移。
+- `--brand-glow: 0 0 40px rgba(99,102,241,0.15)` 仅允许用于 Hero、活动导航和主按钮等品牌关键区域。
+- 禁止给所有卡片统一添加 Glow；Glow 不能替代 Surface、Border 或文本状态表达。
+
+#### 3.3.4 Header、Dashboard 与浮层
+
+- Header 使用 `--surface-glass`、`backdrop-filter: blur(16px)` 和 `--border-subtle` 底边，保持轻量玻璃层，不堆叠重阴影。
+- Dashboard 页面背景使用 `--surface-base`；普通图表主体使用 `--surface-card`，图表标题区使用 `--surface-elevated`，系统运行状态卡使用 `--surface-elevated`。
+- Modal、Popover、Drawer 等浮层优先使用 `--surface-elevated`；普通卡片不能通过透明度“看穿”页面背景。
+- Surface 只改变色彩、边框、阴影和材质，不改变页面布局、导航结构、组件功能、文案或业务逻辑。
+
+#### 3.3.5 AI 对话输入区
+
+- AI 助手与 AI 工作台复用同一个 `KimiChatInput` 输入组件，外层、文本编辑区和 Naive UI `NInput` 内部背景必须使用同一组语义变量：`--chat-input-bg: var(--neutral-card)`、`--chat-input-border: var(--neutral-border)`。
+- 深色模式下禁止在业务页面为输入区写死黑色背景（例如 `#1a1a1a`）或白色半透明背景；输入区各层保持同色，避免出现“外框深蓝、内部黑色”的割裂效果。
+- 工作台页面如果不在 `.kimi-layout` 作用域内，必须在页面根容器补齐上述两个变量，再消费 `KimiChatInput` 的默认样式；按钮激活态使用 `--arco-primary` 与 `--arco-primary-light`。
+- 输入区的边框、圆角和阴影遵循组件默认值；页面级覆盖只能用于布局尺寸，不得重新引入独立的表面色和阴影体系。
+
+### 3.4 间距、圆角、阴影与排版
 
 | 类别 | 规定 |
 | --- | --- |
@@ -238,11 +282,13 @@ AI 配置、饼干中心及后续同类后台配置页面使用统一的全宽�
 
 - 使用 `NDataTable`；列标题为 `12px` 辅助色，单元格为 `13px` 主文本色，行 hover 使用 `--neutral-hover`。
 - 长标识符、路径和标题必须启用省略与 Tooltip，避免撑破布局。
+- **用户文件路径不得暴露平台存储根目录**：面向普通用户展示、通知、复制的任务工作目录、结果目录、产物目录等路径，统一通过 `frontend/src/utils/userPathDisplay.ts` 的 `formatUserPath()` 格式化。它仅移除当前用户 Home 前缀 `/data/omichub/users/<user-id>`，保留其后以 `/` 开始的工作台相对路径；例如 `/data/omichub/users/cb79a200-b2ca-441f-9a42-d3417fbfa89d/raw_data/raw-data/PRJNA1478012` 显示为 `/raw_data/raw-data/PRJNA1478012`。日志、错误详情、提示等自由文本使用同文件的 `redactUserHomePaths()` 移除其中每个用户 Home 前缀。不可在业务组件内用 `replace()` 重复实现；原始绝对路径仅用于后端/API 请求，平台共享资源、管理员诊断路径和无法确认属于当前用户 Home 的路径保持原样。
 - 任务状态使用 `NTag`，进度使用 `NProgress`；颜色必须来自语义令牌，轨道使用 `var(--neutral-border)`。
 - 加载采用 `NSpin` 或 `NSkeleton`；无数据采用 `NEmpty`，并给出下一步按钮或解释。
 - 成功、警告、错误消息使用 `useMessage()`；长期或富内容反馈使用 Notification / Result，不要把所有信息塞进 toast。
 - 远程表格将页码、页大小、排序、筛选和关键词收敛为单一查询状态，由可重复调用的 `load*` 函数请求数据；切页、排序和筛选只更新该状态并局部刷新，不重载路由或丢失用户上下文。
 - 表格行必须提供稳定唯一的 `row-key`。选择、展开和筛选若需要跨局部刷新保留，使用受控状态；数据更新后应明确移除已不存在行的选择，不能静默指向错误记录。
+- 工作台内的任务表格与承载卡片左右边缘对齐：表格使用 `width: 100%`，**不得**用 `max-width` 在宽屏截断后留下右侧空白。列宽之和超过可用空间时，仅由表格包装层提供横向滚动，不能以缩窄表格或将空白留在操作列之后作为降级方式。
 - 仅在数据量大且表格容器高度可预测时启用 `virtual-scroll`；虚拟表格避免不稳定行高、自动换行的大段内容和依赖完整 DOM 的交互。无法满足这些条件时，采用后端分页、列精简或独立详情页。
 - 异步树和超长选项列表应按需加载并使用稳定键；展开、勾选和已加载节点与远端数据分开维护。不要一次性将完整层级或数万选项渲染到 DOM。
 - 表格初次加载优先使用贴近列结构的 `NSkeleton`，局部刷新使用表格区域内的 `NSpin` 或按钮 `loading`；失败时保留可理解的上下文、重试入口和已成功加载的数据，而非用空白替换整个页面。
@@ -278,6 +324,7 @@ async function refreshDashboard() {
 ### 5.6 导航、弹窗与认证页
 
 - 顶部导航和侧栏是持久化空间锚点；同一导航项在所有状态下保持相同位置和高亮逻辑。
+- 折叠侧栏保持 `64px` 宽，内部左右留白为 `8px`；图标选中面必须占满可用的 `48px` 宽度并使用 `44px` 高圆角胶囊。选中态同时提供低强调主色底、连续内描边和左缘短状态条，避免只留下窄竖线或小面积底色。状态条使用 `3px` 宽、距左侧 `4px`，展开态高 `26px`、折叠态高 `30px`，始终以 `top: 50% + translateY(-50%)` 相对行内容垂直居中；不得使用 `top/bottom` 撑满整项。
 - 菜单展开、收起、进入和退出遵循同一路径；移动端抽屉支持关闭、键盘逃逸和焦点管理。
 - 普通确认使用 `NPopconfirm`；复杂表单或需要更多上下文时使用 `NModal` 或 `NDrawer`。
 - 认证页可以使用星空、玻璃卡片、引言和低对比度装饰，但必须在减少透明度/动态模式下回退，并保证正文对比度。
@@ -414,6 +461,18 @@ Arco 项目遵守 Vue 3 `<script setup lang="ts">`、kebab-case 模板属性、`
 - [ ] 数据表格/卡片是否符合 §33.2：进度经归一化函数渲染、`NProgress` 百分比不换行（`.n-progress-graph{min-width:0}`）、**所有列固定 `width` 且 `scroll-x`=列宽之和**、短值列 `align:'center'`、卡片垂直间距 24px？
 - [ ] 进度/百分比/计数等派生数值是否在任何数据尺度下都正确（§33.2 进度尺度归一化），而非依赖单一写死约定？
 - [ ] 设计是否规避 §33.1 的「AI 默认」清单（纯白无氛围、三列等宽 hero、统一间距/圆角、通用无衬线、对称留白），在不破坏 §1 克制原则的前提下具备品牌辨识度与层次？
+- [ ] 涉及流式/连接类组合式函数（`useChatStream`、`useAgentChatStream`、WebSocket 等）改动时：`isStreaming`/`status` 等入口守卫标志位是否在 `try/finally` 中对**所有**退出路径复位（§18.2 流式状态机纪律）？是否有"同一实例连续第二次调用"的回归测试？diff 中删除 `finally` 一律打回。
+
+### 10.1 Dark Mode Checklist
+
+- [ ] 页面是否存在明确的 `Surface Base → Card → Elevated → Highlight → Glass` 层级？
+- [ ] 普通卡片与重点卡片是否分别使用 `--surface-card` 与 `--surface-elevated`，并具有可感知但克制的视觉区别？
+- [ ] 是否避免使用纯黑背景 `#000000`？
+- [ ] 是否避免大面积 Glow，并只在 Hero、活动导航和主按钮等品牌关键区域使用 `--brand-glow`？
+- [ ] Header 是否使用轻微玻璃层、低存在感底边和减少透明度回退？
+- [ ] Border 是否按 `subtle / default / focus` 语义分级，而不是在业务组件中重复硬编码？
+- [ ] 滚动条是否为 `6px`，并使用低对比度 Surface 令牌？
+- [ ] Primary、Secondary、Tertiary 文本是否分别满足深色对比层级，且没有全部使用纯白？
 
 ## 11. 可复用 Skill 入口
 
@@ -646,6 +705,15 @@ Arco 项目遵守 Vue 3 `<script setup lang="ts">`、kebab-case 模板属性、`
 - 新消息自动滚动到底部；用户向上滚动时暂停自动滚动并显示"回到底部"按钮。
 - 对话区若叠加装饰背景/光晕（如 `ShaniaChatBackground` 全息层），必须遵守 §31：装饰层保持出流、`pointer-events:none`，内容层按**类名**显式抬升；**禁止**用 `.容器 > *` 通配设置 `position`/`z-index`（该反模式曾把仅 `shania` 渲染的装饰层拉进文档流，导致顶栏塌陷、顶部整块空白）。
 
+#### 18.1.1 内联状态卡与路由卡宽度规范（强制）
+
+AI 消息区内嵌的状态提示、路由转交、协作决策等卡片（如 `RouteTransitionCard`、`CollaborationRouteNotice` 及后续同类组件）必须**与消息内容区等宽**，不能因为文案短就收缩成内容宽度，导致上下卡片左右边缘不齐。
+
+- **统一尺寸**：`width: 100%`、`max-width: 1120px`、`margin: 0 0 var(--space-md, 12px)`、`box-sizing: border-box`。
+- **内部排列**：标题/标签与说明文字在同一行自然左对齐排列（用 `gap` 连接），**禁止**使用 `justify-content: space-between` 把说明文字推到最右侧；说明文字过长时以省略号截断。
+- **权威实现**：`frontend/src/components/ai-chat/RouteTransitionCard.vue`、`frontend/src/components/ai-chat/CollaborationRouteNotice.vue`。
+- **新增组件**：凡是在 AI 消息流中水平排列、非浮动/非模态的内联信息卡，默认复用上述尺寸与排列规则；需要特殊宽度时必须在前端设计文档中说明理由。
+
 ### 18.2 流式输出
 
 - 使用 `useChatStream` / `useAgentChatStream` 处理 SSE 或 WebSocket 流。
@@ -654,11 +722,28 @@ Arco 项目遵守 Vue 3 `<script setup lang="ts">`、kebab-case 模板属性、`
 - 流中断（网络断开、用户取消）：保留已输出内容 + 显示"生成已中断"标记 + 重新生成按钮。
 - Markdown 渲染使用流式安全的解析器，避免未闭合代码块导致布局跳动。
 
+#### 流式状态机纪律（强制，违反会让"第二条消息"凭空消失）
+
+流式组合式函数（`useChatStream` / `useAgentChatStream` / `useStudioRunStream` 及今后新增者）内部都有 `isStreaming` 这类**入口守卫标志位**（`if (isStreaming.value) return`）。它们是"闸门"，一旦卡在 `true`，后续所有发送都会被**静默吞掉**——请求根本没发到后端，但调用方的兜底逻辑会把空消息渲染成错误卡片，用户看到的是一条"假的后端错误"。必须遵守：
+
+1. **标志位复位只许放在 `try/finally`**：`isStreaming.value = true` 之后的所有退出路径（`done`、流事件 `error`、HTTP 非 2xx、重试耗尽、用户取消 `AbortError`、抛异常）都必须经 `finally { isStreaming.value = false; abortController.value = null }` 复位。重构（如加重试循环、加提前 `return`）时第一件事就是确认 `finally` 还在、且覆盖所有新旧 `return`。**禁止**只在"正常结束"的某一条 `return` 前手动复位——新增任何提前返回路径时必然漏。
+2. **守卫静默 `return` 必须与调用方语义配对**：`streamChat` 因守卫直接返回时不发请求、不触发任何回调；store 层（`agentHub.ts`）的"流结束但内容为空 → 渲染错误卡片"兜底会把它误判为模型空响应。改动守卫条件或兜底逻辑时，必须同时检查另一侧的假设。
+3. **回归测试必须覆盖"连续第二次调用"**：任何流式组合式函数的测试里，至少要有一条"第一次流正常 `done` 结束后，用**同一实例**再发一次，断言 `fetch` 被调用了第二次且 `isStreaming` 已复位"的用例（参考 `frontend/src/composables/__tests__/stream-retry.test.ts` 的「正常结束后复位 isStreaming，同一实例可再次发送」）。只测单次调用永远抓不到标志位残留。
+4. **排查"模型响应为空/假错误"先看后端有没有收到请求**：遇到"星尘信号受到了干扰 / 当前模型响应为空"这类秒出的错误，先查后端访问日志与 `chat_messages` 表。若请求根本没到后端，优先怀疑前端守卫吞请求，而不是模型或网络。
+
+#### 案例：isStreaming 未复位导致同会话第二条消息被静默吞掉（2026-08-09）
+
+- **现象**：AI 助手新会话第一条消息正常（欢迎语流出），第二条消息发送后秒出错误卡片"星尘信号受到了干扰 / 当前模型响应为空，请重新发送"，重试仍失败，只有切换会话或刷新页面能恢复。
+- **根因**：`ece09cc`（26.8.8-2）给 `useAgentChatStream.streamChat` 加自动重试 while 循环时，删掉了原来的 `finally { isStreaming.value = false; abortController.value = null }`，且没有在任何正常结束路径补回复位。第一条流正常 `done` 后 `isStreaming` 永远停在 `true`；第二条消息在入口守卫 `if (isStreaming.value) return` 处直接返回，**fetch 从未发出**（后端日志与 `chat_messages` 表均无该消息记录），store 兜底把空占位消息渲染成错误卡片。
+- **修复**：在重试循环外包 `try/finally` 复位 `isStreaming` 与 `abortController`（刻意不动 `isPaused`，保持暂停功能语义），并补"同一实例第二次调用"回归测试。
+- **教训**：① 带入口守卫的状态标志位，复位逻辑必须钉死在 `finally`，重构前先列全所有退出路径；② "重试/循环/提前 return"类重构是高危动作，diff 里出现删 `finally` 一律打回；③ 秒出的"模型空响应"错误先怀疑前端没发请求，排查顺序：后端访问日志 → 数据库消息表 → 前端守卫/状态机。
+
 ### 18.3 输入区
 
 - 多行文本框（`NInput type="textarea"` + `autosize`）；`Enter` 发送，`Shift+Enter` 换行。
 - 发送按钮在空内容或生成中时 `disabled`；生成中变为"停止"按钮。
 - 支持附件（图片、文件）时，输入区上方显示附件预览条。
+- **拖拽上传**：输入区整体响应 `dragenter/dragover/dragleave/drop`，仅当拖拽内容包含文件（`dataTransfer.types` 含 `Files`）时显示高亮覆盖层与释放提示；释放后调用与点击上传同一套 `chat-upload` 接口，并追加到附件列表。生成中/禁用时拒绝拖拽。
 - 输入历史：`↑`/`↓` 切换最近发送的消息（可选）。
 
 ### 18.4 工具调用与多步结果
@@ -666,6 +751,41 @@ Arco 项目遵守 Vue 3 `<script setup lang="ts">`、kebab-case 模板属性、`
 - AI 调用工具时，在消息流中插入"工具卡片"：显示工具名、参数摘要、执行状态和结果折叠区。
 - 长时间工具执行显示进度或旋转指示器；超时（> 60s）提示用户。
 - 错误结果使用 `NAlert type="error"` 内嵌在消息中，不中断对话流。
+
+#### 18.4.1 工具卡片折叠与长结果高度护栏（强制）
+
+工具结果长度不可控（文件列表、表格 dump、检索命中等动辄几十上百行），**任何**工具结果渲染区都必须有高度上限，不能把整条消息流撑开。
+
+- 权威实现：`frontend/src/components/ai-chat/McpToolCallCard.vue`。
+- **默认折叠**：卡片只显示工具图标 + 工具名 + MCP server 标签 + 状态标签 + 旋转箭头，单行点击展开。
+- **折叠态预览**：`list_workspace_files` / `search_workspace_files` 等清单类工具可显示首行结论（如"工作区根目录 下共 66 项"），但必须用 `white-space:nowrap; overflow:hidden; text-overflow:ellipsis` 截成**单行**，完整清单只在展开后可见。
+- **展开态也要限高**：结果/摘要区即使展开也不允许无限撑高——`workspace-summary` 用 `max-height: 220px; overflow-y:auto`，原始 JSON 的 `.tool-pre` 用 `max-height: 200px`。需要看全量内容的用户在区域内滚动，而不是滚整条对话。
+- 给工具加"折叠态摘要"时，用 `computed` 从 `tool.result.summary` 等结构化字段取**结论行**，不要把整段结果塞进预览。
+
+#### 18.4.2 ask_user 澄清卡片必须提供可点选选项（强制）
+
+澄清工具 `ask_user` 以可交互卡片收集回答（`frontend/src/components/ai-chat/AskUserCard.vue`），不是纯文本提问。
+
+- **有选项时**：渲染分页问题向导，每题显示 `options` 可点选项 + "其他"自由输入 + "跳过（Esc）" + "下一步/提交"。含"（推荐）"标注的选项用稳定排序排到首位（`sortedOptions`）。
+- **无选项时**：自动退化为自由输入框（`showOther` 默认 true），并在已回答态把空答案显示为"无偏好，由你决定"。退化形态是**兜底**，不是常态。
+- 前端契约类型：`AskRequest { questions: AskQuestion[] }`，`AskQuestion { question: string; options?: string[] }`；同时兼容后端平铺的 `question` / `options`（见 `useAgentChatStream.ts` 的 ask_request 归一化）。
+- **已回答态**折叠成工具卡样式（"询问工具 | 已收集信息"），展开可回看问答，不重新展示可点选项。
+
+> 跨层约束：模型偶尔把 `questions` 数组序列化成 JSON **字符串**（甚至双重编码、尾部带多余引号/换行）传来。后端 `_normalize_ask_questions` 必须用宽松解析（先 `json.loads`，失败用 `json.JSONDecoder().raw_decode` 取首个完整 JSON 值，双重编码再解一次），解析失败才降级为空问题自由输入。**只认数组会让弹窗变成"请补充需求细节 / 无偏好"的空壳**——卡片本身没坏，是选项没被解析出来。新增结构化数组参数的工具，后端入参归一化同样要容忍字符串形态。
+
+#### 18.4.3 历史重载契约：工具卡片与产物必须能重建（强制）
+
+会话重新打开后，工具调用卡片、工作区摘要、Plotly 图表等必须和实时流式时一致地渲染出来。这是一条**跨前后端的持久化契约**，前端只负责把后端落库的数据 hydrate 回 `ToolCall`。
+
+- 权威 hydrate 实现：`frontend/src/stores/agentHub.ts` 的 `loadSessionMessages()`——从 `metadata_json.tool_invocations` 重建 `msg.toolCalls`，从 `metadata_json.timeline` 重建正文/工具交错顺序。
+- **`tool_invocations`**：每次工具调用一条，字段 `tool_call_id / tool_name / arguments / success / result / ui_payload / mcp_server`。前端凭 `arguments + ui_payload + result` 渲染卡片。**Plotly 火山图等图表数据在 `ui_payload.plotly_figure` 里**（见 `KimiMessageItem.vue` 的 `extractPlotlyFigure`），这个字段不落库，重开后图就永久消失。
+- **`timeline`**：`{ kind: 'text'|'tool', text?, tool_call_id?, tool_name? }` 段数组，保证重载后仍是"正文→工具→正文"的交错布局，而不是正文堆上面、工具全堆下面。
+- 落库载荷经 `_cap_tool_invocation_payload`（200KB 护栏）截断；前端遇到 `{ _omichub_payload_truncated: true }` 按"无载荷"降级渲染，不能崩。
+- 前端 hydrate 时：`mcp_server` 旧数据缺失回退 `'studio'`；`update_plan` 的 steps 要恢复到右侧待办面板；`ui_payload.stdout/stderr` 拼到 `tool.output`。
+
+> **后端双执行路径陷阱**：`ChatService` 有两套并行的 Agent 执行路径——legacy 手写 `for _round` 循环和 LangGraph 引擎（`_stream_agent_chat_langgraph`，普通 `mode=chat` 会话默认走它）。工具调用落库、`timeline`、`ask_request`、handoff 等副作用在两条路径里**各自独立实现**。任何"工具结果要持久化/要随消息返回"的改动，**必须同时改两条路径**；只改 legacy 会让普通 chat 会话重开后卡片与图全部丢失（此问题真实发生过：LangGraph 路径只把 tool_call/tool_result yield 透传，从未写 `tool_invocations`）。
+>
+> 已经丢失的历史消息无法事后恢复（数据当时没落库）；修复只对新产生的消息生效。
 
 ## 19. 终端与代码沙箱
 
@@ -677,7 +797,17 @@ Arco 项目遵守 Vue 3 `<script setup lang="ts">`、kebab-case 模板属性、`
 - 支持文本选择复制；`Ctrl+C` 在无选区时发送 SIGINT，有选区时复制。
 - 连接状态指示器放在终端标题栏右侧。
 
-### 19.2 代码沙箱
+### 19.2 云端沙盒终端删除守护
+
+沙盒容器挂载用户持久化的 workspace / raw_data / temp 目录，容器内删除即平台数据删除且不可恢复。终端输入链路必须提供删除操作二次确认：
+
+- 权威实现：`frontend/src/utils/terminalDeleteGuard.ts`（`isDangerousDeleteCommand()` 启发式匹配 + `TerminalLineBuffer` 行缓冲状态机）、`frontend/src/components/terminal/XTerminal.vue`（`onData` 拦截回车并弹 `dialog.warning`）。
+- 命中 `rm / rmdir / unlink / shred / find -delete / git rm / git clean` 等删除类命令时，拦截回车、弹出确认（`确认执行` 为 `type="error"` 按钮，`maskClosable/closeOnEsc` 关闭）；确认后才发送回车，取消发送 `Ctrl+U` 清除 shell 行。
+- 弹窗打开期间吞掉终端输入，避免破坏 shell 行状态；方向键 / Tab 补全 / 历史搜索等带外改行场景标记 uncertain 并跳过本次检测，宁可漏报不打扰。
+- 该守护是"提示"而非安全边界，不替代后端权限与容器隔离。
+- 面向用户不得暴露容器内路径（如 `/home/omichub/workspace`）：启动配置预览的挂载目录显示"我的 workspace"，容器 zshrc MOTD 使用 `~/workspace` 表述并附数据警示（`tool_configs/terminal/docker/zshrc`，改动需重建镜像生效）。
+
+### 19.3 代码沙箱
 
 - 编辑器区域使用项目已集成的代码编辑组件；不额外引入新编辑器库。
 - 运行按钮使用 `:loading` 表示执行中；输出面板与编辑器上下或左右分栏。
@@ -1294,25 +1424,992 @@ function pct(value: number | null | undefined): number {
 
 - **每一列都给固定 `width`，不留弹性列**；长文本列（名称 / 标题）给一个克制的固定宽 + `ellipsis: { tooltip: true }` 兜底长内容。
 - 把 `scroll-x` 设成**各列固定宽之和**（≈ 容器宽，如分析表 `970`、BLAST 表 `1020`）。这样表格按比例铺满整行，没有任何一列 ballooning，也没有列被挤压；列宽之和大于容器时退化为水平滚动，符合 §7.1。
+- **表格元素必须 `width: 100%` 与卡片左右边界对齐铺满，禁止给表格本身设 `max-width`**（如 `1440px` 封顶）——封顶会让宽屏下表格左对齐、右侧露出一条空白，2026-08-03 任务中心表格即此问题。需要限制阅读宽度时收容器（页面壳层），不收表格。
 - **短值/离散列居中**：所属用户、分析流程、数据库、Program、状态、操作等用列级 `align: 'center'`（naive-ui 会**同时居中对齐表头与表体**，不必再单独写表头 CSS）。
 - **进度列不要居中**：进度条 + 百分比是从左到右的组合单元，居中会在条左侧留下随宽度变化的空白，显得错位；进度列保持左对齐，只靠 ① 解决换行。
 
-**④ 真实数据，不展示裸 UUID/假数据。** 任何带"所属用户"列的表格，必须由后端回填真实 `username`，而非在前端展示 `user_id`（UUID）或用写死的 mock 行占位：
+**④ 用户展示名：昵称优先，用户名兜底；不展示裸 UUID/假数据。** 所有平台中表示用户的列表列、表格单元格、卡片标题、图表标签和导出内容，统一使用“昵称（`nickname`）优先；昵称为空、空白或未设置时使用用户名（`username`）”的规则。前端必须调用 `frontend/src/utils/displayName.ts` 的 `displayName({ nickname, username })`，不得在各页面复制 `nickname || username` 判断；`user_id`（UUID）仅可作为 API 缺失用户资料时的最后技术降级，不能作为设计预期或主展示文本。
 
-- 分析 `GET /api/v1/tasks` 的 `TaskResponse.username` 由 `TaskService.list_tasks` 经用户仓储按 `user_id` 回填（去重后查询，单用户列表只查一次）。
-- BLAST 列表 `BlastTaskListItemDTO.user_id` / `username`：`list_user_tasks` 用 `outerjoin UserModel` 取 username，`list_all_tasks` 复用其既有 `UserModel` join（不要丢弃已 select 的 username）。
-- 前端 `row.username || row.user_id` 仅作最后降级，**不是**设计预期。仪表板"最近任务"在迭代期曾用 mock 预览多用户混合，接口就绪后必须切回真实接口（按当前用户视角），空数据走 `NEmpty` 真实空态，不用假行填充。
+- **接口契约**：凡返回用户归属的 DTO 必须同时提供 `username` 与可空 `nickname`，包括分析任务、BLAST、工作流监控、终端会话、AgentTeams Case、饼干账户与交易流水等；后端按 `user_id` / `requester_ref` 批量或去重回填，不能要求前端额外以 UUID 反查用户资料。
+- **展示与审计分离**：用户列第一行、导出“用户”字段、当前用户名称等均用展示名；需要排查或执行管理操作时，用户名 / UUID 可作为明确标注的辅助信息或内部操作参数，不应拼接进主展示名。
+- **前端类型**：上述记录类型应保留 `username?: string | null` 与 `nickname?: string | null`，让共享工具在昵称为空白时稳定回退。无用户资料时的占位使用 `未知用户` / `-`，而不是 UUID。
+
+任何带"所属用户"列的表格，必须由后端回填真实用户资料，而非在前端展示 `user_id`（UUID）或用写死的 mock 行占位：
+
+- 分析 `GET /api/v1/tasks` 的 `TaskResponse.username` / `nickname` 由 `TaskService.list_tasks` 经用户仓储按 `user_id` 回填（去重后查询，单用户列表只查一次）。
+- BLAST 列表 `BlastTaskListItemDTO.user_id` / `username` / `nickname`：`list_user_tasks` 用 `outerjoin UserModel` 取两项资料，`list_all_tasks` 复用其既有 `UserModel` join（不要丢弃已 select 的昵称）。
+- 前端 `displayName(row) || row.user_id` 仅作最后技术降级，**不是**设计预期。仪表板"最近任务"在迭代期曾用 mock 预览多用户混合，接口就绪后必须切回真实接口（按当前用户视角），空数据走 `NEmpty` 真实空态，不用假行填充。
 - 操作列同理：查看/删除接真实接口（查看跳详情、删除走 `DELETE` 并局部刷新），后端未上线的能力（如"重新运行"）按终态 `disabled` + Tooltip"即将上线"诚实表达，**不要**用 `message.info('对接中')` 之类的假 toast 冒充可用。
 
 **⑤ 卡片垂直节奏统一为 24px。** 仪表盘各区块（概览网格 / 快速开始 / 监控面板 / 最近任务 / 最近 BLAST）每个根 section 自带 `margin-bottom: 24px`，构成统一的 24px 垂直节奏。新增卡片 section 必须同样带 `margin-bottom: 24px`，**不要**让相邻卡片间距塌缩为 0（只写 `overflow:hidden` 而漏掉外边距是常见错误，会导致两张卡片贴在一起、与其它卡片间距不一致）。
 
+**⑥ 表格任务卡片的表面、选中态与进度单元格。** 仪表盘的“最近任务”和“最近 BLAST 任务”是同一类任务表格卡片；两者必须使用相同的表面和进度布局契约。当前权威实现位于 `frontend/src/views/DashboardView.vue`。
+
+- 两张 `NDataTable` 均保留基础类 `.recent-table`，并附加 `.recent-table-surface`。后者负责不透明分层：表格容器与单元格使用 `var(--neutral-card)`，表头使用 `var(--neutral-bg)`；不得在表格区域使用 `rgba()`、`opacity` 或半透明白色叠加。浅色主题下分别对应白色表面和浅灰表头，深色主题自动跟随令牌。
+- 可选卡片使用共享选中态类（例如 `.is-selected`、`.card--selected` 或 `aria-selected="true"`）。任务卡片选中时必须保留全局 `4px` 左侧状态条，并使用 `color-mix()` 生成约 `4%` 主题色的极浅底、约 `40%` 主题色的描边和内描边；未选中卡片继续使用既有 `--neutral-card`，不得改变默认中性外观。
+- 表头与表体沿用 `.recent-table` 的字号、文字颜色和 `--neutral-border` 分隔线；行悬停仅使用 `var(--neutral-hover)`，不能覆盖卡片选中态的边框和状态条。
+- 所有列必须给出固定 `width`，`scroll-x` 等于列宽总和。当前分析任务表为 `970`，BLAST 任务表为 `1020`；窄屏在现有表格滚动容器内滚动，不为适配窄屏压缩列、折行百分比或在页面根部新增横向滚动。
+- 短值和离散列通过 Naive UI 列配置 `align: 'center'` 同时对齐表头与表体。任务名称、查询标题和时间等在当前仪表盘任务表中也保持居中；进度列例外，保持左对齐，避免进度条组合在居中列中产生随列宽变化的空白。
+- 进度单元格统一由 `renderTaskProgress()` 生成：外层 `.recent-task-progress` 使用 `display: flex`、`align-items: center`、`min-width: 0` 和 `white-space: nowrap`；内部 `.n-progress` 使用 `flex: 1 1 auto` 和 `min-width: 60px`；百分比 `.recent-task-progress__value` 使用 `flex: 0 0 44px`、右对齐、`white-space: nowrap` 与 `font-variant-numeric: tabular-nums`。`NProgress` 关闭内置指示器，百分比由固定宽度文本单独渲染，保证 `0%`、`45%`、`100%` 均不折行。
+- 操作列使用列级居中；多图标操作组通过 `NSpace` 的 `justify: 'center'` 和 `size: 12` 布局。图标按钮仍必须保留 `NTooltip`，删除操作仍通过 `NPopconfirm` 确认；本规范只约束样式与布局，不改变刷新、查看、重试或删除逻辑。
+
+**⑦ 平台通用卡片表格基线。** 除仪表盘任务表的专属进度规则外，所有嵌入 `NCard`、`.arco-card`、`.omichub-card`、`.table-card`、`.work-card`、`.result-card`、`.bottom-table`、`.table-wrap` 或 `.resource-tab` 的 `NDataTable` 都由 `frontend/src/styles/global.css` 的“卡片内数据表格”规则统一提供不透明 `--neutral-card` 表面、`--neutral-bg` 表头、`--neutral-border` 分隔线、`--neutral-hover` 行悬停色以及 `max-width: 100%` 容器约束。因此，任务/结果表、管理表和实验计算器结果表不得在局部样式中重新引入半透明表格底色或硬编码白色；业务页面只需按数据密度配置列宽、`scroll-x`、省略与对齐策略。
+
+带内置分页的卡片表格还必须把 `.n-data-table__pagination` 作为独立 footer：使用实体 `--neutral-card` 背景、顶部 `--neutral-border` 分隔线，以及足够的左右和底部内边距。分页存在时，末行单元格的底边应透明，由 footer 顶边承担唯一分隔，避免暗色模式下末行横线与分页器重叠；最右侧翻页按钮不得贴住卡片边缘或被圆角裁切。该规则统一维护在 `frontend/src/styles/global.css`，页面不得逐个复制分页补丁。
+
+参考结构：
+
+```ts
+const columns: DataTableColumns<Task> = [
+  { title: '任务名称', key: 'name', width: 220, align: 'center', ellipsis: { tooltip: true } },
+  { title: '进度', key: 'progress', width: 170, render: (row) => renderTaskProgress(row.progress) },
+  { title: '操作', key: 'actions', width: 110, align: 'center', render: renderActions },
+]
+```
+
+**⑧ 主标识列与用户列：双行单元格（标题/名称在上，等宽 ID 在下）。** 列表的主标识列（Case、会话、资源名）和用户列统一采用"双行单元格"结构，权威实现：`frontend/src/views/AdminSessionLogsView.vue`（会话排查列表）、`frontend/src/components/task/AgentTeamsCasesPanel.vue`（任务中心 AgentTeams 协作 tab）。
+
+- **结构**：单元格为纵向 flex（`gap: 2–3px`）；第一行是主文本（标题/名称/用户名），第二行是等宽字体（`var(--font-mono, ui-monospace, …)`）的辅助 ID（UUID / session_id / case_id），颜色 `--neutral-text-3`、字号 `12px`。
+- **主文本层级**：可跳转的主标识列第一行用 `14px / 600 / --neutral-text-1`，整格作为链接但**不渲染成整行蓝色链接**——保持正文色，hover 才变 `--arco-primary`；用户列第一行用 `13px / 500 / --neutral-text-1`，并展示 `displayName({ nickname, username })` 的结果。
+- **溢出**：两行都必须 `text-overflow: ellipsis + white-space: nowrap`，ID 行带 `title` 悬浮查看完整值；需要复制 ID 时按 AdminSessionLogsView 的做法附加 quaternary 小按钮。
+- **用户列数据契约**：后端必须按 `user_id` / `requester_ref` 回填真实 `username` 与 `nickname`（如 `TaskService._attach_user_display_info`、`/api/v1/agent-teams/cases` 的 `_attach_requester_user_display_info`，去重后逐查询）；前端 `displayName({ nickname, username }) || '未知用户'` 仅作展示降级，不得把裸 UUID 当作设计预期（与 ④ 同一纪律）。
+- 双行单元格仍遵守 ③：该列给一个克制的固定 `width`，不计入弹性列。
+
 ### 33.3 验收清单（在 §10 通用清单之上补充）
 
 - [ ] 进度/百分比/计数等派生数值是否经归一化或确定性公式渲染，在 0–1 与 0–100 两种数据尺度下都正确（无 1000% / 无 1% 误显）？
-- [ ] `NProgress` 百分比是否单行显示（产物中 grep 到 `.n-progress-graph{min-width:0}` 与指示器 `nowrap`，类名拼写正确）？
+- [ ] `renderTaskProgress()` 是否关闭 `NProgress` 内置指示器，并由 `.recent-task-progress`、`.n-progress` 与 `.recent-task-progress__value` 的 flex/固定宽度组合保证百分比单行显示？
 - [ ] 数据表格是否**所有列固定 `width`、无弹性列**，且 `scroll-x` 等于列宽之和；长文本列有 `ellipsis` + Tooltip？
 - [ ] 短值/离散列是否 `align:'center'`（表头+表体一致），进度列是否保持左对齐？
-- [ ] 带"所属用户"的表格是否展示真实 `username`（后端回填），而非 UUID 或 mock；空数据是否走真实 `NEmpty`？
+- [ ] 带"所属用户"的表格、图表标签和导出是否经 `displayName()` 展示昵称优先、用户名兜底的真实用户资料（后端回填 `username` + `nickname`），而非 UUID 或 mock；空数据是否走真实 `NEmpty`？
 - [ ] 操作列是否接真实接口；未上线能力是否诚实 `disabled` + Tooltip，无假 toast？
 - [ ] 仪表盘卡片 section 是否都带 `margin-bottom: 24px`，相邻卡片间距与其它卡片一致？
+- [ ] “最近任务”与“最近 BLAST 任务”是否都附加 `.recent-table-surface`，在选中和未选中状态下均保持不透明表格表面与清晰边界？
+- [ ] 卡片内 `NDataTable` 是否依赖全局“卡片内数据表格”规则获得主题表面，而没有通过局部 `rgba()`、`opacity` 或硬编码白色破坏明暗主题？
+- [ ] 主标识列 / 用户列是否采用 §33.2 ⑧ 的双行单元格（标题 + 等宽 ID；展示名 + UUID），且用户资料由后端回填真实 `username` + `nickname`？
 - [ ] 设计是否规避 §33.1 的"AI 默认"清单，在不破坏 §1 克制与可访问性的前提下具备品牌层次与辨识度？
+
+## 34. 知识库阅读页三要素冻结规范（卡片 / 侧栏 / 大纲）
+
+> **状态：冻结（2026-07-28）**。本节规定知识库阅读页（快速入门等）的星尘引言卡片、文档树侧栏、右侧大纲三要素的样式与实现方式。**冻结期内不得修改其结构、样式与交互**；确需调整必须先修订本节并明确告知，再改代码。权威实现：
+> - `frontend/src/components/knowledge/DocReader.vue`（阅读布局 + 大纲）
+> - `frontend/src/components/knowledge/KnowledgeStardustQuote.vue`（星尘引言卡片）
+> - `frontend/src/components/knowledge/DocTree.vue`（文档树侧栏）
+
+### 34.1 星尘引言卡片（KnowledgeStardustQuote）
+
+**使用契约**：仅快速入门（`doc.id === 'getting-started'`）使用。`DocReader` 用正则 `OPENING_STARDUST_QUOTE` 匹配正文开头的萨根引言 blockquote，命中则**从 Markdown 中剥离**并以组件渲染；未命中则保留原文，不渲染组件。文档正文的开头引言段不得随意改写，否则卡片静默失效（2026-07-28 事故的教训：任何改动必须同步检查正则）。
+
+**样式契约**：
+- 容器：圆角卡片（`--radius-card`），`1px` 品牌浅边框（`--stardust-border-soft`），背景 = 双层 radial 星尘光晕 + `--neutral-card` 基底，`--stardust-card-shadow` 浅阴影；顶部 kicker `FROM STARDUST, TO DISCOVERY`（11px / 700 / 0.16em 字距 / `--stardust-blue`）。
+- 引文：英文主句用 Georgia 衬线斜体 `clamp(22px, 2.2vw, 30px)`，中文段落 15px / 1.9 行高 / `--neutral-text-2`；左侧 2px 渐变竖轨 + 大号 `“` 装饰引号；署名右对齐。
+- 装饰：两个描边圆环（缓慢漂移）+ 三颗闪烁星点（`box-shadow` 光晕），纯 CSS，`pointer-events: none`。
+- 动效：光束扫过 14s、竖轨呼吸 4.8s、圆环漂移 18/22s、星点闪烁 3.8s；`prefers-reduced-motion` 全停，`prefers-reduced-transparency` 退化为纯色卡片，`forced-colors` 有兜底。
+- 响应式：`≤680px` 缩小 padding/字号，隐藏第二圆环与第二星点。
+- 主题：全部经 `--stardust-*` / `--neutral-*` 令牌（`tokens.css` 亮暗双定义），禁止硬编码色值。
+
+### 34.2 文档树侧栏（DocTree）
+
+- 组件：naive-ui `NTree`，`block-line` + `block-node` + `expand-on-click`；展开态受控（`expandedKeys` / `update:expandedKeys`），选中态 `:selected-keys="['doc:'+activeId]"`。
+- 节点：图标（分类 `FolderOutline` / 文档 `DocumentTextOutline`，15px）+ 标签文本（`NTooltip` 悬浮显示全名，长名省略）+ 状态点（`NBadge` dot，仅对有权限用户显示审核状态）。
+- 样式：节点内容区 `padding: 3px 4px`、`--radius-sm` 圆角；hover `--neutral-hover`；选中 `--arco-primary-light` 背景；字号 `--font-body-size`，颜色 `--neutral-text-2`；过渡 `--motion-quick`。
+- 交互：`expand-on-click` 点击即展开并触发选择；选择经 `findNode` 回溯 `doc:` 前缀 key 后 emit `select`。
+
+### 34.3 右侧大纲（reader-toc）
+
+**实现方式（冻结）**：不用 md-editor-v3 的 `MdCatalog`（其内部事件总线曾导致大纲不渲染）。大纲从 `resolvedContent` 源码自行解析——跳过围栏代码块与引用块内的井号行，提取 `#{1,6}` 标题并剥离内联标记（图片/链接/强调/HTML）；活动项经滚动容器（`.content-body`）`scroll` 监听 + 标题 DOM `getBoundingClientRect` 校准；点击大纲项按矩形差值 `scrollTo` 平滑定位。文档切换时重置活动项并 `nextTick` 校准。
+
+**布局**：`reader-layout` flex 双栏 = 预览 `0 0 80%` + 大纲 `0 0 20%`，均 `min-width: 0` 防长串吹爆；大纲 `position: sticky; top: 16px`，`max-height: calc(100vh - 180px)` 自滚动，左缘 `1px --neutral-border` 分隔线。`≤1024px` 转单列，大纲移至文末（`position: static`，`max-height: 240px`，改上缘分隔线）。
+
+**样式**：标题 `大纲`（caption 字号 / 600 / 0.06em 字距 / 大写 / `--neutral-text-3`）；条目 5px 10px padding、`--radius-sm`、hover `--neutral-hover`；**活动条目** = `--arco-primary` 文字 + `--arco-primary-light` 背景 + 左缘 3px×14px 品牌状态线（呼应平台侧栏选中态）；`focus-visible` 2px 主色 outline；大纲区自有细滚动条（亮 `rgba(29,33,41,.15)` / 暗 `rgba(255,255,255,.16)`，6px 圆角 thumb）。
+
+### 34.4 变更纪律
+
+1. 三要素的结构/样式/交互改动一律先改本节规范再改代码，禁止"先改后补"。
+2. 任何涉及 `getting-started` 正文开头、引言正则、`resolvedContent` 的改动，必须回归验证：卡片渲染、大纲非空、锚点定位、活动项跟随四项全绿。
+3. 构建后抽查 dist 产物含 `knowledge-stardust-quote` 与 `暂无大纲` 特征串（防"改了没进包"）。
+
+
+## 35. AI 助手主入口设计与优化规范
+
+> **适用范围**：OmicHub 星尘 AI 主入口、空会话欢迎页、对话页、工作台模式和智能体能力入口。
+>
+> **设计目标**：AI 主入口不是营销落地页，而是面向生物信息学任务的高频工作界面。页面应让用户在进入后快速完成“理解当前助手 → 选择常见任务或引用数据 → 输入需求 → 查看执行过程与结果”的完整路径。
+>
+> **核心原则**：输入优先、任务优先、上下文连续、状态真实、空态可行动。
+
+### 35.1 页面问题诊断基线
+
+优化 AI 主入口前，先检查以下问题：
+
+1. 空会话页是否存在大面积无功能留白。
+2. 欢迎横幅是否比输入区更抢夺注意力。
+3. 输入区是否远离欢迎信息和快捷任务，导致操作路径断裂。
+4. 模型、运行模式、工作台模式和能力入口是否同时使用高强调样式。
+5. 快捷任务是否只靠不同颜色区分，而没有语义图标和明确动词。
+6. 左侧是否同时存在全局导航、AI 导航和会话导航，造成横向空间浪费。
+7. 空会话和已有会话是否使用完全相同的输入区定位，忽略场景差异。
+8. AI 生成、工具调用、网络断开和部分失败是否具备完整状态。
+9. 浅色、深色、窄屏、减少动态和键盘操作是否均可正常使用。
+10. 装饰背景是否符合 §31，未参与页面布局或拦截点击。
+
+AI 主入口优化不得只调整颜色、阴影和圆角。必须同时评估信息架构、首屏操作路径、输入状态、会话状态和响应式行为。
+
+### 35.2 页面信息架构
+
+AI 主入口按以下优先级组织：
+
+1. 助手上下文：助手名称、简短能力说明、连接或可用状态。
+2. 输入区：文本输入、文件引用、技能或工具选择、发送按钮。
+3. 快捷任务：当前助手最常用的 4 至 6 个操作。
+4. 最近上下文：最近会话、最近文件或最近任务中的一种。
+5. 高级设置：模型选择、推理模式、联网、工作台模式和能力详情。
+6. 系统说明：免责声明、配额、权限、连接异常等辅助信息。
+
+首屏只能有一个最强操作中心。默认情况下，该中心是 AI 输入区及发送按钮。
+
+模型选择、工作台模式和能力查看是辅助操作，不得与发送按钮竞争主操作层级。
+
+### 35.3 空会话与活跃会话双布局
+
+AI 主入口必须区分空会话和已有消息的会话。
+
+#### 35.3.1 空会话状态
+
+空会话采用居中但偏上的连续任务流：
+
+```text
+助手名称与简短说明
+输入需求
+快捷任务
+最近会话或最近文件
+```
+
+实现要求：
+
+- 主内容容器宽度使用 `width: min(100%, 1120px)`。
+- 主内容区域与顶部工具栏之间使用 `32px` 或 `40px` 间距。
+- 输入区紧邻助手说明，间距为 `20px` 或 `24px`。
+- 快捷任务与输入区间距为 `20px`。
+- 最近上下文与快捷任务间距为 `32px`。
+- 不使用固定高度制造垂直居中。
+- 不在输入区和欢迎区之间保留无功能的大面积空白。
+- 页面高度不足时允许自然滚动，不裁剪快捷任务或输入区。
+- 空会话输入区不得固定在视口底部。
+
+建议结构：
+
+```vue
+<main class="ai-entry">
+  <section class="ai-entry__intro" aria-labelledby="ai-entry-title">
+    <!-- 助手名称、说明和状态 -->
+  </section>
+
+  <section class="ai-entry__composer" aria-label="向星尘 AI 提问">
+    <!-- 输入区 -->
+  </section>
+
+  <section class="ai-entry__suggestions" aria-labelledby="suggestion-title">
+    <!-- 快捷任务 -->
+  </section>
+
+  <section class="ai-entry__recent" aria-labelledby="recent-title">
+    <!-- 最近会话或文件 -->
+  </section>
+</main>
+```
+
+#### 35.3.2 活跃会话状态
+
+存在一条或多条消息后切换为标准对话布局：
+
+```text
+助手工具栏
+可滚动消息区
+底部吸附输入区
+```
+
+实现要求：
+
+- 消息区独立滚动，输入区保持可见。
+- 输入区使用 `position: sticky; bottom: 0` 或现有可靠布局，不优先使用脱离上下文的 `fixed`。
+- 输入区上方使用实体或低透明度表面，避免消息透过后影响可读性。
+- 输入区宽度与消息内容主列一致。
+- 消息内容主列建议最大宽度 `960px`，单个文本气泡最大宽度遵循 §18.1 的 `720px`。
+- 用户向上滚动后暂停自动跟随，并显示“回到底部”按钮。
+- 从空会话进入活跃会话时，输入区移动应使用 `opacity` 和 `transform` 短过渡，不动画 `top`、`bottom` 或高度。
+- `prefers-reduced-motion: reduce` 下直接切换布局，不执行位移动画。
+
+### 35.4 助手欢迎区域
+
+欢迎区域用于建立助手身份和任务语境，不得设计成营销 Hero。
+
+#### 35.4.1 推荐样式
+
+- 高度由内容决定，建议不超过 `180px`。
+- 使用 `--neutral-card`、品牌浅色表面或克制的品牌渐变。
+- 圆角使用 `--radius-card`，不得超过平台大型面板规范。
+- 内边距桌面端 `24px` 或 `32px`，窄屏 `20px`。
+- 标题使用页面标题或 Display 层级，不使用超大营销字体。
+- 描述控制在两行内，说明用户可以完成什么，而非重复品牌口号。
+- 装饰图形必须 `aria-hidden="true"`、`pointer-events:none` 并符合 §31。
+- 欢迎区域不使用无语义关闭按钮。只有可恢复的临时公告才允许关闭。
+
+#### 35.4.2 文案规范
+
+推荐：
+
+```text
+星尘 AI
+描述分析目标，或引用工作区文件开始任务。
+```
+
+避免：
+
+```text
+你好！我是智能助手，直接描述你的需求即可，我会自动转接给最合适的专家为你解答。
+```
+
+原因：
+
+- 文案过长且偏系统宣传。
+- “自动转接”属于系统行为，应在实际发生时反馈。
+- 首屏文案应引导当前动作，而不是解释全部产品能力。
+
+如果平台确实存在智能体路由，应在路由发生时展示：
+
+```text
+正在为你匹配差异表达分析助手……
+```
+
+完成后展示：
+
+```text
+已切换到差异表达分析助手
+```
+
+不得在路由尚未发生时用静态欢迎文案暗示已经完成匹配。
+
+### 35.5 输入区设计契约
+
+输入区是 AI 主入口的核心组件，应优先沉淀为共享组件，例如：
+
+```text
+frontend/src/components/ai/AIComposer.vue
+```
+
+页面不得分别实现多套外观和键盘规则不同的输入框。
+
+#### 35.5.1 结构分区
+
+输入区分为三层：
+
+1. 附件预览层：仅存在附件、引用文件或已选择上下文时显示。
+2. 文本输入层：多行文本框和生成状态。
+3. 工具栏：附件、引用、联网、工具、推理模式、清空和发送。
+
+推荐布局：
+
+```text
+[附件 / 引用文件预览]
+[多行输入框                                      ]
+[附件][引用] [联网][工具][深度思考]       [清空][发送]
+```
+
+实现要求：
+
+- 使用 `NInput type="textarea"` 和 `autosize`。
+- 默认最小输入高度约 `72px`，最大高度约 `200px`，超出后内部滚动。
+- `Enter` 发送，`Shift+Enter` 换行；输入法组合期间不得误发送。
+- 空内容且无附件时发送按钮禁用。
+- 生成中发送按钮切换为停止按钮，而不是简单禁用。
+- 停止按钮具有明确 Tooltip 和 `aria-label="停止生成"`。
+- 附件预览使用稳定高度或响应式约束，避免添加附件后工具栏跳动。
+- 输入区聚焦使用平台 `focus-ring`，不得叠加厚重外发光。
+- 免责声明放在输入框外部下方，使用说明文字层级。
+- 空会话时隐藏无意义的清空按钮。
+- 删除或清空已有草稿、附件时，根据后果使用直接操作或确认。
+- 长工具名称进入菜单或弹出层，避免在紧凑工具栏中放置长文本按钮。
+
+#### 35.5.2 工具状态
+
+联网、深度思考、终端或技能属于模式状态，应使用：
+
+- 图标切换按钮；
+- 紧凑分段控制；
+- 复选框或 Switch；
+- 可展开的工具菜单。
+
+不得把所有模式都实现成高强调文字按钮。
+
+每个模式必须提供：
+
+- 默认状态；
+- hover；
+- active；
+- focus-visible；
+- selected；
+- disabled；
+- 不可用原因 Tooltip；
+- 必要的状态说明。
+
+选中状态除颜色外，还需通过 `aria-pressed="true"`、图标变化、勾选标记或文本表达。
+
+#### 35.5.3 文件引用
+
+- `@` 引用文件时显示可搜索的工作区文件选择层。
+- 用户路径必须通过 `formatUserPath()` 格式化。
+- 搜索请求使用 `AbortController`，避免旧响应覆盖新关键词。
+- 文件类型、大小和权限异常就地展示。
+- 已引用文件以可移除项目展示，文件名长时省略并提供 Tooltip。
+- 不向普通用户展示平台存储根目录。
+- 引用失效或权限变化时，在发送前阻止请求并说明具体文件。
+
+### 35.6 快捷任务卡片
+
+快捷任务不是静态宣传卡片，而是预填输入、选择工具或直接进入流程的操作入口。
+
+#### 35.6.1 内容要求
+
+每张卡片包含：
+
+- 与任务语义一致的图标；
+- 动词开头的任务名称；
+- 一行结果导向说明；
+- 可选的文件或权限要求；
+- 明确的触发行为。
+
+示例：
+
+| 任务 | 图标语义 | 说明 | 行为 |
+| --- | --- | --- | --- |
+| 浏览工作区文件 | 文件夹 | 查看可用于分析的数据 | 打开文件选择层 |
+| 进行差异表达分析 | 分析图/烧瓶 | 比较样本分组并识别关键变化 | 预填提示词或打开配置流程 |
+| 绘制相关性热图 | 网格/热图 | 检查样本间整体关系 | 预填提示词并请求选择数据 |
+| 生成分析报告 | 文档 | 汇总过程、参数和主要结果 | 选择已有任务或结果 |
+
+#### 35.6.2 样式要求
+
+- 桌面端默认两列，`1024px` 以下根据空间降为一列。
+- 卡片高度建议 `80px` 至 `96px`，使用稳定的 `min-height`。
+- 图标容器使用 `40px` 或 `48px` 固定尺寸。
+- 卡片间距使用 `12px` 或 `16px`。
+- 使用语义图标，不以不同渐变色方块作为唯一辨识方式。
+- hover 位移不超过 `2px`。
+- focus-visible 使用平台焦点环。
+- 整张卡片可点击时使用 `button` 或正确的可操作语义。
+- 卡片内部不得再放置与主点击行为冲突的按钮。
+- 不允许只有 hover 才显示关键说明或状态。
+
+快捷任务触发方式必须明确选择以下一种：
+
+1. 直接预填输入框，由用户确认发送。
+2. 打开参数配置面板。
+3. 直接进入已有工作流。
+4. 打开文件或资源选择器。
+
+不得点击后只弹出“功能开发中”之类的假反馈。未上线功能应禁用并提供 Tooltip。
+
+### 35.7 最近上下文区域
+
+为减少重复工作，空会话页可展示以下一种主内容：
+
+- 最近会话；
+- 最近使用文件；
+- 最近分析任务；
+- 推荐智能体。
+
+默认优先级：
+
+```text
+最近会话 > 最近分析任务 > 最近文件 > 推荐智能体
+```
+
+最近会话每项至少展示：
+
+- 会话标题；
+- 助手或任务类型；
+- 最后更新时间；
+- 运行中、失败或完成状态；
+- 打开行为；
+- 更多操作菜单。
+
+要求：
+
+- 默认展示 3 至 5 项，不将空会话页变成完整历史列表。
+- 标题长时省略并提供 Tooltip。
+- 时间使用相对时间或统一的 `dayjs` 格式。
+- 空状态提供“开始新对话”或选择快捷任务的入口。
+- 加载失败时保留欢迎区和输入区，只在本区域显示重试。
+- 删除会话使用 `NPopconfirm`，删除成功后局部刷新。
+- 不使用假会话或 mock 数据填充视觉空白。
+
+### 35.8 顶部助手工具栏
+
+顶部栏建议分为三组：
+
+```text
+[返回] [助手头像、名称、状态]
+                    [模型与推理设置] [视图和能力操作]
+```
+
+#### 35.8.1 助手上下文组
+
+- 返回按钮使用图标按钮、Tooltip 和 `aria-label`。
+- 助手名称使用 `16px / 24px / 600`。
+- 说明使用 `12px` 或 `13px` 辅助文字。
+- 连接状态、路由状态或权限状态使用文字加状态图标。
+- 不把所有助手描述长期放在顶部栏中，避免占用垂直空间。
+
+#### 35.8.2 模型设置组
+
+模型选择、推理模式和超频模式视为同一组设置：
+
+- 模型使用 Select 或菜单。
+- 推理强度适合菜单或紧凑分段控制。
+- 二元模式使用 Switch。
+- 模型不可用时保留当前上下文并说明原因。
+- 切换模型影响当前会话时，应提示上下文、计费或能力差异。
+- 模型名称过长时省略，完整名称通过 Tooltip 展示。
+
+#### 35.8.3 页面操作组
+
+- “工作台模式”属于视图切换，使用分段控制或图标按钮。
+- “查看智能体能力”使用次要按钮、抽屉或 Popover。
+- 页面级操作不超过 3 个直接显示项，低频项进入更多菜单。
+- 同一工具栏通常不出现多个实心品牌色按钮。
+- `1024px` 以下将低频操作收进更多菜单。
+- `640px` 以下只保留助手上下文和必要操作。
+
+### 35.9 多层导航优化
+
+AI 页面可能同时处于：
+
+1. 平台顶部导航；
+2. 全局侧栏；
+3. AI 会话或工具侧栏。
+
+必须明确三层职责：
+
+| 层级 | 职责 |
+| --- | --- |
+| 平台顶部导航 | 产品域切换、账号、通知和帮助 |
+| 全局侧栏 | 平台核心模块导航 |
+| AI 侧栏 | 新建会话、历史会话、收藏和 AI 专属工具 |
+
+实现要求：
+
+- 全局折叠侧栏遵循 §5.6 的 `64px` 契约。
+- AI 侧栏允许折叠，不应只保留无法理解的重复图标。
+- 折叠后图标必须有 Tooltip。
+- 会话列表展开宽度建议 `240px` 至 `280px`。
+- AI 侧栏的折叠状态可持久化为用户偏好。
+- 通知、帮助、设置和用户信息统一位于稳定区域。
+- 同一图标不得代表多个不同模块。
+- 导航图标优先使用 `@vicons/*` 中现有图标。
+- 当前项选中态遵循平台连续描边和左缘状态线协议。
+- 窄屏时 AI 侧栏改为 Drawer，不长期占据横向空间。
+- 移动端 Drawer 关闭后焦点返回触发按钮。
+
+### 35.10 AI 执行状态与工具调用
+
+AI 主入口必须真实表达以下状态：
+
+| 状态 | UI 表达 | 可用操作 |
+| --- | --- | --- |
+| 等待输入 | 空态输入区和快捷任务 | 输入、引用文件、选择任务 |
+| 正在路由助手 | 状态文本和轻量加载 | 取消 |
+| 正在生成 | 流式文本和停止按钮 | 停止 |
+| 正在调用工具 | 工具卡片、参数摘要、进度 | 展开详情、取消（如支持） |
+| 工具成功 | 成功状态、结果摘要 | 查看结果、下载或继续提问 |
+| 工具失败 | 错误说明和失败步骤 | 重试、修改参数、查看日志 |
+| 网络重连 | 保留内容并显示“重新连接中…” | 手动重连 |
+| 生成中断 | 保留已生成内容和中断标记 | 重新生成 |
+| 权限不足 | 明确权限要求 | 请求权限或选择其它资源 |
+| 配额不足 | 剩余量和影响说明 | 查看配额或更换模式 |
+
+工具卡片必须遵循 §18.4：
+
+- 工具名；
+- 参数摘要；
+- 执行状态；
+- 时间或耗时；
+- 可折叠日志；
+- 输出文件；
+- 错误及重试路径。
+
+不得只显示无限旋转图标而不说明当前执行步骤。
+
+### 35.11 视觉层级与品牌使用
+
+AI 主入口使用平台品牌色建立识别，但不得形成蓝紫色单一主题。
+
+推荐语义：
+
+- 品牌蓝：主要操作、焦点和助手身份。
+- 紫色：深度思考、复杂推理等 AI 特征。
+- 青色：数据探索或分析工具。
+- 成功绿：任务完成和连接正常。
+- 警告橙：排队、重连和可恢复异常。
+- 错误红：失败、断开和破坏性操作。
+
+要求：
+
+- 页面背景使用 `--neutral-bg`。
+- 输入区和任务卡片使用 `--neutral-card`。
+- 边框使用 `--neutral-border`。
+- 正文至少使用 `--neutral-text-2`，关键内容使用 `--neutral-text-1`。
+- 不用辅助文本色承载重要任务说明。
+- 阴影只用于输入聚焦、浮层和可点击卡片 hover。
+- 不叠加多层外发光。
+- 背景点阵、圆环和星点只保留一种装饰语言。
+- 普通 AI 工作台不直接复用 §32 的完整 Hero 动画系统。
+- 如使用静态 AI 氛围背景，必须保持低对比度并符合 §31。
+
+### 35.12 响应式行为
+
+#### 宽屏：`≥ 1200px`
+
+- 保留全局侧栏和可选 AI 侧栏。
+- 主内容最大宽度 `1120px` 或根据现有壳层调整。
+- 快捷任务两列。
+- 顶部工具栏完整展示主要设置。
+
+#### 中等屏幕：`768px–1199px`
+
+- AI 会话侧栏默认折叠或按用户偏好。
+- 快捷任务可保持两列；内容不足时降为一列。
+- 顶部低频操作进入更多菜单。
+- 输入区保持全宽，不被侧栏挤压到不可用。
+
+#### 窄屏：`< 768px`
+
+- 页面内边距 `16px`。
+- AI 侧栏转为 Drawer。
+- 快捷任务单列。
+- 欢迎区域取消复杂装饰。
+- 模型和高级设置进入底部面板或菜单。
+- 输入工具栏允许换行或使用横向操作菜单。
+- 输入区工具栏必须避免文字按钮挤压。
+- 触控目标不小于约 `40px`。
+- 避免使用 `100vh`，优先使用 `100dvh` 并处理软键盘。
+- 输入框聚焦后，发送按钮和文本输入仍保持可见。
+
+#### 最低桌面高度：`720px`
+
+必须验证：
+
+- 欢迎区、输入区和至少一行快捷任务可在首屏操作。
+- 不因固定高度导致输入区与欢迎区之间出现大面积空白。
+- 浏览器缩放至 `125%` 时主要操作仍可见。
+
+### 35.13 可访问性
+
+- 页面只有一个 `h1`，通常为当前助手名称。
+- 快捷任务区使用 `section` 和 `h2`。
+- 可点击任务卡片优先使用 `button`。
+- 纯图标按钮提供 Tooltip 和 `aria-label`。
+- 模式切换使用 `aria-pressed`。
+- 助手路由、生成和连接状态使用 `aria-live="polite"`。
+- 流式输出避免每个 token 都触发屏幕阅读器朗读；只对状态摘要使用 live region。
+- 停止生成按钮必须可通过键盘到达。
+- 消息列表、附件条和弹出菜单具备合理焦点顺序。
+- 弹层关闭后焦点返回触发按钮。
+- 高对比度模式下保留输入区、卡片和选中状态边界。
+- 减少透明度模式下输入区和顶部栏使用实体表面。
+- 减少动态模式下停止光标之外的装饰循环和大位移转场。
+
+### 35.14 数据与状态管理建议
+
+AI 主入口的状态建议按以下边界拆分：
+
+| 状态 | 建议位置 |
+| --- | --- |
+| 当前会话 ID、消息、流式连接状态 | AI 对话 Store 或现有流式 composable |
+| 输入草稿、展开菜单、局部 hover | 组件本地 |
+| 当前模型、推理偏好 | Store 或用户偏好 |
+| 快捷任务定义 | 配置文件或助手能力接口 |
+| 最近会话 | 页面请求状态 |
+| 引用文件和附件 | Composer 受控状态 |
+| 工作台模式 | 路由 query、Store 或页面状态，按是否需跨页面保留决定 |
+
+要求：
+
+- 会话创建、消息发送、停止生成和重新生成使用明确的 action。
+- 切换会话前保存或确认未发送草稿。
+- 发送请求防止重复提交。
+- SSE/WebSocket 断开后保留已有消息。
+- 组件卸载时取消请求、流和事件监听。
+- 最近会话局部失败不得阻塞输入区。
+- 多个独立请求使用 `Promise.allSettled`。
+
+### 35.15 建议组件边界
+
+优先复用现有实现；确有重复时，可按以下方式拆分：
+
+```text
+frontend/src/components/ai/
+├── AIAssistantHeader.vue
+├── AIComposer.vue
+├── AIComposerToolbar.vue
+├── AIAttachmentStrip.vue
+├── AIQuickActions.vue
+├── AIRecentSessions.vue
+├── AIMessageList.vue
+├── AIToolCallCard.vue
+└── AIConnectionStatus.vue
+```
+
+拆分纪律：
+
+- 不为单次样式调整创建大量无复用价值的包装组件。
+- `AIComposer` 负责布局和交互契约，不直接发起业务 API。
+- 页面负责组合数据和调用现有 Store/composable。
+- 快捷任务通过结构化配置传入，不在模板中复制四套卡片。
+- 消息渲染和工具卡片与输入区解耦。
+- 组件事件使用明确名称，例如 `send`、`stop`、`attach`、`select-action`。
+- 不使用事件总线。
+
+建议类型：
+
+```ts
+export interface AIQuickAction {
+  id: string
+  title: string
+  description: string
+  icon: Component
+  behavior: 'prefill' | 'configure' | 'navigate' | 'select-file'
+  prompt?: string
+  route?: RouteLocationRaw
+  disabled?: boolean
+  disabledReason?: string
+}
+```
+
+### 35.16 分阶段实施计划
+
+#### 第一阶段：首屏任务路径
+
+目标：解决输入区远离欢迎区和大面积空白问题。
+
+工作项：
+
+- 识别空会话和活跃会话状态。
+- 空会话输入区移动到欢迎区下方。
+- 活跃会话保持底部吸附输入区。
+- 统一欢迎区、输入区和快捷任务的内容边界。
+- 压缩欢迎横幅高度和冗余文案。
+- 移除无语义关闭按钮。
+- 删除空会话无效的清空控件。
+- 完成桌面端和 `720px` 高度验证。
+
+验收标准：
+
+- 用户进入页面后无需移动视线到底部即可开始输入。
+- 空会话首屏至少可看到输入区和一组快捷任务。
+- 开始对话后输入区保持稳定可用。
+- 布局切换不丢失草稿和附件。
+
+#### 第二阶段：快捷任务和输入工具栏
+
+目标：提升任务辨识度并降低控制密度。
+
+工作项：
+
+- 快捷卡片改为语义图标和动词文案。
+- 快捷任务改为配置驱动。
+- 为每个快捷任务定义真实行为。
+- 输入工具栏按附件、模式和发送操作分组。
+- 将低频长文字操作移入更多菜单。
+- 为模式按钮补充 selected、disabled、Tooltip 和 ARIA。
+- 整理免责声明位置。
+
+验收标准：
+
+- 每张快捷卡片点击后均有真实、可预测行为。
+- 键盘可以完成快捷任务选择和消息发送。
+- 工具栏在 `375px` 下不发生文字裁切和按钮重叠。
+- 空内容、生成中和断网状态下发送/停止行为正确。
+
+#### 第三阶段：导航与最近上下文
+
+目标：降低多层导航认知成本，提高任务续接效率。
+
+工作项：
+
+- 明确全局导航和 AI 侧栏职责。
+- AI 侧栏支持折叠和移动端 Drawer。
+- 补充图标 Tooltip。
+- 处理重复图标和低频入口。
+- 空会话增加最近会话或最近任务。
+- 实现加载、空、失败和删除状态。
+
+验收标准：
+
+- 折叠状态下所有图标都可理解。
+- 最近会话失败不影响发起新对话。
+- 移动端 Drawer 具备焦点管理。
+- 页面切换不残留 WebSocket 和请求。
+
+#### 第四阶段：流式状态与工具卡片
+
+目标：让复杂 AI 任务过程可理解、可停止、可恢复。
+
+工作项：
+
+- 完善路由助手、生成、停止和中断状态。
+- 统一工具调用卡片。
+- 接入进度、日志、结果和重试。
+- 处理 WebSocket/SSE 重连。
+- 用户上滚时暂停自动滚动。
+- 提供回到底部按钮。
+- 长会话引入分页或虚拟滚动。
+
+验收标准：
+
+- 网络中断后已生成内容不会丢失。
+- 每个长任务至少显示当前步骤或不确定进度。
+- 工具失败提供明确重试路径。
+- 流式更新不会导致整页频繁重渲染。
+
+#### 第五阶段：主题、可访问性与性能
+
+目标：完成平台级交付质量。
+
+工作项：
+
+- 浅色和深色主题核对。
+- `375px`、`768px`、`1024px`、`1280px` 和宽屏核对。
+- `1280×720` 与浏览器 `125%` 缩放核对。
+- 键盘和屏幕阅读器语义检查。
+- 减少动态、减少透明度和高对比度检查。
+- 检查路由 chunk 体积和首屏请求。
+- 完成组件测试和关键 E2E。
+
+### 35.17 AI 主入口专项验收清单
+
+- [ ] 空会话输入区是否位于欢迎说明附近，而非固定在视口最底部？
+- [ ] 活跃会话输入区是否稳定吸附并与消息主列对齐？
+- [ ] 页面是否只有一个主要视觉动作，且通常为发送？
+- [ ] 欢迎区是否不超过必要高度，并移除了无语义关闭按钮？
+- [ ] 快捷任务是否使用语义图标、动词文案和真实行为？
+- [ ] 快捷任务是否可通过键盘操作，并具有 focus-visible？
+- [ ] 输入工具栏是否按附件、模式和发送操作分组？
+- [ ] 空输入、生成中、停止中、断网和重连状态是否正确？
+- [ ] 输入法组合期间按 Enter 是否不会误发送？
+- [ ] 引用文件是否经过 `formatUserPath()` 处理？
+- [ ] 最近会话加载失败是否不会阻塞新对话？
+- [ ] AI 侧栏是否可折叠，并在移动端转为 Drawer？
+- [ ] 所有纯图标是否提供 Tooltip 或 `aria-label`？
+- [ ] 工具调用是否展示工具名、参数摘要、状态、结果和错误？
+- [ ] 网络中断是否保留已生成内容并提供重试？
+- [ ] 用户上滚时是否暂停自动滚动并提供“回到底部”？
+- [ ] 是否避免蓝紫单色主导，并按语义使用成功、警告和错误色？
+- [ ] 装饰背景是否符合 §31，没有参与布局或拦截点击？
+- [ ] `375px`、`768px`、`1024px`、`1280×720` 是否无重叠和裁切？
+- [ ] 是否验证浅色、深色、减少动态、减少透明度和高对比度？
+- [ ] 是否通过 type-check、build、测试和 `git diff --check`？
+- [ ] 是否在实际路由 chunk 或 nginx 响应中确认样式已生效？
+
+## 36. AI 助手主入口优化执行提示词
+
+下面建议继续追加到 `fontend.md`。第一份用于完整改造，后面几份用于拆分执行，避免一次修改范围过大。
+
+```md
+### 36.1 完整优化提示词
+
+使用 `$omichub-frontend-design` 对 OmicHub 的星尘 AI 主入口进行完整优化。
+
+开始前必须先阅读并遵守：
+
+- 仓库中的 `AGENTS.md`；
+- `fontend.md`，重点检查 §1、§2、§3、§5、§6、§7、§10、§14、§18、§21、§22、§23、§31、§33、§35；
+- `frontend/src/styles/tokens.css`；
+- `frontend/src/styles/global.css`；
+- `frontend/src/App.vue`；
+- `frontend/src/layouts/DefaultLayout.vue`；
+- 当前 AI 页面、输入组件、消息组件、AI Store 和流式 composable。
+
+任务目标：
+
+1. 将 AI 空会话页从“欢迎横幅 + 快捷卡片 + 大面积空白 + 底部输入框”调整为连续任务路径：
+   - 助手信息；
+   - 空会话输入区；
+   - 快捷任务；
+   - 最近会话或最近任务。
+2. 存在消息后切换为标准对话布局：
+   - 顶部助手工具栏；
+   - 可滚动消息区；
+   - 底部吸附输入区。
+3. 保持草稿、附件、模型和模式状态在布局切换时不丢失。
+4. 压缩欢迎区高度，减少营销式装饰和冗余文案；没有真实关闭语义时移除关闭按钮。
+5. 快捷任务改为结构化配置驱动，使用语义图标、动词文案和真实行为。
+6. 输入工具栏按附件、引用、模式、清空和发送分组；将低频长文字操作收入更多菜单。
+7. 顶部模型、推理和超频设置归为同组；工作台模式与能力查看归为页面操作组。
+8. 页面只能有一个最强操作层级，发送按钮优先。
+9. AI 侧栏支持折叠；移动端使用 Drawer；所有纯图标提供 Tooltip 和 `aria-label`。
+10. 补全 default、hover、active、focus-visible、selected、disabled、loading、empty、error、success、streaming、stopped 和 reconnecting 状态。
+11. 保留现有真实 API、Store、路由和流式逻辑，不用 mock 数据替换真实数据。
+12. 用户路径统一使用 `formatUserPath()`，不暴露平台存储根目录。
+13. 装饰层严格遵守 §31，不使用 `.container > *` 等过宽选择器改变定位或层叠。
+14. 不新增依赖，除非先证明现有依赖无法满足需求。
+15. 不在业务组件中硬编码浅色主题颜色，不使用大面积 `!important` 或深层穿透覆盖组件库。
+16. 不修改 §34 冻结的知识库阅读页三要素。
+
+实现方式：
+
+- 先列出当前 AI 主入口相关文件、状态流和组件边界。
+- 说明现状问题与准备修改的文件。
+- 优先复用现有组件和样式令牌。
+- 只在至少两个位置复用或确实能降低复杂度时提取共享组件。
+- 新组件使用 Vue 3、TypeScript、`<script setup lang="ts">` 和 Composition API。
+- 输入区使用受控状态，组件不得自行复制会话业务逻辑。
+- 快捷任务使用结构化类型，不复制四套模板。
+- 所有异步请求支持局部 loading、失败和重试；页面卸载时清理请求、流和监听。
+- 流式输出使用现有 `useChatStream` / `useAgentChatStream` 或对应 Store，不另造并行连接机制。
+- 样式只使用语义令牌和平台间距阶梯。
+- 空会话输入区不固定在视口底部；活跃会话输入区使用可靠的 sticky 或现有布局。
+- 使用 `100dvh` 处理移动端软键盘，不使用会裁剪内容的固定 `100vh`。
+- 动效只使用 `transform` 和 `opacity`，并适配 `prefers-reduced-motion`。
+
+响应式必须覆盖：
+
+- `375px` 手机；
+- `768px` 平板；
+- `1024px` 窄桌面；
+- `1280×720` 最低桌面环境；
+- `1440px` 常规桌面；
+- 宽屏；
+- 浏览器缩放 `125%`。
+
+验收要求：
+
+1. 运行项目现有的前端类型检查。
+2. 运行相关单元测试和组件测试。
+3. 运行前端构建。
+4. 运行 `git diff --check`。
+5. 使用 Playwright 分别截取空会话和活跃会话的桌面、移动端截图。
+6. 检查页面无文字裁切、按钮重叠、横向溢出和无功能空白。
+7. 检查键盘 Tab 顺序、Enter 发送、Shift+Enter 换行、输入法组合和 Escape 关闭弹层。
+8. 检查浅色、深色、减少动态、减少透明度和高对比度。
+9. 按 §31.5 在实际构建产物中定位 AI 路由 CSS chunk，并确认关键选择器已编译。
+10. 报告修改文件、关键行为、验证命令、截图位置和仍存在的风险。
+
+不要只输出建议或代码片段。完成代码修改、测试、构建和页面检查后再结束任务。
+```
+
+### 36.2 第一阶段提示词：首屏与输入区
+
+```text
+使用 $omichub-frontend-design 优化星尘 AI 主入口的首屏任务路径。
+
+只处理以下范围：
+1. 区分空会话与已有消息状态。
+2. 空会话时把输入区放到助手说明下方，禁止固定在页面底部。
+3. 有消息后输入区切换到底部吸附布局。
+4. 统一助手说明、输入区和快捷任务的左右内容边界。
+5. 压缩欢迎横幅高度，移除无语义的关闭按钮和冗余英文装饰文案。
+6. 保持现有发送、附件、模型、工具、WebSocket/SSE 和会话逻辑不变。
+7. 布局切换不得丢失输入草稿或附件。
+8. 处理 375px、768px、1024px、1280×720 和 1440px。
+9. 适配深色模式、减少动态和减少透明度。
+10. 严格遵守 fontend.md §31，不用子元素通配选择器修改 position/z-index。
+
+先阅读当前实现和设计令牌，再直接修改代码。完成后运行 type-check、相关测试、build 和 git diff --check，并用 Playwright 截取空会话与活跃会话的桌面/移动端截图。
+```
+
+### 36.3 第二阶段提示词：快捷任务与工具栏
+
+```text
+使用 $omichub-frontend-design 优化星尘 AI 的快捷任务和输入工具栏。
+
+任务：
+1. 将快捷任务改为结构化配置驱动。
+2. 每项使用 @vicons 现有语义图标、动词标题、一行结果说明和明确 behavior。
+3. behavior 限定为 prefill、configure、navigate、select-file。
+4. 所有入口必须接入真实行为；未上线功能使用 disabled + Tooltip，不弹假 toast。
+5. 桌面端两列，窄屏单列，卡片高度稳定，无文字裁切。
+6. 整卡可点击时使用正确语义，并支持 Enter、Space、focus-visible。
+7. 输入工具栏按附件/引用、模式、发送操作分组。
+8. 将“转为协作 Case”等低频长文字操作移入更多菜单。
+9. 联网、工具、深度思考等模式补齐 aria-pressed、selected、disabled 和不可用原因。
+10. 空会话隐藏无效清空按钮；免责声明移到输入框外。
+11. 不改动消息流和后端接口契约。
+
+完成 type-check、测试、build、git diff --check 和桌面/移动端截图检查。
+```
+
+### 36.4 第三阶段提示词：导航与最近会话
+
+```text
+使用 $omichub-frontend-design 优化星尘 AI 页面的多层导航和最近上下文。
+
+任务：
+1. 梳理平台顶部导航、全局侧栏和 AI 侧栏的职责。
+2. 保持 DefaultLayout 的全局侧栏契约，不破坏其它路由。
+3. AI 侧栏支持折叠并持久化偏好；移动端改为 Drawer。
+4. 折叠后的所有图标提供 Tooltip 和 aria-label。
+5. 排查并替换重复或语义不清的图标。
+6. 空会话页增加最近会话，默认 3 至 5 项。
+7. 每项展示标题、助手/任务类型、更新时间和状态。
+8. 实现 loading、empty、error、retry、open 和 delete 状态。
+9. 删除使用 NPopconfirm，成功后局部刷新。
+10. 最近会话失败不得阻塞输入和快捷任务。
+11. 只使用真实 API，不使用 mock 数据填充。
+12. Drawer 打开时管理焦点，关闭后焦点返回触发元素。
+
+完成类型检查、测试、构建和响应式/键盘验收。
+```
+
+### 36.5 第四阶段提示词：流式输出与工具调用
+
+```text
+使用 $omichub-frontend-design 完善星尘 AI 的流式输出、连接状态和工具调用卡片。
+
+任务：
+1. 复用现有 useChatStream、useAgentChatStream、AI Store 或 WebSocket composable。
+2. 明确 waiting、routing、streaming、tool-running、stopped、reconnecting、failed 和 completed 状态。
+3. 生成中发送按钮切换为停止按钮。
+4. 用户停止或网络中断后保留已输出内容。
+5. 提供重新生成和手动重连入口。
+6. 工具卡片显示工具名、参数摘要、执行步骤、耗时、结果、输出文件和错误。
+7. 长任务显示确定或不确定进度；不能只显示无限 spinner。
+8. 工具失败提供重试、修改参数或查看日志的真实路径。
+9. 用户向上滚动时暂停自动滚动并显示“回到底部”。
+10. 长会话使用历史分页或现有虚拟滚动方案。
+11. 高频更新使用 shallowRef 和 requestAnimationFrame 节流。
+12. 页面卸载时关闭连接、取消请求并清理监听。
+13. 状态摘要使用 aria-live，避免逐 token 朗读。
+
+补充相应单元/组件测试，并完成构建和关键 E2E 验证。
+```
+
+### 36.6 只做审查、不修改代码的提示词
+
+```text
+使用 $omichub-frontend-design 审查 OmicHub 星尘 AI 主入口，但暂不修改代码。
+
+重点检查：
+- 空会话与活跃会话布局；
+- 输入区优先级和键盘行为；
+- 快捷任务真实行为；
+- 顶部工具栏操作层级；
+- 多层导航职责；
+- 流式输出与工具调用状态；
+- 深色模式和语义令牌；
+- 375px、768px、1024px、1280×720 和宽屏；
+- 减少动态、减少透明度、高对比度和键盘可访问性；
+- WebSocket/SSE 清理和断线恢复；
+- §31 叠层反模式；
+- 性能和路由块体积。
+
+输出格式：
+1. 按 P0、P1、P2、P3 排序的问题清单。
+2. 每个问题给出真实文件和行号。
+3. 说明用户影响、技术原因和推荐修复。
+4. 给出按依赖关系排序的实施批次。
+5. 给出每批次的验收标准和建议测试。
+6. 不输出泛化视觉建议，不臆测不存在的接口或组件。
+```
+
+另外建议修正文件名：如果当前仓库实际叫 `fontend.md`，最好迁移为正确拼写的 `frontend.md`，并同步 `$omichub-frontend-design`、`AGENTS.md` 和其它文档中的引用。如果已有自动化脚本依赖旧文件名，则先保留一个短的兼容入口，避免技能引用失效。

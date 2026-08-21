@@ -17,6 +17,14 @@
 # 新增专家时同步在此追加，否则 MAS 模式下该专家会被编排器视为不存在。
 schema_version: "1.0"
 agents:
+  # --- 协作室 Manager（AgentTeams 编排者，不可招募、不承接 Work Item）---
+  agentteams-manager:
+    - intake
+    - orchestration
+    - plan-review
+    - coordination
+    - delivery-summary
+
   # --- 通用与研究设计 ---
   agent-general:
     - intake

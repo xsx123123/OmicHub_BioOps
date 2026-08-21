@@ -73,6 +73,7 @@ class ApprovalSigner:
         work_item_id: str | None,
         flow_id: str | None,
         task_id: str | None,
+        plan_hash: str | None,
         ttl_seconds: int,
     ) -> tuple[str, str, datetime]:
         expires_at = datetime.now(UTC) + timedelta(seconds=ttl_seconds)
@@ -83,6 +84,10 @@ class ApprovalSigner:
             "work_item_id": work_item_id,
             "flow_id": flow_id,
             "task_id": task_id,
+            # 审批 token 绑定冻结计划哈希（手册阶段 0 修复 1）：签发后计划被修订，
+            # 旧 token 即失效。存量无 plan_hash 载荷的 token 在携带校验点一律视为
+            # 已吊销（属手册接受的"吊销重签"）。
+            "plan_hash": plan_hash,
             "exp": int(expires_at.timestamp()),
         }
         payload = _encode(claims)
@@ -98,6 +103,7 @@ class ApprovalSigner:
         work_item_id: str | None = None,
         flow_id: str | None = None,
         task_id: str | None = None,
+        plan_hash: str | None = None,
     ) -> dict[str, Any]:
         try:
             payload, provided_signature = token.split(".", maxsplit=1)
@@ -123,6 +129,8 @@ class ApprovalSigner:
             expected_values["flow_id"] = flow_id
         if task_id is not None:
             expected_values["task_id"] = task_id
+        if plan_hash is not None:
+            expected_values["plan_hash"] = plan_hash
         if any(claims.get(key) != value for key, value in expected_values.items()):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN, detail="Approval scope mismatch"

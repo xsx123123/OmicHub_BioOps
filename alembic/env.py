@@ -26,7 +26,7 @@ config.set_main_option("sqlalchemy.url", settings.database_url)
 
 # 有迁移建表但无对应 ORM 模型的表（外部组件/日志表），
 # autogenerate 必须跳过，否则会生成 drop_table 误删。
-_NON_ORM_TABLES = {"mem0_memories", "mcp_logs"}
+_NON_ORM_TABLES = {"mcp_logs"}
 
 
 def include_object(object_, name, type_, reflected, compare_to):  # noqa: ANN001, ANN201

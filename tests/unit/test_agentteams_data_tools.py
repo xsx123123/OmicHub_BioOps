@@ -130,6 +130,9 @@ async def test_workspace_preview_is_requester_scoped(monkeypatch, tmp_path) -> N
     class Factory:
         data_root = tmp_path
 
+        def user_root(self, user_id):
+            return tmp_path / user_id
+
         def workspace_dir(self, user_id):
             return tmp_path / user_id / "workspace"
 
@@ -159,14 +162,14 @@ async def test_workspace_preview_is_requester_scoped(monkeypatch, tmp_path) -> N
     )
     service = AgentTeamsDataToolService()
     result = await service.workspace_file_preview(
-        user_id=USER_ID, path="notes.txt", context=_context()
+        user_id=USER_ID, path="workspace/notes.txt", context=_context()
     )
     assert result["content"] == "verified evidence"
 
     with pytest.raises(ValidationError):
         await service.workspace_file_preview(
             user_id="00000000-0000-0000-0000-000000000003",
-            path="notes.txt",
+            path="workspace/notes.txt",
             context=_context(),
         )
 

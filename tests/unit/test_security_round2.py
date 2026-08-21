@@ -10,6 +10,7 @@ from omichub.application.schemas.task import TaskSubmitRequest
 from omichub.application.services.ai_tools import AIToolExecutor
 from omichub.application.services.chat_service import ChatService
 from omichub.core.security import create_access_token, decode_token
+from omichub.core.config import Settings
 from omichub.infrastructure.mcp.client import (
     validate_stdio_args,
     validate_stdio_command,
@@ -41,6 +42,20 @@ class TestLoginRateLimitClientIp:
     def test_x_real_ip_fallback(self):
         req = DummyRequest(headers={"x-real-ip": "10.0.0.8"})
         assert _client_ip(req) == "10.0.0.8"
+
+
+def test_rate_limit_ban_settings_are_loaded_from_environment(monkeypatch):
+    monkeypatch.setenv("RATE_LIMIT_BAN_ENABLED", "false")
+    monkeypatch.setenv("RATE_LIMIT_BAN_THRESHOLD", "7")
+    monkeypatch.setenv("RATE_LIMIT_BAN_WINDOW", "600")
+    monkeypatch.setenv("RATE_LIMIT_BAN_SECONDS", "1800")
+
+    settings = Settings(_env_file=None)
+
+    assert settings.rate_limit_ban_enabled is False
+    assert settings.rate_limit_ban_threshold == 7
+    assert settings.rate_limit_ban_window == 600
+    assert settings.rate_limit_ban_seconds == 1800
 
 
 class TestMCPArgsValidation:

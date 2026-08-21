@@ -1,0 +1,11 @@
+# Purpose: MCScanX-style synteny Worker runtime.
+# Build context: tool_configs/synteny/.
+# Recommended command: make docker-build-synteny
+FROM ubuntu:24.04
+
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    ca-certificates python3 && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /work
+COPY . /opt/omichub/synteny
+ENTRYPOINT ["python3", "/opt/omichub/synteny/synteny_runner.py"]

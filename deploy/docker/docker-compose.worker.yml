@@ -26,7 +26,8 @@ services:
         SNAKEMAKE_LOGGER_PLUGIN_REF: ${SNAKEMAKE_LOGGER_PLUGIN_REF:-main}
     container_name: omichub-rocketmq-worker
     profiles: ["rocketmq"]
-    restart: unless-stopped
+    # RocketMQ nameserver/client 配置错误不能无限崩溃重启；保留有限重试以吸收短暂网络抖动。
+    restart: on-failure:5
     logging: *default-logging
     group_add:
       - "${DOCKER_GID:?Run scripts/worker-compose.sh to detect the Docker socket GID}"

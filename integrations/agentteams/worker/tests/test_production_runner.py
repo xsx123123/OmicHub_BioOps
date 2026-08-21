@@ -148,7 +148,7 @@ def test_production_worker_claims_and_uses_bridge_execution(monkeypatch) -> None
 
     result = production_runner.run_once(config)
 
-    assert calls == ["preview", "claim", "heartbeat", "execute"]
+    assert calls == ["preview", "claim", "heartbeat", "heartbeat", "execute"]
     assert result["action"] == "completed"
     assert result["work_item_id"] == "code-01"
 
@@ -275,7 +275,7 @@ def test_production_worker_forwards_evidence_refs_and_readonly_tools(monkeypatch
         production_runner.ProductionWorkerConfig("http://bridge", "quality-auditor", "token", 1)
     )
 
-    assert observed["evidence_refs"] == ["task:task-1", "file:reports/qc.tsv"]
+    assert observed["evidence_refs"] == ["task:task-1", "reports/qc.tsv"]
     assert set(observed["requested_tools"]) == set(production_runner._EVIDENCE_TOOLS)
 
 
@@ -308,7 +308,7 @@ def test_production_worker_uses_file_scheme_for_uuid_file_refs(monkeypatch) -> N
         production_runner.ProductionWorkerConfig("http://bridge", "agent-code", "token", 1)
     )
 
-    assert observed["evidence_refs"] == ["file://cb79a200-b2ca-441f-9a42-d3417fbfa89d"]
+    assert observed["evidence_refs"] == ["legacy-file:cb79a200-b2ca-441f-9a42-d3417fbfa89d"]
 
 
 def test_production_worker_profile_exposes_declared_execution_modes(monkeypatch) -> None:
@@ -433,3 +433,46 @@ def test_production_worker_rejects_workspace_execution_without_declaration(monke
         assert "agent-qc" in str(exc)
     else:
         raise AssertionError("workspace_execution was accepted without a registry declaration")
+
+
+def test_production_worker_records_profile_failure_before_claim(monkeypatch) -> None:
+    assignment = {
+        "case_id": "case-1",
+        "work_item": {"work_item_id": "plan-01", "objective": "Plan analysis."},
+    }
+    claim_calls: list[bool] = []
+    monkeypatch.setattr(
+        production_runner,
+        "claim_next",
+        lambda *_args, **kwargs: claim_calls.append(bool(kwargs.get("dry_run"))) or {"assignment": assignment},
+    )
+    monkeypatch.setattr(
+        production_runner,
+        "load_worker_profile",
+        lambda _config: (_ for _ in ()).throw(ValueError("malformed profile")),
+    )
+    heartbeats: list[dict] = []
+    failures: list[dict] = []
+    monkeypatch.setattr(
+        production_runner,
+        "heartbeat_work_item",
+        lambda *_args, **kwargs: heartbeats.append(kwargs) or {},
+    )
+    monkeypatch.setattr(
+        production_runner,
+        "record_work_item_failure",
+        lambda *_args, **kwargs: failures.append(kwargs) or {},
+    )
+
+    try:
+        production_runner.run_once(
+            production_runner.ProductionWorkerConfig("http://bridge", "agent-code", "token", 1)
+        )
+    except ValueError as exc:
+        assert "malformed profile" in str(exc)
+    else:
+        raise AssertionError("profile failure should be surfaced")
+
+    assert not heartbeats
+    assert failures and failures[0]["error"] == "malformed profile"
+    assert claim_calls == [True]

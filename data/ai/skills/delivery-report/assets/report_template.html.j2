@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ header.project }} - 交付报告</title>
+{#- plotly.js 全报告只在此出现一次：默认内联（离线可开），仅用户明确要求小文件时传入 CDN script 标签 -#}
+{{ plotly_js_tag | safe }}
+<style>
+  body { font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+         margin: 0 auto; max-width: 1080px; padding: 24px; color: #1f2933; line-height: 1.6; }
+  h1 { border-bottom: 2px solid #2563eb; padding-bottom: 8px; }
+  h2 { margin-top: 40px; border-left: 4px solid #2563eb; padding-left: 10px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { border: 1px solid #d9e2ec; padding: 6px 10px; text-align: left; vertical-align: top; }
+  th { background: #f0f4f8; }
+  code { background: #f0f4f8; padding: 1px 4px; border-radius: 3px; }
+  .meta span { display: inline-block; margin-right: 24px; }
+  .quality-passed { color: #0b7285; font-weight: 600; }
+  .quality-warning, .quality-manual_review { color: #b7791f; font-weight: 600; }
+  .status-verified { color: #0b7285; }
+  .status-unverified { color: #c92a2a; font-weight: 600; }
+  .risk-high { color: #c92a2a; font-weight: 600; }
+  .risk-medium { color: #b7791f; }
+  .risk-low { color: #0b7285; }
+  .chart { margin: 16px 0; }
+  .limitation { color: #52606d; font-size: 14px; }
+  footer { margin-top: 48px; padding-top: 12px; border-top: 1px solid #d9e2ec;
+           color: #7b8794; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<h1>交付报告：{{ header.project }}</h1>
+<div class="meta">
+  <span>Case：<code>{{ header.case_id }}</code></span>
+  <span>生成时间：{{ header.generated_at }}</span>
+  <span>交付版本：{{ header.version }}</span>
+  <span>质量门结论：<span class="quality-{{ header.quality_decision }}">{{ header.quality_decision }}</span></span>
+</div>
+{% if header.quality_summary %}
+<p>{{ header.quality_summary }}</p>
+{% endif %}
+
+<h2>交付清单</h2>
+<table>
+  <thead>
+    <tr><th>产物路径</th><th>用途</th><th>来源任务/Agent</th><th>MD5</th><th>状态</th></tr>
+  </thead>
+  <tbody>
+    {% for item in artifacts %}
+    <tr>
+      <td><code>{{ item.path }}</code></td>
+      <td>{{ item.purpose }}</td>
+      <td>{{ item.source }}</td>
+      <td><code>{{ item.md5 }}</code></td>
+      <td class="status-{{ 'verified' if item.status == '已验证' else 'unverified' }}">{{ item.status }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+<p>完整性核验：在交付包根目录执行 <code>md5sum -c checksums.md5</code>。
+MD5 仅保证交付后文件完整性，不代表上游分析结论正确。</p>
+
+{% for section in sections %}
+<h2>{{ section.title }}</h2>
+{% for chart_div in section.chart_divs %}
+<div class="chart">{{ chart_div | safe }}</div>
+{% endfor %}
+{% if section.key_numbers %}
+<table>
+  <thead><tr><th>指标</th><th>数值</th><th>出处</th></tr></thead>
+  <tbody>
+    {% for kn in section.key_numbers %}
+    <tr><td>{{ kn.label }}</td><td>{{ kn.value }}</td><td><code>{{ kn.source }}</code></td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% for lim in section.limitations %}
+<p class="limitation">限制：{{ lim }}</p>
+{% endfor %}
+{% endfor %}
+
+<h2>已知风险与限制</h2>
+<table>
+  <thead><tr><th>级别</th><th>说明</th></tr></thead>
+  <tbody>
+    {% for risk in risks %}
+    <tr>
+      <td class="risk-{{ {'高': 'high', '中': 'medium', '低': 'low'}[risk.level] }}">{{ risk.level }}</td>
+      <td>{{ risk.description }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h2>复现说明</h2>
+<ul>
+  <li>环境：{{ reproduction.environment }}</li>
+  <li>关键参数：{{ reproduction.parameters }}</li>
+  <li>流程引用：{{ reproduction.pipeline_ref }}</li>
+  <li>重跑条件：{{ reproduction.rerun_condition }}</li>
+</ul>
+
+<footer>
+  由 OmicHub Delivery Agent 生成 · 交付版本 {{ header.version }} ·
+  本报告为已验证产物的格式化渲染，未重新计算任何统计结果。
+</footer>
+
+</body>
+</html>

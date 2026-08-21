@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from types import SimpleNamespace
 
 import pytest
@@ -89,6 +90,23 @@ def test_build_exec_command_supports_declared_languages(
 def test_build_exec_command_rejects_unknown_language() -> None:
     with pytest.raises(ValueError, match="不支持的沙盒语言"):
         SandboxPool._build_exec_command("julia", "println(1)")
+
+
+@pytest.mark.unit
+def test_parse_line_routes_plotly_marker_to_plotly_event() -> None:
+    """show_plotly(fig) 的 %%PLOTLY%% 标记行解析为 plotly 事件（聊天轻量沙盒链路）"""
+    figure = {"data": [{"type": "scatter", "x": [1, 2], "y": [3, 4]}], "layout": {}}
+    line = "%%PLOTLY%%" + json.dumps(figure)
+
+    assert SandboxPool._parse_line("stdout", line) == {"type": "plotly", "data": figure}
+    # 坏 JSON 回退为普通 stdout，不丢输出
+    assert SandboxPool._parse_line("stdout", "%%PLOTLY%%{bad") == {
+        "type": "stdout",
+        "data": "%%PLOTLY%%{bad",
+    }
+    # 非标记行不受影响
+    assert SandboxPool._parse_line("stdout", "hello") == {"type": "stdout", "data": "hello"}
+    assert SandboxPool._parse_line("stderr", "warn") == {"type": "stderr", "data": "warn"}
 
 
 @pytest.mark.unit

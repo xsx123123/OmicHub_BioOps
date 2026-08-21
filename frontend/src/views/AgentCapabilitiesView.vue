@@ -14,6 +14,8 @@ import {
   NSpin,
   NSpace,
   NSwitch,
+  NTabPane,
+  NTabs,
   NTag,
   useMessage,
 } from 'naive-ui'
@@ -23,12 +25,16 @@ import {
   CloudUploadOutline,
   CodeSlashOutline,
   EarthOutline,
+  ExtensionPuzzleOutline,
+  HardwareChipOutline,
+  OptionsOutline,
   RefreshOutline,
   SaveOutline,
   SearchOutline,
-  SparklesOutline,
+  ServerOutline,
 } from '@vicons/ionicons5'
 import PageHeader from '@/components/PageHeader.vue'
+import MemoryManagementPanel from '@/components/agent-workspace/MemoryManagementPanel.vue'
 import { agentApi } from '@/api/agent'
 import { useAgentHubStore, CATEGORY_LABELS } from '@/stores/agentHub'
 import type { UserAgentCapabilities, UserAgentFeatureKey } from '@/types/agent'
@@ -237,7 +243,6 @@ onMounted(async () => {
         <aside class="agent-browser" aria-labelledby="agent-selector-title">
           <div class="browser-heading">
             <div>
-              <span class="eyebrow">个人工作区</span>
               <h2 id="agent-selector-title">选择 Agent</h2>
               <p>配置按“用户 + Agent”独立保存。</p>
             </div>
@@ -278,7 +283,6 @@ onMounted(async () => {
           <div class="editor-identity">
             <span class="editor-avatar" :style="{ background: activeAgent.color }">{{ activeAgent.avatar }}</span>
             <div class="editor-title">
-              <span class="eyebrow">当前 Agent</span>
               <h2 id="capability-editor-title">{{ activeAgent.name }} 的个人能力</h2>
               <p>{{ activeAgent.description || '为当前 Agent 定义仅在你的会话中生效的资源组合。' }}</p>
             </div>
@@ -292,12 +296,14 @@ onMounted(async () => {
             仅可选择管理员已启用的模型、MCP 与 Skill。System Prompt 与 Agent 基础设置由管理员维护。
           </NAlert>
 
-          <NSpin :show="loadingCapabilities">
-            <NForm label-placement="top" class="capability-form">
+          <NTabs type="line" animated class="capability-tabs">
+            <NTabPane name="capabilities" tab="能力配置">
+              <NSpin :show="loadingCapabilities">
+                <NForm label-placement="top" class="capability-form">
               <div class="editor-grid">
                 <NCard size="small" class="capability-card">
                   <template #header>
-                    <div class="capability-card-title"><NIcon :component="SparklesOutline" aria-hidden="true" /> 模型</div>
+                    <div class="capability-card-title"><NIcon :component="HardwareChipOutline" aria-hidden="true" /> 模型</div>
                   </template>
                   <p>选择此 Agent 在你的会话中使用的大模型。</p>
                   <NFormItem label="使用的模型" :show-feedback="false">
@@ -313,7 +319,10 @@ onMounted(async () => {
 
                 <NCard size="small" class="capability-card">
                   <template #header>
-                    <div class="capability-card-title">MCP 服务 <NTag size="tiny" round>{{ selectedMcpCount }} 个</NTag></div>
+                    <div class="capability-card-title">
+                      <NIcon :component="ServerOutline" aria-hidden="true" /> MCP 服务
+                      <NTag size="tiny" round>{{ selectedMcpCount }} 个</NTag>
+                    </div>
                   </template>
                   <p>只会向此 Agent 暴露所选 MCP 的工具。</p>
                   <NFormItem label="可调用的 MCP" :show-feedback="false">
@@ -321,6 +330,7 @@ onMounted(async () => {
                       v-model:value="selection.mcp_ids"
                       :options="mcpOptions"
                       :render-tag="renderMcpTag"
+                      max-tag-count="responsive"
                       multiple
                       filterable
                       clearable
@@ -331,7 +341,10 @@ onMounted(async () => {
 
                 <NCard size="small" class="capability-card">
                   <template #header>
-                    <div class="capability-card-title">Skills <NTag size="tiny" round>{{ selectedSkillCount }} 个</NTag></div>
+                    <div class="capability-card-title">
+                      <NIcon :component="ExtensionPuzzleOutline" aria-hidden="true" /> Skills
+                      <NTag size="tiny" round>{{ selectedSkillCount }} 个</NTag>
+                    </div>
                   </template>
                   <p>只会为此 Agent 加载所选 Skill 的能力说明。</p>
                   <NFormItem label="可用的 Skills" :show-feedback="false">
@@ -339,6 +352,7 @@ onMounted(async () => {
                       v-model:value="selection.skill_ids"
                       :options="skillOptions"
                       :render-tag="renderSkillTag"
+                      max-tag-count="responsive"
                       multiple
                       filterable
                       clearable
@@ -351,7 +365,7 @@ onMounted(async () => {
               <NCard size="small" class="feature-card">
                 <template #header>
                   <div>
-                    <div class="capability-card-title"><span class="feature-title-marker" aria-hidden="true" /> 功能开关</div>
+                    <div class="capability-card-title"><NIcon :component="OptionsOutline" aria-hidden="true" /> 功能开关</div>
                     <p class="feature-card-subtitle">扩展能力的启停控制；只能调整管理员已开放的功能。</p>
                   </div>
                 </template>
@@ -378,22 +392,27 @@ onMounted(async () => {
                   </div>
                 </div>
               </NCard>
-            </NForm>
+                </NForm>
 
-            <div class="editor-actions">
-              <span v-if="hasUnsavedChanges" class="unsaved-state" aria-live="polite">有未保存的更改</span>
-              <NPopconfirm v-if="hasCustomSelection" @positive-click="resetCapabilities">
-                <template #trigger>
-                  <NButton :loading="saving">恢复管理员默认</NButton>
-                </template>
-                恢复后将移除你为「{{ activeAgent.name }}」保存的个人能力选择，确定继续吗？
-              </NPopconfirm>
-              <NButton type="primary" :loading="saving" :disabled="!hasUnsavedChanges" @click="saveCapabilities">
-                <template #icon><NIcon :component="SaveOutline" /></template>
-                保存个人配置
-              </NButton>
-            </div>
-          </NSpin>
+                <div class="editor-actions">
+                  <span v-if="hasUnsavedChanges" class="unsaved-state" aria-live="polite">有未保存的更改</span>
+                  <NPopconfirm v-if="hasCustomSelection" @positive-click="resetCapabilities">
+                    <template #trigger>
+                      <NButton :loading="saving">恢复管理员默认</NButton>
+                    </template>
+                    恢复后将移除你为「{{ activeAgent.name }}」保存的个人能力选择，确定继续吗？
+                  </NPopconfirm>
+                  <NButton type="primary" :loading="saving" :disabled="!hasUnsavedChanges" @click="saveCapabilities">
+                    <template #icon><NIcon :component="SaveOutline" /></template>
+                    保存个人配置
+                  </NButton>
+                </div>
+              </NSpin>
+            </NTabPane>
+            <NTabPane name="memory" tab="记忆管理">
+              <MemoryManagementPanel :agent-id="selectedAgentId" />
+            </NTabPane>
+          </NTabs>
         </section>
       </div>
     </NSpin>
@@ -417,7 +436,7 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: minmax(264px, 312px) minmax(0, 1fr);
   align-items: start;
-  gap: 20px;
+  gap: var(--card-gap);
 }
 
 .agent-browser,
@@ -430,9 +449,9 @@ onMounted(async () => {
 
 .agent-browser {
   position: sticky;
-  top: 24px;
+  top: var(--space-2xl);
   height: calc(100dvh - 160px);
-  padding: 18px;
+  padding: var(--space-xl);
   display: flex;
   min-height: 360px;
   flex-direction: column;
@@ -444,47 +463,44 @@ onMounted(async () => {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-md);
 }
 
-.eyebrow {
-  display: block;
-  margin-bottom: 4px;
-  color: var(--arco-primary);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  line-height: 1.4;
-  text-transform: uppercase;
+.browser-heading h2 {
+  margin: 0;
+  color: var(--neutral-text-1);
+  font-size: var(--font-card-title-size);
+  font-weight: 600;
+  line-height: var(--font-card-title-height);
 }
 
-.browser-heading h2,
 .editor-title h2 {
   margin: 0;
-  color: var(--text-primary);
-  font-size: 16px;
-  font-weight: 650;
-  line-height: 1.5;
+  color: var(--neutral-text-1);
+  font-size: var(--font-section-size);
+  font-weight: var(--font-section-weight);
+  letter-spacing: var(--font-section-spacing);
+  line-height: var(--font-section-height);
 }
 
 .browser-heading p,
 .editor-title p,
 .capability-card p {
-  margin: 4px 0 0;
-  color: var(--text-secondary);
-  font-size: 13px;
-  line-height: 1.6;
+  margin: var(--space-xs) 0 0;
+  color: var(--neutral-text-2);
+  font-size: var(--font-small-size);
+  line-height: var(--font-small-height);
 }
 
 .agent-search {
-  margin: 16px 0 12px;
+  margin: var(--space-lg) 0 var(--space-md);
 }
 
 .agent-list {
   display: grid;
   min-height: 0;
   flex: 1;
-  gap: 8px;
+  gap: var(--space-sm);
   overflow-y: auto;
   padding: 2px;
   scrollbar-gutter: stable;
@@ -497,13 +513,12 @@ onMounted(async () => {
 .agent-card {
   position: relative;
   width: 100%;
-  min-height: 76px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 14px;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
   border: 1px solid var(--neutral-border);
-  border-radius: 10px;
+  border-radius: var(--radius-card);
   background: var(--neutral-card);
   color: inherit;
   text-align: left;
@@ -513,29 +528,28 @@ onMounted(async () => {
 .agent-card:active { transform: translateY(0); }
 
 .agent-card:focus-visible {
-  outline: 2px solid var(--border-focus, var(--arco-primary));
+  outline: 2px solid var(--arco-primary);
   outline-offset: 3px;
 }
 
 .agent-avatar {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   flex: 0 0 auto;
   display: grid;
   place-items: center;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   color: var(--text-on-primary);
-  font-size: 21px;
-  box-shadow: 0 4px 10px color-mix(in srgb, currentColor 12%, transparent);
+  font-size: 20px;
 }
 
 .agent-copy {
   min-width: 0;
   display: grid;
   gap: 2px;
-  color: var(--text-secondary);
-  font-size: 12px;
-  line-height: 1.4;
+  color: var(--neutral-text-2);
+  font-size: var(--font-caption-size);
+  line-height: var(--font-caption-height);
 }
 
 .agent-title-row {
@@ -547,17 +561,17 @@ onMounted(async () => {
 
 .agent-title-row strong {
   overflow: hidden;
-  color: var(--text-primary);
-  font-size: 14px;
-  font-weight: 650;
+  color: var(--neutral-text-1);
+  font-size: var(--font-body-size);
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.agent-category { color: var(--text-secondary); }
+.agent-category { color: var(--neutral-text-2); }
 
 .agent-mounts {
-  color: var(--text-tertiary, var(--text-secondary));
+  color: var(--neutral-text-3);
 }
 
 .selected-icon {
@@ -569,7 +583,7 @@ onMounted(async () => {
 
 .capability-editor {
   position: sticky;
-  top: 24px;
+  top: var(--space-2xl);
   min-width: 0;
   max-height: calc(100dvh - 160px);
   overflow-x: hidden;
@@ -582,21 +596,20 @@ onMounted(async () => {
   top: 0;
   z-index: 2;
   align-items: center;
-  padding: 20px 22px;
+  padding: var(--space-xl) var(--card-padding);
   border-bottom: 1px solid var(--neutral-border);
-  background: color-mix(in srgb, var(--arco-primary) 5%, var(--neutral-card));
+  background: var(--neutral-card);
 }
 
 .editor-avatar {
-  width: 46px;
-  height: 46px;
+  width: 48px;
+  height: 48px;
   flex: 0 0 auto;
   display: grid;
   place-items: center;
-  border-radius: 13px;
+  border-radius: var(--radius-card);
   color: var(--text-on-primary);
-  font-size: 23px;
-  box-shadow: var(--shadow-card);
+  font-size: 24px;
 }
 
 .editor-title {
@@ -609,15 +622,29 @@ onMounted(async () => {
 }
 
 .capability-guidance {
-  margin: 18px 22px 0;
+  margin: var(--space-xl) var(--card-padding) 0;
   line-height: 1.65;
+}
+
+.capability-tabs {
+  margin-top: var(--space-lg);
+}
+
+.capability-tabs :deep(.n-tabs-nav) {
+  padding: 0 var(--card-padding);
+  border-bottom: 1px solid var(--neutral-border);
+}
+
+.capability-tabs :deep(.n-tabs-pane-wrapper) {
+  min-height: 0;
 }
 
 .editor-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-  padding: 18px 22px 22px;
+  align-items: start;
+  gap: var(--space-lg);
+  padding: var(--space-xl) var(--card-padding) var(--card-padding);
 }
 
 .capability-card {
@@ -626,26 +653,22 @@ onMounted(async () => {
 }
 
 .capability-card :deep(.n-card__header) {
-  padding-bottom: 8px;
+  padding-bottom: var(--space-sm);
 }
 
 .capability-card :deep(.n-card__content) {
   display: grid;
-  gap: 12px;
-}
-
-.capability-card p {
-  min-height: 44px;
+  gap: var(--space-md);
 }
 
 .capability-card-title {
   display: flex;
   align-items: center;
-  gap: 8px;
-  color: var(--text-primary);
-  font-size: 16px;
-  font-weight: 600;
-  line-height: 24px;
+  gap: var(--space-sm);
+  color: var(--neutral-text-1);
+  font-size: var(--font-card-title-size);
+  font-weight: var(--font-card-title-weight);
+  line-height: var(--font-card-title-height);
 }
 
 .capability-form :deep(.n-form-item) {
@@ -653,46 +676,47 @@ onMounted(async () => {
 }
 
 .feature-card {
-  margin: 0 22px 22px;
+  margin: 0 var(--card-padding) var(--card-padding);
   box-shadow: none;
 }
 
 .feature-card :deep(.n-card__header) {
-  padding-bottom: 10px;
+  padding-bottom: var(--space-sm);
 }
 
 .feature-card :deep(.n-card__content) {
   padding-top: 0;
 }
 
-.feature-title-marker {
-  width: 4px;
-  height: 22px;
-  display: inline-block;
-  border-radius: 999px;
-  background: var(--arco-primary);
-}
-
 .feature-card-subtitle {
-  margin-left: 12px !important;
+  margin: var(--space-xs) 0 0;
+  color: var(--neutral-text-2);
+  font-size: var(--font-small-size);
+  line-height: var(--font-small-height);
 }
 
 .feature-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: var(--space-md);
 }
 
 .feature-toggle {
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px;
+  gap: var(--space-md);
+  padding: var(--space-lg);
   border: 1px solid var(--neutral-border);
-  border-radius: 10px;
+  border-radius: var(--radius-card);
   background: var(--neutral-card);
-  transition: border-color var(--card-state-duration) var(--card-state-easing), background-color var(--card-state-duration) var(--card-state-easing);
+  transition:
+    border-color var(--motion-quick) ease-out,
+    background-color var(--motion-quick) ease-out;
+}
+
+.feature-toggle:not(.is-locked):hover {
+  border-color: color-mix(in srgb, var(--arco-primary) 24%, var(--neutral-border));
 }
 
 .feature-toggle.is-enabled {
@@ -703,14 +727,14 @@ onMounted(async () => {
 .feature-toggle.is-locked { opacity: 0.64; }
 
 .feature-icon {
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   flex: 0 0 auto;
   display: grid;
   place-items: center;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   color: var(--arco-primary);
-  background: color-mix(in srgb, var(--arco-primary) 10%, var(--neutral-card));
+  background: var(--arco-primary-light);
   font-size: 20px;
 }
 
@@ -721,8 +745,18 @@ onMounted(async () => {
   gap: 2px;
 }
 
-.feature-copy strong { color: var(--text-primary); font-size: 14px; font-weight: 600; line-height: 20px; }
-.feature-copy small { color: var(--text-secondary); font-size: 12px; line-height: 18px; }
+.feature-copy strong {
+  color: var(--neutral-text-1);
+  font-size: var(--font-body-size);
+  font-weight: 600;
+  line-height: var(--font-body-height);
+}
+
+.feature-copy small {
+  color: var(--neutral-text-2);
+  font-size: var(--font-caption-size);
+  line-height: var(--font-caption-height);
+}
 
 .editor-actions {
   position: sticky;
@@ -731,17 +765,17 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 10px;
-  padding: 16px 22px;
+  gap: var(--space-md);
+  padding: var(--space-lg) var(--card-padding);
   border-top: 1px solid var(--neutral-border);
-  background: var(--neutral-fill-2, var(--neutral-bg));
+  background: var(--neutral-fill-2);
 }
 
 .unsaved-state {
   margin-right: auto;
   color: var(--arco-warning);
-  font-size: 13px;
-  line-height: 20px;
+  font-size: var(--font-small-size);
+  line-height: var(--font-small-height);
 }
 
 @media (max-width: 980px) {
@@ -753,20 +787,18 @@ onMounted(async () => {
     max-height: none;
   }
   .editor-grid { grid-template-columns: 1fr; }
-  .capability-card p { min-height: 0; }
 }
 
 @media (max-width: 640px) {
-  .agent-browser { padding: 16px; }
+  .agent-browser { padding: var(--space-lg); }
   .agent-list { grid-template-columns: 1fr; }
-  .editor-identity { align-items: flex-start; flex-wrap: wrap; padding: 18px 16px; }
-  .editor-state { width: 100%; margin-left: 58px; }
-  .capability-guidance { margin: 16px 16px 0; }
-  .editor-grid { padding: 16px; }
-  .feature-card { margin: 0 16px 16px; }
+  .editor-identity { align-items: flex-start; flex-wrap: wrap; padding: var(--space-lg); }
+  .editor-state { width: 100%; margin-left: 60px; }
+  .capability-guidance { margin: var(--space-lg) var(--space-lg) 0; }
+  .editor-grid { padding: var(--space-lg); }
+  .feature-card { margin: 0 var(--space-lg) var(--space-lg); }
   .feature-grid { grid-template-columns: 1fr; }
-  .editor-actions { align-items: stretch; flex-direction: column-reverse; }
-  .editor-actions { padding: 14px 16px; }
+  .editor-actions { align-items: stretch; flex-direction: column-reverse; padding: var(--space-md) var(--space-lg); }
   .unsaved-state { margin-right: 0; text-align: center; }
   .editor-actions :deep(.n-button) { width: 100%; }
 }

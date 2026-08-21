@@ -40,6 +40,9 @@ services:
       dockerfile: deploy/docker/Dockerfile
       args:
         SNAKEMAKE_LOGGER_PLUGIN_REF: ${SNAKEMAKE_LOGGER_PLUGIN_REF:-main}
+        # 由 Makefile 部署 target 导出（git rev-parse --short HEAD / UTC 构建时间），缺省 unknown。
+        OMICHUB_BUILD_SHA: ${OMICHUB_BUILD_SHA:-unknown}
+        OMICHUB_BUILD_TIME: ${OMICHUB_BUILD_TIME:-unknown}
     container_name: omichub-web
     restart: unless-stopped
     logging: *default-logging
@@ -133,6 +136,9 @@ services:
       dockerfile: deploy/docker/Dockerfile
       args:
         SNAKEMAKE_LOGGER_PLUGIN_REF: ${SNAKEMAKE_LOGGER_PLUGIN_REF:-main}
+        # 由 Makefile 部署 target 导出（git rev-parse --short HEAD / UTC 构建时间），缺省 unknown。
+        OMICHUB_BUILD_SHA: ${OMICHUB_BUILD_SHA:-unknown}
+        OMICHUB_BUILD_TIME: ${OMICHUB_BUILD_TIME:-unknown}
     container_name: omichub-beat
     restart: unless-stopped
     logging: *default-logging
@@ -175,6 +181,9 @@ services:
       dockerfile: deploy/docker/Dockerfile
       args:
         SNAKEMAKE_LOGGER_PLUGIN_REF: ${SNAKEMAKE_LOGGER_PLUGIN_REF:-main}
+        # 由 Makefile 部署 target 导出（git rev-parse --short HEAD / UTC 构建时间），缺省 unknown。
+        OMICHUB_BUILD_SHA: ${OMICHUB_BUILD_SHA:-unknown}
+        OMICHUB_BUILD_TIME: ${OMICHUB_BUILD_TIME:-unknown}
     container_name: omichub-flower
     restart: unless-stopped
     logging: *default-logging
@@ -205,7 +214,7 @@ services:
 
   # ===== PostgreSQL =====
   db:
-    # ⚠ 必须带 pgvector：数据卷中已装 vector 扩展（agent_memories/kb_chunks/mem0 均依赖）。
+    # ⚠ 必须带 pgvector：memory_facts、agent_memories、kb_chunks 均依赖。
     # 用回 postgres:14-alpine 会因缺 $libdir/vector 使所有向量列操作报错（26.8.4 教训）。
     # pgvector/pgvector:pg14 与 postgres:14 数据格式兼容；pgvector overlay 文件保留兼容旧用法。
     image: pgvector/pgvector:pg14
@@ -278,6 +287,8 @@ services:
       retries: 6
 
   # 一次性初始化：建 AgentTeams 共享 bucket（幂等，mb --ignore-existing）
+  # MINIO_AGENTTEAMS_BUCKET 供主后端证据区；MINIO_AGENTTEAMS_BRIDGE_BUCKET 供
+  # Bridge 持久层（cases/{case_id}/events + snapshot，Part 1 MinIO 化改造）。
   minio-init:
     image: minio/mc:latest
     container_name: omichub-minio-init
@@ -288,10 +299,13 @@ services:
         mc alias set omichub http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}"
         && mc mb --ignore-existing "omichub/$${MINIO_AGENTTEAMS_BUCKET}"
         && mc anonymous set none "omichub/$${MINIO_AGENTTEAMS_BUCKET}"
+        && mc mb --ignore-existing "omichub/$${MINIO_AGENTTEAMS_BRIDGE_BUCKET}"
+        && mc anonymous set none "omichub/$${MINIO_AGENTTEAMS_BRIDGE_BUCKET}"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
       MINIO_AGENTTEAMS_BUCKET: ${MINIO_AGENTTEAMS_BUCKET:-agentteams-evidence}
+      MINIO_AGENTTEAMS_BRIDGE_BUCKET: ${MINIO_AGENTTEAMS_BRIDGE_BUCKET:-agentteams}
     depends_on:
       minio:
         condition: service_healthy
@@ -337,10 +351,7 @@ services:
     networks:
       - omichub_net
 
-  # ===== mem0 Embedding 服务（26.8.4）：独立 ollama 容器，仅 app_net 内可达，不映射宿主端口 =====
-  # 模型卷 omichub_embed 预置 bge-m3（1024 维）；mem0_ollama_base_url=http://omichub-embed:11434
-  # ⚠ 当前生效方案为 fastembed（进程内 ONNX，缓存 /data/omichub/mem0-cache）；
-  #   本服务仅备用，默认 profile 隔离，避免全栈 up 时拉取大镜像。
+  # ===== 可选 embedding 服务：独立 ollama 容器，仅 app_net 内可达 =====
   ollama-embed:
     profiles: ["embed-ollama"]
     image: ollama/ollama:latest

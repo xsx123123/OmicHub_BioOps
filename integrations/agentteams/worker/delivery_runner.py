@@ -50,6 +50,11 @@ def _task_id(assignment: dict[str, Any]) -> str | None:
     return None
 
 
+def backoff_seconds(poll_seconds: float, consecutive_failures: int) -> float:
+    """指数退避：poll_seconds * 2^consecutive_failures，封顶 5 分钟。"""
+    return min(poll_seconds * (2 ** max(consecutive_failures, 0)), 300.0)
+
+
 def run_once(config: DeliveryWorkerConfig) -> dict[str, Any]:
     identity = "delivery-reporter"
     preview = claim_next(config.bridge_url, identity, config.token, dry_run=True)
@@ -77,7 +82,9 @@ def run_once(config: DeliveryWorkerConfig) -> dict[str, Any]:
         assignment,
         agent_id="agent-delivery",
         capability="delivery-pack",
-        question="汇总交付清单、产物引用、运行说明、已知风险和复现步骤。不得遗漏风险披露。",
+        question="汇总交付清单、产物引用、运行说明、已知风险和复现步骤。不得遗漏风险披露。"
+        "无人值守自动交付只产出 delivery-summary.md 与 checksums.md5 标准交付，"
+        "不生成 HTML 报告，不调用 ask_user。",
         evidence_refs=evidence_refs,
         trace_id=trace_id,
     )
@@ -123,12 +130,17 @@ def main() -> int:
     except ValueError as exc:
         print(f"delivery worker configuration failed: {exc}", flush=True)
         return 2
+    consecutive_failures = 0
     while True:
         try:
             print(json.dumps(run_once(config), ensure_ascii=False, separators=(",", ":")), flush=True)
+            consecutive_failures = 0
+            delay = config.poll_seconds
         except (HTTPError, URLError, RuntimeError, json.JSONDecodeError) as exc:
             print(f"delivery worker failed: {exc}", flush=True)
-        time.sleep(config.poll_seconds)
+            delay = backoff_seconds(config.poll_seconds, consecutive_failures)
+            consecutive_failures += 1
+        time.sleep(delay)
 
 
 if __name__ == "__main__":

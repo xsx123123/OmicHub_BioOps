@@ -25,6 +25,13 @@ export interface AgentTeamsBridgeHealth {
   }>
   allowed_flows: string[]
   scrna_submit_available: boolean
+  room_gateway?: {
+    configured: boolean
+    connected: boolean
+    reason?: string | null
+    detail?: string
+    matrix?: { configured?: boolean; identity_count?: number }
+  }
 }
 
 export interface AgentTeamsBridgeMetrics {
@@ -40,6 +47,9 @@ export interface AgentTeamsBridgeMetrics {
   stale_nonterminal_case_count: number
   case_end_to_end_p95_ms: number
   approval_wait_p95_ms: number
+  room_provision_success_count: number
+  room_provision_failure_count: number
+  room_provision_success_rate_bps: number
 }
 
 export interface AgentTeamsBridgeTokenBundle {

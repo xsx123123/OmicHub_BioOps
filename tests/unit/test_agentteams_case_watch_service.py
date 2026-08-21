@@ -12,7 +12,11 @@ from omichub.application.services.agentteams_case_watch_service import (
     AgentTeamsCaseWatchService,
     _watchable_sessions_query,
 )
-from omichub.infrastructure.database.models.chat import AgentTeamsCaseCursorModel, ChatSessionModel
+from omichub.infrastructure.database.models.chat import (
+    AgentTeamsCaseCursorModel,
+    ChatMessageModel,
+    ChatSessionModel,
+)
 
 
 class FakeDb:
@@ -98,6 +102,50 @@ async def test_watch_notifies_each_case_status_once(monkeypatch) -> None:
     assert session.sandbox_meta["agentteams_case_notified"] == {"case-1": ["approval_pending"]}
     assert session.sandbox_meta["agentteams_case_event_cursor"] == {"case-1": "event-0"}
     assert session.sandbox_meta["agentteams_case_cursor_migration"]["mode"] == "dual_write"
+
+
+@pytest.mark.asyncio
+async def test_watch_notifies_closed_flow_case_as_analysis_completion(monkeypatch) -> None:
+    db = FakeDb()
+    service = AgentTeamsCaseWatchService(db)
+    published: list[dict[str, str]] = []
+
+    async def publish(_session_id: str, event: dict[str, str]) -> None:
+        published.append(event)
+
+    monkeypatch.setattr(watch_module, "publish_chat_case_event", publish)
+    session = SimpleNamespace(
+        session_id="session-1",
+        user_id="user-1",
+        sandbox_meta={
+            "agentteams_case_ids": ["case-1"],
+            "agentteams_case_status": {"case-1": "executing"},
+        },
+        updated_at=None,
+        message_count=0,
+        last_message_at=None,
+    )
+
+    class ClosedFlowAgentTeams:
+        async def get_case(self, case_id: str, requester_ref: str):
+            assert (case_id, requester_ref) == ("case-1", "user-1")
+            return {
+                "case_id": case_id,
+                "intent": "小鼠单细胞分析",
+                "status": "closed",
+                "flow_id": "scrna",
+            }
+
+        async def get_case_events(self, *_args, **_kwargs):
+            return {"events": [], "next_cursor": None}
+
+    result = await service._scan_session(session, ClosedFlowAgentTeams())
+
+    assert result == {"scanned": 1, "notified": 1, "failed": 0}
+    assert published[0]["status"] == "closed"
+    assert published[0]["completion_kind"] == "analysis_execution"
+    notification = next(item for item in db.added if isinstance(item, ChatMessageModel))
+    assert "分析执行完成" in notification.content
 
 
 @pytest.mark.asyncio

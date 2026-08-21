@@ -105,7 +105,11 @@ async def test_provision_case_room_failure_degrades_without_blocking(
     room = await service.provision_case_room("bioops_abc")
 
     assert room is None
-    evidence.assert_not_awaited()
+    # 建房失败降级为 room.provisioning_failed Case 证据（不阻断创建），供审计流排查。
+    evidence.assert_awaited_once()
+    kwargs = evidence.await_args.kwargs
+    assert kwargs["event_type"] == "room.provisioning_failed"
+    assert kwargs["payload"]["reason"] == "gateway_request_failed"
 
 
 @pytest.mark.asyncio
@@ -170,13 +174,20 @@ async def test_post_room_message_records_user_message_evidence(service: AgentTea
 
     result = await service.post_room_message("bioops_abc", "user-a", "  请解释一下质控结果  ")
 
-    assert result == {"event_id": "evt-9"}
+    assert result["event_id"] == "evt-9"
+    assert result["dispatch"]["dispatch_mode"] == "manager"
     evidence.assert_awaited_once()
     kwargs = evidence.await_args.kwargs
     assert kwargs["work_item_id"] == CASE_LEVEL_WORK_ITEM_ID
     assert kwargs["event_type"] == "room.user_message"
     assert kwargs["summary"] == "请解释一下质控结果"
-    assert kwargs["payload"] == {"actor": "user-a", "content": "请解释一下质控结果"}
+    assert kwargs["payload"] == {
+        "actor": "user-a",
+        "content": "请解释一下质控结果",
+        "mentions": [],
+        "target_agent_id": None,
+        "dispatch_mode": "manager",
+    }
 
 
 @pytest.mark.asyncio
@@ -210,9 +221,9 @@ async def test_post_case_message_endpoint_delegates_to_service(monkeypatch: pyte
         service,
     )
 
-    assert result == {"event_id": "evt-1"}
+    assert result == {"event_id": "evt-1", "response_dispatch": "queued"}
     service.post_room_message.assert_awaited_once_with(
-        "bioops_abc", "user-a", "hello room", context_refs=[]
+        "bioops_abc", "user-a", "hello room", context_refs=[], client_message_id=None
     )
 
 
@@ -235,12 +246,13 @@ async def test_post_case_message_passes_context_refs_to_service(
         service,
     )
 
-    assert result == {"event_id": "evt-2"}
+    assert result == {"event_id": "evt-2", "response_dispatch": "queued"}
     service.post_room_message.assert_awaited_once_with(
         "bioops_abc",
         "user-a",
         "看下这个样本表",
         context_refs=[{"kind": "file", "id": "file-1", "location": "demo/samples.csv"}],
+        client_message_id=None,
     )
 
 
@@ -275,8 +287,8 @@ async def test_post_case_message_dispatches_manager_response_task(monkeypatch: p
         service,
     )
 
-    assert result == {"event_id": "evt-1"}
-    delay.assert_called_once_with("bioops_abc", "user-a", "请汇报进展")
+    assert result == {"event_id": "evt-1", "response_dispatch": "queued"}
+    delay.assert_called_once_with("bioops_abc", "user-a", "请汇报进展", None)
 
 
 @pytest.mark.asyncio
@@ -297,7 +309,7 @@ async def test_post_case_message_survives_response_dispatch_failure(
         service,
     )
 
-    assert result == {"event_id": "evt-1"}
+    assert result == {"event_id": "evt-1", "response_dispatch": "failed"}
 
 
 class FakeRedis:

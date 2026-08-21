@@ -52,3 +52,12 @@ def test_docker_reload_uses_pgvector_overlay() -> None:
 
     assert "COMPOSE_PGVECTOR_AGENTTEAMS := $(COMPOSE_PGVECTOR)" in source
     assert "$(COMPOSE_PGVECTOR_AGENTTEAMS) --profile rocketmq up -d --build" in source
+
+
+def test_rocketmq_worker_uses_bounded_restart_and_documents_recovery() -> None:
+    compose = Path("deploy/docker/docker-compose.worker.yml").read_text(encoding="utf-8")
+    readme = Path("deploy/docker/README.md").read_text(encoding="utf-8")
+
+    assert "restart: on-failure:5" in compose
+    assert "RocketMQ Worker 故障处置" in readme
+    assert "TASK_QUEUE_BACKEND" in readme

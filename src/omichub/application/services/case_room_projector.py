@@ -46,6 +46,12 @@ class CaseRoomProjector:
                 "work_item.finished": "succeeded",
                 "work_item.failed": "failed",
                 "work_item.blocked": "failed",
+                "work_item.lease_expired": "pending",
+                "work_item.retry_requeued": "pending",
+                "work_item.manual_retry": "pending",
+                "work_item.timeout": "failed",
+                "work_item.skipped": "skipped",
+                "work_item.cancelled": "cancelled",
             }.get(event_type, "running")
             result.append(
                 {
@@ -182,13 +188,33 @@ class CaseRoomProjector:
             ),
             "case.queued": f"{queued_scope}活跃 Case 已达上限，本 Case 正在排队；释放容量后会自动继续。",
             "case.dequeued": "协作容量已经释放，本 Case 已离开队列并开始规划。",
+            "case.handoff_proposed": (
+                f"已识别领域 Flow「{str(payload.get('flow_id') or '')}」，"
+                "正在由专项规划链路生成可确认的执行计划。"
+            ),
+            "case.handoff_started": (
+                f"领域 Flow「{str(payload.get('flow_id') or '')}」已完成确认并真实启动，"
+                "后续进度将按工作项持续回传。"
+            ),
+            "case.handoff_failed": (
+                "专项 Flow 暂未交接："
+                f"{str(payload.get('reason') or payload.get('summary') or '缺少可用 Worker 或凭证')[:240]}"
+                "。可补齐凭证后重试，或改为方案咨询。"
+            ),
+            "flow.stage_unavailable": (
+                f"Flow 阶段「{str(payload.get('stage') or '')}」当前不可用："
+                f"{str(payload.get('reason') or '缺少可用 Worker')[:240]}"
+            ),
             "planning.revised": (
                 f"计划已更新为 v{str(payload.get('plan_version') or '?')}，"
                 f"新短码 {str(payload.get('plan_hash') or '')[:8]}；旧版本立即失效，等待重新确认。"
             ),
-            "work_item.assigned": f"我已领取工作项：{str(payload.get('objective') or payload.get('skill_name') or '开始处理')[:180]}。",
-            "work_item.claimed": f"已认领工作项 {str(payload.get('work_item_id') or '')}，开始执行。",
-            "work_item.running": f"工作项 {str(payload.get('work_item_id') or '')} 正在执行。",
+            "work_item.assigned": str(payload.get("status_line") or "").strip()
+            or f"我已领取工作项：{str(payload.get('objective') or payload.get('skill_name') or '开始处理')[:180]}。",
+            "work_item.claimed": str(payload.get("status_line") or "").strip()
+            or f"已认领工作项 {str(payload.get('work_item_id') or '')}，开始执行。",
+            "work_item.running": str(payload.get("status_line") or "").strip()
+            or f"工作项 {str(payload.get('work_item_id') or '')} 正在执行。",
             "omic_task.submitted": f"OmicHub 任务 {str(payload.get('omic_task_id') or '')} 已提交，正在等待执行资源。",
             "omic_task.progress": f"任务进度已更新：{str(payload.get('progress') or payload.get('summary') or '处理中')}。",
             "remediation_pending": "失败诊断已完成，修复工作项正在等待执行。",
@@ -210,7 +236,31 @@ class CaseRoomProjector:
             ),
             "work_item.retry_exhausted": (
                 f"工作项 {str(payload.get('work_item_id') or '')} 已耗尽自动重试次数；"
-                "请选择重试、跳过或终止 Case。"
+                "依赖它的下游工作项已跳过，请选择重试、跳过或终止 Case。"
+            ),
+            "work_item.lease_expired": (
+                f"工作项 {str(payload.get('work_item_id') or '')} 的执行 Worker 心跳超时，"
+                "任务已回收并将重新派发。"
+            ),
+            "work_item.retry_requeued": (
+                f"工作项 {str(payload.get('work_item_id') or '')} 已到重试时间，"
+                "已重新进入待派发队列。"
+            ),
+            "work_item.timeout": (
+                f"工作项 {str(payload.get('work_item_id') or '')} 多次失联，"
+                "重试预算已耗尽，判定超时终止。"
+            ),
+            "work_item.skipped": (
+                f"工作项 {str(payload.get('work_item_id') or '')} 因上游 "
+                f"{str(payload.get('cause_work_item_id') or '工作项')} 不可恢复而被跳过；"
+                "如需继续，请人工重试上游或终止 Case。"
+            ),
+            "work_item.manual_retry": (
+                f"工作项 {str(payload.get('work_item_id') or '')} 已手动重试，"
+                "重新进入待派发队列。"
+            ),
+            "work_item.cancelled": (
+                f"工作项 {str(payload.get('work_item_id') or '')} 已被手动终止。"
             ),
             "omic_task.failed": CaseRoomProjector._failure_message(payload),
             "case.execution_failed": CaseRoomProjector._failure_message(payload),
@@ -252,6 +302,12 @@ class CaseRoomProjector:
             "work_item.finished": f"{sender['name']} 已完成工作项",
             "work_item.failed": f"{sender['name']} 的工作项执行失败",
             "work_item.blocked": f"{sender['name']} 的工作项被阻断",
+            "work_item.lease_expired": f"{sender['name']} 心跳超时，工作项已回收重派",
+            "work_item.retry_requeued": f"{sender['name']} 的工作项已重新排队",
+            "work_item.manual_retry": f"{sender['name']} 的工作项已手动重试",
+            "work_item.timeout": f"{sender['name']} 的工作项超时终止",
+            "work_item.skipped": f"{sender['name']} 的工作项被级联跳过",
+            "work_item.cancelled": f"{sender['name']} 的工作项已终止",
         }.get(event_type, f"{sender['name']} 更新了工作项")
 
 

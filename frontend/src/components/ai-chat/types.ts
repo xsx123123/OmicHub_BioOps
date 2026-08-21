@@ -73,6 +73,9 @@ export interface AgentTeamsCaseCardPayload {
   plan_hash?: string | null
   plan_version?: number
   proposed_submission?: Record<string, unknown> | null
+  work_items?: Array<{ work_item_id: string; target: string; status: string }>
+  quality_decision?: string | null
+  manifest_uri?: string | null
 }
 
 export interface OverdriveProgress {
@@ -101,7 +104,7 @@ export interface OverdriveProgress {
     durationMs?: number
     error?: string
   }>
-  tasks?: Array<{ taskId: string; agentId: string; status: string; errorSummary?: string }>
+  tasks?: Array<{ taskId: string; agentId: string; status: string; errorSummary?: string; statusLine?: string }>
   artifacts?: Array<{
     path: string
     kind?: string
@@ -133,6 +136,10 @@ export interface ChatMessage {
   backendMessageId?: string
   /** 用户操作的受控元数据；仅在当前请求中透传到后端。 */
   metadata?: Record<string, unknown>
+  /** 后端消息可见性协议字段；内部消息不得进入用户消息数组。 */
+  visible?: boolean
+  type?: string
+  agentName?: string
   role: 'user' | 'assistant' | 'system'
   content: string
   thought?: string
@@ -245,6 +252,7 @@ export interface ToolCall {
   language?: string
   /** Studio HITL 审批状态（内存态；刷新/断流后由 loadSessionMessages 从 Redis 重建） */
   approval?: ToolApproval
+  checkpointId?: string
 }
 
 /** Studio 工具审批（supervised 模式下受控工具挂起等待用户决议） */
@@ -253,6 +261,7 @@ export interface ToolApproval {
   status: 'pending' | 'approved' | 'edited' | 'rejected' | 'timeout'
   risk_hint?: string
   timeout_seconds?: number
+  approval_kind?: 'tool' | 'plan'
 }
 
 /** Studio ask_user 澄清请求中的单个问题 */
@@ -301,6 +310,21 @@ export interface AskRequest {
   /** 用户按问题顺序给出的答案；空串表示该问题被跳过 */
   answers?: string[]
   answered?: boolean
+  objectRequired?: boolean
+  submitting?: boolean
+  submitted?: boolean
+  answerStatus?: 'collected' | 'waiting_upload' | 'missing_object'
+  workspaceCandidates?: Array<{
+    kind: 'workspace' | 'file'
+    id: string
+    location: string
+  }>
+}
+
+export interface AskUserObjectReference {
+  path?: string
+  file?: File
+  contextRef?: { kind: 'workspace' | 'file'; id: string; location?: string }
 }
 
 // ===== 文件附件 =====

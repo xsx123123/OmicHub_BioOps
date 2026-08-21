@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from typing import Any
 
 from fastapi import HTTPException, status
@@ -26,6 +26,10 @@ class RedisStateBackend:
         return self._client
 
     @property
+    def key_prefix(self) -> str:
+        return self._key_prefix
+
+    @property
     def data_key(self) -> str:
         return f"{self._key_prefix}:snapshot"
 
@@ -46,10 +50,8 @@ class RedisStateBackend:
             try:
                 yield
             finally:
-                try:
+                with suppress(Exception):
                     await lock.release()
-                except Exception:  # noqa: BLE001
-                    pass
 
     async def get_snapshot(self) -> str | None:
         return await self._client.get(self.data_key)

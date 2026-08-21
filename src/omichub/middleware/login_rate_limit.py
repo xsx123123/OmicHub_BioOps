@@ -11,7 +11,7 @@ from typing import Annotated
 
 from fastapi import Depends, Request
 
-from omichub.core.exceptions import AuthenticationError
+from omichub.core.exceptions import RateLimitError
 
 _WINDOW_SECONDS = 300  # 统计窗口：5 分钟
 _MAX_FAILURES = 5  # 窗口内最大失败次数
@@ -70,8 +70,8 @@ async def _check_limit(ip: str) -> None:
         if count >= _MAX_FAILURES:
             oldest = await redis.zrange(key, 0, 0, withscores=True)
             if oldest and now - oldest[0][1] < _BLOCK_SECONDS:
-                raise AuthenticationError("登录尝试过于频繁，请 15 分钟后再试")
-    except AuthenticationError:
+                raise RateLimitError("登录尝试过于频繁，请 15 分钟后再试")
+    except RateLimitError:
         raise
     except Exception:
         # Redis 不可用：降级内存
@@ -80,7 +80,7 @@ async def _check_limit(ip: str) -> None:
         if len(timestamps) >= _MAX_FAILURES:
             oldest = min(timestamps)
             if now - oldest < _BLOCK_SECONDS:
-                raise AuthenticationError("登录尝试过于频繁，请 15 分钟后再试") from None
+                raise RateLimitError("登录尝试过于频繁，请 15 分钟后再试") from None
 
 
 async def _clear(ip: str) -> None:

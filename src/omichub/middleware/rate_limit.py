@@ -7,6 +7,7 @@
 - 命中限流返回 429 + Retry-After。
 """
 
+import ipaddress
 import json
 import time
 import uuid
@@ -21,6 +22,14 @@ _SKIP_PATHS = frozenset({"/health", "/docs", "/redoc", "/openapi.json", "/favico
 # 分块上传路径豁免限流：大文件分片数多（5MiB/片，1GB=200 片），
 # 3 路并发密集打请求会撞 100/60s 上限导致 429，上传失败。
 _SKIP_UPLOAD_PREFIX = "/api/v1/files/upload/"
+_DEFAULT_TRUSTED_NETWORKS = (
+    "127.0.0.0/8",
+    "10.0.0.0/8",
+    "172.16.0.0/12",
+    "192.168.0.0/16",
+    "::1/128",
+    "fc00::/7",
+)
 
 
 def _client_ip(request: Request) -> str:
@@ -46,23 +55,59 @@ def _should_skip(request: Request) -> bool:
     return any(path.startswith(p) for p in _SKIP_PATH_PREFIXES)
 
 
+def _parse_trusted_networks(networks: list[str] | tuple[str, ...] | None):
+    parsed = []
+    for value in networks or _DEFAULT_TRUSTED_NETWORKS:
+        try:
+            parsed.append(ipaddress.ip_network(value, strict=False))
+        except ValueError:
+            continue
+    return tuple(parsed)
+
+
+def _is_trusted_ip(ip: str, networks) -> bool:
+    try:
+        address = ipaddress.ip_address(ip)
+    except ValueError:
+        return False
+    return any(address in network for network in networks)
+
+
 class RateLimitMiddleware(BaseHTTPMiddleware):
-    """每 IP 滑动窗口限流。Redis 异常时降级放行。"""
+    """每 IP 滑动窗口限流，并对持续攻击源做短时封禁。"""
 
     def __init__(
-        self, app, max_requests: int = 100, window_seconds: int = 60, enabled: bool = True
+        self,
+        app,
+        max_requests: int = 100,
+        window_seconds: int = 60,
+        enabled: bool = True,
+        ban_enabled: bool = True,
+        ban_threshold: int = 3,
+        ban_window_seconds: int = 300,
+        ban_seconds: int = 900,
+        trusted_networks: list[str] | tuple[str, ...] | None = None,
     ):
         super().__init__(app)
         self.max_requests = max_requests
         self.window_seconds = window_seconds
         self.enabled = enabled
+        self.ban_enabled = ban_enabled
+        self.ban_threshold = max(1, ban_threshold)
+        self.ban_window_seconds = max(1, ban_window_seconds)
+        self.ban_seconds = max(1, ban_seconds)
+        self.trusted_networks = _parse_trusted_networks(trusted_networks)
 
     async def dispatch(self, request: Request, call_next) -> Response:
         if not self.enabled or _should_skip(request):
             return await call_next(request)
 
         ip = _client_ip(request)
+        if _is_trusted_ip(ip, self.trusted_networks):
+            return await call_next(request)
         key = f"ratelimit:{ip}"
+        ban_key = f"rateban:{ip}"
+        strike_key = f"rateban:strikes:{ip}"
         now = time.time()
         window_start = now - self.window_seconds
 
@@ -70,6 +115,15 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             from omichub.infrastructure.cache.redis_client import get_redis
 
             client = get_redis()
+            if self.ban_enabled and await client.get(ban_key):
+                return Response(
+                    content=json.dumps(
+                        {"detail": "该 IP 已被临时封禁，请稍后再试"}, ensure_ascii=False
+                    ),
+                    status_code=429,
+                    media_type="application/json",
+                    headers={"Retry-After": str(self.ban_seconds)},
+                )
             # pipeline 原子化：清过期 → 记当前 → 计数 → 续期
             pipe = client.pipeline()
             pipe.zremrangebyscore(key, 0, window_start)  # 移除窗口外旧请求
@@ -84,6 +138,32 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         if count > self.max_requests:
             retry_after = max(1, int(self.window_seconds - (now - window_start)))
+            banned = False
+            if self.ban_enabled:
+                try:
+                    strike_pipe = client.pipeline()
+                    strike_pipe.zremrangebyscore(
+                        strike_key, 0, now - self.ban_window_seconds
+                    )
+                    strike_pipe.zadd(strike_key, {f"{now}:{uuid.uuid4().hex}": now})
+                    strike_pipe.zcard(strike_key)
+                    strike_pipe.expire(strike_key, self.ban_window_seconds)
+                    strike_count = (await strike_pipe.execute())[2]
+                    if strike_count >= self.ban_threshold:
+                        await client.setex(ban_key, self.ban_seconds, "1")
+                        banned = True
+                except Exception:
+                    # 封禁组件故障不能阻断业务，仍返回普通限流响应。
+                    banned = False
+            if banned:
+                return Response(
+                    content=json.dumps(
+                        {"detail": "该 IP 已被临时封禁，请稍后再试"}, ensure_ascii=False
+                    ),
+                    status_code=429,
+                    media_type="application/json",
+                    headers={"Retry-After": str(self.ban_seconds)},
+                )
             return Response(
                 content=json.dumps({"detail": "请求过于频繁，请稍后再试"}, ensure_ascii=False),
                 status_code=429,

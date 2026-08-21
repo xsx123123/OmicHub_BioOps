@@ -219,6 +219,24 @@ class DomainRegistry:
             return []
         return assignments
 
+    def derived_planner_hints(self) -> dict[str, tuple[str, ...]]:
+        """派生注册到 Planner 评分表：planner_agent → domain_markers（唯一声明处）。"""
+        derived: dict[str, tuple[str, ...]] = {}
+        for pack in self._packs():
+            if pack.enabled and pack.routing.planner_agent:
+                derived[pack.routing.planner_agent] = tuple(pack.match.domain_markers)
+        return derived
+
+    def derived_flow_aliases(self) -> dict[str, tuple[str, ...]]:
+        """派生注册到意图路由别名表：flow.id → 各声明域的 domain_markers 合集。"""
+        derived: dict[str, list[str]] = {}
+        for pack in self._packs():
+            if not pack.enabled:
+                continue
+            for flow_id in pack.routing.flow_aliases:
+                derived.setdefault(flow_id, []).extend(pack.match.domain_markers)
+        return {flow_id: tuple(markers) for flow_id, markers in derived.items()}
+
     def manager_notes(self, content: str) -> str:
         return "\n\n".join(
             pack.prompt_injections.manager_notes

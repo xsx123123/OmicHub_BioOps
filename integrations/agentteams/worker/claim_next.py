@@ -156,6 +156,32 @@ def heartbeat_work_item(
     )
 
 
+def record_work_item_failure(
+    bridge_url: str,
+    identity: str,
+    token: str,
+    assignment: dict[str, Any],
+    *,
+    error: str,
+    trace_id: str | None = None,
+    opener: UrlOpen = urlopen,
+) -> dict[str, Any]:
+    """Persist a worker preflight failure before the lease watchdog can reclaim it."""
+    case_id, work_item_id = _assignment_identity(assignment)
+    return request_json(
+        f"{bridge_url.rstrip('/')}/cases/{case_id}/evidence",
+        {"X-Bridge-Identity": identity, "X-Bridge-Token": token},
+        method="POST",
+        opener=opener,
+        payload={
+            "work_item_id": work_item_id,
+            "event_type": "worker.preflight_failed",
+            "summary": "Worker 前置校验失败",
+            "payload": {"error": error[:1_000], "trace_id": trace_id},
+        },
+    )
+
+
 def execute_readonly_work_item(
     bridge_url: str,
     identity: str,

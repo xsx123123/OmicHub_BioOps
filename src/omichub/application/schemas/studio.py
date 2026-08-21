@@ -122,9 +122,9 @@ class UpdateStudioUiRequest(BaseModel):
 
 
 class UpdateStudioPermissionsRequest(BaseModel):
-    """会话级权限模式（§2）：supervised 写/执行类工具需用户批准；auto 即时执行。"""
+    """会话级权限模式（监督 / 计划 / 放权）。"""
 
-    mode: Literal["supervised", "auto"] = Field(..., description="权限模式")
+    mode: Literal["supervised", "plan", "auto"] = Field(..., description="权限模式")
 
 
 class StudioApprovalApproveRequest(BaseModel):

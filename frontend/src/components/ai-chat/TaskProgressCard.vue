@@ -40,6 +40,7 @@ const progress = ref(0)
 const message = ref('等待进度...')
 const status = ref<'pending' | 'running' | 'success' | 'error'>('pending')
 const error = ref('')
+const streamDisconnected = ref(false)
 let eventSource: EventSource | null = null
 let pollTimer: ReturnType<typeof setTimeout> | null = null
 let completedEmitted = false
@@ -80,6 +81,7 @@ function connect() {
   if (eventSource) return
   const url = props.progressUrl || `/api/v1/tasks/${props.taskId}/progress`
   eventSource = new EventSource(url)
+  streamDisconnected.value = false
 
   eventSource.onmessage = (event) => {
     try {
@@ -105,6 +107,8 @@ function connect() {
   eventSource.onerror = () => {
     eventSource?.close()
     eventSource = null
+    streamDisconnected.value = true
+    message.value = '实时进度连接已断开；任务仍可能继续执行。'
   }
 }
 
@@ -172,6 +176,7 @@ onUnmounted(() => {
       :show-indicator="true"
     />
     <div class="task-message">{{ message }}</div>
+    <div v-if="streamDisconnected" class="task-stream-warning">实时连接中断，请稍后刷新查看最新状态。</div>
     <div v-if="resultUrl && status === 'success'" class="task-actions">
       <a :href="resultUrl" target="_blank">查看结果</a>
     </div>
@@ -230,5 +235,10 @@ onUnmounted(() => {
   margin-top: 8px;
   font-size: 12px;
   color: #d03050;
+}
+.task-stream-warning {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--oh-warning, #d08a00);
 }
 </style>

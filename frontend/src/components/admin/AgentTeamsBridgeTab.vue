@@ -606,6 +606,9 @@ onMounted(() => { void load() })
               <NAlert v-if="(bridgeMetrics.stale_nonterminal_case_count || 0) > 0" type="warning" :show-icon="true" class="bridge-note bridge-note--flush">
                 {{ bridgeMetrics.stale_nonterminal_case_count }} 个 Case 已在非终态停留超过 2 小时。
               </NAlert>
+              <NAlert v-if="(bridgeMetrics.room_provision_failure_count || 0) > 0" type="warning" :show-icon="true" class="bridge-note">
+                {{ bridgeMetrics.room_provision_failure_count }} 次 Matrix 建房失败；请检查 Gateway 配置、网络和 Matrix 服务。
+              </NAlert>
               <div class="agentteams-metric-grid">
                 <div><span>Case 总数</span><strong>{{ bridgeMetrics.case_count || 0 }}</strong></div>
                 <div><span>已关闭</span><strong>{{ bridgeMetrics.closed_case_count || 0 }}</strong></div>
@@ -613,6 +616,7 @@ onMounted(() => { void load() })
                 <div><span>工单失败 / 重试</span><strong>{{ bridgeMetrics.work_item_failure_count || 0 }} / {{ bridgeMetrics.work_item_retry_count || 0 }}</strong></div>
                 <div><span>Case P95</span><strong>{{ Math.round((bridgeMetrics.case_end_to_end_p95_ms || 0) / 1000) }}s</strong></div>
                 <div><span>审批等待 P95</span><strong>{{ Math.round((bridgeMetrics.approval_wait_p95_ms || 0) / 1000) }}s</strong></div>
+                <div><span>建房成功率</span><strong>{{ ((bridgeMetrics.room_provision_success_rate_bps || 0) / 100).toFixed(1) }}%</strong></div>
               </div>
               <p class="resource-note">指标来自 Bridge 审计事件；非终态超过 2 小时会在此告警。</p>
             </NCard>
@@ -686,6 +690,9 @@ onMounted(() => { void load() })
                 </NAlert>
                 <NAlert :type="health.scrna_submit_available ? 'success' : 'warning'" :show-icon="true" class="bridge-note bridge-note--flush">
                   {{ health.scrna_submit_available ? 'Bridge 白名单已包含 scrna_seq。' : `当前白名单：${health.allowed_flows.join(', ') || '未读取'}；scrna 流程暂不可提交。` }}
+                </NAlert>
+                <NAlert :type="health.room_gateway?.connected ? 'success' : 'warning'" :show-icon="true" class="bridge-note bridge-note--flush">
+                  {{ health.room_gateway?.connected ? 'Matrix Gateway 已接通。' : `Matrix Gateway 不可用：${health.room_gateway?.reason || 'unknown'}。Case 将降级为平台事件流。` }}
                 </NAlert>
               </template>
             </NCard>

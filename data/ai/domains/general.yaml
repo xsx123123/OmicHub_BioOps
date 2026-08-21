@@ -1,0 +1,70 @@
+domain: general
+version: 1
+display_name: 通用分析与报告
+enabled: true
+match:
+  domain_markers: [文献, 检索, 整理, 汇总, 报告, 表格, xlsx, excel, csv, 文献综述, 网页报告, literature]
+  planning_markers: [文献检索, 文献综述]
+# O4 关键词单源化：domain_markers 派生注册到 Planner 评分表（planner_agent）
+# 与意图路由别名表（flow_aliases）。通用域只走 Overdrive 路径，不声明 flow_aliases。
+routing:
+  planner_agent: agent-general
+intake:
+  slots:
+    - key: has_structured_file
+      values:
+        # 纯文本代理信号：用户显式提到文件/表格，或用“里面/里的”指代已提供的内容
+        - value: "true"
+          markers: [xlsx, excel, csv, tsv, 表格, 列表, 文件, 附件, 工作区, 里面, 里的]
+    - key: needs_literature
+      values:
+        # 只认“文献/综述”级信号；裸“检索”与 phylo 等同源检索语义冲突，不用
+        - value: "true"
+          markers: [文献, literature, 综述]
+    - key: needs_report
+      values:
+        - value: "true"
+          markers: [报告, 文档, 整理, 汇总, 网页, report, docx, html]
+assignments:
+  rules:
+    - id: file-processing
+      when_slot_is: {has_structured_file: "true"}
+      agent_match: [agent-data, agent-code, 数据管理, 代码]
+      authoritative: true
+      required: true
+      allow_split: false
+      allow_reorder: false
+      task_id: general-file-processing
+      workspace_access: true
+      accepts_inputs: [用户上传的结构化文件(xlsx/csv 等)]
+      produces_outputs: [结构化实体清单]
+      task: "解析用户提供的结构化文件，校验可读性与字段结构，提取核心实体（如基因列表）并输出结构化清单；记录缺失、重复与格式异常。"
+    - id: literature-search
+      when_slot_is: {needs_literature: "true"}
+      agent_match: [agent-data, 数据管理]
+      authoritative: true
+      required: true
+      allow_split: false
+      allow_reorder: false
+      task_id: general-literature-search
+      depends_on: [general-file-processing]
+      workspace_access: true
+      accepts_inputs: [结构化实体清单]
+      produces_outputs: [带来源引用的文献证据表]
+      task: "对提取的实体逐条做文献检索，优先权威来源（PubMed/Europe PMC 等），输出带来源引用的证据表；无来源支撑的结论要标注为未证实——交付与审计会按引用逐条核对，未标注的臆造结论会被质量门判 fail 并触发返工。"
+    - id: report-generation
+      when_slot_is: {needs_report: "true"}
+      agent_match: [agent-delivery, agent-viz, 交付, 可视化]
+      authoritative: true
+      required: true
+      allow_split: false
+      allow_reorder: false
+      task_id: general-report-generation
+      depends_on: [general-literature-search]
+      workspace_access: true
+      accepts_inputs: [结构化实体清单, 带来源引用的文献证据表]
+      produces_outputs: [docx 交付文档, html 网页报告]
+      task: "将分析结果整理为可交付的 docx 文档与（可选）html 网页报告；交付前确认引用完整、文件可正常打开，并打包全部产物。"
+prompt_injections:
+  manager_notes: ""
+  router_notes: ""

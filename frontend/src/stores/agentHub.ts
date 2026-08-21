@@ -60,6 +60,7 @@ import { studioApi, type StudioPermissionMode } from '@/api/studio'
 import { useChatStore } from '@/stores/chat'
 import { sortPersistedChatMessages } from '@/utils/chatMessageOrder'
 import { resolveRoleIdentity } from '@/utils/roleIdentity'
+import { filterUserVisibleMessages, isUserVisibleMessage } from '@/utils/userVisibleMessage'
 import type {
   PipelineSubmitResult,
   PipelineTask,
@@ -602,6 +603,12 @@ export const useAgentHubStore = defineStore('agentHub', () => {
       }
       if (snapshotPhase[recoverableRun.status]) {
         const snapshotTasks = Array.isArray(recoverableRun.tasks) ? recoverableRun.tasks : []
+        // 实例人格状态文案（assistant_instances.status_line）按 task_id 挂到任务格上
+        const instanceStatusLines = new Map<string, string>(
+          (Array.isArray(recoverableRun.assistant_instances) ? recoverableRun.assistant_instances : [])
+            .filter((instance: any) => typeof instance?.status_line === 'string' && instance.status_line.trim())
+            .map((instance: any) => [String(instance.task_id || ''), String(instance.status_line).trim()]),
+        )
         const snapshotLabel = recoverableRun.status === 'SERIAL_PREFLIGHT'
           ? '计划已确认，等待 analysis Worker 接管'
           : `超频任务正在后台推进（${recoverableRun.status}）`
@@ -619,6 +626,7 @@ export const useAgentHubStore = defineStore('agentHub', () => {
             agentId: String(task.agent_id || ''),
             status: String(task.status || 'pending'),
             errorSummary: typeof task.error_summary === 'string' ? task.error_summary : undefined,
+            statusLine: instanceStatusLines.get(String(task.task_id || '')),
           })),
           artifacts: Array.isArray(recoverableRun.artifact_index) ? recoverableRun.artifact_index : [],
         }, sessionId)
@@ -1488,6 +1496,10 @@ export const useAgentHubStore = defineStore('agentHub', () => {
         role: string
         content: string
         metadata_json?: Record<string, unknown>
+        type?: string
+        message_type?: string
+        visible?: boolean
+        agent_name?: string
         created_at: string
         tokens?: { input: number; output: number; total: number }
       }>>(`/chat/sessions/${sessionId}/messages`)
@@ -1495,7 +1507,7 @@ export const useAgentHubStore = defineStore('agentHub', () => {
       if (!session) return
       const existingIds = new Set(session.messages.map((m) => m.id))
       let restoredPlan: StudioPlanStep[] = []
-      const loaded = sortPersistedChatMessages(res.data || []).map((m) => {
+      const loaded = sortPersistedChatMessages(filterUserVisibleMessages(res.data || [])).map((m) => {
         const msg: ChatMessage = {
           id: m.message_id,
           role: m.role as 'user' | 'assistant' | 'system',
@@ -1505,6 +1517,15 @@ export const useAgentHubStore = defineStore('agentHub', () => {
           // usage is response metadata; keep it off user/system messages even if an old
           // backend row contains a stale tokens payload.
           tokens: m.role === 'assistant' ? (m.tokens || { input: 0, output: 0, total: 0 }) : undefined,
+          visible: m.visible !== false && m.metadata_json?.visible !== false,
+          type: typeof m.type === 'string'
+            ? m.type
+            : typeof m.message_type === 'string'
+              ? m.message_type
+              : typeof m.metadata_json?.type === 'string'
+                ? m.metadata_json.type
+                : undefined,
+          agentName: m.agent_name || (typeof m.metadata_json?.agent_name === 'string' ? m.metadata_json.agent_name : undefined),
         }
         const attachments = m.metadata_json?.attachments
         if (Array.isArray(attachments)) {
@@ -1704,6 +1725,7 @@ export const useAgentHubStore = defineStore('agentHub', () => {
               // （旧版本仅 Studio 工具落库 tool_invocations）
               mcpServer: (inv.mcp_server as string) || 'studio',
               status: inv.success ? 'success' : 'error',
+              checkpointId: typeof inv.checkpoint_id === 'string' ? inv.checkpoint_id : undefined,
             }
             if (so || se) tc.output = so + se
             return tc
@@ -1789,6 +1811,7 @@ export const useAgentHubStore = defineStore('agentHub', () => {
               status: 'pending',
               risk_hint: approval.risk_hint,
               timeout_seconds: approval.expires_in,
+              approval_kind: approval.approval_kind,
             }
             // 审批记录里的 arguments 可能比落库的 tool_invocations 更全，以其为准补齐
             tc.arguments = { ...tc.arguments, ...approval.arguments }
@@ -1959,6 +1982,10 @@ export const useAgentHubStore = defineStore('agentHub', () => {
       const lastUser = [...apiMessages].reverse().find((m) => m.role === 'user')
       if (lastUser) {
         lastUser.content += `\n\n[用户为本次对话挂载技能：${options.skillNames.join('、')}，请优先运用相关能力作答。]`
+        lastUser.metadata = {
+          ...(lastUser.metadata || {}),
+          studio_skill_refs: options.skillNames,
+        }
       }
     }
 
@@ -2012,6 +2039,9 @@ export const useAgentHubStore = defineStore('agentHub', () => {
           } else {
             streamingContent.value += text
             aiMsg.content = streamingContent.value
+            // 旧版 SSE 可能没有携带 type/visible 元数据；一旦正文命中
+            // 内部协作建议兜底规则，立即从会话数组移除，避免短暂闪现。
+            session.messages = session.messages.filter(isUserVisibleMessage)
             // 交错时间线：连续正文并入上一个 text 段；工具调用之后另起新段
             const segs = aiMsg.timeline
             const last = segs?.[segs.length - 1]
@@ -2060,6 +2090,21 @@ export const useAgentHubStore = defineStore('agentHub', () => {
             }
           }
           session.messages.push(progressMessage)
+        },
+        onLoopGuardTriggered: (event) => {
+          if (event.downgraded_to_supervised) {
+            studioPermissions.value = { mode: 'supervised' }
+          }
+          const reason = event.reason === 'max_consecutive_failures'
+            ? `同类失败已连续 ${event.consecutive_failures} 次`
+            : `本轮工具调用已达 ${event.tool_calls} 次`
+          session.messages.push({
+            id: `studio-loop-guard-${Date.now()}`,
+            role: 'system',
+            content: `安全护栏已中止本轮执行：${reason}${event.downgraded_to_supervised ? '，已切回监督模式。' : '。'}`,
+            createdAt: new Date().toISOString(),
+          })
+          session.updated_at = new Date().toISOString()
         },
         onStudioPromoted: (event) => {
           session.mode = 'studio'
@@ -2300,6 +2345,7 @@ export const useAgentHubStore = defineStore('agentHub', () => {
             )
             tc.status = event.success ? 'success' : resultStatus === 'timed_out' ? 'timed_out' : 'error'
             tc.mcpServer = event.mcp_server
+            tc.checkpointId = event.checkpoint_id
             // Studio 工具：未走 tool_output 流时，用 ui_payload 的 stdout/stderr 回填输出区
             if (!tc.output && uiPayload) {
               const so = typeof uiPayload.stdout === 'string' ? uiPayload.stdout : ''
@@ -2412,6 +2458,7 @@ export const useAgentHubStore = defineStore('agentHub', () => {
             status: 'pending',
             risk_hint: event.risk_hint,
             timeout_seconds: event.timeout_seconds,
+            approval_kind: event.approval_kind,
           }
           // 审批事件的 arguments 可能比 tool_call 事件更全，以其为准补齐
           tc.arguments = { ...tc.arguments, ...event.arguments }
@@ -2592,6 +2639,7 @@ export const useAgentHubStore = defineStore('agentHub', () => {
             }
           }
           if (aiMsg.status !== 'error' && aiMsg.status !== 'empty') aiMsg.status = 'complete'
+          session.messages = session.messages.filter(isUserVisibleMessage)
           isStreaming.value = false
           streamingContent.value = ''
           streamingThought.value = ''

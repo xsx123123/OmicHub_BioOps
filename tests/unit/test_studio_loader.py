@@ -33,6 +33,10 @@ def test_loads_defaults_when_file_missing(tmp_path: Path):
     assert config.sandbox.network.proxy_container == "omichub-studio-egress-proxy"
     assert config.sandbox.network.proxy_host == "studio-egress-proxy"
     assert config.sandbox.network.proxy_port == 3128
+    assert config.agent.loop_control.max_tool_calls_per_turn == 40
+    assert config.agent.loop_control.max_consecutive_failures == 3
+    assert config.agent.loop_control.auto_downgrade_to_supervised is True
+    assert config.agent.micro_compaction.threshold_chars == 4000
 
 
 @pytest.mark.unit
@@ -55,6 +59,13 @@ studio:
       mode: whitelist
       docker_network: custom-sandbox-net
       allow: [pypi.org]
+  agent:
+    loop_control:
+      max_tool_calls_per_turn: 12
+      max_consecutive_failures: 2
+      auto_downgrade_to_supervised: false
+    micro_compaction:
+      threshold_chars: 1200
   images:
     base: {dockerfile: deploy/studio/base.Dockerfile}
 other_key: ignored
@@ -69,6 +80,10 @@ other_key: ignored
     assert config.sandbox.network.mode == "whitelist"
     assert config.sandbox.network.docker_network == "custom-sandbox-net"
     assert config.sandbox.network.allow == ["pypi.org"]
+    assert config.agent.loop_control.max_tool_calls_per_turn == 12
+    assert config.agent.loop_control.max_consecutive_failures == 2
+    assert config.agent.loop_control.auto_downgrade_to_supervised is False
+    assert config.agent.micro_compaction.threshold_chars == 1200
     assert config.images["base"].dockerfile == "deploy/studio/base.Dockerfile"
 
 

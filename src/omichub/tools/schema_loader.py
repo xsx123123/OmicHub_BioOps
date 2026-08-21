@@ -6,6 +6,8 @@ OpenAI function schema，并支持 mtime 热重载。
 
 from __future__ import annotations
 
+import logging
+import re
 from pathlib import Path
 from typing import Any
 
@@ -35,6 +37,7 @@ class ToolSchema(BaseModel):
     key: str
     name: str
     description: str
+    keywords: list[str] = Field(default_factory=list)
     category: str = ""
     invocation_mode: str = Field(..., alias="invocation_mode")
     service: str = ""
@@ -83,6 +86,7 @@ class ToolsSchemaRegistry(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     tools: list[ToolSchema] = Field(default_factory=list)
+    tool_selection: dict[str, Any] = Field(default_factory=dict)
 
 
 class ToolsSchemaLoader:
@@ -268,6 +272,60 @@ class ToolsSchemaLoader:
             result.append(schema)
         return result
 
+    def search_tools(self, query: str, limit: int = 8) -> list[ToolSchema]:
+        """Return a deterministic lexical ranking for toolbox progressive disclosure.
+
+        The ranking deliberately has no external state: schema mtime reload rebuilds the
+        searchable corpus, while a malformed query simply returns the catalog order.
+        """
+        tokens = self._tokenize(query)
+        tools = self.list_tools()
+        if not tokens:
+            return []
+
+        ranked: list[tuple[int, ToolSchema]] = []
+        for tool in tools:
+            haystack = " ".join([tool.name, tool.description, *tool.keywords]).lower()
+            score = sum(haystack.count(token) for token in tokens)
+            if score:
+                ranked.append((score, tool))
+        ranked.sort(key=lambda item: (-item[0], item[1].name))
+        return [tool for _, tool in ranked[:limit]]
+
+    def select_tools(
+        self, query: str, *, pinned_names: set[str] | None = None
+    ) -> tuple[list[ToolSchema], str]:
+        """Select pinned plus recalled tools, with conservative full-mode fallback."""
+        tools = self.list_tools()
+        config = self.get_config().tool_selection
+        mode = str(config.get("mode", "full")).lower()
+        if mode != "retrieval" or len(tools) <= 15:
+            return tools, "full"
+        try:
+            top_n = max(1, int(config.get("top_n", 8)))
+            pinned_names = pinned_names or set()
+            pinned = [tool for tool in tools if tool.name in pinned_names]
+            recalled = self.search_tools(query, limit=top_n)
+            selected = {tool.name: tool for tool in [*pinned, *recalled]}
+            return list(selected.values()), "retrieval"
+        except Exception:  # noqa: BLE001
+            logging.getLogger(__name__).warning("工具检索失败，回落全量注入", exc_info=True)
+            return tools, "full"
+
+    @staticmethod
+    def _tokenize(value: str) -> list[str]:
+        normalized = value.lower().strip()
+        if not normalized:
+            return []
+        english = re.findall(r"[a-z0-9_+-]+", normalized)
+        chinese_runs = re.findall(r"[\u4e00-\u9fff]+", normalized)
+        chinese = [
+            gram
+            for run in chinese_runs
+            for gram in (run[i : i + 2] for i in range(len(run) - 1))
+        ]
+        return list(dict.fromkeys([*english, *chinese]))
+
     def build_system_hint(self, allowed_names: set[str] | None = None) -> str:
         """生成注入系统提示词的工具清单。"""
         tools = self.list_tools()
@@ -278,6 +336,16 @@ class ToolsSchemaLoader:
             for idx, tool in enumerate(tools, 1)
         )
         return render_prompt("tools.omichub_system_hint", tool_catalog=catalog)
+
+    def toolbox_catalog(self, query: str, limit: int = 20) -> list[dict[str, str]]:
+        """Return concise discovery metadata without exposing implementation details."""
+        return [
+            {
+                "name": tool.name,
+                "summary": tool.description.split("。", 1)[0] + "。",
+            }
+            for tool in self.search_tools(query, limit=limit)
+        ]
 
 
 # 全局单例

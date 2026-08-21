@@ -45,12 +45,13 @@ RUN --mount=type=cache,target=/opt/conda/pkgs,uid=10001,gid=10001,sharing=locked
       bioconductor-clusterprofiler \
       bioconductor-enrichplot \
       r-optparse \
+      r-jsonlite \
       r-ontologyindex \
     && micromamba list | grep -E "bioconductor-(clusterprofiler|enrichplot) "
 
 # 强制校验所有必需包可加载，缺包直接构建失败，避免"exit 0 的假成功镜像"。
 RUN micromamba run -n base R -q -e '\
-      required <- c("clusterProfiler", "enrichplot", "optparse", "ontologyIndex"); \
+      required <- c("clusterProfiler", "enrichplot", "optparse", "jsonlite", "ontologyIndex"); \
       failed <- character(0); \
       for (p in required) { \
         ok <- tryCatch({ suppressPackageStartupMessages(library(p, character.only = TRUE)); TRUE }, \
@@ -64,6 +65,7 @@ RUN micromamba run -n base R -q -e '\
 # 容器内 mambauser(10001) 无写权限会导致 R 写不出结果。仅安装期使用 mambauser。
 USER root
 COPY --chmod=0555 run_enrichment.R /app/run_enrichment.R
+COPY --chmod=0555 run_gsea.R /app/run_gsea.R
 
 WORKDIR /app
 CMD ["Rscript", "/app/run_enrichment.R"]

@@ -1,31 +1,50 @@
+# 依据: 待测（经验初值）— 会话摘要注入预算；验证: 统计真实摘要长度与模型上下文占用
 summary_chars: 1500
+# 依据: 待测（经验初值）— 上游结果回填预算；验证: 同上，按上下文窗口占用率校准
 upstream_context_chars: 8000
+# 依据: 待测（经验初值）— 单任务指令注入上限；验证: 统计真实指令长度分布 P95
 task_instruction_chars: 20000
+# 依据: 待测（经验初值）— 单会话任务扇出护栏；验证: 压测会话规模对编排状态的压力
 max_tasks_per_session: 12
+# 依据: 待测（经验初值）— 每波并发上限，给主链路 LLM 调用留余量；验证: 压测 LLM 速率限制下的吞吐
 max_parallel_per_wave: 4
+# 依据: 待测（经验初值）— 整条链的墙钟上限；验证: 统计真实链耗时分位数后校准
 chain_wall_timeout_minutes: 45
+# 依据: 待测（经验初值）— 任务无进展判定阈值；验证: 观察正常长任务是否被误判 stall
 stall_threshold_seconds: 120
+# 依据: 待测（经验初值）— 需求澄清往返上限；验证: 统计真实澄清轮数分布
 max_intake_rounds: 3
+# 依据: 待测（经验初值）— 计划修复只允许 1 轮，防死循环；验证: 统计修复成功率与二次修复需求
 max_repair_rounds: 1
 planning:
   # Contract for plan-revision commands; consumed by the plan-decision endpoint.
+  # 依据: 待测（经验初值）— 计划修订往返上限；验证: 统计真实修订轮数分布
   max_revision_rounds: 3
 research:
   # These limits are consumed by the v2 research bundle in ChatService.
+  # 依据: 待测（经验初值）— 单检索源超时；验证: 采集各源响应 P95 后校准
   source_timeout_seconds: 20
   # model_knowledge(模型知识归纳)是一次 800-token 的 LLM 流式调用,
   # 与检索类源共用 20s 会在端点稍慢时必超时;给它单独的更大预算。
+  # 依据: 实测 — 800-token 流式调用在慢端点上超 20s 共用预算，故单列 45s
   model_timeout_seconds: 45
+  # 依据: 待测（经验初值）— 单源证据条数上限；验证: 统计证据利用率（被引用比例）
   max_evidence_items_per_source: 8
+  # 依据: 待测（经验初值）— 研究墙钟上限，需 > 单源 20s × 串行余量且 < 用户可容忍等待
   wall_timeout_seconds: 75
 manager_review:
   # Rule review uses the fast path; escalated LLM review is a separate durable job.
   # max_tokens/timeout_seconds are consumed by the escalated review job.
   rule_fast_path: true
+  # 依据: 待测（经验初值）— 升级评审输出预算；验证: 统计真实评审输出 token 数
   max_tokens: 1200
+  # 依据: 待测（经验初值）— 升级评审调用超时；验证: 采集评审调用 P95 延迟
   timeout_seconds: 30
 default_retry:
+  # 依据: 待测（经验初值）— 瞬态故障重试 2 次；验证: 统计重试成功率与重复副作用
   max_attempts: 2
+  # 依据: 待测（经验初值）— 退避间隔；验证: 同上
   backoff_seconds: 30
+# 依据: 待测（经验初值）— 单任务默认 30min 上限；验证: 统计真实任务耗时分位数后校准
 default_timeout_seconds: 1800
 agents: {}

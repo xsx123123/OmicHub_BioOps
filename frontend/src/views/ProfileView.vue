@@ -178,6 +178,7 @@ import { zhCN } from 'date-fns/locale'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
 import { displayName } from '@/utils/displayName'
+import { presentRequestError } from '@/utils/errorPresentation'
 import apiClient from '@/api/client'
 import type { QuotaInfo, Task, User } from '@/types'
 import PageHeader from '@/components/PageHeader.vue'
@@ -308,7 +309,7 @@ async function rebuildMemories() {
   }
 }
 async function loadSecurity() { twoFactorEnabled.value = (await authStore.fetch2FAStatus()).enabled }
-async function loadAll(refresh = false) { refresh ? isRefreshing.value = true : isLoading.value = true; try { await Promise.all([loadProfile(), loadTasks(), loadAuditLogs(), loadMemories(), loadSecurity()]) } catch (error: any) { if (error.response?.status === 401) { authStore.logout(); await router.push('/login') } else message.error(error.response?.data?.detail || '个人中心加载失败，请稍后重试') } finally { isLoading.value = false; isRefreshing.value = false } }
+async function loadAll(refresh = false) { refresh ? isRefreshing.value = true : isLoading.value = true; try { await Promise.all([loadProfile(), loadTasks(), loadAuditLogs(), loadMemories(), loadSecurity()]) } catch (error: unknown) { const presentation = presentRequestError(error, '个人中心加载失败，请稍后重试'); if (presentation.kind === 'unauthorized') { authStore.logout(); await router.push('/login') } else message.error(presentation.message) } finally { isLoading.value = false; isRefreshing.value = false } }
 async function deleteMemory(memoryId: string) { try { await apiClient.delete(`/users/me/memories/${memoryId}`); memories.value = memories.value.filter(memory => memory.id !== memoryId); message.success('记忆已删除') } catch (error: any) { message.error(error.response?.data?.detail || '删除记忆失败') } }
 async function refreshProfile() { await loadAll(true); message.success('个人中心已刷新') }
 async function savePreferences() { if (!user.value) return; savingPreferences.value = true; try { await apiClient.put(`/users/${user.value.id}`, { preferences: { ...(user.value.preferences || {}), profile: preferences.value } }); await authStore.fetchUser(); message.success('偏好已保存') } catch (error: any) { message.error(error.response?.data?.detail || '保存偏好失败') } finally { savingPreferences.value = false } }

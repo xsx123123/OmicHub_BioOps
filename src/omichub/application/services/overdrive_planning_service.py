@@ -35,14 +35,55 @@ ResearchActivityCallback = Callable[[dict[str, Any]], Awaitable[None]]
 
 SOURCE_TYPES = ("knowledge_base", "web", "model_knowledge")
 
-DOMAIN_HINTS: dict[str, tuple[str, ...]] = {
+# DEPRECATED(迁移期 fallback，保留一个版本)：关键词唯一声明处是
+# data/ai/domains/*.yaml 的 match.domain_markers + routing 段，由 DomainRegistry
+# 派生注册（见 domain_registry.derived_planner_hints）。本表仅在 YAML 尚未声明
+# routing.planner_agent 时兜底，命中兜底会打 deprecation 日志。
+_LEGACY_DOMAIN_HINTS: dict[str, tuple[str, ...]] = {
     "agent-rnaseq": ("rna-seq", "rnaseq", "bulk rna", "转录组", "差异表达", "deseq"),
     "agent-atacseq": ("atac-seq", "atacseq", "染色质开放", "peak calling", "可及性"),
     "agent-scrna": ("scrna", "单细胞", "single-cell", "细胞注释", "细胞通讯"),
     "agent-viz": ("可视化", "绘图", "图表", "publication-ready"),
     "agent-code": ("代码", "python", "bash", "脚本", "调试"),
     "agent-data": ("数据契约", "元数据", "样本对应", "输入核验"),
+    # 通用分析域已在 data/ai/domains/general.yaml 声明 routing.planner_agent，
+    # 本行仅为迁移期并集兜底（不再新增关键词到这里）。
+    "agent-general": ("文献", "检索", "整理", "汇总", "报告", "表格", "文献综述", "网页报告", "literature"),
 }
+
+# 兼容旧导入（agentteams_route_decision 已改用 get_domain_hints）；新代码请用 get_domain_hints()。
+DOMAIN_HINTS = _LEGACY_DOMAIN_HINTS
+
+_deprecation_logged: set[str] = set()
+
+
+def get_domain_hints(
+    domain_registry: Any | None = None,
+) -> dict[str, tuple[str, ...]]:
+    """返回 Planner 评分关键词表：Domain Pack 派生注册优先，硬编码表兜底一个版本。
+
+    派生注册是生成/合并而非覆盖：同一 agent 取 YAML 派生与遗留表的并集；
+    某 agent 的关键词只能由遗留表提供时打一次 deprecation 日志，提示迁移到
+    domains/*.yaml 的 routing.planner_agent。
+    """
+    if domain_registry is None:
+        from omichub.application.services.domain_registry import get_domain_registry
+
+        domain_registry = get_domain_registry()
+    derived = domain_registry.derived_planner_hints() if domain_registry is not None else {}
+    merged: dict[str, tuple[str, ...]] = {}
+    for agent_id, hints in derived.items():
+        merged[agent_id] = tuple(dict.fromkeys([*hints, *_LEGACY_DOMAIN_HINTS.get(agent_id, ())]))
+    for agent_id, hints in _LEGACY_DOMAIN_HINTS.items():
+        if agent_id not in derived and agent_id not in _deprecation_logged:
+            _deprecation_logged.add(agent_id)
+            logger.warning(
+                "DOMAIN_HINTS 硬编码 fallback 已废弃：agent={} 的关键词应迁移到 "
+                "data/ai/domains/*.yaml 的 routing.planner_agent（当前仍由 .py 兜底提供）",
+                agent_id,
+            )
+        merged.setdefault(agent_id, hints)
+    return merged
 
 _BLOCKED_WEB_HOSTS = (
     "siliu.net", "jigao616.com", "mp.weixin.qq.com", "haomeiwen.com",
@@ -815,7 +856,10 @@ class OverdrivePlanningService:
 
     @staticmethod
     def select_lead_planner(
-        request: str, agent_catalog: Sequence[Mapping[str, Any]]
+        request: str,
+        agent_catalog: Sequence[Mapping[str, Any]],
+        *,
+        domain_registry: Any | None = None,
     ) -> dict[str, Any]:
         """Choose one smallest capability-matched planner, with general as fallback."""
         if not request.strip():
@@ -824,6 +868,7 @@ class OverdrivePlanningService:
         if not active:
             raise ValidationError("没有可用的规划 Agent")
         normalized = request.casefold()
+        domain_hints = get_domain_hints(domain_registry)
         scored: list[tuple[int, str, Mapping[str, Any], list[str]]] = []
         for candidate in active:
             agent_id = str(candidate.get("agent_id") or "").strip()
@@ -833,7 +878,7 @@ class OverdrivePlanningService:
             if not isinstance(features, Mapping):
                 features = {}
             terms = [
-                *DOMAIN_HINTS.get(agent_id, ()),
+                *domain_hints.get(agent_id, ()),
                 *(str(value) for value in features.get("capability_scope") or []),
                 *(str(value) for value in features.get("capability_tags") or []),
             ]

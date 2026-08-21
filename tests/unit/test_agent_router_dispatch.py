@@ -14,13 +14,11 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
-import yaml
 
 import omichub.application.services.chat_service as chat_service_module
 from omichub.application.schemas.agent import AgentTemplateDTO
 from omichub.application.services.chat_service import ROUTER_SYSTEM_PROMPT, ChatService
 from omichub.infrastructure.config import agent_loader
-from omichub.infrastructure.config.agent_ability_catalog import agent_ability_catalog
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 AI_DIR = REPO_ROOT / "data" / "ai"
@@ -59,11 +57,50 @@ CANDIDATES = [
 EXPERT_IDS = [c.agent_id for c in CANDIDATES if not c.features.get("router")]
 
 
+def _catalog_entry(dto: AgentTemplateDTO) -> dict[str, Any]:
+    """模拟注册表 chat_router_catalog 条目(双注册表统一后 chat 候选的唯一来源)。"""
+    return {
+        "agent_id": dto.agent_id,
+        "name": dto.name,
+        "description": dto.description,
+        "category": dto.category,
+        "chat_entry": True,
+        "capabilities": [],
+        "not_suitable_for": [],
+        "handoff_when": [],
+        "preferred_inputs": [],
+        "routing_hints": [],
+        "capability_tags": [],
+        "routing_notes": "",
+        "avatar": dto.avatar,
+        "color": dto.color,
+    }
+
+
+def _catalog_from(dtos: list[AgentTemplateDTO]) -> list[dict[str, Any]]:
+    return [_catalog_entry(c) for c in dtos if not c.features.get("router")]
+
+
+class _FakeCapabilityRegistry:
+    """快照桩:与真实注册表一样过滤 features.router / chat_entry=false 候选。"""
+
+    def __init__(self, dtos: list[AgentTemplateDTO] | None = None) -> None:
+        self._dtos = CANDIDATES if dtos is None else dtos
+
+    def snapshot(self) -> dict[str, Any]:
+        return {
+            "chat_router_catalog": _catalog_from(self._dtos),
+            "flow_router_catalog": [],
+        }
+
+
 def test_runtime_router_prompt_keeps_decision_on_stardust_ai() -> None:
     assert "星尘 AI" in ROUTER_SYSTEM_PROMPT
     assert "不要执行分析" in ROUTER_SYSTEM_PROMPT
     assert "前端关键词规则" in ROUTER_SYSTEM_PROMPT
     assert "运行时候选专家目录" in ROUTER_SYSTEM_PROMPT
+    assert "领域词只用于选择合适的专家" in ROUTER_SYSTEM_PROMPT
+    assert "不能仅因“单细胞”创建流程型 Case" in ROUTER_SYSTEM_PROMPT
     assert "emoji" in ROUTER_SYSTEM_PROMPT
 
 
@@ -95,6 +132,11 @@ def _fake_chat_stream(text: str):
 def service(monkeypatch: pytest.MonkeyPatch) -> ChatService:
     monkeypatch.setattr(
         "omichub.application.services.agent_service.AgentService", _FakeAgentService
+    )
+    monkeypatch.setattr(
+        "omichub.application.services.agentteams_capability_registry"
+        ".get_agentteams_capability_registry",
+        lambda: _FakeCapabilityRegistry(),
     )
     return ChatService(db=SimpleNamespace())
 
@@ -161,7 +203,8 @@ async def test_router_agent_itself_never_dispatched(
 async def test_router_excludes_runtime_internal_chat_role(
     router_ctx: Any, monkeypatch: pytest.MonkeyPatch
 ):
-    """能力目录标记为 Case 内部角色的 Agent 不得成为普通 Chat 路由目标。"""
+    """能力目录标记 chat_entry=false 的 Case 内部角色被注册表过滤，
+    不进 chat_router_catalog；router 幻觉选中时回退通用助手。"""
     internal_role = _candidate("agent-internal-review", "analysis", "内部审计角色")
     candidates = [*CANDIDATES, internal_role]
 
@@ -180,13 +223,11 @@ async def test_router_excludes_runtime_internal_chat_role(
                 model_config=SimpleNamespace(name="qwen3.7-max", api_key="k"),
             )
 
-    original_get = agent_ability_catalog.get
+    # 注册表负责 chat_entry 过滤:内部角色不出现在快照候选目录中。
     monkeypatch.setattr(
-        agent_ability_catalog,
-        "get",
-        lambda agent_id: {"chat_entry": False}
-        if agent_id == internal_role.agent_id
-        else original_get(agent_id),
+        "omichub.application.services.agentteams_capability_registry"
+        ".get_agentteams_capability_registry",
+        lambda: _FakeCapabilityRegistry(CANDIDATES),
     )
     monkeypatch.setattr(
         "omichub.application.services.agent_service.AgentService", FakeAgentService
@@ -532,6 +573,8 @@ def test_router_prompt_uses_runtime_catalog_instead_of_static_candidates():
     assert "运行时候选目录（唯一依据）" in prompt_text
     assert "不得维护、记忆或引用任何静态 Agent 名单" in prompt_text
     assert "| agent_id | 名称 | 适用请求 |" not in prompt_text
+    assert "领域路由与执行授权必须分离" in prompt_text
+    assert "不能仅因“单细胞”创建流程型 Case" in prompt_text
 
 
 @pytest.mark.unit
@@ -541,6 +584,7 @@ def test_site_yaml_enabled_agents_have_config_files():
     assert enabled == [
         "router",
         "general",
+        "agentteams_manager",
         "rnaseq",
         "atacseq",
         "scrna",

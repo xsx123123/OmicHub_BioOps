@@ -18,6 +18,14 @@ docker network create omichub_bridge_gateway
 docker compose -f docker-compose.agentteams.yml up --build -d
 ```
 
+Bridge 镜像默认从阿里云 PyPI 镜像安装 Python 依赖。若当前网络到该镜像较慢，
+可在执行 Compose 前切换镜像；该变量只影响构建阶段：
+
+```bash
+PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple \
+  docker compose -f docker-compose.agentteams.yml build omichub-agentteams-bridge
+```
+
 For a local development-only startup, `gateway.env` may use
 `GATEWAY_ENVIRONMENT=development` with Matrix settings left empty. Production requires
 deployment-managed Gateway and Matrix credentials; do not commit either environment file.

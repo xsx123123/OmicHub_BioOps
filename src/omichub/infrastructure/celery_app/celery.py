@@ -28,6 +28,7 @@ celery_app = Celery(
         "omichub.tools.blast.tasks",
         "omichub.tools.enrichments.tasks",
         "omichub.tools.deg.tasks",
+        "omichub.tools.synteny.tasks",
         "omichub.infrastructure.celery_app.tasks.sandbox",
         "omichub.infrastructure.celery_app.tasks.storage",
         "omichub.infrastructure.celery_app.tasks.studio",
@@ -72,6 +73,7 @@ celery_app.conf.task_routes = {
     "omichub.tools.blast.tasks.build_blast_database": {"queue": "blast_db_build"},
     "omichub.tools.enrichments.tasks.*": {"queue": "analysis"},
     "omichub.tools.deg.tasks.*": {"queue": "analysis"},
+    "omichub.tools.synteny.tasks.*": {"queue": "analysis"},
     "omichub.infrastructure.celery_app.tasks.sandbox.*": {"queue": "analysis"},
     "omichub.infrastructure.celery_app.tasks.storage.*": {"queue": "analysis"},
     "omichub.infrastructure.celery_app.tasks.studio.*": {"queue": "analysis"},
@@ -138,7 +140,7 @@ celery_app.conf.beat_schedule = {
         "task": "omichub.infrastructure.celery_app.tasks.agentteams.watch_cases",
         "schedule": float(settings.agentteams_case_watch_interval_seconds),
     },
-    # 处于 approval_pending 且用户偏好为 autonomous 的 Case 自动确认（通用与流程均支持）
+    # 仅清理历史自动确认标记；新 Case 的真实计算必须由用户在审批卡显式确认。
     "agentteams-auto-confirm-cases": {
         "task": "omichub.infrastructure.celery_app.tasks.agentteams.auto_confirm_cases",
         "schedule": float(settings.agentteams_case_watch_interval_seconds),

@@ -16,7 +16,7 @@ import { html as diffToHtml } from 'diff2html'
 import 'diff2html/bundles/css/diff2html.min.css'
 import {
   CreateOutline, PlayOutline, CopyOutline, ChevronDownOutline, ChevronUpOutline,
-  CheckmarkOutline, CloseOutline, DocumentOutline,
+  CheckmarkOutline, CloseOutline, DocumentOutline, ReturnDownBackOutline,
 } from '@vicons/ionicons5'
 import CodeEditor from '@/components/sandbox/CodeEditor.vue'
 import TaskProgressCard from '@/components/ai-chat/TaskProgressCard.vue'
@@ -114,6 +114,7 @@ watch(code, (v) => {
 const copied = ref(false)
 const editDecision = ref<'pending' | 'accepted' | 'rejected'>('pending')
 const reverting = ref(false)
+const restoringCheckpoint = ref(false)
 let copyTimer: ReturnType<typeof setTimeout> | null = null
 
 function handleCopy() {
@@ -149,6 +150,21 @@ async function rejectEdit() {
     message.error('回滚失败：文件可能已被后续修改，请先检查当前文件')
   } finally {
     reverting.value = false
+  }
+}
+
+async function restoreCheckpoint() {
+  if (!ctx || !props.tool.checkpointId || restoringCheckpoint.value) return
+  if (!window.confirm('将工作区文件回退到此检查点？对话记录不会删除。')) return
+  restoringCheckpoint.value = true
+  try {
+    await studioApi.restoreCheckpoint(ctx.sessionId.value, props.tool.checkpointId)
+    ctx.refreshWorkspace()
+    message.success('工作区已回退到该检查点')
+  } catch {
+    message.error('检查点回退失败，请检查工作区状态')
+  } finally {
+    restoringCheckpoint.value = false
   }
 }
 
@@ -348,6 +364,14 @@ onUnmounted(() => {
             </n-button>
           </template>
           重跑（沙盒执行）
+        </n-tooltip>
+        <n-tooltip v-if="tool.checkpointId" trigger="hover">
+          <template #trigger>
+            <n-button text size="tiny" :loading="restoringCheckpoint" @click="restoreCheckpoint">
+              <n-icon size="14"><ReturnDownBackOutline /></n-icon>
+            </n-button>
+          </template>
+          回退到此检查点
         </n-tooltip>
         <n-tooltip trigger="hover">
           <template #trigger>

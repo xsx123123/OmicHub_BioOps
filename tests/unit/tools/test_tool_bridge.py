@@ -95,6 +95,48 @@ async def test_unknown_tool_returns_error() -> None:
 
 
 @pytest.mark.asyncio
+async def test_error_envelope_exposes_top_level_error_for_event_summary() -> None:
+    """BUG-E2E-05：错误信封必须带顶层 error，事件流摘要才能拿到真实失败原因。"""
+    loader = _FakeLoader([])
+    service = ToolBridgeService(loader)
+    result = await service.execute("u1", "omichub_not_exist", {})
+
+    assert result["error"] == result["llm_payload"]["error"]
+    assert "未知工具" in result["error"]
+
+
+@pytest.mark.asyncio
+async def test_toolbox_search_returns_catalog_matches() -> None:
+    schema = ToolSchema(
+        key="toolbox-search",
+        name="omichub_toolbox_search",
+        description="检索工具。适用于查找工具；已知工具不要使用。输入 query。",
+        keywords=["工具检索"],
+        invocation_mode="backend_sync",
+        input_schema={
+            "type": "object",
+            "properties": {"query": {"type": "string"}},
+            "required": ["query"],
+        },
+        llm_result_fields=["matches", "summary", "success"],
+        ui_result_fields=["matches"],
+    )
+    enrichment = ToolSchema(
+        key="kegg-enrichment",
+        name="omichub_run_kegg_enrichment",
+        description="对基因列表做 GO/KEGG 富集。适用于通路富集；排序列表用 GSEA。输入 gene_text。",
+        keywords=["GO", "KEGG", "富集"],
+        invocation_mode="backend_sync",
+    )
+    result = await ToolBridgeService(_FakeLoader([schema, enrichment])).execute(
+        "u1", "omichub_toolbox_search", {"query": "基因富集通路"}
+    )
+
+    assert result["success"] is True
+    assert result["llm_payload"]["matches"][0]["name"] == "omichub_run_kegg_enrichment"
+
+
+@pytest.mark.asyncio
 async def test_backend_sync_passes_context_when_service_declares_it(monkeypatch) -> None:
     """需要数据库事务的 builtin 工具可安全取得内部调用上下文。"""
     schema = ToolSchema(
@@ -129,6 +171,36 @@ async def test_backend_sync_passes_context_when_service_declares_it(monkeypatch)
 
     assert result["success"] is True
     assert captured == {"user_id": "user-1", "query": "小鼠脑", "context": context}
+
+
+@pytest.mark.asyncio
+async def test_celery_backed_async_tool_uses_service_context(monkeypatch) -> None:
+    schema = ToolSchema(
+        key="gsea",
+        name="omichub_run_gsea",
+        description="执行 GSEA。适用于排序基因列表；无排序列表用富集。输入 gene_ranking。",
+        keywords=["GSEA"],
+        invocation_mode="backend_async",
+        service="omichub.tools.gsea.service.GseaService",
+        method="submit",
+        extra={"celery_service": True},
+        input_schema={"type": "object", "properties": {"gene_ranking": {"type": "string"}}},
+        llm_result_fields=["task_id", "success"],
+        ui_result_fields=["task_id", "progress_url"],
+    )
+
+    async def fake_submit(self, *, db, user_id, gene_ranking):
+        assert db == "session"
+        return {"task_id": "task-1", "gene_ranking": gene_ranking}
+
+    monkeypatch.setattr("omichub.tools.gsea.service.GseaService.submit", fake_submit)
+    context = MagicMock(db="session")
+    result = await ToolBridgeService(_FakeLoader([schema])).execute(
+        "user-1", "omichub_run_gsea", {"gene_ranking": "gene\t1"}, context=context
+    )
+
+    assert result["success"] is True
+    assert result["ui_payload"]["progress_url"].endswith("task-1/progress")
 
 
 @pytest.mark.asyncio

@@ -116,6 +116,35 @@ class StudioUiConfig(BaseModel):
         return normalized
 
 
+class StudioLoopControlConfig(BaseModel):
+    """单条用户消息内 Agent 工具循环的熔断阈值。"""
+
+    model_config = ConfigDict(extra="ignore")
+
+    max_tool_calls_per_turn: int = Field(default=40, ge=1, le=500)
+    max_consecutive_failures: int = Field(default=3, ge=1, le=20)
+    auto_downgrade_to_supervised: bool = True
+
+
+class StudioMicroCompactionConfig(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    threshold_chars: int = Field(default=4000, ge=500, le=100_000)
+
+
+class StudioAgentConfig(BaseModel):
+    """Studio Agent 运行期防护配置。"""
+
+    model_config = ConfigDict(extra="ignore")
+
+    permission_modes: list[str] = Field(
+        default_factory=lambda: ["supervised", "plan", "auto"]
+    )
+    micro_compaction: StudioMicroCompactionConfig = Field(
+        default_factory=StudioMicroCompactionConfig
+    )
+    loop_control: StudioLoopControlConfig = Field(default_factory=StudioLoopControlConfig)
+
 class StudioMountsConfig(BaseModel):
     """宿主挂载配置，{storage_path} 占位符在加载时解析"""
 
@@ -143,6 +172,7 @@ class StudioConfig(BaseModel):
     session: StudioSessionConfig = Field(default_factory=StudioSessionConfig)
     sandbox: StudioSandboxConfig = Field(default_factory=StudioSandboxConfig)
     ui: StudioUiConfig = Field(default_factory=StudioUiConfig)
+    agent: StudioAgentConfig = Field(default_factory=StudioAgentConfig)
     mounts: StudioMountsConfig = Field(default_factory=StudioMountsConfig)
     images: dict[str, StudioImageDef] = Field(default_factory=dict)
 

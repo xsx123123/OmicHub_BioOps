@@ -14,7 +14,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createApp, h, nextTick } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { NDialogProvider, NMessageProvider } from 'naive-ui'
-import type { AgentTeamsCase } from '@/api/agentTeams'
+import type { AgentTeamsCase, AgentTeamsRoom } from '@/api/agentTeams'
 
 vi.mock('vue-router', () => ({
   useRouter: () => ({ push: vi.fn() }),
@@ -40,6 +40,15 @@ const agentTeamsApiMocks = vi.hoisted(() => ({
   deleteCase: vi.fn(),
   getRoleLabels: vi.fn().mockResolvedValue({}),
   getManifest: vi.fn(),
+  // 会话-工单解耦：房间端点；本测试聚焦旧 Case 房间路径，默认无房间
+  // 注意必须每次返回新对象：组件会把 items 数组直接挂到本地状态并 push 新房间，
+  // 共享同一个对象会把房间泄漏到后续用例
+  listRooms: vi.fn().mockImplementation(async () => ({ items: [], total: 0 })),
+  createRoom: vi.fn(),
+  getRoom: vi.fn(),
+  postRoomMessage: vi.fn(),
+  confirmRoomProposal: vi.fn(),
+  getRoomEvents: vi.fn(),
 }))
 vi.mock('@/api/agentTeams', () => ({ agentTeamsApi: agentTeamsApiMocks }))
 
@@ -261,9 +270,61 @@ describe('协作室房间（已有 Case）发送消息', () => {
     app.unmount()
   })
 
-  it('新房间初始化显示在消息流顶部，稍后再说后不保留总结气泡', async () => {
+  it('空态直接发消息：先建轻量房间（不建 Case），首条消息落房间事件流', async () => {
+    const room: AgentTeamsRoom = {
+      room_id: 'room-1',
+      title: '创建一个数据质控团队',
+      status: 'active',
+      origin: 'manual',
+      case_id: null,
+      matrix_room_provisioned: false,
+      has_pending_proposal: false,
+      created_at: '2026-08-13T10:00:00Z',
+      updated_at: '2026-08-13T10:00:00Z',
+    }
+    // mockReset 清掉前序用例遗留的 mockResolvedValueOnce 队列，避免污染本用例的空态前置
+    agentTeamsApiMocks.listCases.mockReset()
+    agentTeamsApiMocks.listCases.mockResolvedValue({ items: [] })
+    agentTeamsApiMocks.createRoom.mockResolvedValue(room)
+    agentTeamsApiMocks.getRoom.mockResolvedValue(room)
+    agentTeamsApiMocks.getRoomEvents.mockResolvedValue({ events: [], next_cursor: null })
+    agentTeamsApiMocks.postRoomMessage.mockResolvedValue({ event_id: 'evt-user-1' })
+
+    const { el, app } = mountView()
+    await flush()
+    const textarea = el.querySelector<HTMLTextAreaElement>('.ai-composer-shell textarea')!
+    typeText(textarea, '创建一个数据质控团队')
+    textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    await flush(20)
+
+    // 会话-工单解耦：空态首条消息走 POST /rooms 建房 + /rooms/{id}/messages 发言，
+    // 不再隐式建 Case——立项由后续 room.proposal_confirm 卡片确认触发
+    expect(agentTeamsApiMocks.createRoom).toHaveBeenCalledTimes(1)
+    expect(agentTeamsApiMocks.createRoom).toHaveBeenCalledWith(expect.objectContaining({
+      title: '创建一个数据质控团队',
+      origin: 'manual',
+    }))
+    expect(agentTeamsApiMocks.createCase).not.toHaveBeenCalled()
+    expect(agentTeamsApiMocks.postRoomMessage).toHaveBeenCalledWith(
+      'room-1',
+      '创建一个数据质控团队',
+      [],
+      expect.any(String),
+    )
+    expect(agentTeamsApiMocks.postCaseMessage).not.toHaveBeenCalled()
+
+    // 用户消息乐观上屏；未立项房间显示轻量会话头（无五步进度条、无 onboarding）
+    expect(el.querySelector('.room-stream')?.textContent).toContain('创建一个数据质控团队')
+    expect(el.querySelector('.case-header__room-hint')?.textContent).toContain('尚未立项')
+    expect(el.querySelector('.case-stage')).toBeNull()
+    expect(el.querySelector('.onboarding')).toBeNull()
+    app.unmount()
+  })
+
+  it('建房失败回退旧建 Case 路径：onboarding 显示在消息流顶部，稍后再说后不保留总结气泡', async () => {
     const createdCase = { ...planningCase, case_id: 'case-new', intent: '创建一个数据质控团队', display_title: '数据质控团队' }
     agentTeamsApiMocks.listCases.mockResolvedValueOnce({ items: [] }).mockResolvedValueOnce({ items: [createdCase] })
+    agentTeamsApiMocks.createRoom.mockRejectedValueOnce({ response: { data: { detail: '房间服务不可用' } } })
     agentTeamsApiMocks.createCase.mockResolvedValue(createdCase)
     agentTeamsApiMocks.getCase.mockResolvedValue(createdCase)
 
@@ -274,6 +335,8 @@ describe('协作室房间（已有 Case）发送消息', () => {
     textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
     await flush(20)
 
+    // 建房接口不可用时回退旧的聊天式建 Case，保留 onboarding 引导
+    expect(agentTeamsApiMocks.createCase).toHaveBeenCalledTimes(1)
     const stream = el.querySelector('.room-stream')!
     expect(stream.firstElementChild?.classList.contains('onboarding')).toBe(true)
     expect(stream.textContent).toContain('先认识一下')

@@ -50,3 +50,29 @@ async def test_room_gateway_unconfigured_fails_without_network() -> None:
 
     with pytest.raises(RuntimeError, match="未配置"):
         await service.create_room("session-1", ["bioops-manager"])
+
+
+@pytest.mark.asyncio
+async def test_room_gateway_health_distinguishes_unconfigured_from_reachable(monkeypatch) -> None:
+    unconfigured = AgentTeamsRoomGatewayService(RoomGatewayRuntimeConfig(False, "", "", 10))
+    assert await unconfigured.health_check() == {
+        "configured": False,
+        "connected": False,
+        "reason": "gateway_not_configured",
+    }
+
+    service = AgentTeamsRoomGatewayService(
+        RoomGatewayRuntimeConfig(True, "http://gateway.test", "gateway-secret", 10)
+    )
+
+    async def fake_request(method: str, path: str, **_kwargs):
+        assert (method, path) == ("GET", "/healthz")
+        return {"status": "ok", "matrix": {"configured": True}}
+
+    monkeypatch.setattr(service, "_request", fake_request)
+    assert await service.health_check() == {
+        "configured": True,
+        "connected": True,
+        "reason": None,
+        "matrix": {"configured": True},
+    }

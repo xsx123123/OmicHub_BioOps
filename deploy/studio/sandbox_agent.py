@@ -9,6 +9,7 @@
   （数据不搬家：用户数据以只读软链进沙盒）；直接拼 /data/platform 绝对路径
   仍被拒绝，只允许经工作区内软链跳转；
 - /exec 强制超时强杀；stdout/stderr 流内最多回传 10KB，溢出落 /workspace/.logs/ 文件；
+  plotly 图表经 %%PLOTLY%% 标记行走独立事件通道（单图 JSON ≤3MB），不占流内配额；
 - 沙盒内没有任何平台密钥，网络隔离由容器层保证（本服务不做鉴权，
   宿主侧保证仅宿主可达容器 IP，公网出站白名单为 P2 项）。
 """
@@ -43,6 +44,13 @@ OUTPUT_DIR = "output"  # 产物约定目录（相对 /workspace）
 LOGS_DIR = ".logs"  # 执行溢出日志目录（相对 /workspace）
 STREAM_CAP_BYTES = 10 * 1024  # 流内输出上限 10KB，超出落盘
 STREAM_QUEUE_MAX_CHUNKS = 64  # 慢客户端时限制子进程输出在内存中的待发送块数
+# plotly 标记协议（与 deploy/sandbox/sitecustomize.py、deploy/studio/sitecustomize.py 对齐）：
+# 用户代码调用 show_plotly(fig) 向 stdout 打 `%%PLOTLY%%<fig.to_json()>` 单行，
+# 泵送时拦截为独立 plotly 事件，不占 stdout 的 10KB 流内配额。
+PLOTLY_PREFIX_BYTES = b"%%PLOTLY%%"
+PLOTLY_CAP_BYTES = 3 * 1024 * 1024  # 单图 JSON 上限，与 sitecustomize 侧一致
+# asyncio StreamReader 默认 64KB 行缓冲会对超长 plotly 标记行抛 ValueError，放宽到 8MB
+_STREAM_READER_LIMIT = 8 * 1024 * 1024
 DEFAULT_READ_LIMIT = 200  # 文件分页读取默认行数
 MAX_READ_LIMIT = 2000
 DEFAULT_EXEC_TIMEOUT = 600  # 单次执行默认超时（秒）
@@ -293,12 +301,16 @@ async def _stream_exec(req: ExecRequest):
         cwd=str(WORKSPACE_ROOT),
         start_new_session=True,  # 独立进程组，超时整组强杀
         env={**os.environ, "MPLBACKEND": "Agg"},
+        limit=_STREAM_READER_LIMIT,
     )
 
     async def _pump(
         stream: asyncio.StreamReader, channel: str, overflow_file
     ) -> AsyncIterator[bytes]:
-        """逐行泵送输出；单通道流内上限 10KB，超出部分（含超长行的截断段）写入 .logs 溢出文件。"""
+        """逐行泵送输出；单通道流内上限 10KB，超出部分（含超长行的截断段）写入 .logs 溢出文件。
+
+        %%PLOTLY%% 标记行优先拦截为 plotly 事件（独立配额，不计入 10KB 流内上限）。
+        """
         sent = 0
         streamed_prefix = bytearray()
         truncated = False
@@ -306,6 +318,25 @@ async def _stream_exec(req: ExecRequest):
             line = await stream.readline()
             if not line:
                 break
+            if channel == "stdout" and line.startswith(PLOTLY_PREFIX_BYTES):
+                raw = line[len(PLOTLY_PREFIX_BYTES) :].strip()
+                if len(raw) > PLOTLY_CAP_BYTES:
+                    yield emit(
+                        {
+                            "type": "stderr",
+                            "data": "[omichub] plotly 图表 JSON 超限，已丢弃；请降采样后重试\n",
+                        }
+                    )
+                    continue
+                try:
+                    figure = json.loads(raw)
+                except json.JSONDecodeError:
+                    yield emit(
+                        {"type": "stderr", "data": "[omichub] plotly 标记行解析失败，已跳过\n"}
+                    )
+                    continue
+                yield emit({"type": "plotly", "data": figure})
+                continue
             budget = max(STREAM_CAP_BYTES - sent, 0)
             in_stream, overflow = line[:budget], line[budget:]
             if in_stream:

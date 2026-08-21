@@ -8,6 +8,8 @@ import json
 import re
 import shutil
 import time
+from collections.abc import Awaitable, Callable
+from inspect import isawaitable
 from pathlib import Path
 from typing import Any
 from uuid import UUID, uuid4
@@ -39,9 +41,11 @@ from omichub.infrastructure.database.repositories.file_repository import FileRep
 from omichub.infrastructure.storage.minio_store import MinioStore
 from omichub.infrastructure.storage.path_factory import get_path_factory
 
-_JSON_FENCE_RE = re.compile(r"```json\s*(.*?)\s*```", re.DOTALL | re.IGNORECASE)
+_JSON_FENCE_RE = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.DOTALL | re.IGNORECASE)
 
+# 依据: 待测（经验初值）— 单任务工具调用事件条数上限，防事件流膨胀；验证: 统计真实任务工具调用条数分布 P95
 _TOOL_CALL_EVIDENCE_LIMIT = 200
+# 依据: 待测（经验初值）— 单条工具参数摘要截断长度；验证: 统计参数摘要长度分布与前端展示效果
 _ARGS_SUMMARY_MAX_CHARS = 200
 
 _WORKSPACE_EXEC_PROTOCOL_PATH = (
@@ -54,6 +58,13 @@ _WORKSPACE_EXEC_PROTOCOL_PATH = (
 )
 
 
+class AskUserQuestion(BaseModel):
+    """Manager 向请求人澄清的结构化问题；房间响应链路投影为可交互 ask_user 卡片。"""
+
+    question: str = Field(min_length=1, max_length=500)
+    options: list[str] = Field(default_factory=list, max_length=10)
+
+
 class ConsultationEnvelope(BaseModel):
     conclusion: str = Field(min_length=1, max_length=8_000)
     recommendations: list[str] = Field(default_factory=list, max_length=100)
@@ -63,6 +74,7 @@ class ConsultationEnvelope(BaseModel):
     proposed_submission: dict[str, Any] | None = None
     artifacts: list[dict[str, Any]] = Field(default_factory=list, max_length=100)
     hard_gate: dict[str, Any] | None = None
+    ask_user: list[AskUserQuestion] = Field(default_factory=list, max_length=5)
 
 
 class _BridgeEvidenceProjector:
@@ -102,6 +114,11 @@ class _BridgeEvidenceProjector:
                     f"Agent {agent_id} 调用工具 {tool}",
                     {
                         "tool": tool,
+                        "tool_call_id": str(event.get("tool_call_id") or ""),
+                        "round": int(event.get("round") or 0),
+                        "execution_path": str(
+                            event.get("execution_path") or "agentteams_worker_react"
+                        ),
                         "args_summary": str(event.get("args_summary") or "")[
                             :_ARGS_SUMMARY_MAX_CHARS
                         ],
@@ -128,8 +145,69 @@ class _BridgeEvidenceProjector:
                 f"工具 {tool} 执行{'成功' if success else '失败'}",
                 {
                     "tool": tool,
+                    "tool_call_id": str(event.get("tool_call_id") or ""),
+                    "round": int(event.get("round") or 0),
+                    "execution_path": str(
+                        event.get("execution_path") or "agentteams_worker_react"
+                    ),
+                    "result_summary": str(event.get("result_summary") or "")[:500],
                     "success": success,
                     "duration_ms": int(event.get("duration_ms") or 0),
+                    "work_item_id": self._work_item_id,
+                    "agent_id": agent_id,
+                },
+            )
+        elif event_type == "worker_tool_started":
+            tool = str(event.get("tool_name") or "")
+            self._schedule(
+                "agent.tool_started",
+                f"Agent {agent_id} 开始执行工具 {tool}",
+                {
+                    "tool": tool,
+                    "tool_call_id": str(event.get("tool_call_id") or ""),
+                    "round": int(event.get("round") or 0),
+                    "execution_path": str(
+                        event.get("execution_path") or "agentteams_worker_react"
+                    ),
+                    "work_item_id": self._work_item_id,
+                    "agent_id": agent_id,
+                },
+            )
+        elif event_type == "agent_context_reinjected":
+            self._schedule(
+                "agent.context_reinjected",
+                f"Agent {agent_id} 已将工具结果纳入下一轮分析",
+                {
+                    "tool": str(event.get("tool_name") or ""),
+                    "tool_call_id": str(event.get("tool_call_id") or ""),
+                    "round": int(event.get("round") or 0),
+                    "execution_path": str(event.get("execution_path") or "agentteams_worker_react"),
+                    "work_item_id": self._work_item_id,
+                    "agent_id": agent_id,
+                },
+            )
+        elif event_type == "agent_turn_continued":
+            self._schedule(
+                "agent.turn_continued",
+                f"Agent {agent_id} 进入下一轮分析",
+                {
+                    "round": int(event.get("round") or 0),
+                    "previous_round": int(event.get("previous_round") or 0),
+                    "execution_path": str(event.get("execution_path") or "agentteams_worker_react"),
+                    "work_item_id": self._work_item_id,
+                    "agent_id": agent_id,
+                },
+            )
+        elif event_type == "agent_loop_guard_triggered":
+            reason = str(event.get("reason") or "unknown")
+            self._schedule(
+                "agent.loop_guard_triggered",
+                f"Agent {agent_id} 运行保护已触发：{reason}",
+                {
+                    "reason": reason,
+                    "tool": str(event.get("tool_name") or ""),
+                    "round": int(event.get("round") or 0),
+                    "execution_path": str(event.get("execution_path") or "agentteams_worker_react"),
                     "work_item_id": self._work_item_id,
                     "agent_id": agent_id,
                 },
@@ -207,10 +285,14 @@ class AgentConsultationService:
         requester_ref: str,
         work_item_id: str | None = None,
         execution_mode: str = "readonly_consultation",
+        causation_event_id: str | None = None,
+        on_event: Callable[[dict[str, Any]], Awaitable[None] | None] | None = None,
     ) -> ConsultationEnvelope:
         started = time.monotonic()
         registry = get_agentteams_capability_registry()
-        if agent_id not in registry.consultation_agents():
+        # 除可招募专家外，允许 planner_eligible 的平台内部角色（协作室 Manager，
+        # recruitable=false）参与只读会诊；其余未知 agent 一律拒绝。
+        if agent_id not in registry.internal_consultation_agents():
             raise NotFoundError(f"Agent {agent_id} 不存在或未启用")
         if execution_mode not in {"readonly_consultation", "workspace_execution"}:
             raise ValueError("Unsupported AgentTeams execution mode")
@@ -253,6 +335,14 @@ class AgentConsultationService:
             and work_item_id
             else None
         )
+        event_handlers = [handler for handler in (projector, on_event) if handler is not None]
+
+        async def project_event(event: dict[str, Any]) -> None:
+            for handler in event_handlers:
+                result = handler(event)
+                if isawaitable(result):
+                    await result
+
         result = await self._parallel_service.run(
             user_id=requester_ref,
             parent_agent_id="agent-general",
@@ -269,13 +359,34 @@ class AgentConsultationService:
             db=self._db,
             safe_only=execution_mode == "readonly_consultation",
             runtime_authorized=True,
+            allow_non_spawnable_target=True,
             workdir_root=workdir_root,
-            on_event=projector,
+            on_event=project_event if event_handlers else None,
         )
         if projector is not None:
             await projector.drain()
         raw_answer = self._extract_answer(result)
         envelope, parse_success = self._parse_envelope_with_status(raw_answer)
+        if not parse_success and self._agentteams_service is not None and self._agentteams_service.available:
+            try:
+                await self._agentteams_service.post_case_evidence(
+                    case_id,
+                    work_item_id=work_item_id or "case",
+                    event_type="consultation.parse_failed",
+                    summary="专家会诊未通过结构化信封解析",
+                    payload={
+                        "parse_success": False,
+                        "reason": "invalid_consultation_envelope",
+                        "agent_id": agent_id,
+                        "work_item_id": work_item_id,
+                        "raw_answer_preview": raw_answer[:500],
+                        "causation_event_id": causation_event_id,
+                    },
+                )
+            except Exception as exc:  # noqa: BLE001 - evidence must not hide consultation output
+                logger.bind(case_id=case_id, agent_id=agent_id).warning(
+                    "AgentTeams parse failure evidence projection failed: {}", exc
+                )
         envelope.evidence_refs = self._verified_evidence_refs(result)
         envelope.hard_gate = hard_gate
         self._enforce_hard_gate(envelope)
@@ -297,7 +408,11 @@ class AgentConsultationService:
         )
         if execution_mode == "workspace_execution" and workdir_root is not None:
             artifacts, errors = await self._register_workspace_artifacts(
-                requester_ref, case_id, work_item_id or "", workdir_root
+                requester_ref,
+                case_id,
+                work_item_id or "",
+                workdir_root,
+                causation_event_id=causation_event_id,
             )
             envelope.artifacts = artifacts
             envelope.risks.extend(errors)
@@ -336,14 +451,19 @@ class AgentConsultationService:
             envelope_clause = (
                 "最终答复必须只包含一个 ```json 代码块，结构为："
                 '{"conclusion":"非空结论","recommendations":[],"evidence_refs":[],"risks":[],'
-                '"token_usage":0,"proposed_submission":null,"artifacts":[],"hard_gate":null}。'
+                '"token_usage":0,"proposed_submission":null,"artifacts":[],"hard_gate":null,'
+                '"ask_user":[]}。'
                 "evidence_refs 只允许填写本回合工具成功读取后产生的已核验引用。规划能力调用时 "
-                "proposed_submission 按 Case 类型输出：流程型 Case 输出可校验的 TaskSpec "
-                "参数对象；无 flow_id 的通用 Case 输出 "
+                "proposed_submission 按 Case 类型输出：流程型 Case 必须输出完整 TaskSpec 对象 "
+                '{"flow_id": "流程ID", "name": "任务名", "parameters": {...}, '
+                '"sample_sheet": [{"sample": "样本名", "group": "组别", ...}], '
+                '"quality_gate_required": bool}——sample_sheet 必须是 dict 组成的 list'
+                "（每行一个样本），不允许输出成单个 dict 或描述性文本；"
+                "无 flow_id 的通用 Case 输出 "
                 '{"name": ..., "parameters": {"work_items": [{"work_item_id", "target", '
                 '"objective", "skill_name", "execution_mode": "workspace_execution", '
                 '"depends_on": []}]}, "quality_gate_required": bool}，target 限声明了 '
-                "workspace_execution 的 worker（如 agent-viz、agent-code）。"
+                "workspace_execution 的 worker（如 agent-scrna、agent-rnaseq、agent-viz、agent-code）。"
                 "quality_gate_required 必须显式填写 true/false；只有 true 才会创建独立质控阶段。"
             )
         hard_gate_clause = (
@@ -414,7 +534,13 @@ class AgentConsultationService:
             envelope.conclusion = f"WARNING\n{envelope.conclusion}"[:8_000]
 
     async def _register_workspace_artifacts(
-        self, requester_ref: str, case_id: str, work_item_id: str, workdir: Path
+        self,
+        requester_ref: str,
+        case_id: str,
+        work_item_id: str,
+        workdir: Path,
+        *,
+        causation_event_id: str | None = None,
     ) -> tuple[list[dict[str, Any]], list[str]]:
         try:
             user_id = UUID(str(requester_ref))
@@ -495,6 +621,7 @@ class AgentConsultationService:
                         case_id=case_id,
                         work_item_id=work_item_id,
                         local_path=record.path,
+                        causation_event_id=causation_event_id,
                     ).warning("AgentTeams artifact S3 upload failed: {}", exc)
                 artifacts.append(artifact)
             except (OSError, ValueError) as exc:
@@ -503,7 +630,8 @@ class AgentConsultationService:
 
     @staticmethod
     def _extract_answer(result: dict[str, Any]) -> str:
-        results = (result.get("llm_payload") or {}).get("results") or []
+        llm_payload = result.get("llm_payload") or {}
+        results = llm_payload.get("results") or []
         if results and isinstance(results[0], dict):
             answer = str(results[0].get("answer") or "").strip()
             if answer:
@@ -511,7 +639,11 @@ class AgentConsultationService:
             error = str(results[0].get("error") or "").strip()
             if error:
                 return error
-        return str((result.get("llm_payload") or {}).get("summary") or "会诊未返回内容")
+        error = str(llm_payload.get("error") or result.get("error") or "").strip()
+        if error:
+            return f"会诊执行失败：{error}"
+        summary = str(llm_payload.get("summary") or "").strip()
+        return summary or "会诊未返回内容"
 
     @staticmethod
     def parse_envelope(raw_answer: str) -> ConsultationEnvelope:
@@ -523,7 +655,7 @@ class AgentConsultationService:
         match = _JSON_FENCE_RE.search(raw_answer)
         candidate = match.group(1) if match else raw_answer
         try:
-            payload = json.loads(candidate)
+            payload = json.loads(AgentConsultationService._strip_json_trailing_commas(candidate))
             if not isinstance(payload, dict):
                 raise ValueError("consultation envelope must be an object")
             return ConsultationEnvelope.model_validate(payload), True
@@ -532,6 +664,27 @@ class AgentConsultationService:
                 conclusion=raw_answer[:8_000],
                 risks=["信封解析降级：专家答复未满足结构化 JSON 契约。"],
             ), False
+
+    @staticmethod
+    def _strip_json_trailing_commas(value: str) -> str:
+        result: list[str] = []
+        in_string = False
+        escaped = False
+        for index, char in enumerate(value):
+            if char == '"' and not escaped:
+                in_string = not in_string
+            if char == "," and not in_string:
+                next_index = index + 1
+                while next_index < len(value) and value[next_index].isspace():
+                    next_index += 1
+                if next_index < len(value) and value[next_index] in "}]":
+                    escaped = False
+                    continue
+            result.append(char)
+            escaped = char == "\\" and not escaped
+            if char != "\\":
+                escaped = False
+        return "".join(result)
 
     async def _record_usage(
         self,

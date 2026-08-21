@@ -23,6 +23,9 @@ from omichub.application.services.agent_consultation_service import (
     AgentConsultationService,
     ConsultationEnvelope,
 )
+from omichub.application.services.agentteams_audit_chain_service import (
+    AgentTeamsAuditChainService,
+)
 from omichub.application.services.agentteams_bridge_settings_service import (
     AgentTeamsBridgeSettingsService,
 )
@@ -30,6 +33,11 @@ from omichub.application.services.agentteams_capability_registry import (
     get_agentteams_capability_registry,
 )
 from omichub.application.services.agentteams_case_tool_service import AgentTeamsCaseToolService
+from omichub.application.services.agentteams_room_response_service import (
+    DEFAULT_MANAGER_DISPLAY_NAME,
+    MANAGER_ROOM_ROLE,
+)
+from omichub.application.services.agentteams_room_service import AgentTeamsRoomService
 from omichub.application.services.agentteams_service import (
     AUTO_CONFIRM_CASES_KEY,
     AgentTeamsService,
@@ -39,7 +47,11 @@ from omichub.application.services.project_service import ProjectService
 from omichub.core.config import get_settings
 from omichub.core.exceptions import BusinessError
 from omichub.infrastructure.cache.redis_client import get_redis
-from omichub.infrastructure.database.models.chat import ChatMessageModel, ChatSessionModel
+from omichub.infrastructure.database.models.chat import (
+    AgentTeamsRoomModel,
+    ChatMessageModel,
+    ChatSessionModel,
+)
 from omichub.infrastructure.database.repositories.user_repository import (
     SqlAlchemyUserRepository,
 )
@@ -120,6 +132,21 @@ class ScientificInterpretationRequest(BaseModel):
     requested_tools: list[Annotated[str, Field(min_length=1, max_length=128)]] = Field(
         default_factory=list, max_length=20
     )
+    # Gateway 转发时会携带以下字段；缺失会导致 run_consultation 因缺少
+    # requester_ref 抛 TypeError，会诊一律 500 并退化为 manual_review。
+    requester_ref: str = Field(min_length=1, max_length=256)
+    work_item_id: str | None = Field(default=None, min_length=1, max_length=128)
+    execution_mode: Literal["readonly_consultation", "workspace_execution"] = (
+        "readonly_consultation"
+    )
+
+
+class AgentTeamsChangeDecisionRequest(BaseModel):
+    work_item_ids: list[Annotated[str, Field(min_length=1, max_length=128)]] = Field(
+        min_length=1, max_length=100
+    )
+    decision: Literal["resume", "replan", "branch", "cancel"]
+    rationale: str = Field(default="", max_length=4_000)
     requester_ref: str = Field(min_length=1, max_length=256)
     work_item_id: str | None = Field(default=None, min_length=1, max_length=128)
     execution_mode: Literal["readonly_consultation", "workspace_execution"] = "readonly_consultation"
@@ -150,6 +177,7 @@ async def scientific_interpretation(
 class AgentTeamsCaseCreateRequest(BaseModel):
     session_id: str | None = Field(default=None, min_length=1, max_length=50)
     project_id: str | None = Field(default=None, min_length=1, max_length=256)
+    project_name: str | None = Field(default=None, min_length=1, max_length=200)
     context_refs: list[AgentTeamsContextRef] = Field(default_factory=list, max_length=100)
     intent: str = Field(min_length=1, max_length=256)
     flow_id: str | None = Field(default=None, min_length=1, max_length=128)
@@ -160,8 +188,8 @@ class AgentTeamsCaseCreateRequest(BaseModel):
 
     @model_validator(mode="after")
     def _validate_execution_context(self) -> AgentTeamsCaseCreateRequest:
-        if self.flow_id and not self.project_id:
-            raise ValueError("流程型 Case 必须关联项目")
+        if self.flow_id and not self.project_id and not self.project_name:
+            raise ValueError("流程型 Case 必须关联项目或提供项目名称")
         # 通用 Case 允许空上下文：端点会为聊天式直发注入发起人工作区只读引用。
         return self
 
@@ -186,6 +214,28 @@ class AgentTeamsRoomMessageRequest(BaseModel):
     content: str = Field(min_length=1, max_length=4_000)
     # 房间 @ 引用的工作区文件，作为发言补充上下文写入审计 payload（只读引用）。
     context_refs: list[AgentTeamsContextRef] = Field(default_factory=list, max_length=20)
+    client_message_id: str | None = Field(default=None, min_length=1, max_length=128)
+
+
+class AgentTeamsRoomCreateRequest(BaseModel):
+    """创建协作室房间（轻量会话实体；立项确认前不创建 Case）。"""
+
+    title: str | None = Field(default=None, max_length=200)
+    origin: str = Field(default="manual", min_length=1, max_length=20)
+
+
+class AgentTeamsProposalConfirmRequest(BaseModel):
+    """消费房间立项确认卡：confirm 建 Case 绑定房间；modify/cancel 关闭卡片。
+
+    confirm_token 为可选的二次校验 nonce（复审清单 B1）：token 不再经事件流
+    分发，owner + 房间存在 pending 立项卡即可确认；携带 token 时须比对通过。
+    """
+
+    confirm_token: str | None = Field(default=None, min_length=20, max_length=256)
+    decision: Literal["confirm", "modify", "cancel"]
+    # followup 卡（Case 终态后再立项）专用：基于上一 Case 继续 / 新建工单。
+    followup_mode: Literal["continue", "new"] | None = None
+    note: str | None = Field(default=None, max_length=1_000)
 
 
 class AgentTeamsPlanRevisionRequest(BaseModel):
@@ -231,11 +281,23 @@ async def get_status(service: AgentTeamsServiceDep) -> dict[str, bool | str | No
 
 @router.get("/role-labels", summary="获取 AgentTeams 角色展示元数据")
 async def agentteams_role_labels(_current_user_id: CurrentUserId) -> dict[str, Any]:
-    """用户态只读端点：供团队协作室渲染发言人名称/头像/颜色。"""
+    """用户态只读端点：供团队协作室渲染发言人名称/头像/颜色。
+
+    同时下发 Manager 展示身份（display_name 的唯一权威来源是 manager agent
+    YAML 的 name）：前端仅存储用户手动覆盖值，无覆盖时透传本字段。
+    """
     snapshot = get_agentteams_capability_registry().snapshot()
+    manager_label = snapshot["role_labels"].get(MANAGER_ROOM_ROLE) or {}
+    manager_display_name = (
+        str(manager_label.get("name") or "").strip() or DEFAULT_MANAGER_DISPLAY_NAME
+    )
     return {
         "role_labels": snapshot["role_labels"],
         "role_agent_map": snapshot["role_agent_map"],
+        "manager": {
+            "agent_id": get_settings().agentteams_manager_agent_id,
+            "display_name": manager_display_name,
+        },
     }
 
 
@@ -273,6 +335,15 @@ async def create_case(
         raise BusinessError("该流程没有可用的 active Agent，无法创建协作 Case")
     if request.project_id:
         await _require_owned_project(db, current_user_id, request.project_id)
+    elif request.project_name:
+        # 聊天式 Case 的项目名由需求文本生成：同名存量项目直接复用，
+        # 删除 Case 后用同一需求重新建单不应报"同名项目已存在"。
+        project = await ProjectService(db).get_or_create_project_by_name(
+            UUID(current_user_id), request.project_name
+        )
+        request.project_id = str(project["id"])
+    elif request.flow_id:
+        raise BusinessError("流程型 Case 必须关联项目或提供项目名称")
     session = None
     if request.session_id:
         session = await db.scalar(
@@ -297,6 +368,7 @@ async def create_case(
     case = await service.create_case(
         case_id=f"bioops_{uuid4().hex}",
         project_id=request.project_id,
+        project_name=request.project_name,
         context_refs=context_refs,
         intent=request.intent,
         requester_ref=current_user_id,
@@ -388,9 +460,15 @@ async def confirm_case(
 
 @router.get("/cases/{case_id}", summary="获取当前用户的 Agent 协作案例详情")
 async def get_case(
-    case_id: str, current_user_id: CurrentUserId, service: AgentTeamsServiceDep
+    case_id: str, current_user_id: CurrentUserId, service: AgentTeamsServiceDep, db: DbSession
 ) -> dict[str, Any]:
-    return await service.get_case(case_id, current_user_id)
+    case = await service.get_case(case_id, current_user_id)
+    if case.get("status") == "closed":
+        try:
+            await service.get_manifest_with_delivery(case_id, current_user_id, db=db)
+        except Exception:
+            logger.exception("AgentTeams delivery projection failed for case {}", case_id)
+    return case
 
 
 @router.post("/cases/{case_id}/refresh", summary="同步当前协作案例的任务状态")
@@ -425,9 +503,22 @@ async def revise_case_plan(
 
 @router.get("/cases/{case_id}/manifest", summary="获取当前用户的交付 Manifest")
 async def get_manifest(
-    case_id: str, current_user_id: CurrentUserId, service: AgentTeamsServiceDep
+    case_id: str, current_user_id: CurrentUserId, service: AgentTeamsServiceDep, db: DbSession
 ) -> dict[str, Any]:
-    return await service.get_manifest(case_id, current_user_id)
+    return await service.get_manifest_with_delivery(case_id, current_user_id, db=db)
+
+
+@router.get("/cases/{case_id}/capability-check", summary="获取 Flow 交接前能力检查")
+async def get_case_capability_check(
+    case_id: str,
+    current_user_id: CurrentUserId,
+    service: AgentTeamsServiceDep,
+) -> dict[str, Any]:
+    case = await service.get_case(case_id, current_user_id)
+    flow_id = str(case.get("flow_id") or "")
+    if not flow_id:
+        return {"flow_id": None, "available": True, "stages": [], "reason": "通用 Case 无专项 Flow"}
+    return await service.flow_capability_check(flow_id)
 
 
 @router.get("/cases/{case_id}/artifacts/{artifact_path:path}", summary="读取当前 Case 的受控产物")
@@ -559,15 +650,226 @@ async def post_case_message(
         current_user_id,
         request.content,
         context_refs=[ref.model_dump(exclude_none=True) for ref in request.context_refs],
+        client_message_id=request.client_message_id,
     )
-    try:
-        from omichub.infrastructure.celery_app.tasks.agentteams import respond_to_room_message
+    response_dispatch = "deduplicated" if result.get("deduplicated") else "queued"
+    if not result.get("deduplicated"):
+        try:
+            from omichub.infrastructure.celery_app.tasks.agentteams import respond_to_room_message
 
-        respond_to_room_message.delay(case_id, current_user_id, request.content.strip())
-    except Exception as exc:  # noqa: BLE001 - Manager 响应调度失败不影响发言落盘
-        logger.bind(case_id=case_id).warning(
-            "AgentTeams room response dispatch failed: {}", exc
-        )
+            respond_to_room_message.delay(
+                case_id,
+                current_user_id,
+                request.content.strip(),
+                result.get("dispatch") if isinstance(result, dict) else None,
+            )
+        except Exception as exc:  # noqa: BLE001 - Manager 响应调度失败不影响发言落盘
+            logger.bind(case_id=case_id).warning(
+                "AgentTeams room response dispatch failed: {}", exc
+            )
+            response_dispatch = "failed"
+    return {**result, "response_dispatch": response_dispatch}
+
+
+def _room_payload(room: AgentTeamsRoomModel) -> dict[str, Any]:
+    proposal = room.proposal if isinstance(room.proposal, dict) else None
+    pending_proposal = bool(proposal and proposal.get("status") == "pending")
+    return {
+        "room_id": room.room_id,
+        "title": room.title,
+        "status": room.status,
+        "origin": room.origin,
+        "origin_ref": room.origin_ref,
+        "case_id": room.case_id,
+        "matrix_room_provisioned": bool(room.matrix_room_id),
+        "has_pending_proposal": pending_proposal,
+        "created_at": room.created_at.isoformat() if room.created_at else None,
+        "updated_at": room.updated_at.isoformat() if room.updated_at else None,
+    }
+
+
+@router.post(
+    "/rooms",
+    status_code=status.HTTP_201_CREATED,
+    summary="创建协作室房间（轻量会话实体，立项确认前不创建 Case）",
+)
+async def create_room(
+    request: AgentTeamsRoomCreateRequest,
+    current_user_id: CurrentUserId,
+    service: AgentTeamsServiceDep,
+    db: DbSession,
+) -> dict[str, Any]:
+    room = await AgentTeamsRoomService(db, service).create_room(
+        owner_id=current_user_id, title=request.title, origin=request.origin
+    )
+    return _room_payload(room)
+
+
+@router.get("/rooms", summary="获取当前用户的协作室房间列表")
+async def list_rooms(
+    current_user_id: CurrentUserId,
+    service: AgentTeamsServiceDep,
+    db: DbSession,
+) -> dict[str, Any]:
+    rooms = await AgentTeamsRoomService(db, service).list_rooms(current_user_id)
+    return {"items": [_room_payload(room) for room in rooms], "total": len(rooms)}
+
+
+@router.get("/rooms/{room_id}", summary="获取协作室房间详情")
+async def get_room(
+    room_id: str,
+    current_user_id: CurrentUserId,
+    service: AgentTeamsServiceDep,
+    db: DbSession,
+) -> dict[str, Any]:
+    room = await AgentTeamsRoomService(db, service).get_room(room_id, current_user_id)
+    return _room_payload(room)
+
+
+@router.post(
+    "/rooms/{room_id}/messages",
+    status_code=status.HTTP_201_CREATED,
+    summary="向协作室房间发送用户发言（未立项房间落房间级事件流）",
+)
+async def post_room_message(
+    room_id: str,
+    request: AgentTeamsRoomMessageRequest,
+    current_user_id: CurrentUserId,
+    service: AgentTeamsServiceDep,
+    db: DbSession,
+) -> dict[str, Any]:
+    rooms = AgentTeamsRoomService(db, service)
+    room = await rooms.get_room(room_id, current_user_id)
+    result = await rooms.post_room_message(
+        room,
+        current_user_id,
+        request.content,
+        context_refs=[ref.model_dump(exclude_none=True) for ref in request.context_refs],
+        client_message_id=request.client_message_id,
+    )
+    response_dispatch = "deduplicated" if result.get("deduplicated") else "queued"
+    if not result.get("deduplicated"):
+        try:
+            from omichub.infrastructure.celery_app.tasks.agentteams import (
+                respond_to_room_namespace_message,
+            )
+
+            respond_to_room_namespace_message.delay(
+                room.room_id,
+                current_user_id,
+                request.content.strip(),
+                result.get("dispatch") if isinstance(result, dict) else None,
+            )
+        except Exception as exc:  # noqa: BLE001 - Manager 响应调度失败不影响发言落盘
+            logger.bind(room_id=room.room_id).warning(
+                "AgentTeams room response dispatch failed: {}", exc
+            )
+            response_dispatch = "failed"
+    return {**result, "response_dispatch": response_dispatch, "room_id": room.room_id}
+
+
+@router.post(
+    "/rooms/{room_id}/confirm-proposal",
+    summary="确认/修改/取消房间立项卡（确认后才创建 Case 并绑定房间）",
+)
+async def confirm_room_proposal(
+    room_id: str,
+    request: AgentTeamsProposalConfirmRequest,
+    current_user_id: CurrentUserId,
+    service: AgentTeamsServiceDep,
+    db: DbSession,
+) -> dict[str, Any]:
+    rooms = AgentTeamsRoomService(db, service)
+    room = await rooms.get_room(room_id, current_user_id)
+    return await rooms.confirm_proposal(
+        room,
+        current_user_id,
+        confirm_token=request.confirm_token,
+        decision=request.decision,
+        followup_mode=request.followup_mode,
+        note=request.note,
+    )
+
+
+@router.get("/rooms/{room_id}/events", summary="获取协作室房间聚合事件（房间级 + 已绑定 Case 级）")
+async def get_room_events(
+    room_id: str,
+    current_user_id: CurrentUserId,
+    service: AgentTeamsServiceDep,
+    db: DbSession,
+    cursor: str | None = None,
+    limit: Annotated[int, Query(ge=1)] = 100,
+) -> dict[str, Any]:
+    rooms = AgentTeamsRoomService(db, service)
+    room = await rooms.get_room(room_id, current_user_id)
+    # E2E-2 口径：limit 超上界不对用户报 422，钳制到单页上限 100，
+    # 调用方凭 next_cursor 续拉剩余事件。
+    return await rooms.get_room_events(
+        room, current_user_id, cursor=cursor, limit=min(limit, 100)
+    )
+
+
+@router.get("/rooms/{room_id}/events/stream", summary="实时监听协作室房间聚合事件")
+async def stream_room_events(
+    room_id: str,
+    current_user_id: CurrentUserId,
+    service: AgentTeamsServiceDep,
+    db: DbSession,
+    cursor: str | None = None,
+) -> StreamingResponse:
+    rooms = AgentTeamsRoomService(db, service)
+    room = await rooms.get_room(room_id, current_user_id)
+
+    async def event_generator():
+        try:
+            async for event in rooms.stream_room_events(room, current_user_id, cursor=cursor):
+                yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(f"[AgentTeams] 房间事件流中断（room {room_id[:16]}）: {exc}")
+            yield f"data: {json.dumps({'type': 'error', 'message': str(exc)}, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@router.post(
+    "/cases/{case_id}/change-decisions",
+    status_code=status.HTTP_201_CREATED,
+    summary="提交运行中工作项的变更决策",
+)
+async def apply_case_change_decision(
+    case_id: str,
+    request: AgentTeamsChangeDecisionRequest,
+    current_user_id: CurrentUserId,
+    service: AgentTeamsServiceDep,
+) -> dict[str, Any]:
+    result = await service.apply_change_decision(
+        case_id,
+        current_user_id,
+        work_item_ids=request.work_item_ids,
+        decision=request.decision,
+        rationale=request.rationale,
+    )
+    if request.decision in {"resume", "replan", "branch"}:
+        try:
+            from omichub.infrastructure.celery_app.tasks.agentteams import respond_to_room_message
+
+            respond_to_room_message.delay(
+                case_id,
+                current_user_id,
+                f"系统决策：用户选择 {request.decision}。请 Manager 根据审计事件继续编排，必要时先补充澄清和审批。",
+            )
+        except Exception as exc:  # noqa: BLE001 - decision evidence must survive dispatch failure
+            logger.bind(case_id=case_id).warning(
+                "AgentTeams change decision follow-up dispatch failed: {}", exc
+            )
     return result
 
 
@@ -577,9 +879,35 @@ async def get_case_events(
     current_user_id: CurrentUserId,
     service: AgentTeamsServiceDep,
     cursor: str | None = None,
-    limit: int = 100,
+    limit: Annotated[int, Query(ge=1, le=100)] = 100,
 ) -> dict[str, Any]:
     return await service.get_case_events(case_id, current_user_id, cursor=cursor, limit=limit)
+
+
+@router.get(
+    "/cases/{case_id}/audit-chain",
+    summary="获取协作案例全量业务事件链（含房间关联事件，统一审计总线查询入口）",
+)
+async def get_case_audit_chain(
+    case_id: str,
+    current_user_id: CurrentUserId,
+    db: DbSession,
+    service: AgentTeamsServiceDep,
+    max_events: Annotated[int, Query(ge=1, le=20000)] = 5000,
+) -> dict[str, Any]:
+    chain_service = AgentTeamsAuditChainService(db, agentteams=service)
+    return await chain_service.get_case_audit_chain(
+        case_id, current_user_id, max_events=max_events
+    )
+
+
+@router.get("/cases/{case_id}/response-timing", summary="获取协作案例响应耗时摘要")
+async def get_case_response_timing(
+    case_id: str,
+    current_user_id: CurrentUserId,
+    service: AgentTeamsServiceDep,
+) -> dict[str, Any]:
+    return await service.get_room_response_timing_summary(case_id, current_user_id)
 
 
 @router.get("/cases/{case_id}/events/stream", summary="实时监听当前用户的协作案例事件")

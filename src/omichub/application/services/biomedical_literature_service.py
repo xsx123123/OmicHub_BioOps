@@ -75,12 +75,14 @@ class BiomedicalLiteratureService:
         return {
             "title": title,
             "url": url,
+            "link": url,
             "abstract": abstract,
             "snippet": abstract[:1200] or bibliographic,
             "claim": abstract[:1200] or bibliographic,
             "authors": str(raw.get("authorString") or "").strip(),
             "journal": str(raw.get("journalTitle") or "").strip(),
             "publication_year": str(raw.get("pubYear") or "").strip(),
+            "year": str(raw.get("pubYear") or "").strip(),
             "publication_type": str(raw.get("pubType") or "").strip(),
             "is_open_access": str(raw.get("isOpenAccess") or "").upper() == "Y",
             "cited_by_count": int(raw.get("citedByCount") or 0),
@@ -88,5 +90,6 @@ class BiomedicalLiteratureService:
             "pmcid": pmcid,
             "doi": doi,
             "provider": "europe_pmc",
+            "source": "Europe PMC",
             "confidence": "high",
         }

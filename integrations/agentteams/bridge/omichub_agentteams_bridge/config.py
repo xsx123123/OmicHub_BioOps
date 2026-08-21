@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -12,6 +14,8 @@ class BridgeSettings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_prefix="BRIDGE_", extra="ignore")
 
     environment: str = "development"
+    build_sha: str = "unknown"
+    build_time: str = "unknown"
     omichub_base_url: str = "http://omichub-api:8000"
     omichub_service_token: str = ""
     omichub_api_key: str = ""
@@ -21,11 +25,15 @@ class BridgeSettings(BaseSettings):
     role_agent_map: str = ""
     discovered_flow_agent_map: dict[str, str] = Field(default_factory=dict, exclude=True)
     discovered_flow_quality_gate_map: dict[str, bool] = Field(default_factory=dict, exclude=True)
+    discovered_flow_standard_work_items: dict[str, dict[str, str]] = Field(
+        default_factory=dict, exclude=True
+    )
     discovered_role_agent_map: dict[str, str] = Field(default_factory=dict, exclude=True)
     discovered_worker_profiles: dict[str, dict[str, str]] = Field(
         default_factory=dict, exclude=True
     )
     discovered_workspace_execution_identities: set[str] = Field(default_factory=set, exclude=True)
+    discovered_agent_personas: dict[str, dict[str, Any]] = Field(default_factory=dict, exclude=True)
     approval_signing_secret: str = "change-me-before-deployment"
     identities: str = (
         "approval-authority:approval-secret,bioops-manager:manager-secret,data-steward:steward-secret,"
@@ -34,22 +42,46 @@ class BridgeSettings(BaseSettings):
         "agent-scrna:scrna-secret,agent-rnaseq:rnaseq-secret,analysis-worker:analysis-secret"
     )
     allowed_flow_ids: str = "rna_seq,scrna_seq"
+    # 依据: 待测（经验初值）— Bridge 调用 OmicHub 上游的单次上限；验证: 采集上游响应 P95 后校准
     request_timeout_seconds: float = 20.0
+    # 依据: 待测（经验初值）— 1MiB 覆盖立项/计划 JSON 正常体积；验证: 监控超界拒绝日志再调整
     max_request_bytes: int = Field(default=1_048_576, ge=1_024, le=16_777_216)
+    # 依据: 待测（经验初值）— 同上，响应侧对称口径
     max_response_bytes: int = Field(default=1_048_576, ge=1_024, le=16_777_216)
+    # 依据: 待测（经验初值）— 单条证据摘要上限 16KiB；验证: 统计真实证据字段长度分布
     max_evidence_bytes: int = 16_384
+    # 依据: 待测（经验初值）— Worker 失联判定（语义见 docs/configuration/多Agent协作配置指南.md:50）；
+    # 验证: 以 Worker inbox 轮询周期 ×3 为基线，观察 sweep 误回收率
     worker_heartbeat_ttl_seconds: int = Field(default=180, ge=30, le=3_600)
+    # 依据: 待测（经验初值）— 失联租约清扫节拍，应远小于 heartbeat TTL(180s)；验证: 失联到回收的实测延迟
+    work_item_sweep_interval_seconds: int = Field(default=30, ge=0, le=3_600)
+    # 依据: 待测（经验初值）— Omic 任务无进展看门狗；验证: evidence/e2e-2026-08-21/E2E-1
+    # 曾观测 preflight 卡死 17min+ 未被终止，需复测触发正确性
     omic_task_stall_timeout_seconds: int = Field(default=900, ge=30, le=86_400)
+    # 依据: 待测（经验初值）— 验证: E2E-1 规划段（含 3 轮校验自愈）真实耗时可作校准样本
     planning_timeout_seconds: int = Field(default=120, ge=10, le=86_400)
+    # 依据: 待测（经验初值）— 单工作项执行上限；验证: 统计真实执行耗时分位数后校准
     execution_timeout_seconds: int = Field(default=600, ge=60, le=86_400)
+    # 依据: 待测（经验初值）— 容量护栏，防止单请求者占满 Worker 池；验证: 压测并发 Case 与池容量
     max_active_cases_per_requester: int = Field(default=3, ge=1, le=100)
+    # 依据: 待测（经验初值）— 同上，项目维度护栏
     max_active_cases_per_project: int = Field(default=5, ge=1, le=100)
+    # 依据: 待测（经验初值）— 单 Case 工作项并发护栏；验证: 压测单 Case 扇出对状态存储的压力
     max_active_work_items_per_case: int = Field(default=8, ge=1, le=500)
-    case_gc_days: int = Field(default=7, ge=0, le=3650)
+    case_gc_days: int = Field(default=7, ge=0, le=3650)  # 依据: 待测（经验初值）— 与平台证据保留 30 天口径的关系待明确；验证: 观察 GC 前是否有审计回放需求
     state_store_url: str = ""
     state_store_key_prefix: str = "omichub:agentteams"
     audit_log_path: str = "/tmp/omichub-agentteams-bridge-audit.jsonl"
     case_store_path: str = "/tmp/omichub-agentteams-bridge-cases.json"
+    # MinIO 持久层（事实源）；未配置时非生产环境回退 Redis/本地文件模式并打 warning。
+    minio_endpoint: str = ""
+    minio_access_key: str = ""
+    minio_secret_key: str = ""
+    minio_bucket: str = "agentteams"
+    minio_secure: bool = False
+    # 依据: 上游契约 — 设计文档 docs/info/26.8.21/协作室架构升级方案-MinIO持久化与Case解耦及L4前置收尾.md:70
+    # 建议 50MB 分卷阈值；minio_store.py 追加为读-改-写尾卷，阈值即单卷整载内存上限
+    minio_event_object_max_bytes: int = Field(default=52_428_800, ge=1_048_576)
     worker_token_store_path: str = "/tmp/omichub-agentteams-bridge-worker-tokens.json"
     manifest_dir: str = "/tmp/omichub-agentteams-bridge-manifests"
 
@@ -90,6 +122,8 @@ class BridgeSettings(BaseSettings):
             raise ValueError("生产环境必须替换 Gateway Manager token")
         if not self.state_store_url:
             raise ValueError("生产环境必须配置 Redis 共享状态存储")
+        if not self.minio_endpoint:
+            raise ValueError("生产环境必须配置 MinIO 持久层（BRIDGE_MINIO_ENDPOINT）")
         return self
 
     @staticmethod
@@ -144,6 +178,17 @@ class BridgeSettings(BaseSettings):
                 for flow_id, required in flow_quality_gate_map.items()
                 if str(flow_id).strip()
             }
+        standard_work_items = payload.get("flow_standard_work_items")
+        if isinstance(standard_work_items, dict):
+            self.discovered_flow_standard_work_items = {
+                str(flow_id): {
+                    str(kind): str(target)
+                    for kind, target in targets.items()
+                    if str(kind).strip() and str(target).strip()
+                }
+                for flow_id, targets in standard_work_items.items()
+                if str(flow_id).strip() and isinstance(targets, dict)
+            }
         if isinstance(role_map, dict):
             self.discovered_role_agent_map = {
                 str(role): str(agent_id)
@@ -179,6 +224,35 @@ class BridgeSettings(BaseSettings):
                 for identity, agent_id in self.discovered_role_agent_map.items()
                 if agent_id in allowed_agent_ids
             }
+            # persona 仅作展示用途(状态文案/成员副标题),不参与任何权限判定
+            self.discovered_agent_personas = {
+                str(item.get("agent_id") or "").strip(): item["persona"]
+                for item in agent_capabilities.values()
+                if isinstance(item, dict)
+                and str(item.get("agent_id") or "").strip()
+                and isinstance(item.get("persona"), dict)
+            }
+
+    def persona_status_line_for(self, agent_id: str, phase: str) -> str | None:
+        """按 agent_id 取该状态阶段的人格播报文案;未配置返回 None。"""
+        persona = self.discovered_agent_personas.get(agent_id) or {}
+        lines = persona.get("status_lines")
+        if not isinstance(lines, dict):
+            return None
+        candidates = lines.get(phase)
+        if isinstance(candidates, str) and candidates.strip():
+            return candidates.strip()
+        if isinstance(candidates, list):
+            for item in candidates:
+                if str(item).strip():
+                    return str(item).strip()
+        return None
 
     def quality_gate_for_flow(self, flow_id: str) -> bool:
         return bool(self.discovered_flow_quality_gate_map.get(flow_id, False))
+
+    def standard_work_item_target(self, flow_id: str, kind: str) -> str | None:
+        """O5:流程 YAML 显式声明的标准工作项 target;未声明返回 None(走缺省)。"""
+        targets = self.discovered_flow_standard_work_items.get(flow_id) or {}
+        target = str(targets.get(kind) or "").strip()
+        return target or None

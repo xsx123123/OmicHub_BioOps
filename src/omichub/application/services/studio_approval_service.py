@@ -62,6 +62,7 @@ class StudioApprovalService:
         tool_name: str,
         arguments: dict[str, Any],
         risk_hint: str = "",
+        approval_kind: str = "tool",
     ) -> dict[str, Any]:
         """创建 pending 审批记录并写入 Redis（TTL 300s），返回记录字典。"""
         record: dict[str, Any] = {
@@ -72,6 +73,7 @@ class StudioApprovalService:
             "tool_name": tool_name,
             "arguments": arguments,
             "risk_hint": risk_hint,
+            "approval_kind": approval_kind,
             "status": "pending",
         }
         await get_redis().setex(

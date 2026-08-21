@@ -7,7 +7,11 @@ import { formatAgentTeamsStatus } from '@/utils/agentTeamsStatus'
 import AgentTeamsCaseCard from '../AgentTeamsCaseCard.vue'
 
 vi.mock('@/api/agentTeams', () => ({
-  agentTeamsApi: { getCase: vi.fn(), getEvents: vi.fn().mockResolvedValue({ events: [] }) },
+  agentTeamsApi: {
+    getCase: vi.fn(),
+    getEvents: vi.fn().mockResolvedValue({ events: [] }),
+    getCapabilityCheck: vi.fn().mockResolvedValue({ flow_id: null, available: true, stages: [] }),
+  },
 }))
 
 describe('AgentTeamsCaseCard', () => {
@@ -66,6 +70,35 @@ describe('AgentTeamsCaseCard', () => {
 
     expect(host.textContent).toContain('按冻结计划重试')
     expect(host.textContent).toContain('新的提交版本')
+
+    app.unmount()
+  })
+
+  it('makes an unassigned received Case explicit', () => {
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/agent-teams/cases/:id', component: { template: '<div />' } }],
+    })
+    const host = document.createElement('div')
+    const app = createApp({
+      render: () => h(AgentTeamsCaseCard, {
+        caseInfo: {
+          case_id: 'case-received',
+          title: '等待规划的分析 Case',
+          status: 'received',
+          next_actor: '协作团队',
+          case_url: '/agent-teams/cases/case-received',
+        },
+      }),
+    })
+    app.use(pinia)
+    app.use(router)
+    app.mount(host)
+
+    expect(host.textContent).toContain('尚未派发')
+    expect(host.textContent).toContain('等待规划或人工确认')
 
     app.unmount()
   })

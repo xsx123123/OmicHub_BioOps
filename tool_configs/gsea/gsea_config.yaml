@@ -1,0 +1,11 @@
+input:
+  supported_extensions: [.csv, .tsv]
+  required_columns: [gene_id, score]
+  min_genes: 10
+analysis:
+  gene_sets: [GO_BP, GO_MF, GO_CC, KEGG]
+  default_p_value_cutoff: 0.05
+  default_q_value_cutoff: 0.1
+output:
+  result_columns: [ID, Description, NES, pvalue, p.adjust, qvalue, setSize, leading_edge_count]
+  curve_file: running_scores.json

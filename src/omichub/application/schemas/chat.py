@@ -122,6 +122,8 @@ class ChatSessionDTO(BaseModel):
     extra_mcp_servers: list[str] = Field(default_factory=list)
     multi_agent: bool = False
     overdrive: bool = False
+    # L2→L4 升级状态（suggested/dismissed/upgraded，含 room_id 只读标记）；无升级为 None。
+    agentteams_upgrade: dict[str, Any] | None = None
 
 
 class ChatAssistantDTO(BaseModel):
@@ -186,6 +188,13 @@ class OverdriveBranchApprovalRequest(BaseModel):
     command_id: str = Field(..., min_length=1, max_length=128)
     action: Literal["approve", "reject"]
     reason: str = Field("", max_length=2_000)
+
+
+class AgentTeamsUpgradeDecisionRequest(BaseModel):
+    """L2→L4 升级建议卡的用户决策：accept 创建协作室房间并移交上下文；dismiss 不再弹卡。"""
+
+    action: Literal["accept", "dismiss"]
+    suggestion_id: str | None = Field(None, max_length=64)
 
 
 class ChatSearchContentMatchDTO(BaseModel):

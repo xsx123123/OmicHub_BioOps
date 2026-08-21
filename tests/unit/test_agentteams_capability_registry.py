@@ -159,17 +159,26 @@ delivery: {quality_gate: true, outputs: [result]}
     assert registry.agent_for_flow("fallback") == "agent-general"
 
 
-def test_registry_covers_fourteen_recruitable_experts() -> None:
+def test_registry_covers_fifteen_recruitable_experts() -> None:
     registry = AgentTeamsCapabilityRegistry(agent_configs=load_agent_configs())
 
     role_map = registry.role_agent_map()
     capabilities = registry.agent_capabilities()
 
-    assert len(role_map) == 14
-    assert sum(item["recruitable"] for item in capabilities.values()) == 14
+    # 15 个可招募专家 + 1 个不可招募的协作室 Manager（bioops-manager）。
+    assert len(role_map) == 16
+    assert sum(item["recruitable"] for item in capabilities.values()) == 15
     # agent-router 与 shania 是路由/人设型 agent，不参与 Case 执行。
     assert "agent-router" not in role_map
     assert "shania" not in role_map
+    # Manager 人格分层：独立 agent，显式不可招募、保持 planner 入口能力，
+    # 不进可招募会诊集合，但可作为内部会诊对象（房间 Manager 回路）。
+    manager = capabilities["bioops-manager"]
+    assert manager["agent_id"] == "agentteams-manager"
+    assert manager["recruitable"] is False
+    assert manager["planner_eligible"] is True
+    assert "agentteams-manager" not in registry.consultation_agents()
+    assert "agentteams-manager" in registry.internal_consultation_agents()
     assert registry.role_alias_map() == {
         "data-steward": "agent-data",
         "quality-auditor": "agent-qc",
@@ -206,5 +215,5 @@ def test_agentteams_team_manifest_contains_all_recruitable_experts() -> None:
         if capability["recruitable"]
     }
 
-    assert len(recruitable_ids) == 14
+    assert len(recruitable_ids) == 15
     assert worker_ids == recruitable_ids | {"workflow-operator"}

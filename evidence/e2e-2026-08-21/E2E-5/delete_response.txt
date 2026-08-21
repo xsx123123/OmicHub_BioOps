@@ -1,0 +1,1 @@
+{"case_id":"bioops_20272b2afce74d728ebe0e204bece70c","deleted":true,"cancelled_before_delete":true,"deleted_events":119}HTTP 200

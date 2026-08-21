@@ -29,7 +29,29 @@
 #   ui_result_fields   透传给前端的字段白名单
 # --------------------------------------------
 
+# 默认维持 full，Agent 可显式切换 retrieval 以启用渐进披露。
+tool_selection:
+  mode: full
+  top_n: 8
+
 tools:
+  - key: toolbox-search
+    name: omichub_toolbox_search
+    description: 检索未在当前上下文展示的生信工具，返回工具名称与用途摘要。适用于“有没有能做某分析的工具”“找共线性或富集功能”等请求；已明确可调用工具时不要先检索。输入 query 为自然语言任务或数据类型，不支持文件内容和 upload://file_id。
+    keywords: [toolbox, tool search, 工具检索, 工具箱, 查找工具, discover tools]
+    category: toolbox
+    invocation_mode: backend_async
+    requires_confirm: false
+    annotations: {readOnlyHint: true, destructiveHint: false, openWorld: false, idempotent: true}
+    input_schema:
+      type: object
+      properties:
+        query: {type: string, description: 想查找的生信分析任务、数据类型或工具名称}
+        limit: {type: integer, minimum: 1, maximum: 20, default: 20, description: 返回候选工具数量上限}
+      required: [query]
+    llm_result_fields: [matches, summary, success, error]
+    ui_result_fields: [matches]
+
   - key: agent-handoff-transfer
     name: transfer_to_agent
     description: 将当前会话交接给白名单中的下一位专业 Agent。必须提供已完成工作、用户诉求和工作区产物摘要；不能用于绕过 Agent 授权。
@@ -137,7 +159,7 @@ tools:
     input_schema:
       type: object
       properties:
-        task_id: {type: string, description: 当前用户拥有的任务 UUID}
+        task_id: {type: string, description: 当前用户拥有的 Pipeline 任务 UUID（不是 bioops_ 开头的 AgentTeams Case ID，Case 未产生任务时不要调用本工具）}
       required: [task_id]
     llm_result_fields: [task_id, status, flow_id, parameters, metrics, artifacts, file_records, error_excerpt, success, error]
     ui_result_fields: []
@@ -155,7 +177,7 @@ tools:
     input_schema:
       type: object
       properties:
-        task_id: {type: string, description: 当前用户拥有的任务 UUID}
+        task_id: {type: string, description: 当前用户拥有的 Pipeline 任务 UUID（不是 bioops_ 开头的 AgentTeams Case ID，Case 未产生任务时不要调用本工具）}
         path: {type: string, description: 相对于任务根目录的文件路径}
         max_bytes: {type: integer, minimum: 1, maximum: 20000, default: 20000}
       required: [task_id, path]
@@ -317,13 +339,36 @@ tools:
     llm_result_fields: [memories, count, summary, success, error]
     ui_result_fields: []
 
+  - key: agent-memory-block-update
+    name: omichub_update_memory_block
+    description: 使用乐观锁更新当前 Agent 的命名记忆块。调用前必须先读取当前块内容和 version，并只提交增量修改。
+    category: agent-memory
+    invocation_mode: backend_sync
+    service: omichub.application.services.agent_memory_tool_service.AgentMemoryToolService
+    method: update_memory_block
+    requires_confirm: false
+    annotations: {readOnlyHint: false, destructiveHint: false, openWorld: false, idempotent: true}
+    extra: {user_scoped: true}
+    input_schema:
+      type: object
+      properties:
+        block_name: {type: string, enum: [profile, preferences, current_focus]}
+        content: {type: string, description: 更新后的完整块内容}
+        expected_version: {type: integer, minimum: 1}
+      required: [block_name, content, expected_version]
+    llm_result_fields: [block_name, version, summary, success, error]
+    ui_result_fields: []
+
+
   - key: kegg-enrichment
     name: omichub_run_kegg_enrichment
-    description: 对基因列表进行 KEGG 通路富集分析，返回 Top 通路摘要与 Plotly 气泡图。
+    description: 对无排序基因列表做 GO/KEGG 富集，返回分来源通路表和气泡图。适用于“这些基因富集到什么通路”“做 GO 或 KEGG 注释”；全基因按 log2FC 等分数排序时请改用 GSEA，原始 counts 请改用 DEG。输入 species_id 和每行一个 gene_text，gene_text 也支持 upload://file_id。
+    keywords: [enrichment, GO, KEGG, ORA, over representation, 基因富集, 通路富集, 功能富集]
     category: enrichment
     invocation_mode: backend_sync
     service: omichub.tools.enrichments.service.EnrichmentService
     method: submit
+    extra: {celery_service: true, user_scoped: true}
     requires_confirm: false
     annotations:
       readOnlyHint: false
@@ -345,7 +390,8 @@ tools:
 
   - key: volcano
     name: omichub_plot_volcano
-    description: 根据差异表达结果绘制交互式火山图。支持 CSV/TSV 文本，自动识别 log2FC 与 p-value 列。
+    description: 根据差异表达结果绘制交互式火山图，返回显著上下调统计和 Plotly 图。适用于“画火山图”“可视化 DEG 的 log2FC 和 padj”；自由探索多种图形请改用绘图工坊，原始 counts 分析请改用 DEG。输入含 log2FC、p-value 的 CSV/TSV data_text，也支持 upload://file_id 或 file://UUID。
+    keywords: [volcano, DEG plot, differential expression plot, 差异表达图, 火山图, log2FC]
     category: visualization
     invocation_mode: backend_shim
     shim_module: omichub.tools.shims.volcano
@@ -378,7 +424,8 @@ tools:
 
   - key: deg-analysis
     name: omichub_run_deg_analysis
-    description: 打开 DEG 差异表达分析工作台，由用户上传 Counts 矩阵、样本分组与比较对文件，自动选择 DESeq2（有重复）或 edgeR（1v1 无重复）完成差异分析。
+    description: 对原始 counts 矩阵做 DEG 差异表达分析，打开可提交 DESeq2 或 edgeR 任务的工作台。适用于“比较两组找差异基因”“RNA-seq counts 差异分析”；已有 log2FC 和 padj 时请画火山图，只有基因列表时请做 GO/KEGG 富集。输入 method 选择 auto、deseq2 或 edger；矩阵和分组文件在页面上传，不支持 upload://file_id。
+    keywords: [DEG, DESeq2, edgeR, differential expression, counts matrix, 差异表达, 转录组差异]
     category: analysis
     invocation_mode: open_page
     route: /tools/deg-analysis
@@ -400,7 +447,8 @@ tools:
 
   - key: phylogenetic-tree
     name: omichub_build_phylogenetic_tree
-    description: 生成「生物信息工具箱 · 系统发育树构建」工具页入口，由用户上传序列、配置参数，并通过专用 Celery worker 完成建树与可视化；该页面不是 AI 工作台。
+    description: 根据多序列比对构建系统发育树，打开可配置 NJ、UPGMA、最大似然或贝叶斯任务的工作台。适用于“建系统发育树”“比较序列亲缘关系”；序列清洗、翻译或 ORF 搜索请改用序列魔术师。输入 layout 为 rectangular、circular 或 radial；FASTA 和参数在页面上传，不支持 upload://file_id。
+    keywords: [phylogeny, phylogenetic tree, NJ, UPGMA, maximum likelihood, 系统发育树, 建树]
     category: sequence
     invocation_mode: open_page
     route: /tools/phylogenetic-tree
@@ -422,7 +470,8 @@ tools:
 
   - key: manhattan
     name: omichub_plot_manhattan
-    description: 根据 GWAS/QTL 汇总统计表绘制交互式曼哈顿图。支持 CSV/TSV 文本，自动识别 SNP / Chromosome / Position / P-value 列。
+    description: 根据 GWAS 或 QTL 汇总统计表绘制交互式曼哈顿图，返回显著位点统计和 Plotly 图。适用于“画 GWAS 曼哈顿图”“查看关联位点”；差异表达数据请改用火山图，通用散点或热图请改用绘图工坊。输入含 SNP、Chromosome、Position、P-value 的 CSV/TSV data_text，也支持 upload://file_id 或 file://UUID。
+    keywords: [manhattan, GWAS, QTL, association plot, SNP, 曼哈顿图, 关联分析]
     category: visualization
     invocation_mode: backend_shim
     shim_module: omichub.tools.shims.manhattan
@@ -451,3 +500,203 @@ tools:
       required: [data_text]
     llm_result_fields: [stats, top_snps, success, error]
     ui_result_fields: [plotly_figure, result_ref]
+
+  - key: gsea-enrichment
+    name: omichub_run_gsea
+    description: 对全基因排序列表执行 GO/KEGG GSEA，返回 Top term 的 NES、校正 P 值和任务进度。适用于“按 log2FC 做 GSEA”“看富集曲线”“ranked gene list enrichment”；无排序基因列表请改用 GO/KEGG 富集，原始 counts 请改用 DEG。输入 gene_ranking 为 gene_id 与 score 两列文本，也支持 upload://file_id，并指定 species_id、gene_set 与 cutoff。
+    keywords: [GSEA, gene set enrichment, ranked genes, NES, running score, 富集曲线, 排序基因列表, log2FC]
+    category: enrichment
+    invocation_mode: backend_async
+    service: omichub.tools.gsea.service.GseaService
+    method: submit
+    extra: {celery_service: true, user_scoped: true}
+    requires_confirm: false
+    annotations: {readOnlyHint: false, destructiveHint: false, openWorld: false, idempotent: true}
+    input_schema:
+      type: object
+      properties:
+        gene_ranking: {type: string, description: 含 gene_id 和 score 两列的 CSV/TSV 排序基因列表；也支持 upload://file_id}
+        species_id: {type: string, description: 平台富集配置中的物种 ID}
+        gene_set: {type: string, enum: [GO_BP, GO_MF, GO_CC, KEGG], description: 要测试的基因集来源}
+        p_value_cutoff: {type: number, default: 0.05, description: 服务端 GSEA p-value 阈值}
+        q_value_cutoff: {type: number, default: 0.1, description: 服务端 GSEA q-value 阈值}
+      required: [gene_ranking, species_id, gene_set]
+    llm_result_fields: [task_id, status, progress, message, success, error]
+    ui_result_fields: [task_id, progress_url, result_url]
+
+  - key: synteny
+    name: omichub_run_synteny
+    description: 根据 GFF3 注释与 BLASTP outfmt6 结果识别基因组共线性区块，返回区块数量、最大区块和染色体对摘要。适用于“两个基因组有没有共线性”“画 synteny dot plot”；先做同源序列检索时请用 BLAST，其 outfmt6 结果可直接作为输入。输入 gff3_text 和 blastp_text 支持 upload://file_id，chromosome_filter 可选用于超过五万基因对时筛选。
+    keywords: [synteny, collinearity, MCScanX, dot plot, 共线性, 基因组共线性, BLASTP outfmt6]
+    category: genome
+    invocation_mode: backend_async
+    service: omichub.tools.synteny.service.SyntenyService
+    method: submit
+    extra: {celery_service: true, user_scoped: true}
+    requires_confirm: false
+    annotations: {readOnlyHint: false, destructiveHint: false, openWorld: false, idempotent: true}
+    input_schema:
+      type: object
+      properties:
+        gff3_text: {type: string, description: 含 gene 特征和坐标的 GFF3 文本；也支持 upload://file_id}
+        blastp_text: {type: string, description: BLASTP outfmt6 同源基因对结果；也支持 upload://file_id}
+        chromosome_filter: {type: array, items: {type: string}, description: 可选染色体名称筛选，用于大于 50000 基因对的 dot plot}
+      required: [gff3_text, blastp_text]
+    llm_result_fields: [task_id, status, progress, message, success, error]
+    ui_result_fields: [task_id, progress_url, result_url]
+
+  - key: fastq-qc
+    name: omichub_open_fastq_qc
+    description: 打开 FASTQ 质控与清洗工作台，配置 Phred 过滤、接头去除和长度截断后提交质量控制任务。适用于“FASTQ 质控”“清理测序接头”“检查 reads 质量”；序列比对请改用 BLAST，原始 counts 差异分析请改用 DEG。输入无必填参数，FASTQ 文件和质控阈值在页面上传设置，不支持 upload://file_id。
+    keywords: [FASTQ, QC, FastQC, quality control, 接头去除, 测序质控, reads]
+    category: sequence
+    invocation_mode: open_page
+    route: /tools/fastq-qc
+    requires_confirm: false
+    annotations: {readOnlyHint: false, destructiveHint: false, openWorld: false, idempotent: true}
+    input_schema: {type: object, properties: {}}
+    llm_result_fields: [route, message, success, error]
+    ui_result_fields: [route, arguments]
+
+  - key: jbrowse
+    name: omichub_open_jbrowse
+    description: 打开 JBrowse 基因组浏览器，浏览 BAM、BigWig、VCF 和 GFF3 轨道并定位基因组区域。适用于“看测序覆盖”“浏览变异”“查看基因注释”；共线性区块请改用共线性分析，序列同源检索请改用 BLAST。输入无必填参数，参考基因组和轨道在页面选择或上传，不支持 upload://file_id。
+    keywords: [JBrowse, genome browser, BAM, BigWig, VCF, GFF3, 基因组浏览器]
+    category: genome
+    invocation_mode: open_page
+    route: /tools/jbrowse
+    requires_confirm: false
+    annotations: {readOnlyHint: true, destructiveHint: false, openWorld: false, idempotent: true}
+    input_schema: {type: object, properties: {}}
+    llm_result_fields: [route, message, success, error]
+    ui_result_fields: [route, arguments]
+
+  - key: blast
+    name: omichub_open_blast
+    description: 打开本地 BLAST 序列检索工作台，对核酸或蛋白序列查询自定义数据库并返回命中列表。适用于“找同源基因”“比对一段 FASTA 序列”“BLASTP 检索”；基因组区块关系请改用共线性分析，序列清洗或翻译请改用序列魔术师。输入无必填参数，FASTA 与数据库在页面选择或上传，不支持 upload://file_id。
+    keywords: [BLAST, blastn, blastp, homology search, 同源检索, 序列比对, FASTA]
+    category: sequence
+    invocation_mode: open_page
+    route: /tools/blast
+    requires_confirm: false
+    annotations: {readOnlyHint: false, destructiveHint: false, openWorld: false, idempotent: true}
+    input_schema: {type: object, properties: {}}
+    llm_result_fields: [route, message, success, error]
+    ui_result_fields: [route, arguments]
+
+  - key: plot
+    name: omichub_open_plot_workshop
+    description: 打开组学绘图工坊，自由配置散点图、热图、箱线图和其他数据可视化并导出结果。适用于“探索数据怎么画”“画热图或箱线图”“自定义组学图”；含 log2FC 与 padj 的差异表达结果请改用火山图，GWAS 数据请改用曼哈顿图。输入无必填参数，表格和绘图参数在页面上传设置，不支持 upload://file_id。
+    keywords: [plot workshop, heatmap, scatter plot, boxplot, 绘图工坊, 组学绘图, 可视化]
+    category: visualization
+    invocation_mode: open_page
+    route: /tools/plot
+    requires_confirm: false
+    annotations: {readOnlyHint: true, destructiveHint: false, openWorld: false, idempotent: true}
+    input_schema: {type: object, properties: {}}
+    llm_result_fields: [route, message, success, error]
+    ui_result_fields: [route, arguments]
+
+  - key: gene-expression-explorer
+    name: omichub_open_expression_explorer
+    description: 打开基因表达矩阵 Explorer，生成 PCA、样本分布和基因方差等交互式质量探索结果。适用于“检查表达矩阵”“做 PCA”“看样本分布”；原始 counts 的组间统计检验请改用 DEG，单个差异结果图请改用火山图。输入无必填参数，表达矩阵和样本信息在页面上传，不支持 upload://file_id。
+    keywords: [expression matrix, PCA, sample distribution, variance, 表达矩阵, 表达 Explorer, 质控]
+    category: visualization
+    invocation_mode: open_page
+    route: /tools/gene-expression-explorer
+    requires_confirm: false
+    annotations: {readOnlyHint: true, destructiveHint: false, openWorld: false, idempotent: true}
+    input_schema: {type: object, properties: {}}
+    llm_result_fields: [route, message, success, error]
+    ui_result_fields: [route, arguments]
+
+  - key: seq-manipulator
+    name: omichub_open_seq_manipulator
+    description: 打开序列魔术师，进行 FASTA 清洗、IUPAC 转换、六框翻译、ORF/Motif 搜索和基础统计。适用于“翻译 DNA”“找 ORF”“清洗 FASTA 序列”；文件格式互转请改用格式轻量转换器，序列同源检索请改用 BLAST。输入无必填参数，序列内容和处理选项在页面粘贴或上传，不支持 upload://file_id。
+    keywords: [FASTA, ORF, motif, translation, IUPAC, 序列处理, 六框翻译]
+    category: sequence
+    invocation_mode: open_page
+    route: /tools/seq-manipulator
+    requires_confirm: false
+    annotations: {readOnlyHint: true, destructiveHint: false, openWorld: false, idempotent: true}
+    input_schema: {type: object, properties: {}}
+    llm_result_fields: [route, message, success, error]
+    ui_result_fields: [route, arguments]
+
+  - key: primer-forge
+    name: omichub_open_primer_forge
+    description: 打开 PrimerForge 引物设计工作台，设计 PCR、qPCR 或 TaqMan 探针并导出序列定位与订单信息。适用于“设计 PCR 引物”“做 qPCR 引物”“设计探针”；普通 DNA 翻译请改用序列魔术师，序列同源查找请改用 BLAST。输入无必填参数，模板序列与反应约束在页面输入，不支持 upload://file_id。
+    keywords: [primer, PCR, qPCR, TaqMan, probe, 引物设计, 探针]
+    category: sequence
+    invocation_mode: open_page
+    route: /tools/primer-forge
+    requires_confirm: false
+    annotations: {readOnlyHint: false, destructiveHint: false, openWorld: false, idempotent: true}
+    input_schema: {type: object, properties: {}}
+    llm_result_fields: [route, message, success, error]
+    ui_result_fields: [route, arguments]
+
+  - key: format-converter
+    name: omichub_open_format_converter
+    description: 打开格式轻量转换器，在浏览器内转换 GFF、GTF、BED，提取 FASTA 序列或生成 ID 映射表。适用于“GFF 转 BED”“GTF 和 GFF 互转”“提取注释序列”；序列翻译或 ORF 处理请改用序列魔术师，基因组共线性请改用共线性分析。输入无必填参数，文件和转换规则在页面上传设置，不支持 upload://file_id。
+    keywords: [GFF, GTF, BED, format converter, ID mapping, 格式转换, 注释转换]
+    category: genome
+    invocation_mode: open_page
+    route: /tools/format-converter
+    requires_confirm: false
+    annotations: {readOnlyHint: true, destructiveHint: false, openWorld: false, idempotent: true}
+    input_schema: {type: object, properties: {}}
+    llm_result_fields: [route, message, success, error]
+    ui_result_fields: [route, arguments]
+
+  - key: id-converter
+    name: omichub_open_id_converter
+    description: 打开 ID 转换器，在浏览器内转换 Symbol、Ensembl、Entrez、UniProt 等基因标识并进行集合运算。适用于“基因 ID 转换”“Symbol 转 Ensembl”“比较两个基因列表”；通路富集请改用 GO/KEGG 富集，原始 counts 分析请改用 DEG。输入无必填参数，基因列表和目标 ID 类型在页面粘贴，不支持 upload://file_id。
+    keywords: [gene ID, Symbol, Ensembl, Entrez, UniProt, ID conversion, 基因 ID 转换]
+    category: sequence
+    invocation_mode: open_page
+    route: /tools/id-converter
+    requires_confirm: false
+    annotations: {readOnlyHint: true, destructiveHint: false, openWorld: false, idempotent: true}
+    input_schema: {type: object, properties: {}}
+    llm_result_fields: [route, message, success, error]
+    ui_result_fields: [route, arguments]
+
+  - key: wetlab-calculators
+    name: omichub_open_wetlab_calculators
+    description: 打开湿实验计算器，完成 PCR、克隆、NGS 建库、序列处理和溶液配制等常用计算。适用于“配制缓冲液”“算 PCR 体系”“计算 NGS 建库用量”；需要实际测序数据质控请改用 FASTQ 质控，生信统计分析请改用相应分析工具。输入无必填参数，数值和单位在页面填写，不支持 upload://file_id。
+    keywords: [wet lab, PCR calculator, NGS library, solution, 湿实验, 溶液配制, 建库计算]
+    category: sequence
+    invocation_mode: open_page
+    route: /tools/wetlab-calculators
+    requires_confirm: false
+    annotations: {readOnlyHint: true, destructiveHint: false, openWorld: false, idempotent: true}
+    input_schema: {type: object, properties: {}}
+    llm_result_fields: [route, message, success, error]
+    ui_result_fields: [route, arguments]
+
+  - key: venn-upset
+    name: omichub_open_venn_upset
+    description: 打开韦恩图与 UpSet 图工作台，比较 2 至 6 个基因列表的交集、特异集合和组合数量。适用于“画韦恩图”“比较多个基因集”“做 UpSet 图”；通路功能解释请改用 GO/KEGG 富集，ID 格式整理请先用 ID 转换器。输入无必填参数，多个基因列表在页面粘贴或上传，不支持 upload://file_id。
+    keywords: [venn, upset, set intersection, gene list overlap, 韦恩图, 集合交集]
+    category: visualization
+    invocation_mode: open_page
+    route: /tools/venn-upset
+    requires_confirm: false
+    annotations: {readOnlyHint: true, destructiveHint: false, openWorld: false, idempotent: true}
+    input_schema: {type: object, properties: {}}
+    llm_result_fields: [route, message, success, error]
+    ui_result_fields: [route, arguments]
+
+  - key: terminal
+    name: omichub_open_terminal
+    description: 打开云端沙盒终端，在隔离环境中运行 samtools、bedtools、Python 或 R 并管理工作目录文件。适用于“运行命令行生信工具”“检查 BAM 或 BED”“写小型分析脚本”；有固定页面流程时优先用对应工具，不能把终端当作高计算工作流的替代。输入无必填参数，命令与文件在终端页面操作，不支持 upload://file_id。
+    keywords: [terminal, sandbox, samtools, bedtools, command line, 云端终端, 生信命令行]
+    category: environment
+    invocation_mode: open_page
+    route: /tools/terminal
+    requires_confirm: false
+    annotations: {readOnlyHint: false, destructiveHint: false, openWorld: false, idempotent: true}
+    input_schema: {type: object, properties: {}}
+    llm_result_fields: [route, message, success, error]
+    ui_result_fields: [route, arguments]

@@ -22,6 +22,7 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
+from omichub.application.services.execution_events import execution_chunk
 from omichub.core.telemetry import get_tracer
 from omichub.domain.execution.agent_state import AgentState
 from omichub.infrastructure.ai_provider.openai_compatible import (
@@ -56,10 +57,38 @@ class NodeDeps:
     channel_resolver: ChannelResolver | None = None
     chat_stream: ChatStreamFn | None = None
     emit: EventEmitter | None = None
+    emit_execution_events: bool = False
+    session_id: str = ""
+    run_id: str = ""
+    agent_id: str = ""
+    execution_path: str = "chat_langgraph"
 
     async def emit_chunk(self, chunk: ChatChunk) -> None:
         if self.emit is not None:
             await self.emit(chunk)
+
+    async def emit_execution(
+        self,
+        event_type: str,
+        *,
+        round_number: int,
+        content: str = "",
+        **payload: Any,
+    ) -> None:
+        if not self.emit_execution_events:
+            return
+        await self.emit_chunk(
+            execution_chunk(
+                event_type,
+                session_id=self.session_id,
+                run_id=self.run_id,
+                agent_id=self.agent_id,
+                round_number=round_number,
+                execution_path=self.execution_path,
+                content=content,
+                **payload,
+            )
+        )
 
 
 async def llm_call_node(state: AgentState, deps: NodeDeps) -> dict[str, Any]:
@@ -70,6 +99,11 @@ async def llm_call_node(state: AgentState, deps: NodeDeps) -> dict[str, Any]:
     stream = deps.chat_stream or provider_manager.chat_stream
     force_final_response = (
         deps.max_tool_rounds is not None and rounds >= deps.max_tool_rounds
+    )
+    await deps.emit_execution(
+        "agent_turn_started",
+        round_number=rounds + 1,
+        phase="before_model_call",
     )
     system_prompt = deps.system_prompt
     tools = deps.tools or None
@@ -95,6 +129,13 @@ async def llm_call_node(state: AgentState, deps: NodeDeps) -> dict[str, Any]:
             deep_thinking=deps.deep_thinking,
         ):
             if chunk.type == "text":
+                if chunk.metadata.get("is_reasoning"):
+                    await deps.emit_execution(
+                        "agent_reasoning_delta",
+                        round_number=rounds + 1,
+                        content=chunk.content,
+                        visibility="debug",
+                    )
                 # 推理过程（is_reasoning）透传但不并入最终正文，与 legacy 一致
                 await deps.emit_chunk(chunk)
                 if chunk.metadata.get("is_reasoning"):
@@ -158,6 +199,20 @@ async def tool_exec_node(state: AgentState, deps: NodeDeps) -> dict[str, Any]:
                 },
             )
         )
+        await deps.emit_execution(
+            "agent_tool_call",
+            round_number=state.get("rounds", 0) + 1,
+            tool_call_id=tool_call_id,
+            tool_name=tool_name,
+            arguments=args,
+            phase="model_requested",
+        )
+        await deps.emit_execution(
+            "agent_tool_started",
+            round_number=state.get("rounds", 0) + 1,
+            tool_call_id=tool_call_id,
+            tool_name=tool_name,
+        )
 
         tracer = get_tracer("omichub.chat")
         with tracer.start_as_current_span(
@@ -201,6 +256,20 @@ async def tool_exec_node(state: AgentState, deps: NodeDeps) -> dict[str, Any]:
                 },
             )
         )
+        await deps.emit_execution(
+            "agent_tool_result",
+            round_number=state.get("rounds", 0) + 1,
+            tool_call_id=tool_call_id,
+            tool_name=tool_name,
+            success=bool(result.get("success")) if isinstance(result, dict) else True,
+        )
+        await deps.emit_execution(
+            "agent_context_reinjected",
+            round_number=state.get("rounds", 0) + 1,
+            tool_call_id=tool_call_id,
+            tool_name=tool_name,
+            phase="after_tool_result",
+        )
 
         llm_content = json.dumps(llm_result, ensure_ascii=False, default=str)
         from omichub.domain.skill.services import SKILL_TOOL_NAMES
@@ -229,6 +298,12 @@ async def tool_exec_node(state: AgentState, deps: NodeDeps) -> dict[str, Any]:
                 "ask_request": {"tool_call_id": tool_call_id, "args": args},
                 "error": None,
             }
+    await deps.emit_execution(
+        "agent_turn_continued",
+        round_number=state.get("rounds", 0) + 2,
+        reason="tool_results_reinjected",
+        tool_call_count=len(tool_calls),
+    )
     return {"messages": new_messages, "error": None}
 
 

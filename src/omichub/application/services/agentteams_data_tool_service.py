@@ -63,7 +63,7 @@ class AgentTeamsDataToolService:
         context: ToolInvocationContext,
     ) -> dict[str, Any]:
         self._require_context_user(user_id, context)
-        workspace = get_path_factory().workspace_dir(user_id).resolve()
+        workspace = get_path_factory().user_root(user_id).resolve()
         return await PipelineResultService(context).preview_workspace_file(
             workspace, path, max_bytes=self._bounded_bytes(max_bytes)
         )

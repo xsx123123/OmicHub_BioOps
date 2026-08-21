@@ -7,6 +7,14 @@ studio:
     # 已登记到报告中心的产物已复制到独立结果存储，不受此清理影响。
     workspace_retention_days: 7
     prewarm_on_create: true
+  agent:
+    permission_modes: [supervised, plan, auto]
+    micro_compaction:
+      threshold_chars: 4000
+    loop_control:
+      max_tool_calls_per_turn: 40
+      max_consecutive_failures: 3
+      auto_downgrade_to_supervised: true
   ui:
     default_view_mode: chat
     follow_ai_default: true

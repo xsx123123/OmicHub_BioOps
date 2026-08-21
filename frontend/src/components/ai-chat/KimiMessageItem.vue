@@ -139,33 +139,45 @@ const workerExpanded = ref(false)
 const plotlyContainers = ref<Record<string, HTMLDivElement | null>>({})
 const plotlyRenderError = ref<string>('')
 
-function extractPlotlyFigure(tool: ToolCall): Record<string, unknown> | undefined {
+function extractPlotlyFigures(tool: ToolCall): Record<string, unknown>[] {
+  const isFigure = (v: unknown): v is Record<string, unknown> =>
+    !!v && typeof v === 'object' && !Array.isArray(v)
+  const pick = (source: Record<string, unknown> | undefined): Record<string, unknown>[] => {
+    if (!source) return []
+    // 沙盒工具（chat_sandbox_execute / sandbox_execute）的 show_plotly 回传：数组通道
+    const many = source.plotly_figures
+    if (Array.isArray(many)) return many.filter(isFigure)
+    // 内置绘图工具（火山图/曼哈顿图）：单图通道
+    const single = source.plotly_figure
+    return isFigure(single) ? [single] : []
+  }
   // 1. 优先走专用 uiPayload 通道
-  const fromUi = tool.uiPayload?.plotly_figure as Record<string, unknown> | undefined
-  if (fromUi) return fromUi
+  const fromUi = pick(tool.uiPayload as Record<string, unknown> | undefined)
+  if (fromUi.length) return fromUi
   // 2. 兼容 result 里仍包着 ui_payload 的旧/异常封装
   const result = tool.result as Record<string, unknown> | undefined
-  if (!result || typeof result !== 'object') return undefined
-  const nestedUi = (result.ui_payload as Record<string, unknown> | undefined)
-    || (result.uiPayload as Record<string, unknown> | undefined)
-  if (nestedUi?.plotly_figure) return nestedUi.plotly_figure as Record<string, unknown>
+  if (!result || typeof result !== 'object') return []
+  const fromNested = pick(
+    (result.ui_payload as Record<string, unknown> | undefined)
+      || (result.uiPayload as Record<string, unknown> | undefined),
+  )
+  if (fromNested.length) return fromNested
   // 3. 兜底：result 直接就是 figure
-  if (result.data && result.layout) return result
-  return undefined
+  if (result.data && result.layout) return [result]
+  return []
 }
 
-// 优先从工具结果的 uiPayload.plotly_figure 取图，fallback 到 message.charts
+// 优先从工具结果的 uiPayload.plotly_figures / plotly_figure 取图，fallback 到 message.charts
 const plotlyCharts = computed(() => {
   const fromToolCalls: ChartData[] = []
   for (const tool of props.message.toolCalls || []) {
-    const figure = extractPlotlyFigure(tool)
-    if (figure) {
+    extractPlotlyFigures(tool).forEach((figure, idx) => {
       fromToolCalls.push({
-        id: `tool-plotly-${tool.id}`,
+        id: `tool-plotly-${tool.id}-${idx}`,
         type: 'plotly',
         option: figure,
       })
-    }
+    })
   }
   const fromCharts = (props.message.charts || []).filter((c) => c.type === 'plotly')
   return [...fromToolCalls, ...fromCharts]

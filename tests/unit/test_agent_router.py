@@ -48,6 +48,38 @@ CANDIDATES = [
 CANDIDATES[2].features = {"router": True}
 
 
+def _catalog_entry(dto: AgentTemplateDTO) -> dict[str, Any]:
+    """模拟注册表 chat_router_catalog 条目(双注册表统一后 chat 候选的唯一来源)。"""
+    return {
+        "agent_id": dto.agent_id,
+        "name": dto.name,
+        "description": dto.description,
+        "category": dto.category,
+        "chat_entry": True,
+        "capabilities": [],
+        "not_suitable_for": [],
+        "handoff_when": [],
+        "preferred_inputs": [],
+        "routing_hints": [],
+        "capability_tags": [],
+        "routing_notes": "",
+        "avatar": dto.avatar,
+        "color": dto.color,
+    }
+
+
+class _FakeCapabilityRegistry:
+    """快照桩:与真实注册表一样过滤 features.router 候选。"""
+
+    def snapshot(self) -> dict[str, Any]:
+        return {
+            "chat_router_catalog": [
+                _catalog_entry(c) for c in CANDIDATES if not c.features.get("router")
+            ],
+            "flow_router_catalog": [],
+        }
+
+
 class _FakeAgentService:
     """按 agent_id 返回上下文的最小桩"""
 
@@ -78,6 +110,11 @@ def _fake_chat_stream(text: str):
 def service(monkeypatch: pytest.MonkeyPatch) -> ChatService:
     monkeypatch.setattr(
         "omichub.application.services.agent_service.AgentService", _FakeAgentService
+    )
+    monkeypatch.setattr(
+        "omichub.application.services.agentteams_capability_registry"
+        ".get_agentteams_capability_registry",
+        lambda: _FakeCapabilityRegistry(),
     )
     return ChatService(db=SimpleNamespace())
 

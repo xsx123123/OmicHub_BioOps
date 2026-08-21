@@ -52,6 +52,7 @@ class ChatSessionModel(Base, TimestampMixin):
 
     message_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     total_tokens: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    last_settled_message_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="active", nullable=False)
 
     last_message_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -77,6 +78,35 @@ class ChatSessionModel(Base, TimestampMixin):
     )
 
     __table_args__ = (Index("idx_chat_sessions_user_updated", "user_id", "updated_at"),)
+
+
+class AgentTeamsRoomModel(Base, TimestampMixin):
+    """AgentTeams 协作室房间：持久的轻量会话实体（会话-工单解耦，Part 2）。
+
+    房间先于 Case 存在：纯聊天/澄清阶段只有房间，``case_id`` 为 NULL；
+    用户在房间内确认立项卡后才创建正式 Case 并回写绑定。房间级事件流
+    承载于 Bridge 的 room 命名空间记录（case_id 形如 ``room-<room_id>``）。
+    ``proposal`` 保存当前待确认的立项卡（含一次性 confirm_token）。
+    ``origin_ref`` 记录来源引用（如 L2→L4 升级时来源 L2 会话 id；
+    ``origin`` 仅 20 字符放不下，故单列）。
+    """
+
+    __tablename__ = "agentteams_rooms"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    room_id: Mapped[str] = mapped_column(String(80), unique=True, nullable=False, index=True)
+    owner_id: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(200), default="协作室会话", nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="active", nullable=False)
+    origin: Mapped[str] = mapped_column(String(20), default="manual", nullable=False)
+    origin_ref: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    case_id: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    matrix_room_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    proposal: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+
+    __table_args__ = (Index("idx_agentteams_rooms_owner_updated", "owner_id", "updated_at"),)
 
 
 class AgentTeamsCaseCursorModel(Base, TimestampMixin):

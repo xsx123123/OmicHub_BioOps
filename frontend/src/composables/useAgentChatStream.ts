@@ -64,6 +64,7 @@ export interface ToolResultEvent {
   result: unknown
   ui_payload?: Record<string, unknown>
   mcp_server?: string
+  checkpoint_id?: string
 }
 
 export interface StudioPlanStep {
@@ -79,6 +80,7 @@ export interface ApprovalRequestEvent {
   arguments: Record<string, unknown>
   risk_hint?: string
   timeout_seconds?: number
+  approval_kind?: 'tool' | 'plan'
 }
 
 export type ApprovalAction = 'approved' | 'edited' | 'rejected' | 'timeout'
@@ -88,6 +90,15 @@ export interface ApprovalResolvedEvent {
   approval_id: string
   tool_call_id: string
   action: ApprovalAction
+}
+
+export interface LoopGuardTriggeredEvent {
+  reason: 'max_tool_calls_per_turn' | 'max_consecutive_failures'
+  tool_calls: number
+  consecutive_failures: number
+  tool_name?: string
+  error_type?: string
+  downgraded_to_supervised: boolean
 }
 
 /** Studio HITL：ask_user 澄清请求（本轮随后结束，用户在下一条消息回答） */
@@ -214,7 +225,7 @@ export interface OverdriveProgressEvent {
     durationMs?: number
     error?: string
   }>
-  tasks?: Array<{ taskId: string; agentId: string; status: string; errorSummary?: string }>
+  tasks?: Array<{ taskId: string; agentId: string; status: string; errorSummary?: string; statusLine?: string }>
 }
 
 export interface OverdriveApprovalEvent {
@@ -278,6 +289,16 @@ export interface RoundLimitEvent {
   canExtend: boolean
 }
 
+export interface AgentExecutionEvent {
+  eventType: string
+  sessionId?: string
+  runId?: string
+  agentId?: string
+  round: number
+  executionPath?: string
+  payload: Record<string, unknown>
+}
+
 export interface AgentStreamCallbacks {
   onText?: (text: string, isReasoning?: boolean) => void
   onSessionCreated?: (sessionId: string, messageId: string) => void
@@ -294,6 +315,9 @@ export interface AgentStreamCallbacks {
   onPlan?: (steps: StudioPlanStep[]) => void
   onApprovalRequest?: (event: ApprovalRequestEvent) => void
   onApprovalResolved?: (event: ApprovalResolvedEvent) => void
+  onLoopGuardTriggered?: (event: LoopGuardTriggeredEvent) => void
+  /** 统一 Agent 执行生命周期事件，供调试时间线与房间投影使用。 */
+  onExecutionEvent?: (event: AgentExecutionEvent) => void
   onAskRequest?: (event: AskRequestEvent) => void
   onRoute?: (event: RouteEvent) => void
   onHandoff?: (event: HandoffEvent) => void
@@ -642,6 +666,22 @@ export function useAgentChatStream() {
     const { type, content, reasoning, sessionId, messageId, isReasoning } = event
 
     switch (type) {
+      case 'agent_turn_started':
+      case 'agent_context_reinjected':
+      case 'agent_turn_continued':
+      case 'agent_final_result':
+      case 'agent_turn_failed':
+      case 'agent_loop_guard_triggered':
+        cb.onExecutionEvent?.({
+          eventType: String(data.event_type || type),
+          sessionId: typeof data.session_id === 'string' ? data.session_id : sessionId,
+          runId: typeof data.run_id === 'string' ? data.run_id : undefined,
+          agentId: typeof data.agent_id === 'string' ? data.agent_id : undefined,
+          round: Number(data.round || 0),
+          executionPath: typeof data.execution_path === 'string' ? data.execution_path : undefined,
+          payload: data,
+        })
+        break
       case 'text':
       case 'content':
       case 'message':
@@ -751,6 +791,9 @@ export function useAgentChatStream() {
               agentId: String(task.agent_id || ''),
               status: String(task.status || 'pending'),
               errorSummary: typeof task.error_summary === 'string' ? task.error_summary : undefined,
+              statusLine: typeof task.status_line === 'string' && task.status_line.trim()
+                ? task.status_line.trim()
+                : undefined,
             }
           }),
         })
@@ -829,6 +872,7 @@ export function useAgentChatStream() {
           result: data.result,
           ui_payload: (data.ui_payload as Record<string, unknown>) || undefined,
           mcp_server: typeof data.mcp_server === 'string' ? data.mcp_server : undefined,
+          checkpoint_id: typeof data.checkpoint_id === 'string' ? data.checkpoint_id : undefined,
         })
         break
       case 'web_search_results':
@@ -908,6 +952,7 @@ export function useAgentChatStream() {
           arguments: (data.arguments as Record<string, unknown>) || {},
           risk_hint: (data.risk_hint as string) || undefined,
           timeout_seconds: (data.timeout_seconds as number) || undefined,
+          approval_kind: data.approval_kind === 'plan' ? 'plan' : 'tool',
         })
         break
       case 'approval_resolved':
@@ -915,6 +960,16 @@ export function useAgentChatStream() {
           approval_id: (data.approval_id as string) || '',
           tool_call_id: (data.tool_call_id as string) || '',
           action: ((data.action as string) || 'approved') as ApprovalAction,
+        })
+        break
+      case 'loop_guard_triggered':
+        cb.onLoopGuardTriggered?.({
+          reason: ((data.reason as string) || 'max_tool_calls_per_turn') as LoopGuardTriggeredEvent['reason'],
+          tool_calls: Number(data.tool_calls || 0),
+          consecutive_failures: Number(data.consecutive_failures || 0),
+          tool_name: typeof data.tool_name === 'string' ? data.tool_name : undefined,
+          error_type: typeof data.error_type === 'string' ? data.error_type : undefined,
+          downgraded_to_supervised: Boolean(data.downgraded_to_supervised),
         })
         break
       case 'ask_request':

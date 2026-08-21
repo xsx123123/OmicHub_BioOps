@@ -28,6 +28,7 @@ from omichub.core.config import get_settings
 
 _ECHARTS_PREFIX = "%%ECHARTS%%"
 _IMAGE_PREFIX = "%%IMAGE%%"
+_PLOTLY_PREFIX = "%%PLOTLY%%"
 _SENTINEL = object()
 _TIMEOUT = object()
 
@@ -449,5 +450,11 @@ class SandboxPool:
                     return {"type": "stdout", "data": line}
             if line.startswith(_IMAGE_PREFIX):
                 return {"type": "image", "data": line[len(_IMAGE_PREFIX) :].strip()}
+            if line.startswith(_PLOTLY_PREFIX):
+                try:
+                    figure = json.loads(line[len(_PLOTLY_PREFIX) :].strip())
+                    return {"type": "plotly", "data": figure}
+                except json.JSONDecodeError:
+                    return {"type": "stdout", "data": line}
             return {"type": "stdout", "data": line}
         return {"type": "stderr", "data": line}

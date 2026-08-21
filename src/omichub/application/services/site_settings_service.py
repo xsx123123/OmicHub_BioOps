@@ -169,7 +169,7 @@ class SiteSettingsService:
         return model.agentteams_chat_entry_enabled
 
     async def is_agent_memory_enabled(self) -> bool:
-        """Agent 长期记忆运行时开关（管理端；与 env MEM0_ENGINE_ENABLED 同时为真才启用）。"""
+        """Agent 长期记忆运行时开关（管理端）。"""
         model = await self._get_or_create()
         return model.agent_memory_enabled
 

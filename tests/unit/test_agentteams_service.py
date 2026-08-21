@@ -236,22 +236,183 @@ async def test_create_case_starts_planning_with_the_selected_flow(
     )
 
     assert response["requester_ref"] == "current-user"
-    assert captured == [
-        (
-            "/v1/cases",
-            {
-                "method": "POST",
-                "json": {
-                    "case_id": "bioops_001",
-                    "project_ref": {"kind": "project", "id": "project-1"},
-                    "intent": "bulk_rnaseq_delivery",
-                    "requester_ref": "current-user",
-                    "execution_mode": "cluster_case",
-                    "flow_id": "rna_seq",
-                },
+    assert captured[0] == (
+        "/v1/cases",
+        {
+            "method": "POST",
+            "json": {
+                "case_id": "bioops_001",
+                "project_ref": {"kind": "project", "id": "project-1"},
+                "intent": "bulk_rnaseq_delivery",
+                "requester_ref": "current-user",
+                "execution_mode": "cluster_case",
+                "flow_id": "rna_seq",
             },
-        ),
+        },
+    )
+    stage_paths = [path for path, _ in captured[1:]]
+    assert stage_paths == [
+        "/v1/cases/bioops_001/work-items",
+        "/v1/cases/bioops_001/work-items",
     ]
+    assert [item[1]["json"]["work_item_id"] for item in captured[1:]] == [
+        "stage-quantify",
+        "stage-differential",
+    ]
+    assert captured[2][1]["json"]["depends_on"] == ["stage-quantify"]
+
+
+@pytest.mark.asyncio
+async def test_flow_case_records_handoff_failure_when_worker_is_unavailable(
+    service: AgentTeamsService, monkeypatch
+) -> None:
+    async def fake_request(path: str, **kwargs):
+        if path == "/v1/cases":
+            return {
+                "case_id": "bioops_unavailable",
+                "requester_ref": "current-user",
+                "flow_id": "rna_seq",
+            }
+        return {"ok": True}
+
+    capability_check = AsyncMock(
+        return_value={
+            "flow_id": "rna_seq",
+            "available": False,
+            "stages": [
+                {
+                    "stage": "quantify",
+                    "agent_id": "agent-rnaseq",
+                    "reason": "Worker 心跳离线",
+                }
+            ],
+        }
+    )
+    evidence = AsyncMock()
+    monkeypatch.setattr(service, "_request", fake_request)
+    monkeypatch.setattr(service, "flow_capability_check", capability_check)
+    monkeypatch.setattr(service, "post_case_evidence", evidence)
+
+    await service.create_case(
+        case_id="bioops_unavailable",
+        project_id="project-1",
+        intent="bulk_rnaseq_delivery",
+        requester_ref="current-user",
+        flow_id="rna_seq",
+    )
+
+    evidence.assert_awaited_once()
+    assert evidence.await_args.kwargs["event_type"] == "case.handoff_failed"
+    assert evidence.await_args.kwargs["payload"]["reason"] == "agent-rnaseq: Worker 心跳离线"
+
+
+@pytest.mark.asyncio
+async def test_room_response_timing_is_persisted_as_queryable_evidence(
+    service: AgentTeamsService, monkeypatch
+) -> None:
+    ownership = AsyncMock(return_value={"case_id": "timing-case", "requester_ref": "current-user"})
+    evidence = AsyncMock(return_value={"event_id": "timing-event"})
+    monkeypatch.setattr(service, "_get_case_for_requester", ownership)
+    monkeypatch.setattr(service, "post_case_evidence", evidence)
+
+    result = await service.record_room_response_timing(
+        "timing-case",
+        requester_ref="current-user",
+        response_status="responded",
+        duration_ms=123,
+        stage_ms={"case": 4, "llm": 97},
+    )
+
+    assert result == {"event_id": "timing-event"}
+    assert evidence.await_args.kwargs["event_type"] == "room.response_timing"
+    assert evidence.await_args.kwargs["payload"] == {
+        "response_status": "responded",
+        "duration_ms": 123,
+        "stage_ms": {"case": 4, "llm": 97},
+    }
+
+
+@pytest.mark.asyncio
+async def test_room_response_timing_summary_calculates_p95_and_stage_values(
+    service: AgentTeamsService, monkeypatch
+) -> None:
+    monkeypatch.setattr(
+        service,
+        "get_case_events",
+        AsyncMock(
+            return_value={
+                "events": [
+                    {
+                        "event_type": "room.response_timing",
+                        "payload": {"duration_ms": 100, "stage_ms": {"llm": 80}},
+                    },
+                    {
+                        "event_type": "room.response_timing",
+                        "payload": {"duration_ms": 300, "stage_ms": {"llm": 240}},
+                    },
+                    {"event_type": "room.agent_message", "payload": {}},
+                ]
+            }
+        ),
+    )
+
+    result = await service.get_room_response_timing_summary("timing-case", "current-user")
+
+    assert result == {
+        "case_id": "timing-case",
+        "sample_count": 2,
+        "p95_duration_ms": 300,
+        "stage_p95_ms": {"llm": 240},
+        "latest_duration_ms": 300,
+    }
+
+
+@pytest.mark.asyncio
+async def test_case_event_requests_clamp_to_bridge_limit(service: AgentTeamsService, monkeypatch) -> None:
+    captured_params: list[dict] = []
+
+    async def fake_request(path: str, **kwargs):
+        if path.endswith("/events"):
+            captured_params.append(kwargs["params"])
+            return {"events": []}
+        return {"case_id": "case-1", "requester_ref": "current-user"}
+
+    monkeypatch.setattr(service, "_request", fake_request)
+
+    await service.get_case_events("case-1", "current-user", limit=200)
+    await service.get_case_events("case-1", "current-user", limit=0)
+
+    assert captured_params == [{"limit": 100}, {"limit": 1}]
+
+
+@pytest.mark.asyncio
+async def test_room_response_timing_summary_pages_beyond_bridge_limit(
+    service: AgentTeamsService, monkeypatch
+) -> None:
+    get_events = AsyncMock(
+        side_effect=[
+            {
+                "events": [{"event_type": "room.response_timing", "payload": {"duration_ms": 1}}],
+                "next_cursor": "event-100",
+            },
+            {
+                "events": [{"event_type": "room.response_timing", "payload": {"duration_ms": 2}}],
+                "next_cursor": None,
+            },
+        ]
+    )
+    monkeypatch.setattr(service, "get_case_events", get_events)
+
+    result = await service.get_room_response_timing_summary(
+        "timing-case", "current-user", limit=200
+    )
+
+    assert result["sample_count"] == 2
+    assert get_events.await_args_list[0].kwargs["limit"] == 200
+    assert get_events.await_args_list[1].kwargs == {
+        "cursor": "event-100",
+        "limit": 199,
+    }
 
 
 @pytest.mark.asyncio
@@ -308,14 +469,42 @@ async def test_create_chat_case_routes_rnaseq_intent_to_flow_analyst(
     await service.create_case(
         case_id="bioops_002",
         project_id=None,
+        context_refs=[{"kind": "file", "id": "reads.fastq"}],
         intent="帮我分析一批rna-seq数据",
         requester_ref="current-user",
         flow_id=None,
     )
 
     payload = captured[0][1]["json"]
-    assert payload["lead_planner"] is None
-    assert "flow_id" not in payload
+    assert payload["flow_id"] == "rna_seq"
+    assert "lead_planner" not in payload
+
+
+@pytest.mark.asyncio
+async def test_create_chat_case_routes_scrna_cellranger_request_without_file_name(
+    service: AgentTeamsService, monkeypatch
+) -> None:
+    captured: list[tuple[str, dict]] = []
+
+    async def fake_request(path: str, **kwargs):
+        captured.append((path, kwargs))
+        return {"case_id": "bioops_scrna", "requester_ref": "current-user"}
+
+    monkeypatch.setattr(service, "_request", fake_request)
+    monkeypatch.setattr(
+        "omichub.application.services.agentteams_service.infer_intent_route",
+        lambda _intent: IntentRoute(flow_id="scrna", lead_planner="agent-scrna"),
+    )
+
+    await service.create_case(
+        case_id="bioops_scrna",
+        project_id=None,
+        intent="对已有 Cell Ranger 产物进行小鼠单细胞分析",
+        requester_ref="current-user",
+        flow_id=None,
+    )
+
+    assert captured[0][1]["json"]["flow_id"] == "scrna"
 
 
 @pytest.mark.asyncio
@@ -1090,6 +1279,37 @@ async def test_provision_case_room_survives_ensure_users_failure(monkeypatch) ->
 
 
 @pytest.mark.asyncio
+async def test_provision_case_room_records_visible_failure_event(monkeypatch) -> None:
+    service = AgentTeamsService(
+        Settings(
+            agentteams_bridge_enabled=True,
+            agentteams_bridge_url="http://bridge.test",
+            agentteams_bridge_manager_token="manager-token",
+        )
+    )
+
+    class FailingGateway:
+        available = True
+
+        async def ensure_users(self, _identities):
+            return {"ensured": []}
+
+        async def create_room(self, _session_id, _identities):
+            raise RuntimeError("connection refused")
+
+    monkeypatch.setattr(
+        "omichub.application.services.agentteams_service.AgentTeamsRoomGatewayService",
+        lambda *args, **kwargs: FailingGateway(),
+    )
+    evidence = AsyncMock(return_value={})
+    service.post_case_evidence = evidence
+
+    assert await service.provision_case_room("case-1", requester_ref="user-1") is None
+    assert evidence.await_args.kwargs["event_type"] == "room.provisioning_failed"
+    assert evidence.await_args.kwargs["payload"]["reason"] == "gateway_request_failed"
+
+
+@pytest.mark.asyncio
 async def test_delete_case_checks_owner_before_bridge_delete(
     service: AgentTeamsService, monkeypatch
 ) -> None:
@@ -1112,6 +1332,7 @@ async def test_delete_case_checks_owner_before_bridge_delete(
         ("/v1/cases/bioops_001", "GET"),
         ("/v1/cases/bioops_001", "DELETE"),
     ]
+    assert requests[-1][1]["timeout"] == 60
 
 
 @pytest.mark.asyncio
@@ -1139,6 +1360,12 @@ async def test_start_chat_planning_creates_plan01_then_transitions_state(
         return {}
 
     monkeypatch.setattr(service, "_request", fake_request)
+    # 测试环境可能真实存在用户工作区(如 /data/omichub),屏蔽文件可读性预检,
+    # 让本用例聚焦 planning 工作项的创建与状态推进。
+    monkeypatch.setattr(
+        "omichub.application.services.agentteams_service.check_context_refs",
+        lambda refs, **kwargs: [],
+    )
 
     await service.start_chat_planning(
         case_id="bioops_001",
@@ -1162,6 +1389,33 @@ async def test_start_chat_planning_creates_plan01_then_transitions_state(
         "method": "POST",
         "json": {"status": "planning_running", "reason": "chat_execution_intent"},
     }
+
+
+@pytest.mark.asyncio
+async def test_start_chat_planning_uses_domain_planner_when_requested(
+    service: AgentTeamsService, monkeypatch
+) -> None:
+    requests: list[tuple[str, dict]] = []
+
+    async def fake_request(path: str, **kwargs):
+        requests.append((path, kwargs))
+        return {}
+
+    monkeypatch.setattr(service, "_request", fake_request)
+    monkeypatch.setattr(
+        "omichub.application.services.agentteams_service.check_context_refs",
+        lambda refs, **kwargs: [],
+    )
+
+    await service.start_chat_planning(
+        case_id="bioops_001",
+        requester_ref="user-1",
+        objective="对已上传的 h5ad 小鼠单细胞数据进行分组细胞类型差异和差异基因分析",
+        context_refs=[{"kind": "file", "id": "scrna-1"}],
+        target_agent_id="agent-scrna",
+    )
+
+    assert requests[0][1]["json"]["target"] == "agent-scrna"
 
 
 @pytest.mark.asyncio
@@ -1218,3 +1472,34 @@ def test_bridge_client_cache_is_scoped_to_event_loop(service: AgentTeamsService)
 
     second = asyncio.run(grab())
     assert second is not first
+
+
+@pytest.mark.asyncio
+async def test_create_case_keeps_protocol_run_ref_when_db_is_not_available(
+    service: AgentTeamsService, monkeypatch
+) -> None:
+    captured: dict[str, object] = {}
+
+    async def fake_request(path: str, **kwargs):
+        captured.update(kwargs)
+        return {"case_id": "case-protocol", "requester_ref": "current-user"}
+
+    monkeypatch.setattr(service, "_request", fake_request)
+    await service.create_case(
+        case_id="case-protocol",
+        project_id="project-1",
+        context_refs=[
+            {
+                "kind": "project",
+                "id": "project-1",
+                "location": "projects/mouse-sc/runs/agentteams-case-20260819-120000",
+                "meta": {"run_path": "projects/mouse-sc/runs/agentteams-case-20260819-120000"},
+            }
+        ],
+        intent="检查交付报告",
+        requester_ref="current-user",
+        flow_id=None,
+    )
+
+    payload_refs = captured["json"]["context_refs"]
+    assert payload_refs[0]["location"].startswith("projects/")

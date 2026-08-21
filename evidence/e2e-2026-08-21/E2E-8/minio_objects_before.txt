@@ -1,0 +1,3 @@
+cases/e2e-20260821-minio-021846/events/audit.jsonl 1427
+cases/e2e-20260821-minio-021846/snapshot.json 981
+snapshot last_event_id: None

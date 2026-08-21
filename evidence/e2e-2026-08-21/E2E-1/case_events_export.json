@@ -1,0 +1,2583 @@
+[
+ {
+  "event_id": "b1ecb2a8-8dd7-478e-b183-fcb6712db322",
+  "recorded_at": "2026-08-20T18:29:04.120814+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "case.created",
+  "payload": {
+   "project_ref": null,
+   "context_refs": [
+    {
+     "kind": "workspace",
+     "id": "065999aa-4098-417e-b49e-f1ab9266f68e",
+     "location": null,
+     "meta": {}
+    }
+   ],
+   "intent": "e2e-20260821 全链路验收：小鼠肺部 6 个 scRNA-seq 样本（3 只 tp53 mutation vs 3 只 WT），标准流程全套（质控、比对、聚类、细胞注释、差异分析），输入 lung_tp53mut_R1.fastq.gz 与 lung_WT_R1.fastq.gz",
+   "execution_mode": "cluster_case",
+   "origin_consultation_id": null,
+   "source_case_id": null,
+   "queue_reason": null
+  }
+ },
+ {
+  "event_id": "aca1082f-9aee-4403-8ec5-022bfc369f2d",
+  "recorded_at": "2026-08-20T18:29:04.127331+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "case.handoff_proposed",
+  "payload": {
+   "flow_id": "scrna_seq",
+   "lead_planner": "agent-scrna",
+   "status": "planning_running"
+  }
+ },
+ {
+  "event_id": "0191a839-8382-4c1c-9559-636c2631643e",
+  "recorded_at": "2026-08-20T18:29:04.153926+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "work_item.assigned",
+  "payload": {
+   "work_item_id": "plan-01",
+   "target": "agent-scrna",
+   "objective": "形成可执行计划、参数快照、任务依赖与风险说明。",
+   "skill_name": "planning_advice",
+   "context_refs": [
+    {
+     "kind": "workspace",
+     "id": "065999aa-4098-417e-b49e-f1ab9266f68e",
+     "location": null,
+     "meta": {}
+    },
+    {
+     "kind": "flow",
+     "id": "scrna_seq",
+     "location": null,
+     "meta": {}
+    }
+   ],
+   "status_line": "正在整理细胞与样本质控清单"
+  }
+ },
+ {
+  "event_id": "d5d5c781-07b5-48e2-b5b8-dd96d5ff1ad9",
+  "recorded_at": "2026-08-20T18:29:04.168289+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "flow.stage_unavailable",
+  "payload": {
+   "work_item_id": "case",
+   "summary": "Flow 阶段 upstream 暂不可用",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "flow_id": "scrna_seq",
+    "stage": "upstream",
+    "target": "agent-scrna-upstream",
+    "reason": "Agent 协作中心暂时不可用"
+   }
+  }
+ },
+ {
+  "event_id": "69756aa0-5acd-4498-84bb-be33a8db58ce",
+  "recorded_at": "2026-08-20T18:29:04.180882+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "flow.stage_unavailable",
+  "payload": {
+   "work_item_id": "case",
+   "summary": "Flow 阶段 integrate 暂不可用",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "flow_id": "scrna_seq",
+    "stage": "integrate",
+    "target": "agent-scrna-integration",
+    "reason": "Agent 协作中心暂时不可用"
+   }
+  }
+ },
+ {
+  "event_id": "00e05e24-29a7-47c6-90fa-6d2735569427",
+  "recorded_at": "2026-08-20T18:29:04.192990+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "flow.stage_unavailable",
+  "payload": {
+   "work_item_id": "case",
+   "summary": "Flow 阶段 advanced 暂不可用",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "flow_id": "scrna_seq",
+    "stage": "advanced",
+    "target": "agent-scrna-advanced",
+    "reason": "Agent 协作中心暂时不可用"
+   }
+  }
+ },
+ {
+  "event_id": "fffad324-0a31-45d8-b861-53f343105ce3",
+  "recorded_at": "2026-08-20T18:29:04.474256+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "room.created",
+  "payload": {
+   "work_item_id": "case",
+   "summary": "协作房间已创建",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "provider": "matrix",
+    "room_id": "!gFxpjxOyvoSyLyDSoE:localhost",
+    "room_url": "http://localhost:8081/#/room/!gFxpjxOyvoSyLyDSoE:localhost"
+   }
+  }
+ },
+ {
+  "event_id": "0bc0db8a-71df-44e3-a04e-81018e654030",
+  "recorded_at": "2026-08-20T18:29:05.848074+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "agent-scrna",
+  "event_type": "work_item.claimed",
+  "payload": {
+   "work_item_id": "plan-01",
+   "skill_name": "planning_advice",
+   "lease_seconds": 300,
+   "attempt": 1,
+   "trace_id": null,
+   "status_line": "正在分析细胞异质性与群体结构"
+  }
+ },
+ {
+  "event_id": "14f17f6c-15b9-4317-a742-2c12ba48eb31",
+  "recorded_at": "2026-08-20T18:29:05.887339+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "agent-scrna",
+  "event_type": "work_item.running",
+  "payload": {
+   "work_item_id": "plan-01",
+   "trace_id": "5092ae8c2d1c47cb92e92992efdf5d40",
+   "status_line": "正在分析细胞异质性与群体结构"
+  }
+ },
+ {
+  "event_id": "ba913fe1-ffd4-4739-851d-c129128b2c55",
+  "recorded_at": "2026-08-20T18:29:06.869174+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.started",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 开始执行",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "e4dd4aea-abbc-4427-abe2-8a8f383c7fbc",
+  "recorded_at": "2026-08-20T18:29:13.518089+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_call",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 调用工具 rule_threshold_lookup",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "rule_threshold_lookup",
+    "tool_call_id": "call_2bc8733ff2cf49f58c4cda55",
+    "round": 1,
+    "execution_path": "agentteams_worker_react",
+    "args_summary": "{\"flow_id\": \"scrna_seq\", \"metric_name\": \"mapping_rate\"}",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "3f73d1c1-1011-4b3a-82a8-9eacf03468af",
+  "recorded_at": "2026-08-20T18:29:13.529268+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_call",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 调用工具 workspace_file_preview",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "workspace_file_preview",
+    "tool_call_id": "call_b555e4a8838b45fbae47c1df",
+    "round": 1,
+    "execution_path": "agentteams_worker_react",
+    "args_summary": "{\"path\": \"065999aa-4098-417e-b49e-f1ab9266f68e\", \"max_bytes\": 20000}",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "0c224814-f55d-4540-a9e9-b072cfe73215",
+  "recorded_at": "2026-08-20T18:29:13.538997+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_started",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 开始执行工具 workspace_file_preview",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "workspace_file_preview",
+    "tool_call_id": "call_b555e4a8838b45fbae47c1df",
+    "round": 1,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "05dc9eac-a5e3-40de-a252-825dead711be",
+  "recorded_at": "2026-08-20T18:29:13.656752+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_result",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "工具 rule_threshold_lookup 执行成功",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "rule_threshold_lookup",
+    "tool_call_id": "call_2bc8733ff2cf49f58c4cda55",
+    "round": 1,
+    "execution_path": "agentteams_worker_react",
+    "result_summary": "工具执行成功",
+    "success": true,
+    "duration_ms": 107,
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "d672bd6d-df69-457c-9f6a-0b045d4e5f08",
+  "recorded_at": "2026-08-20T18:29:13.671452+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.context_reinjected",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 已将工具结果纳入下一轮分析",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "rule_threshold_lookup",
+    "tool_call_id": "call_2bc8733ff2cf49f58c4cda55",
+    "round": 1,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "5e779213-0205-4325-95cb-ea373477683e",
+  "recorded_at": "2026-08-20T18:29:13.684578+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_result",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "工具 workspace_file_preview 执行成功",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "workspace_file_preview",
+    "tool_call_id": "call_b555e4a8838b45fbae47c1df",
+    "round": 1,
+    "execution_path": "agentteams_worker_react",
+    "result_summary": "工具执行成功",
+    "success": true,
+    "duration_ms": 74,
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "141370fe-2a3c-45c1-bd49-252b6976f282",
+  "recorded_at": "2026-08-20T18:29:13.698985+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.context_reinjected",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 已将工具结果纳入下一轮分析",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "workspace_file_preview",
+    "tool_call_id": "call_b555e4a8838b45fbae47c1df",
+    "round": 1,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "2734a890-294c-4adf-972a-4a546cd43663",
+  "recorded_at": "2026-08-20T18:29:13.715663+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_started",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 开始执行工具 rule_threshold_lookup",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "rule_threshold_lookup",
+    "tool_call_id": "call_2bc8733ff2cf49f58c4cda55",
+    "round": 1,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "a0b5b4b2-0d08-452c-bfae-6748d2938461",
+  "recorded_at": "2026-08-20T18:29:13.728586+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.turn_continued",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 进入下一轮分析",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "round": 2,
+    "previous_round": 1,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "9820aa70-5b58-42e2-be4c-cdd45258dc9e",
+  "recorded_at": "2026-08-20T18:29:18.881201+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_call",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 调用工具 rule_threshold_lookup",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "rule_threshold_lookup",
+    "tool_call_id": "call_d282ac54be1b4ca7a0b8d827",
+    "round": 2,
+    "execution_path": "agentteams_worker_react",
+    "args_summary": "{\"flow_id\": \"scrna_seq\", \"metric_name\": \"duplicate_rate\"}",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "9b41e784-fc77-405e-9fda-4b6dcb86a50c",
+  "recorded_at": "2026-08-20T18:29:18.893240+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_result",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "工具 rule_threshold_lookup 执行成功",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "rule_threshold_lookup",
+    "tool_call_id": "call_4303c1f0a28a4c50b993207e",
+    "round": 2,
+    "execution_path": "agentteams_worker_react",
+    "result_summary": "工具执行成功",
+    "success": true,
+    "duration_ms": 95,
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "d14bf36b-7b34-4d44-9bce-eadfe8b69259",
+  "recorded_at": "2026-08-20T18:29:18.902643+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.context_reinjected",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 已将工具结果纳入下一轮分析",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "rule_threshold_lookup",
+    "tool_call_id": "call_4303c1f0a28a4c50b993207e",
+    "round": 2,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "df58b84d-5312-4e54-acfc-d18ef8a70600",
+  "recorded_at": "2026-08-20T18:29:18.911729+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_started",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 开始执行工具 rule_threshold_lookup",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "rule_threshold_lookup",
+    "tool_call_id": "call_d282ac54be1b4ca7a0b8d827",
+    "round": 2,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "c9dc71d0-582a-4ed8-a3a7-9688f8b0ac7b",
+  "recorded_at": "2026-08-20T18:29:18.920832+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_started",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 开始执行工具 rule_threshold_lookup",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "rule_threshold_lookup",
+    "tool_call_id": "call_4303c1f0a28a4c50b993207e",
+    "round": 2,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "e6b1239f-5734-491b-b9a8-2d5e6a641d24",
+  "recorded_at": "2026-08-20T18:29:18.929302+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_result",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "工具 rule_threshold_lookup 执行成功",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "rule_threshold_lookup",
+    "tool_call_id": "call_d282ac54be1b4ca7a0b8d827",
+    "round": 2,
+    "execution_path": "agentteams_worker_react",
+    "result_summary": "工具执行成功",
+    "success": true,
+    "duration_ms": 100,
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "24ad1131-96ac-4845-a419-49943ade1c40",
+  "recorded_at": "2026-08-20T18:29:18.938773+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.context_reinjected",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 已将工具结果纳入下一轮分析",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "rule_threshold_lookup",
+    "tool_call_id": "call_d282ac54be1b4ca7a0b8d827",
+    "round": 2,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "e2c29b71-5417-4c6c-8576-c66015635dbe",
+  "recorded_at": "2026-08-20T18:29:18.949348+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.turn_continued",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 进入下一轮分析",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "round": 3,
+    "previous_round": 2,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "1293ead2-5582-4ac4-b5ea-7a25f5496e32",
+  "recorded_at": "2026-08-20T18:29:25.670682+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_started",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 开始执行工具 workspace_file_preview",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "workspace_file_preview",
+    "tool_call_id": "call_c5bbc89803574b1784e4dc2d",
+    "round": 3,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "993f6d7c-733c-4272-8056-769c4df30f5f",
+  "recorded_at": "2026-08-20T18:29:25.680819+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_call",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 调用工具 workspace_file_preview",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "workspace_file_preview",
+    "tool_call_id": "call_c5bbc89803574b1784e4dc2d",
+    "round": 3,
+    "execution_path": "agentteams_worker_react",
+    "args_summary": "{\"path\": \"legacy-file:065999aa-4098-417e-b49e-f1ab9266f68e\", \"max_bytes\": 20000}",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "1bea90b5-877c-4f09-af70-14eec8646fc0",
+  "recorded_at": "2026-08-20T18:29:25.691888+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_result",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "工具 workspace_file_preview 执行成功",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "workspace_file_preview",
+    "tool_call_id": "call_c5bbc89803574b1784e4dc2d",
+    "round": 3,
+    "execution_path": "agentteams_worker_react",
+    "result_summary": "工具执行成功",
+    "success": true,
+    "duration_ms": 76,
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "653a9e08-1e4c-4e5d-95fc-f00773f8980e",
+  "recorded_at": "2026-08-20T18:29:25.701375+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.context_reinjected",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 已将工具结果纳入下一轮分析",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "workspace_file_preview",
+    "tool_call_id": "call_c5bbc89803574b1784e4dc2d",
+    "round": 3,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "f3ffc013-0970-4708-920c-eda778ee1af8",
+  "recorded_at": "2026-08-20T18:29:25.710840+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.turn_continued",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 进入下一轮分析",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "round": 4,
+    "previous_round": 3,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "b7ba452e-f8f6-4f36-badf-d2932bfc2fa6",
+  "recorded_at": "2026-08-20T18:29:50.748190+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.finished",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 执行结束（ok）",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "status": "ok",
+    "tool_call_count": 5,
+    "duration_ms": 43900,
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "43af6220-4203-459d-8069-572cb54ce0cc",
+  "recorded_at": "2026-08-20T18:29:50.760835+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "consultation.parse_failed",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "专家会诊未通过结构化信封解析",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "parse_success": false,
+    "reason": "invalid_consultation_envelope",
+    "agent_id": "agent-scrna",
+    "work_item_id": "plan-01",
+    "raw_answer_preview": "```json\n{\n  \"conclusion\": \"无法完成专业会诊。工作区引用 065999aa-4098-417e-b49e-f1ab9266f68e 和 legacy-file 引用均无法解析（路径不存在），无法核验输入数据。scrna_seq 流程存在但未配置任何 QC 指标阈值（mapping_rate、q30、duplicate_rate 均未配置），无法建立质量闸门标准。\",\n  \"recommendations\": [\n    \"确认工作区文件 UUID 065999aa-4098-417e-b49e-f1ab9266f68e 是否有效，或提供正确的文件路径\",\n    \"确认 legacy-file 引用指向的实际文件位置\",\n    \"在 FlowRegistry 中为 scrna_seq 流程配置 QC 指标阈值（mapping_rate、q30、duplicate_rate），或明确本 Case 不依赖硬规则阈值\",\n    \"提供 Case 的具体分析目标（如：单样本 QC、多样本整合、细胞注释等）以便构建可执行的 TaskSpec\"\n  ],\n  \"evi",
+    "causation_event_id": null
+   }
+  }
+ },
+ {
+  "event_id": "b13878e3-1b0f-4008-9ee5-e9bd29faa8e8",
+  "recorded_at": "2026-08-20T18:29:50.825222+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "agent-scrna",
+  "event_type": "correction_started",
+  "payload": {
+   "correction_target": "plan-01",
+   "missing_fields": [
+    "proposed_submission"
+   ],
+   "attempt": 1,
+   "max_attempts": 3
+  }
+ },
+ {
+  "event_id": "479034dc-1b4e-4c9e-9c93-cd5eb958a74d",
+  "recorded_at": "2026-08-20T18:29:50.846411+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "agent-scrna",
+  "event_type": "correction_applied",
+  "payload": {
+   "reason": "根据校验错误反馈重新生成计划",
+   "attempt": 1,
+   "missing_fields": [
+    "proposed_submission"
+   ],
+   "schema_summary": {
+    "required": [
+     "proposed_submission"
+    ],
+    "flow_plan": [
+     "flow_id",
+     "name",
+     "parameters",
+     "sample_sheet"
+    ]
+   }
+  }
+ },
+ {
+  "event_id": "4ec93f92-82b5-41a1-89ef-1e35c96be355",
+  "recorded_at": "2026-08-20T18:29:50.857471+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "agent-scrna",
+  "event_type": "skill.finished",
+  "payload": {
+   "work_item_id": "plan-01",
+   "agent_id": "agent-scrna",
+   "capability": "interpretation",
+   "gateway_status": "completed",
+   "summary": "```json\n{\n  \"conclusion\": \"无法完成专业会诊。工作区引用 065999aa-4098-417e-b49e-f1ab9266f68e 和 legacy-file 引用均无法解析（路径不存在），无法核验输入数据。scrna_seq 流程存在但未配置任何 QC 指标阈值（mapping_rate、q30、duplicate_rate 均未配置），无法建立质量闸门标准。\",\n  \"recommendations\": [\n    \"确认工作区文件 UUID 065999aa-4098-417e-b49e-f1ab9266f68e 是否有效，或提供正确的文件路径\",\n    \"确认 legacy-file 引用指向的实际文件位置\",\n    \"在 FlowRegistry 中为 scrna_seq 流程配置 QC 指标阈值（mapping_rate、q30、duplicate_rate），或明确本 Case 不依赖硬规则阈值\",\n    \"提供 Case 的具体分析目标（如：单样本 QC、多样本整合、细胞注释等）以便构建可执行的 TaskSpec\"\n  ],\n  \"evidence_refs\": [],\n  \"risks\": [\n    \"输入数据不可达将导致后续所有分析步骤无法执行\",\n    \"缺少 QC 阈值配置将无法执行质量闸门判定\",\n    \"未明确分析目标将导致 TaskSpec 参数无法确定\"\n  ],\n  \"token_usage\": 0,\n  \"proposed_submission\": null,\n  \"artifacts\": [],\n  \"hard_gate\": \"输入数据引用无法解析（workspace:065999aa-4098-417e-b49e-f1ab9266f68e 和 legacy-file 引用均返回路径不存在），且 scrna_seq 流程未配置 QC 阈值，无法构建可校验的 TaskSpec\",\n  \"ask_user\": [\n    {\n      \"question\": \"工作区文件 UUID 065999aa-4098-417e-b49e-f1ab9266f68e 无法解析。请提供正确的文件路径或确认该文件是否存在于当前工作区？\",\n      \"options\": [\n        \"文件存在，我提供正确的相对路径\",\n        \"文件在其他位置，我重新上传\",\n        \"该引用已过期，需要重新关联\"\n      ]\n    },\n    {\n      \"question\": \"本 Case 的具体分析目标是什么？\",\n      \"options\": [\n        \"单样本 scRNA-seq 标准分析（QC→聚类→注释）\",\n        \"多样本整合分析（批次校正→聚类→注释）\",\n        \"特定细胞类型子集的重聚类或差异表达分析\",\n        \"其他（请说明）\"\n      ]\n    }\n  ]\n}\n```",
+   "recommendations": [],
+   "evidence_refs": [
+    "file:065999aa-4098-417e-b49e-f1ab9266f68e",
+    "rule:scrna_seq:mapping_rate",
+    "rule:scrna_seq:q30",
+    "rule:scrna_seq:duplicate_rate",
+    "file:legacy-file:065999aa-4098-417e-b49e-f1ab9266f68e"
+   ],
+   "risks": [
+    "信封解析降级：专家答复未满足结构化 JSON 契约。"
+   ],
+   "artifacts": [],
+   "hard_gate": null,
+   "trace_id": "5092ae8c2d1c47cb92e92992efdf5d40"
+  }
+ },
+ {
+  "event_id": "9367f98c-cabc-4e97-a9b9-00894035034f",
+  "recorded_at": "2026-08-20T18:29:52.119249+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "agent-scrna",
+  "event_type": "work_item.claimed",
+  "payload": {
+   "work_item_id": "plan-01",
+   "skill_name": "planning_advice",
+   "lease_seconds": 300,
+   "attempt": 1,
+   "trace_id": null,
+   "status_line": "正在分析细胞异质性与群体结构"
+  }
+ },
+ {
+  "event_id": "e63510b5-7a54-45ba-bbe0-f68ffcaa81dd",
+  "recorded_at": "2026-08-20T18:29:52.155228+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "agent-scrna",
+  "event_type": "work_item.running",
+  "payload": {
+   "work_item_id": "plan-01",
+   "trace_id": "4fa8889064964e6a92c99436e110b9fa",
+   "status_line": "正在分析细胞异质性与群体结构"
+  }
+ },
+ {
+  "event_id": "e099d948-45d2-4b61-850d-265e6ad6f31e",
+  "recorded_at": "2026-08-20T18:29:53.095436+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.started",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 开始执行",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "31a18525-2219-47d9-b415-ed4555a71b3e",
+  "recorded_at": "2026-08-20T18:29:58.731506+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_call",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 调用工具 use_skill",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "use_skill",
+    "tool_call_id": "call_ff70184387e84c50a44b66f0",
+    "round": 1,
+    "execution_path": "agentteams_worker_react",
+    "args_summary": "{\"skill_id\": \"scrna-seq\"}",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "74a834f4-3841-4abd-9779-215c6a2baf18",
+  "recorded_at": "2026-08-20T18:29:58.742476+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_call",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 调用工具 workspace_file_preview",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "workspace_file_preview",
+    "tool_call_id": "call_b755ac6a209a4328b6db4e5e",
+    "round": 1,
+    "execution_path": "agentteams_worker_react",
+    "args_summary": "{\"path\": \"065999aa-4098-417e-b49e-f1ab9266f68e\"}",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "ae61edda-a24e-4123-b06c-471204dde6ee",
+  "recorded_at": "2026-08-20T18:29:58.752996+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_started",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 开始执行工具 workspace_file_preview",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "workspace_file_preview",
+    "tool_call_id": "call_b755ac6a209a4328b6db4e5e",
+    "round": 1,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "7d77bc47-90d8-493a-b744-01786b26a294",
+  "recorded_at": "2026-08-20T18:29:58.773742+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_result",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "工具 use_skill 执行成功",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "use_skill",
+    "tool_call_id": "call_ff70184387e84c50a44b66f0",
+    "round": 1,
+    "execution_path": "agentteams_worker_react",
+    "result_summary": "工具执行成功",
+    "success": true,
+    "duration_ms": 10,
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "8a7ef713-6888-4a04-a1de-6aaed1966cc8",
+  "recorded_at": "2026-08-20T18:29:58.787350+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.context_reinjected",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 已将工具结果纳入下一轮分析",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "use_skill",
+    "tool_call_id": "call_ff70184387e84c50a44b66f0",
+    "round": 1,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "3161262f-aa11-4733-83eb-02a67c756ada",
+  "recorded_at": "2026-08-20T18:29:58.799077+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_result",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "工具 workspace_file_preview 执行成功",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "workspace_file_preview",
+    "tool_call_id": "call_b755ac6a209a4328b6db4e5e",
+    "round": 1,
+    "execution_path": "agentteams_worker_react",
+    "result_summary": "工具执行成功",
+    "success": true,
+    "duration_ms": 77,
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "e95ae50d-8e99-4835-8bd8-491a10840cd4",
+  "recorded_at": "2026-08-20T18:29:58.811865+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.context_reinjected",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 已将工具结果纳入下一轮分析",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "workspace_file_preview",
+    "tool_call_id": "call_b755ac6a209a4328b6db4e5e",
+    "round": 1,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "d46bee64-7825-4c2f-839d-6405f8803925",
+  "recorded_at": "2026-08-20T18:29:58.822887+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_started",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 开始执行工具 use_skill",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "use_skill",
+    "tool_call_id": "call_ff70184387e84c50a44b66f0",
+    "round": 1,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "f406e5d0-0e58-4732-a54d-cd49ffecb36c",
+  "recorded_at": "2026-08-20T18:29:58.836746+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.turn_continued",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 进入下一轮分析",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "round": 2,
+    "previous_round": 1,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "e5a6e6bd-ae77-4225-8c52-493c80d0336e",
+  "recorded_at": "2026-08-20T18:30:07.475713+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_call",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 调用工具 skill_resource",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "skill_resource",
+    "tool_call_id": "call_90ebda93174c457db7270ba8",
+    "round": 2,
+    "execution_path": "agentteams_worker_react",
+    "args_summary": "{\"skill_id\": \"scrna-seq\", \"path\": \"references/environment.md\"}",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "6cf6bc56-484c-4925-9c97-541fcf6e49a0",
+  "recorded_at": "2026-08-20T18:30:07.509786+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_started",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 开始执行工具 workspace_file_preview",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "workspace_file_preview",
+    "tool_call_id": "call_ae576d669abf418cb4fdc509",
+    "round": 2,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "685b5a3b-c2b1-4de4-932f-3fe796e85b3b",
+  "recorded_at": "2026-08-20T18:30:07.525040+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_result",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "工具 skill_resource 执行成功",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "skill_resource",
+    "tool_call_id": "call_90ebda93174c457db7270ba8",
+    "round": 2,
+    "execution_path": "agentteams_worker_react",
+    "result_summary": "# 环境\n\n- 运行命令：`Rscript`（R >= 4.2）。\n- R 包：`optparse`、`jsonlite`、`Seurat`、`infercnv`、`AnnoProbe`、`dplyr`、`tibble`、`ggplot2`。\n- inferCNV 与 AnnoProbe 所需注释由分析镜像预置；脚本不下载注释或基因组资源。",
+    "success": true,
+    "duration_ms": 3,
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "23cd1799-b843-4673-a16e-ff9eb8feb81f",
+  "recorded_at": "2026-08-20T18:30:07.541183+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_call",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 调用工具 workspace_file_preview",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "workspace_file_preview",
+    "tool_call_id": "call_ae576d669abf418cb4fdc509",
+    "round": 2,
+    "execution_path": "agentteams_worker_react",
+    "args_summary": "{\"path\": \"065999aa-4098-417e-b49e-f1ab9266f68e\", \"max_bytes\": 20000}",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "40d1e096-3311-450d-9c40-f5e6d69683af",
+  "recorded_at": "2026-08-20T18:30:07.553576+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_result",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "工具 workspace_file_preview 执行成功",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "workspace_file_preview",
+    "tool_call_id": "call_ae576d669abf418cb4fdc509",
+    "round": 2,
+    "execution_path": "agentteams_worker_react",
+    "result_summary": "工具执行成功",
+    "success": true,
+    "duration_ms": 76,
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "32bcb1e9-a142-4c6f-b1eb-c86d7e5905f3",
+  "recorded_at": "2026-08-20T18:30:07.568452+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.context_reinjected",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 已将工具结果纳入下一轮分析",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "workspace_file_preview",
+    "tool_call_id": "call_ae576d669abf418cb4fdc509",
+    "round": 2,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "1d41d802-0588-4346-8530-8113a0a0a294",
+  "recorded_at": "2026-08-20T18:30:07.580100+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_started",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 开始执行工具 skill_resource",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "skill_resource",
+    "tool_call_id": "call_90ebda93174c457db7270ba8",
+    "round": 2,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "5a319430-7a11-4a75-b948-70680ec95ab7",
+  "recorded_at": "2026-08-20T18:30:07.592362+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.context_reinjected",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 已将工具结果纳入下一轮分析",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "skill_resource",
+    "tool_call_id": "call_90ebda93174c457db7270ba8",
+    "round": 2,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "7670e50f-a6c2-4631-8770-dcd574fe3a65",
+  "recorded_at": "2026-08-20T18:30:07.604585+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.turn_continued",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 进入下一轮分析",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "round": 3,
+    "previous_round": 2,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "d262c383-3ac8-4fae-a484-ba4677f83387",
+  "recorded_at": "2026-08-20T18:30:13.995161+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_started",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 开始执行工具 workspace_file_preview",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "workspace_file_preview",
+    "tool_call_id": "call_247f910f51fe4d7894108f6c",
+    "round": 3,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "462e3f96-e571-4a15-bd26-80bb02b67b7b",
+  "recorded_at": "2026-08-20T18:30:14.007438+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_call",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 调用工具 workspace_file_preview",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "workspace_file_preview",
+    "tool_call_id": "call_247f910f51fe4d7894108f6c",
+    "round": 3,
+    "execution_path": "agentteams_worker_react",
+    "args_summary": "{\"path\": \"legacy-file:065999aa-4098-417e-b49e-f1ab9266f68e\"}",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "37a98ee7-3def-4186-9490-db21b4925143",
+  "recorded_at": "2026-08-20T18:30:14.017663+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_result",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "工具 workspace_file_preview 执行成功",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "workspace_file_preview",
+    "tool_call_id": "call_247f910f51fe4d7894108f6c",
+    "round": 3,
+    "execution_path": "agentteams_worker_react",
+    "result_summary": "工具执行成功",
+    "success": true,
+    "duration_ms": 75,
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "a1b63650-aa3a-4e3a-b3b4-0d64bc11faf5",
+  "recorded_at": "2026-08-20T18:30:14.026741+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.context_reinjected",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 已将工具结果纳入下一轮分析",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "workspace_file_preview",
+    "tool_call_id": "call_247f910f51fe4d7894108f6c",
+    "round": 3,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "869e427f-bab5-4506-bbc7-8dafc0c71a50",
+  "recorded_at": "2026-08-20T18:30:14.037441+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.turn_continued",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 进入下一轮分析",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "round": 4,
+    "previous_round": 3,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "cbfd91b1-cf24-47fb-9547-c04526ddb354",
+  "recorded_at": "2026-08-20T18:30:44.252162+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.finished",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 执行结束（ok）",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "status": "ok",
+    "tool_call_count": 5,
+    "duration_ms": 51200,
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "4b80c9b1-fcb8-40f7-8567-910977bc1ab6",
+  "recorded_at": "2026-08-20T18:30:44.314318+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "agent-scrna",
+  "event_type": "correction_started",
+  "payload": {
+   "correction_target": "plan-01",
+   "missing_fields": [],
+   "attempt": 2,
+   "max_attempts": 3
+  }
+ },
+ {
+  "event_id": "a4b3a6a0-50ac-450b-842a-c22b8010c14b",
+  "recorded_at": "2026-08-20T18:30:44.342187+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "agent-scrna",
+  "event_type": "correction_applied",
+  "payload": {
+   "reason": "根据校验错误反馈重新生成计划",
+   "attempt": 2,
+   "missing_fields": [],
+   "schema_summary": {
+    "required": [
+     "proposed_submission"
+    ],
+    "flow_plan": [
+     "flow_id",
+     "name",
+     "parameters",
+     "sample_sheet"
+    ]
+   }
+  }
+ },
+ {
+  "event_id": "17aa2d2a-7738-4876-be43-99d130387c88",
+  "recorded_at": "2026-08-20T18:30:44.351970+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "agent-scrna",
+  "event_type": "skill.finished",
+  "payload": {
+   "work_item_id": "plan-01",
+   "agent_id": "agent-scrna",
+   "capability": "interpretation",
+   "gateway_status": "completed",
+   "summary": "本会诊基于 scrna_seq 流程（Seurat 对象 inferCNV 推断）的技能契约构建执行计划。流程需要单个 Seurat RDS 输入、细胞分组列、待测上皮/肿瘤组和不重叠的正常参考组。当前工作区文件引用无法解析为实际内容，需在提交前确认输入 RDS 路径与元数据列名。",
+   "recommendations": [
+    "在提交前通过 workspace_read_file 或 artifact_fetch 确认输入 RDS 文件可访问，并读取其 meta.data 列名以验证 group-col、epi-groups、ref-groups 参数",
+    "确认物种参数（human/mouse），默认为 human；若为小鼠数据需显式设置 --species mouse",
+    "确保参考组与待测组无重叠，且参考组包含足够的正常细胞（建议 ≥3 种细胞类型）",
+    "inferCNV 推断结果为计算推断，不等同于恶性细胞标签；需结合表达谱与实验设计综合判读"
+   ],
+   "evidence_refs": [
+    "file:065999aa-4098-417e-b49e-f1ab9266f68e",
+    "file:legacy-file:065999aa-4098-417e-b49e-f1ab9266f68e"
+   ],
+   "risks": [
+    "工作区文件引用 legacy-file:065999aa-4098-417e-b49e-f1ab9266f68e 无法解析，提交前必须确认输入 RDS 实际路径",
+    "未提供具体的 group-col、epi-groups、ref-groups 值，需从 RDS 元数据中读取后填充",
+    "inferCNV 运行依赖预置的注释数据库与基因组资源，若环境缺失将导致失败",
+    "大样本（>50000 细胞）运行时间较长，建议设置合理的 --threads 参数"
+   ],
+   "artifacts": [],
+   "hard_gate": null,
+   "trace_id": "4fa8889064964e6a92c99436e110b9fa"
+  }
+ },
+ {
+  "event_id": "b4ca057c-d274-4e89-82c9-6cb0020cba68",
+  "recorded_at": "2026-08-20T18:30:45.051170+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "agent-scrna",
+  "event_type": "work_item.claimed",
+  "payload": {
+   "work_item_id": "plan-01",
+   "skill_name": "planning_advice",
+   "lease_seconds": 300,
+   "attempt": 1,
+   "trace_id": null,
+   "status_line": "正在分析细胞异质性与群体结构"
+  }
+ },
+ {
+  "event_id": "920329d2-7066-4625-bc9b-af83fbd38378",
+  "recorded_at": "2026-08-20T18:30:45.089040+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "agent-scrna",
+  "event_type": "work_item.running",
+  "payload": {
+   "work_item_id": "plan-01",
+   "trace_id": "65ae282dfa894a15ba20976251daeeca",
+   "status_line": "正在分析细胞异质性与群体结构"
+  }
+ },
+ {
+  "event_id": "9f544196-8c8c-445d-b992-27972ca9a24f",
+  "recorded_at": "2026-08-20T18:30:46.358454+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.started",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 开始执行",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "759586a7-0fa0-48d6-85ce-32eb7f611a6c",
+  "recorded_at": "2026-08-20T18:30:53.506234+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_call",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 调用工具 workspace_file_preview",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "workspace_file_preview",
+    "tool_call_id": "call_e4e5e46e5d104b1ba2598a9d",
+    "round": 1,
+    "execution_path": "agentteams_worker_react",
+    "args_summary": "{\"path\": \"065999aa-4098-417e-b49e-f1ab9266f68e\", \"max_bytes\": 20000}",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "438e0d5b-2266-4333-a4b1-8f7b952cadf2",
+  "recorded_at": "2026-08-20T18:30:53.518187+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_started",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 开始执行工具 workspace_file_preview",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "workspace_file_preview",
+    "tool_call_id": "call_e4e5e46e5d104b1ba2598a9d",
+    "round": 1,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "3ca6cf97-9004-4ea0-88e2-2e02ac5a5600",
+  "recorded_at": "2026-08-20T18:30:53.529971+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_result",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "工具 workspace_file_preview 执行成功",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "workspace_file_preview",
+    "tool_call_id": "call_e4e5e46e5d104b1ba2598a9d",
+    "round": 1,
+    "execution_path": "agentteams_worker_react",
+    "result_summary": "工具执行成功",
+    "success": true,
+    "duration_ms": 73,
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "04186588-b97d-4231-83c4-62fcbe82a848",
+  "recorded_at": "2026-08-20T18:30:53.540272+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.context_reinjected",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 已将工具结果纳入下一轮分析",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "workspace_file_preview",
+    "tool_call_id": "call_e4e5e46e5d104b1ba2598a9d",
+    "round": 1,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "9f7e8262-7ea2-4cda-a34d-977f3de5e19e",
+  "recorded_at": "2026-08-20T18:30:53.552790+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.turn_continued",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 进入下一轮分析",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "round": 2,
+    "previous_round": 1,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "b27ab27b-6193-45a7-9648-a044f21748e3",
+  "recorded_at": "2026-08-20T18:31:05.699128+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_call",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 调用工具 use_skill",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "use_skill",
+    "tool_call_id": "call_37db943a7ed84e44a09f28f2",
+    "round": 2,
+    "execution_path": "agentteams_worker_react",
+    "args_summary": "{\"skill_id\": \"scrna-pipeline-overview\"}",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "adbbd563-9076-4b9b-a585-34cc97a6d894",
+  "recorded_at": "2026-08-20T18:31:05.832301+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_result",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "工具 rule_threshold_lookup 执行成功",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "rule_threshold_lookup",
+    "tool_call_id": "call_1494c7d0cd16470e8308a4e9",
+    "round": 2,
+    "execution_path": "agentteams_worker_react",
+    "result_summary": "工具执行成功",
+    "success": true,
+    "duration_ms": 101,
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "f7ae98ad-23ef-415b-8b48-9ef339c45e65",
+  "recorded_at": "2026-08-20T18:31:05.850149+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_started",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 开始执行工具 use_skill",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "use_skill",
+    "tool_call_id": "call_37db943a7ed84e44a09f28f2",
+    "round": 2,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "b4d1a7cf-fc83-4243-bb4f-3b606adb7995",
+  "recorded_at": "2026-08-20T18:31:05.860054+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_call",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 调用工具 rule_threshold_lookup",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "rule_threshold_lookup",
+    "tool_call_id": "call_1494c7d0cd16470e8308a4e9",
+    "round": 2,
+    "execution_path": "agentteams_worker_react",
+    "args_summary": "{\"flow_id\": \"scrna_seq\", \"metric_name\": \"mapping_rate\"}",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "a53ce327-774f-4118-85fd-74e95efb6ba1",
+  "recorded_at": "2026-08-20T18:31:05.871047+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_result",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "工具 use_skill 执行成功",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "use_skill",
+    "tool_call_id": "call_37db943a7ed84e44a09f28f2",
+    "round": 2,
+    "execution_path": "agentteams_worker_react",
+    "result_summary": "工具执行成功",
+    "success": true,
+    "duration_ms": 5,
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "a459607c-75ae-44e2-90a4-2e043bbe6100",
+  "recorded_at": "2026-08-20T18:31:05.881812+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.context_reinjected",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 已将工具结果纳入下一轮分析",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "use_skill",
+    "tool_call_id": "call_37db943a7ed84e44a09f28f2",
+    "round": 2,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "d5885440-5aeb-4b40-851c-a5f941a88cc5",
+  "recorded_at": "2026-08-20T18:31:05.896563+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_started",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 开始执行工具 rule_threshold_lookup",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "rule_threshold_lookup",
+    "tool_call_id": "call_1494c7d0cd16470e8308a4e9",
+    "round": 2,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "16d21e1a-4869-4e91-9551-0a94fd2c1da3",
+  "recorded_at": "2026-08-20T18:31:05.908693+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.context_reinjected",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 已将工具结果纳入下一轮分析",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "rule_threshold_lookup",
+    "tool_call_id": "call_1494c7d0cd16470e8308a4e9",
+    "round": 2,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "75b74265-2e29-4abd-9952-bb4b66adf15d",
+  "recorded_at": "2026-08-20T18:31:05.920754+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.turn_continued",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 进入下一轮分析",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "round": 3,
+    "previous_round": 2,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "0a1a1c9c-ce50-4968-afac-052eb67b2973",
+  "recorded_at": "2026-08-20T18:31:16.819943+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_call",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 调用工具 rule_threshold_lookup",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "rule_threshold_lookup",
+    "tool_call_id": "call_9dc8211f193b40328fd768b7",
+    "round": 3,
+    "execution_path": "agentteams_worker_react",
+    "args_summary": "{\"flow_id\": \"scrna_seq\", \"metric_name\": \"duplicate_rate\"}",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "c35bfbfe-7fb1-49dd-905b-240411bde4be",
+  "recorded_at": "2026-08-20T18:31:16.831602+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_started",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 开始执行工具 rule_threshold_lookup",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "rule_threshold_lookup",
+    "tool_call_id": "call_662a1f3bd85846d69bdbc30e",
+    "round": 3,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "29d50a67-44ab-4f1a-b294-3901f34dac6d",
+  "recorded_at": "2026-08-20T18:31:16.841254+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_result",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "工具 rule_threshold_lookup 执行成功",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "rule_threshold_lookup",
+    "tool_call_id": "call_662a1f3bd85846d69bdbc30e",
+    "round": 3,
+    "execution_path": "agentteams_worker_react",
+    "result_summary": "工具执行成功",
+    "success": true,
+    "duration_ms": 97,
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "f63be4e7-3ad7-4d17-8f95-d4b84d25d273",
+  "recorded_at": "2026-08-20T18:31:16.851529+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.context_reinjected",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 已将工具结果纳入下一轮分析",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "rule_threshold_lookup",
+    "tool_call_id": "call_662a1f3bd85846d69bdbc30e",
+    "round": 3,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "6853e3fd-804c-4f95-b5e6-d88f0fb3dfae",
+  "recorded_at": "2026-08-20T18:31:16.863205+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_started",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 开始执行工具 rule_threshold_lookup",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "rule_threshold_lookup",
+    "tool_call_id": "call_9dc8211f193b40328fd768b7",
+    "round": 3,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "290d3ab6-d672-4dc6-8cbf-2cce211179a3",
+  "recorded_at": "2026-08-20T18:31:16.872784+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_call",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 调用工具 rule_threshold_lookup",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "rule_threshold_lookup",
+    "tool_call_id": "call_662a1f3bd85846d69bdbc30e",
+    "round": 3,
+    "execution_path": "agentteams_worker_react",
+    "args_summary": "{\"flow_id\": \"scrna_seq\", \"metric_name\": \"q30\"}",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "0d0f61b3-3f55-4b0b-9622-10eecfead4ba",
+  "recorded_at": "2026-08-20T18:31:16.884240+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_result",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "工具 rule_threshold_lookup 执行成功",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "rule_threshold_lookup",
+    "tool_call_id": "call_9dc8211f193b40328fd768b7",
+    "round": 3,
+    "execution_path": "agentteams_worker_react",
+    "result_summary": "工具执行成功",
+    "success": true,
+    "duration_ms": 99,
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "cdf09c4b-bbc1-4ecf-a67e-7ab11d83c2df",
+  "recorded_at": "2026-08-20T18:31:16.894291+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.context_reinjected",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 已将工具结果纳入下一轮分析",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "rule_threshold_lookup",
+    "tool_call_id": "call_9dc8211f193b40328fd768b7",
+    "round": 3,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "c0bc4ea8-0431-4ac7-bcff-f8bdb5c9358c",
+  "recorded_at": "2026-08-20T18:31:16.904900+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.turn_continued",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 进入下一轮分析",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "round": 4,
+    "previous_round": 3,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "baa31f37-edba-4760-8992-9ded997e1182",
+  "recorded_at": "2026-08-20T18:31:49.239602+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.finished",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 执行结束（awaiting_input）",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "status": "awaiting_input",
+    "tool_call_count": 5,
+    "duration_ms": 62900,
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "c82439cf-992f-4662-92df-f6fa2c1f0d00",
+  "recorded_at": "2026-08-20T18:31:49.285117+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "agent-scrna",
+  "event_type": "correction_started",
+  "payload": {
+   "correction_target": "plan-01",
+   "missing_fields": [
+    "sample_sheet.sample"
+   ],
+   "attempt": 3,
+   "max_attempts": 3
+  }
+ },
+ {
+  "event_id": "78b9440c-5b98-47e9-9027-a5d6fdd44369",
+  "recorded_at": "2026-08-20T18:31:49.310692+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "agent-scrna",
+  "event_type": "correction_applied",
+  "payload": {
+   "reason": "根据校验错误反馈重新生成计划",
+   "attempt": 3,
+   "missing_fields": [
+    "sample_sheet.sample"
+   ],
+   "schema_summary": {
+    "required": [
+     "proposed_submission"
+    ],
+    "flow_plan": [
+     "flow_id",
+     "name",
+     "parameters",
+     "sample_sheet"
+    ]
+   }
+  }
+ },
+ {
+  "event_id": "8f6b3778-935b-4dc1-beef-8daaaa1d76e8",
+  "recorded_at": "2026-08-20T18:31:49.323829+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "agent-scrna",
+  "event_type": "skill.finished",
+  "payload": {
+   "work_item_id": "plan-01",
+   "agent_id": "agent-scrna",
+   "capability": "interpretation",
+   "gateway_status": "completed",
+   "summary": "本 Case 对应 scrna_seq（单细胞转录组端到端主流程 scRNAseqMulticommand）的执行规划。工作区引用文件 065999aa-4098-417e-b49e-f1ab9266f68e 无法读取（路径不存在），因此无法核验样本矩阵目录与 conf CSV 的实际内容。FlowRegistry 中 scrna_seq 未注册任何 QC 硬规则阈值（mapping_rate / q30 / duplicate_rate 均缺失），质控将完全依赖流程内置的 MAD 自适应过滤。计划已按技能指令构造完整的 proposed_submission，sample_sheet 以模板形式给出（待文件可用后填充真实路径）。",
+   "recommendations": [
+    "在执行前必须确认工作区文件 065999aa-4098-417e-b49e-f1ab9266f68e 的实际路径与内容（应为 conf CSV 或样本矩阵目录清单），否则 sample_sheet 中的 CellRanger 路径无法核验。",
+    "确认物种 taxID（9606 人 / 10090 鼠）、组织器官（-O 参数）与 marker 参考（-F 参数：Cellmarker / PanglaoDB / Custom）后再提交。",
+    "若多样本需整合，确认整合方法（默认 Harmony）；若选 SCVI 须提前验证 yaml 中 scvi conda 环境路径有效性。",
+    "确认 Celldex/ 下 7 个 SingleR 参考 RDS 文件已就绪，否则 SingleR 注释步骤将失败。",
+    "FlowRegistry 无 QC 阈值注册，建议在 manifest.json 验收时人工核查过滤前后细胞数与线粒体比例分布。"
+   ],
+   "evidence_refs": [
+    "file:065999aa-4098-417e-b49e-f1ab9266f68e",
+    "rule:scrna_seq:mapping_rate",
+    "rule:scrna_seq:q30",
+    "rule:scrna_seq:duplicate_rate"
+   ],
+   "risks": [
+    "工作区引用文件不可读，sample_sheet 中的矩阵路径为模板占位值，提交前必须替换为真实可访问路径。",
+    "FlowRegistry 无 QC 硬规则，低质量样本可能在无告警情况下通过过滤。",
+    "Celldex 参考 RDS 缺失是已知高频失败点，未确认就绪前提交将导致注释步骤中断。",
+    "SCVI 整合路径硬编码为 /home/zj/miniconda3/envs/scvi，跨机器部署时必改。",
+    "conf CSV 必须为逗号分隔四列（CellRanger,name,group,library_type），分隔符或列名错误将导致流程静默失败。"
+   ],
+   "artifacts": [],
+   "hard_gate": null,
+   "trace_id": "65ae282dfa894a15ba20976251daeeca"
+  }
+ },
+ {
+  "event_id": "0db992a0-e739-4c78-a66c-62724c71fe20",
+  "recorded_at": "2026-08-20T18:31:50.583548+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "agent-scrna",
+  "event_type": "work_item.claimed",
+  "payload": {
+   "work_item_id": "plan-01",
+   "skill_name": "planning_advice",
+   "lease_seconds": 300,
+   "attempt": 1,
+   "trace_id": null,
+   "status_line": "正在分析细胞异质性与群体结构"
+  }
+ },
+ {
+  "event_id": "40390984-4248-4e96-a1f7-d6ec20f0441d",
+  "recorded_at": "2026-08-20T18:31:50.620377+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "agent-scrna",
+  "event_type": "work_item.running",
+  "payload": {
+   "work_item_id": "plan-01",
+   "trace_id": "17b410396b624a60b68d6292b1f986e7",
+   "status_line": "正在分析细胞异质性与群体结构"
+  }
+ },
+ {
+  "event_id": "a0b3fe51-c2c2-47dd-a543-9e8fbcdfb78f",
+  "recorded_at": "2026-08-20T18:31:51.623209+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.started",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 开始执行",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "b2228eb9-aeb1-4249-ba9a-0824ffaf2f87",
+  "recorded_at": "2026-08-20T18:31:59.585249+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_call",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 调用工具 workspace_file_preview",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "workspace_file_preview",
+    "tool_call_id": "call_72616f47ea1e40868d9c43eb",
+    "round": 1,
+    "execution_path": "agentteams_worker_react",
+    "args_summary": "{\"path\": \"065999aa-4098-417e-b49e-f1ab9266f68e\", \"max_bytes\": 20000}",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "0897f32c-08e8-4797-884b-99a47f7c0149",
+  "recorded_at": "2026-08-20T18:31:59.713073+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_started",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 开始执行工具 workspace_file_preview",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "workspace_file_preview",
+    "tool_call_id": "call_72616f47ea1e40868d9c43eb",
+    "round": 1,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "ead3f23d-7231-4ddd-811c-9b16b6c73834",
+  "recorded_at": "2026-08-20T18:31:59.724205+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_call",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 调用工具 rule_threshold_lookup",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "rule_threshold_lookup",
+    "tool_call_id": "call_25028165426d40f6ad66ea41",
+    "round": 1,
+    "execution_path": "agentteams_worker_react",
+    "args_summary": "{\"flow_id\": \"scrna_seq\", \"metric_name\": \"mapping_rate\"}",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "5c44b475-927a-46ca-b8be-2b1a26481491",
+  "recorded_at": "2026-08-20T18:31:59.736049+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_result",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "工具 rule_threshold_lookup 执行成功",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "rule_threshold_lookup",
+    "tool_call_id": "call_25028165426d40f6ad66ea41",
+    "round": 1,
+    "execution_path": "agentteams_worker_react",
+    "result_summary": "工具执行成功",
+    "success": true,
+    "duration_ms": 104,
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "abe42145-fac7-467d-92ae-5c434eac480d",
+  "recorded_at": "2026-08-20T18:31:59.746919+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_result",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "工具 workspace_file_preview 执行成功",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "workspace_file_preview",
+    "tool_call_id": "call_72616f47ea1e40868d9c43eb",
+    "round": 1,
+    "execution_path": "agentteams_worker_react",
+    "result_summary": "工具执行成功",
+    "success": true,
+    "duration_ms": 73,
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "26315ec4-c1f2-43d0-956f-c73b9140ab31",
+  "recorded_at": "2026-08-20T18:31:59.758700+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.context_reinjected",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 已将工具结果纳入下一轮分析",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "workspace_file_preview",
+    "tool_call_id": "call_72616f47ea1e40868d9c43eb",
+    "round": 1,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "9939228b-9e9d-4fa4-b67c-de2a41623b1b",
+  "recorded_at": "2026-08-20T18:31:59.769574+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_started",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 开始执行工具 rule_threshold_lookup",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "rule_threshold_lookup",
+    "tool_call_id": "call_25028165426d40f6ad66ea41",
+    "round": 1,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "12f87834-1a5d-4186-a3bb-4420246c28b8",
+  "recorded_at": "2026-08-20T18:31:59.782085+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.context_reinjected",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 已将工具结果纳入下一轮分析",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "rule_threshold_lookup",
+    "tool_call_id": "call_25028165426d40f6ad66ea41",
+    "round": 1,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "a235a648-efe6-47d8-add7-f49197df0481",
+  "recorded_at": "2026-08-20T18:31:59.794793+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.turn_continued",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 进入下一轮分析",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "round": 2,
+    "previous_round": 1,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "e4979b6e-8c21-4309-9611-3ef2de5cee51",
+  "recorded_at": "2026-08-20T18:32:13.141709+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_call",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 调用工具 use_skill",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "use_skill",
+    "tool_call_id": "call_9cc0433b6f7c45398d0aca80",
+    "round": 2,
+    "execution_path": "agentteams_worker_react",
+    "args_summary": "{\"skill_id\": \"scrna-seq\"}",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "a792ff42-125e-4fab-8426-f360c6f5f2c7",
+  "recorded_at": "2026-08-20T18:32:13.154766+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_started",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 开始执行工具 use_skill",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "use_skill",
+    "tool_call_id": "call_9cc0433b6f7c45398d0aca80",
+    "round": 2,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "05fb9403-746c-4b17-85d3-cd8b73288fce",
+  "recorded_at": "2026-08-20T18:32:13.165829+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.tool_result",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "工具 use_skill 执行成功",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "use_skill",
+    "tool_call_id": "call_9cc0433b6f7c45398d0aca80",
+    "round": 2,
+    "execution_path": "agentteams_worker_react",
+    "result_summary": "工具执行成功",
+    "success": true,
+    "duration_ms": 2,
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "e5d8f571-d0cf-4987-9b9a-fa00837867fc",
+  "recorded_at": "2026-08-20T18:32:13.177072+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.context_reinjected",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 已将工具结果纳入下一轮分析",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "tool": "use_skill",
+    "tool_call_id": "call_9cc0433b6f7c45398d0aca80",
+    "round": 2,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "03a89786-afc8-48a3-bc2e-87ba0c6e2940",
+  "recorded_at": "2026-08-20T18:32:13.193499+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.turn_continued",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 进入下一轮分析",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "round": 3,
+    "previous_round": 2,
+    "execution_path": "agentteams_worker_react",
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "5b4c45db-0605-4c7b-b6dc-11baa9b6c8a0",
+  "recorded_at": "2026-08-20T18:32:40.585768+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "bioops-manager",
+  "event_type": "agent.finished",
+  "payload": {
+   "work_item_id": "plan-01",
+   "summary": "Agent agent-scrna 执行结束（ok）",
+   "context_refs": [],
+   "omic_task_id": null,
+   "skill_name": null,
+   "payload": {
+    "status": "ok",
+    "tool_call_count": 3,
+    "duration_ms": 49000,
+    "work_item_id": "plan-01",
+    "agent_id": "agent-scrna"
+   }
+  }
+ },
+ {
+  "event_id": "db6ce50c-d3db-40d0-82c9-26006c9b836f",
+  "recorded_at": "2026-08-20T18:32:40.671834+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "agent-scrna",
+  "event_type": "work_item.assigned",
+  "payload": {
+   "work_item_id": "preflight-01",
+   "target": "data-steward",
+   "objective": "核验冻结计划与真实项目数据、样本和分组是否匹配。",
+   "skill_name": "project-preflight",
+   "context_refs": [
+    {
+     "kind": "workspace",
+     "id": "065999aa-4098-417e-b49e-f1ab9266f68e",
+     "location": null,
+     "meta": {}
+    },
+    {
+     "kind": "flow",
+     "id": "scrna_seq",
+     "location": null,
+     "meta": {}
+    }
+   ],
+   "status_line": "正在整理数据检查清单"
+  }
+ },
+ {
+  "event_id": "2801f610-f1c3-4897-8720-84675c101d06",
+  "recorded_at": "2026-08-20T18:32:40.686137+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "agent-scrna",
+  "event_type": "planning.frozen",
+  "payload": {
+   "plan_hash": "a951c4e8cc519129a262e289af50247aebcc1a8810dfee978571559ec2897f2c",
+   "flow_id": "scrna_seq",
+   "quality_gate_required": true
+  }
+ },
+ {
+  "event_id": "cd1dcba0-1ade-44f7-82de-326549ed2632",
+  "recorded_at": "2026-08-20T18:32:40.696171+00:00",
+  "case_id": "bioops_20272b2afce74d728ebe0e204bece70c",
+  "actor": "agent-scrna",
+  "event_type": "skill.finished",
+  "payload": {
+   "work_item_id": "plan-01",
+   "agent_id": "agent-scrna",
+   "capability": "interpretation",
+   "gateway_status": "completed",
+   "summary": "本会诊针对 scrna_seq 流程（inferCNV 拷贝数变异推断）生成可执行计划。该流程需要单个 Seurat RDS 对象作为输入，指定细胞分组列、待测组（如肿瘤/上皮细胞）和不重叠的参考组（如免疫/基质细胞），输出每细胞 CNV burden 和事件数。由于无法直接读取工作区文件内容，计划基于技能标准参数构建，实际执行前需确认 RDS 文件路径、meta.data 列名和分组名称。",
+   "recommendations": [
+    "执行前确认 Seurat RDS 文件路径和 meta.data 中的分组列名",
+    "确认待测组（epi-groups）和参考组（ref-groups）名称精确匹配元数据且无重叠",
+    "确认基因 ID 类型与 --gene-symbol-type 参数相符（默认 human）",
+    "建议先用 summary.json 检查输入细胞数和基因数是否合理",
+    "inferCNV 结果为推断值，需结合表达数据和实验设计综合判读"
+   ],
+   "evidence_refs": [
+    "file:065999aa-4098-417e-b49e-f1ab9266f68e",
+    "rule:scrna_seq:mapping_rate"
+   ],
+   "risks": [
+    "工作区文件无法直接预览，实际 RDS 路径和元数据结构需用户确认",
+    "分组名称不匹配将导致运行失败",
+    "参考组选择不当（如包含恶性细胞）会导致 CNV 推断偏差",
+    "inferCNV 计算资源需求较高，大样本可能需要较长运行时间",
+    "推断结果不等同于恶性细胞标签，需谨慎解读"
+   ],
+   "artifacts": [],
+   "hard_gate": null,
+   "trace_id": "17b410396b624a60b68d6292b1f986e7"
+  }
+ }
+]

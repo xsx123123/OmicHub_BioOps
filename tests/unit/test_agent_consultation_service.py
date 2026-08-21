@@ -72,13 +72,56 @@ async def _test_run_consultation_uses_safe_single_task_and_parses_envelope() -> 
     call = parallel_service.run.await_args.kwargs
     assert call["safe_only"] is True
     assert call["runtime_authorized"] is True
+    assert call["allow_non_spawnable_target"] is True
     assert len(call["tasks"]) == 1
     assert call["tasks"][0]["workspace_access"] is False
+
+
+def test_build_instruction_flow_type_includes_taskspec_skeleton() -> None:
+    """BUG-E2E-04：流程型规划指令必须给出完整 TaskSpec 骨架与 sample_sheet list 形态。"""
+    instruction = AgentConsultationService._build_instruction(
+        question="规划 scrna_seq 流程",
+        capability="planning_advice",
+        evidence_refs=[],
+        requested_tools=[],
+        execution_mode="readonly_consultation",
+        hard_gate=None,
+    )
+    assert '"flow_id"' in instruction
+    assert '"sample_sheet"' in instruction
+    assert "dict 组成的 list" in instruction
+    assert "proposed_submission" in instruction
 
 
 def test_parse_envelope_falls_back_to_raw_answer() -> None:
     result = AgentConsultationService.parse_envelope("普通文本结论")
     assert result.conclusion == "普通文本结论"
+
+
+def test_extract_answer_preserves_parallel_service_error() -> None:
+    result = AgentConsultationService._extract_answer(
+        {"llm_payload": {"success": False, "error": "目标 Agent 未标记为可派生子 Agent"}}
+    )
+    assert result == "会诊执行失败：目标 Agent 未标记为可派生子 Agent"
+
+
+def test_parse_envelope_recovers_trailing_commas_from_manager_response() -> None:
+    result = AgentConsultationService.parse_envelope(
+        '''{
+  "conclusion": "收到需求。在制定分析方案前，需要确认数据状态。",
+  "recommendations": [],
+  "evidence_refs": [],
+  "risks": ["3v3 设计的统计效能有限"],
+  "ask_user": [
+    {"question": "数据是什么格式？", "options": ["Seurat RDS", "h5ad"]},
+    {"question": "来自什么组织？", "options": [],}
+  ],
+}'''
+    )
+
+    assert result.conclusion == "收到需求。在制定分析方案前，需要确认数据状态。"
+    assert result.risks == ["3v3 设计的统计效能有限"]
+    assert result.ask_user[1].question == "来自什么组织？"
 
 
 @pytest.mark.asyncio
@@ -389,6 +432,9 @@ async def test_evidence_projection_emits_agent_events_with_truncated_args() -> N
             "index": 1,
             "agent_id": "agent-rnaseq",
             "tool_name": "task_result_summary",
+            "tool_call_id": "call-1",
+            "round": 1,
+            "execution_path": "agentteams_worker_react",
             "args_summary": "x" * 500,
         },
         {
@@ -396,8 +442,21 @@ async def test_evidence_projection_emits_agent_events_with_truncated_args() -> N
             "index": 1,
             "agent_id": "agent-rnaseq",
             "tool_name": "task_result_summary",
+            "tool_call_id": "call-1",
+            "round": 1,
+            "execution_path": "agentteams_worker_react",
+            "result_summary": "结果可信",
             "success": True,
             "duration_ms": 12,
+        },
+        {
+            "type": "agent_context_reinjected",
+            "index": 1,
+            "agent_id": "agent-rnaseq",
+            "tool_name": "task_result_summary",
+            "tool_call_id": "call-1",
+            "round": 1,
+            "execution_path": "agentteams_worker_react",
         },
         {
             "type": "worker_finished",
@@ -422,7 +481,13 @@ async def test_evidence_projection_emits_agent_events_with_truncated_args() -> N
 
     assert result.conclusion == "可信"
     calls = {call.kwargs["event_type"]: call for call in post_evidence.await_args_list}
-    assert set(calls) == {"agent.started", "agent.tool_call", "agent.tool_result", "agent.finished"}
+    assert set(calls) == {
+        "agent.started",
+        "agent.tool_call",
+        "agent.tool_result",
+        "agent.context_reinjected",
+        "agent.finished",
+    }
     for call in calls.values():
         assert call.args[0] == "case-1"
         assert call.kwargs["work_item_id"] == "wi-1"
@@ -430,10 +495,17 @@ async def test_evidence_projection_emits_agent_events_with_truncated_args() -> N
         assert call.kwargs["payload"]["agent_id"] == "agent-rnaseq"
     tool_call_payload = calls["agent.tool_call"].kwargs["payload"]
     assert tool_call_payload["tool"] == "task_result_summary"
+    assert tool_call_payload["tool_call_id"] == "call-1"
+    assert tool_call_payload["round"] == 1
+    assert tool_call_payload["execution_path"] == "agentteams_worker_react"
     assert len(tool_call_payload["args_summary"]) == 200
     tool_result_payload = calls["agent.tool_result"].kwargs["payload"]
     assert tool_result_payload == {
         "tool": "task_result_summary",
+        "tool_call_id": "call-1",
+        "round": 1,
+        "execution_path": "agentteams_worker_react",
+        "result_summary": "结果可信",
         "success": True,
         "duration_ms": 12,
         "work_item_id": "wi-1",
@@ -443,6 +515,85 @@ async def test_evidence_projection_emits_agent_events_with_truncated_args() -> N
     assert finished_payload["status"] == "ok"
     assert finished_payload["tool_call_count"] == 1
     assert finished_payload["duration_ms"] == 2500
+
+
+@pytest.mark.asyncio
+async def test_parse_failure_is_projected_to_case_timeline() -> None:
+    post_evidence = AsyncMock(return_value={"event_id": "parse-1"})
+    agent_service = SimpleNamespace(
+        assemble_context=AsyncMock(return_value=SimpleNamespace(model_config=object()))
+    )
+    parallel_service = SimpleNamespace(
+        run=AsyncMock(
+            return_value={
+                "llm_payload": {
+                    "results": [{"answer": "这不是 JSON 信封"}],
+                }
+            }
+        )
+    )
+    service = AgentConsultationService(
+        SimpleNamespace(),
+        agent_service=agent_service,
+        parallel_service=parallel_service,
+        agentteams_service=SimpleNamespace(available=True, post_case_evidence=post_evidence),
+    )
+
+    result = await service.run_consultation(
+        case_id="case-parse",
+        work_item_id="plan-01",
+        agent_id="agent-code",
+        question="生成计划",
+        capability="planning_advice",
+        evidence_refs=[],
+        requested_tools=[],
+        requester_ref="user-1",
+    )
+
+    assert result.risks == ["信封解析降级：专家答复未满足结构化 JSON 契约。"]
+    post_evidence.assert_awaited_once()
+    assert post_evidence.await_args.kwargs["event_type"] == "consultation.parse_failed"
+    assert post_evidence.await_args.kwargs["payload"]["parse_success"] is False
+
+
+@pytest.mark.asyncio
+async def test_parse_failure_evidence_carries_causation_event_id() -> None:
+    """手册阶段 2 修复 3：解析失败异常事件携带触发它的 room.user_message event_id。"""
+    post_evidence = AsyncMock(return_value={"event_id": "parse-1"})
+    agent_service = SimpleNamespace(
+        assemble_context=AsyncMock(return_value=SimpleNamespace(model_config=object()))
+    )
+    parallel_service = SimpleNamespace(
+        run=AsyncMock(
+            return_value={
+                "llm_payload": {
+                    "results": [{"answer": "这不是 JSON 信封"}],
+                }
+            }
+        )
+    )
+    service = AgentConsultationService(
+        SimpleNamespace(),
+        agent_service=agent_service,
+        parallel_service=parallel_service,
+        agentteams_service=SimpleNamespace(available=True, post_case_evidence=post_evidence),
+    )
+
+    await service.run_consultation(
+        case_id="case-parse",
+        work_item_id="plan-01",
+        agent_id="agent-code",
+        question="生成计划",
+        capability="planning_advice",
+        evidence_refs=[],
+        requested_tools=[],
+        requester_ref="user-1",
+        causation_event_id="evt-user-1",
+    )
+
+    post_evidence.assert_awaited_once()
+    assert post_evidence.await_args.kwargs["event_type"] == "consultation.parse_failed"
+    assert post_evidence.await_args.kwargs["payload"]["causation_event_id"] == "evt-user-1"
 
 
 @pytest.mark.asyncio

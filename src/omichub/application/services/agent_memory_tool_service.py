@@ -5,11 +5,13 @@ from __future__ import annotations
 from typing import Any
 
 from sqlalchemy import select
+from sqlalchemy import update
 
 from omichub.application.schemas.tool_invocation import ToolInvocationContext
 from omichub.application.services.agent_memory_service import AgentMemoryService
 from omichub.core.exceptions import BusinessError
 from omichub.infrastructure.database.models.chat import ChatSessionModel
+from omichub.infrastructure.database.models.agent_memory import MemoryBlockModel
 
 
 class AgentMemoryToolService:
@@ -117,3 +119,47 @@ class AgentMemoryToolService:
             project_id=await self._project_id(context),
         )
         return {"success": True, **result, "summary": f"找到 {result['count']} 条相关记忆。"}
+
+    async def update_memory_block(
+        self,
+        *,
+        user_id: str,
+        block_name: str,
+        content: str,
+        expected_version: int,
+        context: ToolInvocationContext | None = None,
+        **_kwargs: Any,
+    ) -> dict[str, Any]:
+        if context is None or not context.agent_id:
+            raise BusinessError("更新记忆块需要当前 Agent 上下文")
+        if block_name not in {"profile", "preferences", "current_focus"}:
+            raise BusinessError("无效的记忆块名称")
+        block = await context.db.scalar(
+            select(MemoryBlockModel).where(
+                MemoryBlockModel.user_id == user_id,
+                MemoryBlockModel.agent_id == context.agent_id,
+                MemoryBlockModel.block_name == block_name,
+            )
+        )
+        if block is None:
+            raise BusinessError("记忆块尚未初始化，请先执行记忆迁移任务")
+        if len(content) > block.char_limit:
+            raise BusinessError(f"超出块容量 {block.char_limit} 字符，请精简后重试")
+        result = await context.db.execute(
+            update(MemoryBlockModel)
+            .where(
+                MemoryBlockModel.id == block.id,
+                MemoryBlockModel.version == expected_version,
+            )
+            .values(content=content, version=expected_version + 1)
+        )
+        if result.rowcount == 0:
+            fresh = await context.db.scalar(
+                select(MemoryBlockModel).where(MemoryBlockModel.id == block.id)
+            )
+            raise BusinessError(
+                f"块已被并发修改，最新内容为：{fresh.content if fresh else ''}，"
+                f"当前版本为 {fresh.version if fresh else '未知'}，请基于最新内容重试"
+            )
+        await context.db.commit()
+        return {"success": True, "block_name": block_name, "version": expected_version + 1, "summary": "记忆块已更新。"}

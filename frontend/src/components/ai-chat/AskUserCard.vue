@@ -5,7 +5,7 @@
  * 未回答：分页问题向导（选项点选 / "其他"自由输入 / 跳过 Esc / 下一步或提交）。
  * 已回答：折叠为工具卡片样式（"询问工具 | 已收集信息"），展开可回看问答。
  */
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { NButton, NIcon, NInput, NTag } from 'naive-ui'
 import {
   ChatboxEllipsesOutline,
@@ -13,12 +13,12 @@ import {
   ChevronForwardOutline,
   CreateOutline,
 } from '@vicons/ionicons5'
-import type { AskRequest } from './types'
+import type { AskRequest, AskUserObjectReference } from './types'
 
 const props = defineProps<{ ask: AskRequest }>()
 
 const emit = defineEmits<{
-  submit: [answers: string[]]
+  submit: [answers: string[], objectReference?: AskUserObjectReference]
 }>()
 
 const questions = computed(() => props.ask.questions || [])
@@ -32,6 +32,9 @@ const selections = ref<string[]>(questions.value.map(() => ''))
 const otherTexts = ref<string[]>(questions.value.map(() => ''))
 /** 无选项的问题直接展开自由输入（含模型未给出有效问题的兜底形态） */
 const showOther = ref<boolean[]>(questions.value.map((q) => !(q.options?.length)))
+const objectPath = ref('')
+const selectedObjectFile = ref<File | null>(null)
+const objectFileInput = ref<HTMLInputElement | null>(null)
 
 const current = computed(() => questions.value[currentIndex.value])
 const isLast = computed(() => currentIndex.value >= total.value - 1)
@@ -39,6 +42,18 @@ const isLast = computed(() => currentIndex.value >= total.value - 1)
 const currentAnswer = computed(
   () => otherTexts.value[currentIndex.value]?.trim() || selections.value[currentIndex.value] || '',
 )
+const objectRequired = computed(() => Boolean(props.ask.objectRequired))
+const selectedWorkspaceCandidate = computed(() => props.ask.workspaceCandidates?.find(
+  (item) => item.location === currentAnswer.value,
+))
+const hasExecutionObject = computed(() => Boolean(
+  selectedObjectFile.value || objectPath.value.trim() || selectedWorkspaceCandidate.value,
+))
+const isSubmitting = computed(() => Boolean(props.ask.submitting || submitting.value))
+
+watch(() => props.ask.submitting, (value) => {
+  if (!value) submitting.value = false
+})
 
 /** 选项展示顺序：含「推荐」标注的选项排在最前（稳定排序，其余保持模型给出的原顺序） */
 function sortedOptions(opts?: string[]): string[] {
@@ -65,6 +80,21 @@ function onOtherInput(value: string) {
   otherTexts.value[currentIndex.value] = value
 }
 
+function chooseObjectFile() {
+  objectFileInput.value?.click()
+}
+
+function onObjectFileChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  selectedObjectFile.value = input.files?.[0] || null
+  if (selectedObjectFile.value) objectPath.value = ''
+  input.value = ''
+}
+
+function clearObjectFile() {
+  selectedObjectFile.value = null
+}
+
 /** 跳过当前题（答案留空，由 AI 自行决定）；最后一题时直接提交 */
 function skip() {
   selections.value[currentIndex.value] = ''
@@ -84,11 +114,18 @@ function advance() {
 
 const submitting = ref(false)
 function submit() {
-  if (submitting.value) return
+  if (isSubmitting.value || (objectRequired.value && !hasExecutionObject.value)) return
   submitting.value = true
   emit(
     'submit',
     questions.value.map((_, i) => otherTexts.value[i]?.trim() || selections.value[i] || ''),
+    objectRequired.value
+      ? {
+          path: objectPath.value.trim() || undefined,
+          file: selectedObjectFile.value || undefined,
+          contextRef: selectedWorkspaceCandidate.value,
+        }
+      : undefined,
   )
 }
 
@@ -96,8 +133,8 @@ function handleKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape' && !props.ask.answered) skip()
 }
 
-// ---------- 已回答：工具卡片样式，默认展开可回看问答 ----------
-const collapsed = ref(false)
+// ---------- 已回答：折叠为工具卡片样式（§18.4.2 默认折叠单行，点击展开回看问答） ----------
+const collapsed = ref(true)
 function toggle() {
   collapsed.value = !collapsed.value
 }
@@ -111,7 +148,7 @@ function displayAnswer(index: number): string {
 <template>
   <!-- 未回答：交互式分页问题卡片 -->
   <div
-    v-if="!ask.answered"
+    v-if="!ask.answered && !ask.submitted"
     class="ask-user-card"
     tabindex="0"
     @keydown="handleKeydown"
@@ -169,6 +206,26 @@ function displayAnswer(index: number): string {
         @update:value="onOtherInput"
         @keydown.stop
       />
+
+      <div v-if="objectRequired" class="auc-object-ref">
+        <span class="auc-object-ref__label">输入文件或工作区路径</span>
+        <div class="auc-object-ref__actions">
+          <n-button size="small" secondary :disabled="isSubmitting" @click="chooseObjectFile">选择并上传文件</n-button>
+          <input ref="objectFileInput" class="auc-object-ref__input" type="file" @change="onObjectFileChange" />
+          <span v-if="selectedObjectFile" class="auc-object-ref__file">
+            {{ selectedObjectFile.name }}
+            <button type="button" aria-label="移除所选文件" @click="clearObjectFile">×</button>
+          </span>
+        </div>
+        <n-input
+          v-if="!selectedObjectFile"
+          v-model:value="objectPath"
+          size="small"
+          placeholder="或填写工作区文件名/路径，例如 raw/genes.xlsx"
+          @keydown.stop
+        />
+        <span class="auc-object-ref__hint">选择文件会上传后随答案引用；填写路径会作为工作区只读引用。</span>
+      </div>
     </div>
 
     <div class="auc-footer">
@@ -179,11 +236,12 @@ function displayAnswer(index: number): string {
       <n-button
         size="small"
         type="primary"
-        :disabled="!currentAnswer"
-        :loading="submitting"
+        :disabled="!currentAnswer || (objectRequired && !hasExecutionObject)"
+        :loading="isSubmitting"
         @click="next"
       >
         {{ isLast ? '提交' : '下一步' }} →
+        <span class="auc-key-hint auc-key-hint--primary">↵</span>
       </n-button>
     </div>
   </div>
@@ -202,7 +260,9 @@ function displayAnswer(index: number): string {
       <n-icon size="14" class="auc-icon"><ChatboxEllipsesOutline /></n-icon>
       <span class="auc-tool-name">询问工具</span>
       <span class="auc-divider">|</span>
-      <n-tag size="tiny" type="success" :bordered="false">已收集信息</n-tag>
+      <n-tag size="tiny" :type="ask.answered ? 'success' : 'info'" :bordered="false">
+        {{ ask.answered ? '已收集信息' : ask.answerStatus === 'waiting_upload' ? '等待上传' : '已提交' }}
+      </n-tag>
       <n-icon size="13" class="auc-arrow" :class="{ rotated: !collapsed }">
         <ChevronForwardOutline />
       </n-icon>
@@ -221,16 +281,55 @@ function displayAnswer(index: number): string {
   width: 100%;
   margin-top: 10px;
   padding: 14px 16px;
-  background: var(--chat-ai-card, #ffffff);
-  border: 1px solid rgba(99, 102, 241, 0.35);
+  background: var(--chat-ai-card, var(--neutral-card));
+  border: 1px solid var(--chat-accent-border, color-mix(in srgb, var(--chat-accent, var(--arco-primary)) 35%, transparent));
   border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--chat-shadow-sm, var(--shadow-card));
   outline: none;
+}
+.auc-object-ref { display: grid; gap: var(--space-xs); margin-top: var(--space-sm); padding: var(--space-sm); border: 1px solid var(--chat-accent-border, var(--neutral-border)); border-radius: var(--radius-sm); background: var(--neutral-fill-1); }
+.auc-object-ref__label { color: var(--neutral-text-1); font-size: var(--font-small-size); font-weight: 600; }
+.auc-object-ref__actions { display: flex; align-items: center; gap: var(--space-xs); min-width: 0; }
+.auc-object-ref__input { display: none; }
+.auc-object-ref__file { display: inline-flex; min-width: 0; align-items: center; gap: 4px; color: var(--neutral-text-2); font-size: var(--font-small-size); overflow-wrap: anywhere; }
+.auc-object-ref__file button { border: 0; padding: 0; color: var(--neutral-text-3); background: transparent; cursor: pointer; font-size: 16px; line-height: 1; }
+.auc-object-ref__hint { color: var(--neutral-text-3); font-size: var(--font-small-size); line-height: 1.5; }
+
+/* 未回答：静态高亮 + 入场动画 + 恰好 2 次呼吸脉冲。
+   多条动画必须在同一 animation 简写中逗号分隔声明——分散到基类与
+   :not(.answered) 两个选择器会因简写覆盖导致入场动画失效。 */
+.ask-user-card:not(.answered) {
+  border-color: var(--chat-accent, var(--arco-primary));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--chat-accent, var(--arco-primary)) 25%, transparent);
+  animation:
+    auc-card-enter 0.3s ease-out,
+    auc-card-pulse 2.4s ease-in-out 0.3s 2;
+}
+
+@keyframes auc-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes auc-card-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--chat-accent, var(--arco-primary)) 25%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--chat-accent, var(--arco-primary)) 40%, transparent);
+  }
 }
 
 .ask-user-card.answered {
   padding: 8px 12px;
-  border-color: var(--chat-border, #e5e7eb);
+  border-color: var(--chat-border, var(--neutral-border));
 }
 
 /* ===== 未回答：问题向导 ===== */
@@ -245,7 +344,7 @@ function displayAnswer(index: number): string {
   font-size: 14px;
   font-weight: 600;
   line-height: 1.6;
-  color: var(--chat-text-primary, #1a1a1a);
+  color: var(--chat-text-primary, var(--neutral-text-1));
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -255,7 +354,7 @@ function displayAnswer(index: number): string {
   align-items: center;
   gap: 4px;
   flex-shrink: 0;
-  color: var(--chat-text-muted, #999);
+  color: var(--chat-text-muted, var(--neutral-text-3));
 }
 
 .auc-pager-text {
@@ -276,18 +375,18 @@ function displayAnswer(index: number): string {
   align-items: center;
   gap: 10px;
   padding: 8px 12px;
-  border: 1px solid var(--chat-border, #e5e7eb);
+  border: 1px solid var(--chat-border, var(--neutral-border));
   border-radius: 8px;
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease;
 
   &:hover {
-    border-color: var(--chat-accent, #4f8ef7);
+    border-color: var(--chat-accent, var(--arco-primary));
   }
 
   &.selected {
-    border-color: var(--chat-accent, #4f8ef7);
-    background: rgba(79, 142, 247, 0.08);
+    border-color: var(--chat-accent, var(--arco-primary));
+    background: color-mix(in srgb, var(--chat-accent, var(--arco-primary)) 12%, transparent);
   }
 }
 
@@ -298,30 +397,31 @@ function displayAnswer(index: number): string {
   width: 20px;
   height: 20px;
   flex-shrink: 0;
-  color: var(--chat-accent, #4f8ef7);
+  color: var(--chat-accent, var(--arco-primary));
 }
 
 .auc-option-num {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
-  font-size: 11px;
-  color: var(--chat-text-muted, #999);
-  background: var(--chat-hover, #f3f4f6);
-  border-radius: 4px;
+  width: 20px;
+  height: 20px;
+  font-size: 12px;
+  color: var(--chat-text-muted, var(--neutral-text-3));
+  background: var(--chat-hover, var(--neutral-hover));
+  border: 1px solid var(--chat-border, var(--neutral-border));
+  border-radius: 6px;
 }
 
 .auc-option-text {
   font-size: 13px;
   line-height: 1.5;
-  color: var(--chat-text-primary, #1a1a1a);
+  color: var(--chat-text-primary, var(--neutral-text-1));
   word-break: break-word;
 }
 
 .auc-other .auc-option-marker {
-  color: var(--chat-text-muted, #999);
+  color: var(--chat-text-muted, var(--neutral-text-3));
 }
 
 .auc-other-input {
@@ -335,13 +435,23 @@ function displayAnswer(index: number): string {
   margin-top: 14px;
 }
 
+/* 快捷键徽标（kbd 风格：11px、圆角 4px、半透明底） */
 .auc-key-hint {
   margin-left: 4px;
   padding: 0 4px;
   font-size: 11px;
-  color: var(--chat-text-muted, #999);
-  border: 1px solid var(--chat-border, #e5e7eb);
+  line-height: 16px;
+  color: var(--chat-text-muted, var(--neutral-text-3));
+  background: color-mix(in srgb, var(--chat-text-muted, var(--neutral-text-3)) 10%, transparent);
+  border: 1px solid var(--chat-border, var(--neutral-border));
   border-radius: 4px;
+}
+
+/* 主按钮内的徽标反色，保证在 accent 底色上的对比度 */
+.auc-key-hint--primary {
+  color: var(--text-on-primary, #fff);
+  background: color-mix(in srgb, var(--text-on-primary, #fff) 16%, transparent);
+  border-color: color-mix(in srgb, var(--text-on-primary, #fff) 45%, transparent);
 }
 
 /* ===== 已回答：折叠摘要 ===== */
@@ -354,24 +464,24 @@ function displayAnswer(index: number): string {
 }
 
 .auc-icon {
-  color: var(--chat-accent, #4f8ef7);
+  color: var(--chat-accent, var(--arco-primary));
   flex-shrink: 0;
 }
 
 .auc-tool-name {
   font-size: 13px;
   font-weight: 600;
-  color: var(--chat-text-primary, #1a1a1a);
+  color: var(--chat-text-primary, var(--neutral-text-1));
 }
 
 .auc-divider {
   font-size: 12px;
-  color: var(--chat-text-muted, #ccc);
+  color: var(--chat-text-muted, var(--neutral-text-3));
 }
 
 .auc-arrow {
   margin-left: auto;
-  color: var(--chat-text-muted, #999);
+  color: var(--chat-text-muted, var(--neutral-text-3));
   transition: transform 0.2s ease;
 
   &.rotated {
@@ -379,20 +489,35 @@ function displayAnswer(index: number): string {
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  /* 减少动态效果：取消入场与脉冲动画，仅保留静态高亮边框 */
+  .ask-user-card:not(.answered) {
+    animation: none;
+  }
+
+  .auc-arrow {
+    transition: none;
+  }
+}
+
+/* 展开态限高 220px，内部纵向滚动（§18.4.1） */
 .auc-summary-body {
   margin-top: 10px;
   padding-top: 10px;
-  border-top: 1px dashed var(--chat-border, #e5e7eb);
+  border-top: 1px dashed var(--chat-border, var(--neutral-border));
   display: flex;
   flex-direction: column;
   gap: 12px;
+  max-height: 220px;
+  overflow-y: auto;
 }
 
+/* 问题 / 回答分行：问题次级文本色、回答主文本色（§18.4.2） */
 .auc-qa-q {
   font-size: 13px;
   font-weight: 600;
   line-height: 1.6;
-  color: var(--chat-text-primary, #1a1a1a);
+  color: var(--chat-text-secondary, var(--neutral-text-2));
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -401,7 +526,7 @@ function displayAnswer(index: number): string {
   margin-top: 2px;
   font-size: 13px;
   line-height: 1.6;
-  color: var(--chat-text-muted, #888);
+  color: var(--chat-text-primary, var(--neutral-text-1));
   white-space: pre-wrap;
   word-break: break-word;
 }

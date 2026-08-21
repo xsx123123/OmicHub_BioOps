@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {
   NLayout, NLayoutSider, NLayoutContent, NIcon, NButton, NTooltip, NDropdown, NPopover,
-  NDrawer, NDrawerContent, NAvatar, NBadge, NModal,
+  NDrawer, NDrawerContent, NAvatar, NBadge, NModal, NAlert,
 } from 'naive-ui'
 import { computed, h, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
@@ -12,7 +12,7 @@ import {
   MenuOutline, ChevronForwardOutline, ChevronDownOutline,
   NotificationsOutline, HelpCircleOutline, ChatbubblesOutline, Planet,
   WalletOutline, SparklesOutline, ConstructOutline, LayersOutline,
-  TerminalOutline, SearchOutline, DesktopOutline, LockClosedOutline, PeopleOutline,
+  TerminalOutline, SearchOutline, DesktopOutline, LockClosedOutline, PeopleOutline, BulbOutline,
 } from '@vicons/ionicons5'
 import CookieBalanceBadge from '@/components/CookieBalanceBadge.vue'
 import NotAuthorized from '@/components/NotAuthorized.vue'
@@ -42,6 +42,15 @@ const { triggerAdminWelcome } = useAdminWelcome()
 const route = useRoute()
 const router = useRouter()
 const currentUser = ref<User | null>(null)
+const userLoadFailed = ref(false)
+const userLoadRetrying = ref(false)
+let userRefreshTimer: number | null = null
+
+const accountLabel = computed(() => {
+  const name = displayName(currentUser.value)
+  if (name) return name
+  return userLoadFailed.value ? '用户信息加载失败' : '未登录'
+})
 
 const collapsed = ref(false)
 const mobileDrawerOpen = ref(false)
@@ -181,6 +190,31 @@ function toggleCollapsed() {
   }
 }
 
+async function loadCurrentUser() {
+  if (!authStore.isLoggedIn || userLoadRetrying.value) return
+  userLoadRetrying.value = true
+  userLoadFailed.value = false
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      await authStore.fetchUser()
+      currentUser.value = authStore.user
+      notificationStore.fetchNotifications()
+      if (authStore.consumeOnboarding()) {
+        siteConfig.fetchSiteConfig().catch(() => {})
+        onboardingVisible.value = true
+      }
+      userLoadRetrying.value = false
+      return
+    } catch {
+      if (attempt < 2) {
+        await new Promise((resolve) => window.setTimeout(resolve, 300 * 2 ** attempt))
+      }
+    }
+  }
+  userLoadFailed.value = true
+  userLoadRetrying.value = false
+}
+
 onMounted(() => {
   updateWindowWidth()
   window.addEventListener('resize', updateWindowWidth)
@@ -188,16 +222,10 @@ onMounted(() => {
   if (authStore.isLoggedIn) {
     // 模块注册表：菜单锁图标与占位页判断的数据源（并发去重，失败静默重试）
     modulesStore.ensureLoaded()
-    authStore.fetchUser().then(() => {
-      currentUser.value = authStore.user
-      notificationStore.fetchNotifications()
-      // 首次登录：弹出迎新引导（猫猫 + 知识库入口 + 管理员联系方式）
-      if (authStore.consumeOnboarding()) {
-        // 确保管理员联系方式已加载（供弹窗展示）；失败也不阻塞弹窗
-        siteConfig.fetchSiteConfig().catch(() => {})
-        onboardingVisible.value = true
-      }
-    })
+    void loadCurrentUser()
+    userRefreshTimer = window.setInterval(() => {
+      void loadCurrentUser()
+    }, 60_000)
   }
   // 管理员欢迎彩蛋：登录后任意页面（不只是仪表板）进入即触发，
   // 内部 watch 等待 role 确定 + sessionStorage 标记保证一次会话只弹一次
@@ -205,6 +233,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  if (userRefreshTimer !== null) window.clearInterval(userRefreshTimer)
   window.removeEventListener('resize', updateWindowWidth)
   window.removeEventListener('storage', handleStorageChange)
 })
@@ -266,6 +295,7 @@ const adminNavItems = computed<NavItem[]>(() => [
     icon: SettingsOutline,
     children: [
       { key: 'admin-users', label: '用户管理', to: '/admin/users', icon: PersonOutline },
+      { key: 'admin-memory', label: '记忆审计', to: '/admin/memory', icon: BulbOutline },
       { key: 'admin-session-logs', label: '会话日志排查', to: '/admin/session-logs', icon: DocumentTextOutline },
       { key: 'admin-ai-metrics', label: 'AI 指标仪表盘', to: '/admin/ai-metrics', icon: BarChartOutline },
       { key: 'admin-ai-config', label: 'AI 配置中心', to: '/admin/ai-config/providers', icon: SparklesOutline },
@@ -410,6 +440,16 @@ const UserAvatar = () => {
 
 <template>
   <div class="app-shell">
+    <NAlert
+      v-if="userLoadFailed"
+      type="warning"
+      title="用户信息暂时无法刷新"
+      :show-icon="true"
+      closable
+      class="user-refresh-alert"
+    >
+      当前页面保留已有登录信息；服务恢复后会自动重试，也可以点击账户区“重试”。
+    </NAlert>
     <!-- 顶部导航栏 -->
     <header class="top-nav">
       <div class="top-nav-left">
@@ -759,8 +799,18 @@ const UserAvatar = () => {
               <div class="user-card">
                 <UserAvatar />
                 <div class="user-info">
-                  <p class="user-name">{{ displayName(currentUser) || '未登录' }}</p>
+                  <p class="user-name">{{ accountLabel }}</p>
                   <p class="user-role">{{ isAdmin ? '管理员' : '普通用户' }}</p>
+                  <NButton
+                    v-if="userLoadFailed"
+                    text
+                    size="tiny"
+                    class="user-retry-button"
+                    :loading="userLoadRetrying"
+                    @click.stop="loadCurrentUser"
+                  >
+                    重试
+                  </NButton>
                 </div>
                 <NIcon :size="14" class="user-chevron">
                   <ChevronDownOutline />
@@ -845,8 +895,18 @@ const UserAvatar = () => {
             <div class="mobile-user-card" @click="handleLogout">
               <UserAvatar />
               <div class="user-info">
-                <p class="user-name">{{ displayName(currentUser) || '未登录' }}</p>
+                <p class="user-name">{{ accountLabel }}</p>
                 <p class="user-role">{{ isAdmin ? '管理员' : '普通用户' }}</p>
+                <NButton
+                  v-if="userLoadFailed"
+                  text
+                  size="tiny"
+                  class="user-retry-button"
+                  :loading="userLoadRetrying"
+                  @click.stop="loadCurrentUser"
+                >
+                  重试
+                </NButton>
               </div>
             </div>
           </div>
@@ -1546,6 +1606,13 @@ const UserAvatar = () => {
   font-size: 12px;
   color: var(--neutral-text-3);
   line-height: 18px;
+}
+
+.user-retry-button {
+  display: block;
+  min-height: 18px;
+  margin-top: 2px;
+  color: var(--arco-primary);
 }
 
 .user-chevron {

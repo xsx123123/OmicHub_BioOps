@@ -93,6 +93,7 @@ agents:
   enabled:
     - router
     - general
+    - agentteams_manager
     - rnaseq
     - atacseq
     - scrna

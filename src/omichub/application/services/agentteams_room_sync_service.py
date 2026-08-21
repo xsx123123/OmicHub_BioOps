@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
+from hashlib import sha256
 from typing import Any
 from uuid import uuid4
 
@@ -25,15 +26,19 @@ from omichub.application.services.agentteams_room_gateway_service import (
 )
 from omichub.application.services.agentteams_service import (
     CASE_LEVEL_WORK_ITEM_ID,
+    ROOM_NAMESPACE_ID_PREFIX,
     AgentTeamsService,
 )
+from omichub.core.exceptions import BusinessError, NotFoundError
 from omichub.infrastructure.cache.redis_client import get_redis
 
 ROOM_BINDINGS_HASH_KEY = "agentteams:room-sync:bindings"
 ROOM_SYNC_CURSOR_KEY_PREFIX = "agentteams:room-sync:cursor:"
 ROOM_SYNC_LOCK_KEY = "agentteams:room-sync:lock"
+ROOM_SYNC_EVENT_DEDUP_KEY_PREFIX = "agentteams:room-sync:seen:"
 TERMINAL_STATUSES = frozenset({"closed", "cancelled"})
 _MAX_MESSAGES_PER_ROOM = 200
+_EVENT_DEDUP_TTL_SECONDS = 24 * 60 * 60
 
 _RELEASE_LOCK_LUA = """
 if redis.call('GET', KEYS[1]) == ARGV[1] then
@@ -63,8 +68,18 @@ async def record_room_binding(
 
 
 def _default_responder(case_id: str, requester_ref: str, content: str) -> None:
-    from omichub.infrastructure.celery_app.tasks.agentteams import respond_to_room_message
+    from omichub.infrastructure.celery_app.tasks.agentteams import (
+        respond_to_room_message,
+        respond_to_room_namespace_message,
+    )
 
+    if case_id.startswith(ROOM_NAMESPACE_ID_PREFIX):
+        # 房间命名空间（未立项房间）的 Matrix 回投发言走房间级响应链路，
+        # 避免误触发 Case 态的 start_chat_planning。
+        respond_to_room_namespace_message.delay(
+            case_id.removeprefix(ROOM_NAMESPACE_ID_PREFIX), requester_ref, content
+        )
+        return
     respond_to_room_message.delay(case_id, requester_ref, content)
 
 
@@ -107,6 +122,19 @@ class AgentTeamsRoomSyncService:
                         case_id, room_id, requester_ref, watch_seconds=watch_seconds
                     )
                     messages += room_stats["messages"]
+                except (NotFoundError, BusinessError) as exc:
+                    if not isinstance(exc, NotFoundError) and (
+                        exc.code != "NOT_FOUND" and exc.detail != "协作案例不存在"
+                    ):
+                        failed += 1
+                        logger.bind(case_id=case_id, room_id=room_id).warning(
+                            "AgentTeams room sync failed: {}", exc
+                        )
+                        continue
+                    await redis.hdel(ROOM_BINDINGS_HASH_KEY, case_id)
+                    logger.bind(case_id=case_id, room_id=room_id).info(
+                        "AgentTeams room sync removed stale Case binding"
+                    )
                 except Exception as exc:  # noqa: BLE001 - 单房间失败不影响其他房间
                     failed += 1
                     logger.bind(case_id=case_id, room_id=room_id).warning(
@@ -135,16 +163,31 @@ class AgentTeamsRoomSyncService:
         try:
             async for payload in stream:
                 next_batch = payload.get("next_batch")
-                if isinstance(next_batch, str) and next_batch and not payload.get("event_id"):
+                if isinstance(next_batch, str) and next_batch:
                     cursor = next_batch
                     await redis.set(f"{ROOM_SYNC_CURSOR_KEY_PREFIX}{case_id}", cursor)
+                    if time.monotonic() >= deadline:
+                        break
                     continue
                 if self._is_echo(payload):
                     continue
                 content = str(payload.get("content") or "").strip()
                 if not content:
                     continue
+                dedup_key = self._event_dedup_key(case_id, payload)
+                if dedup_key and await redis.get(dedup_key):
+                    logger.bind(case_id=case_id, event_id=payload.get("event_id")).info(
+                        "AgentTeams room sync skipped duplicate external event"
+                    )
+                    continue
                 await self._reproject(case_id, requester_ref, content, payload)
+                if dedup_key:
+                    await redis.set(
+                        dedup_key,
+                        "1",
+                        nx=True,
+                        ex=_EVENT_DEDUP_TTL_SECONDS,
+                    )
                 messages += 1
                 if messages >= _MAX_MESSAGES_PER_ROOM or time.monotonic() >= deadline:
                     break
@@ -156,6 +199,23 @@ class AgentTeamsRoomSyncService:
     def _is_echo(payload: dict[str, Any]) -> bool:
         """平台自己镜像进房间的消息（origin=omichub）不回投。"""
         return str(payload.get("origin") or "") != "external"
+
+    @staticmethod
+    def _event_dedup_key(case_id: str, payload: dict[str, Any]) -> str | None:
+        event_id = str(payload.get("event_id") or "").strip()
+        if event_id:
+            fingerprint = f"event:{event_id}"
+        else:
+            content = str(payload.get("content") or "").strip()
+            if not content:
+                return None
+            fingerprint = "message:{}:{}:{}".format(
+                str(payload.get("message_type") or "room.user_message").strip(),
+                str(payload.get("sender_matrix_id") or payload.get("sender_identity") or "").strip(),
+                content,
+            )
+        digest = sha256(fingerprint.encode("utf-8")).hexdigest()
+        return f"{ROOM_SYNC_EVENT_DEDUP_KEY_PREFIX}{case_id}:{digest}"
 
     async def _reproject(
         self, case_id: str, requester_ref: str, content: str, payload: dict[str, Any]

@@ -36,3 +36,10 @@ approval_templates:
     on_timeout: remind_and_escalate
     never_auto_approve: true
     requires_reject_reason: true
+
+# O5:Bridge 标准工作项默认 target(quality-auditor/delivery-reporter 为 Bridge 内置身份,
+# 经 capability snapshot 的 role_agent_map 解析到实际 Agent);flow YAML 的
+# standard_work_items 段可逐项覆盖。interpret 未声明时沿用 flow actor。
+standard_work_item_targets:
+  quality: quality-auditor
+  delivery: delivery-reporter

@@ -26,8 +26,7 @@ class SiteSettingModel(Base, TimestampMixin):
         Boolean, default=False, nullable=False
     )
     unified_intent_router_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    # Agent 长期记忆运行时总开关（26.8.4）：env MEM0_ENGINE_ENABLED 为部署级能力闸门，
-    # 本字段为管理员运行时开关，两者同时为真记忆功能才启用。默认 true 保持升级即现状。
+    # Agent 长期记忆运行时总开关；默认 true 保持升级即现状。
     agent_memory_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     collaboration_degradation_locale: Mapped[str] = mapped_column(
         String(8), default="zh-CN", nullable=False

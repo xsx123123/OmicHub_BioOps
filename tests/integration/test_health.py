@@ -10,3 +10,7 @@ async def test_health_check(client):
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "ok"
+    # 部署版本可观测：version/git_sha/build_time 必须始终存在（未注入时为 "unknown"）
+    assert data["version"]
+    assert data["git_sha"]
+    assert data["build_time"]

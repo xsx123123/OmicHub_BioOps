@@ -3,12 +3,18 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import re
+import zipfile
 from copy import deepcopy
 from datetime import UTC, datetime
 from typing import Any
 
+from omichub.application.services.agentteams_capability_registry import (
+    persona_snapshot,
+    persona_status_line,
+)
 from omichub.application.services.overdrive_run_service import (
     OverdriveRunService,
     overdrive_run_root,
@@ -112,10 +118,18 @@ def resume_paused_instances(run: OverdriveRunModel) -> list[dict[str, Any]]:
         ):
             instance["status"] = "queued"
             instance["finished_at"] = None
+            _refresh_status_line(instance, "queued")
             resumed.append(instance)
     run.tasks = tasks
     run.assistant_instances = instances
     return resumed
+
+
+def _refresh_status_line(instance: dict[str, Any], phase: str) -> None:
+    """状态迁移时同步人格状态文案;该阶段未配置文案则保留原值。"""
+    line = persona_status_line(instance.get("persona"), phase)
+    if line:
+        instance["status_line"] = line
 
 
 def approved_queued_instances(run: OverdriveRunModel) -> list[dict[str, Any]]:
@@ -168,10 +182,12 @@ def requeue_repair_instances(
                 }
             )
             instance.update({"status": "failed", "finished_at": datetime.now(UTC).isoformat()})
+            _refresh_status_line(instance, "failed")
             exhausted.append(task_id)
             continue
         task.update({"status": "queued", "error_summary": ""})
         instance.update({"status": "queued", "finished_at": None})
+        _refresh_status_line(instance, "queued")
         requeued.append(deepcopy(instance))
     run.tasks = tasks
     run.assistant_instances = instances
@@ -220,23 +236,6 @@ def mark_artifacts_process_on_termination(run: OverdriveRunModel) -> None:
             }
         )
     run.artifact_index = artifacts
-
-
-def persona_snapshot(agent_features: dict[str, Any] | None) -> dict[str, Any]:
-    """Return presentation fields only; never copy tools or permission settings."""
-    raw = (agent_features or {}).get("persona")
-    if not isinstance(raw, dict):
-        return {}
-    allowed = {
-        "archetype",
-        "traits",
-        "working_style",
-        "communication_style",
-        "challenge_style",
-        "status_lines",
-        "version",
-    }
-    return {key: deepcopy(value) for key, value in raw.items() if key in allowed}
 
 
 class OverdrivePreflightService:
@@ -555,7 +554,50 @@ class DeliveryAssembler:
         path_rel = f"{root_rel}/final-report.md"
         await backend.write(path_rel, content.encode("utf-8"))
         relative = f"{relative_overdrive_run_root(run.session_id, run.run_id)}/delivery/final-report.md"
-        return {"path": relative, "official_artifacts": official, "content": content}
+        archive_path = await self._write_archive(
+            backend,
+            root_rel=root_rel,
+            relative_root=relative_overdrive_run_root(run.session_id, run.run_id),
+            report_path=path_rel,
+            official=official,
+            report_content=content,
+        )
+        return {
+            "path": relative,
+            "archive_path": archive_path,
+            "official_artifacts": official,
+            "content": content,
+        }
+
+    async def _write_archive(
+        self,
+        backend: Any,
+        *,
+        root_rel: str,
+        relative_root: str,
+        report_path: str,
+        official: list[dict[str, Any]],
+        report_content: str,
+    ) -> str:
+        archive = io.BytesIO()
+        included: set[str] = set()
+        with zipfile.ZipFile(archive, mode="w", compression=zipfile.ZIP_DEFLATED) as bundle:
+            bundle.writestr("final-report.md", report_content.encode("utf-8"))
+            included.add(report_path)
+            for item in official:
+                path = str(item.get("path") or "").strip()
+                if not path or path in included or path.startswith("/"):
+                    continue
+                try:
+                    content = await backend.read(path)
+                except Exception:  # noqa: BLE001 - one missing artifact must not lose the bundle
+                    continue
+                name = path.replace("\\", "/").lstrip("/")
+                bundle.writestr(name, content)
+                included.add(path)
+        archive_rel = f"{root_rel}/artifacts.zip"
+        await backend.write(archive_rel, archive.getvalue())
+        return f"{relative_root}/delivery/artifacts.zip"
 
     async def write_readme(
         self,
@@ -594,6 +636,7 @@ class DeliveryAssembler:
             f"`GET /sessions/{run.session_id}/overdrive-runs/{run.run_id}/artifacts?path=<路径>`:",
             "",
             f"- 最终报告: `{delivery.get('path')}`",
+            f"- 产物压缩包: `{delivery.get('archive_path') or f'{relative_overdrive_run_root(run.session_id, run.run_id)}/delivery/artifacts.zip'}`",
         ]
         lines.extend(f"- `{item.get('path')}`(来源:{item.get('source') or 'unknown'})" for item in official)
         if manager_summary.strip():

@@ -64,4 +64,4 @@ assignments:
       task_id: domain-analysis
       task: "直接完成本领域的分析计划、统计方法、关键参数、风险和解释边界。"
 prompt_injections:
-  router_notes: "用户明确写出 RNA-seq、bulk RNA 或转录组,且无单细胞、scRNA、Seurat、Scanpy、Cell Ranger 锚点时,必须选择 agent-rnaseq。"
+  router_notes: "用户明确写出 RNA-seq、bulk RNA 或转录组,且无单细胞、scRNA、Seurat、Scanpy、Cell Ranger 锚点时,选择 agent-rnaseq——这是路由契约而非偏好：缺单细胞锚点的 bulk 转录组诉求归 RNA-seq 专家，错配会让请求进入不具备对应流程的角色。"

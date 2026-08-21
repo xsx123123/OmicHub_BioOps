@@ -1,0 +1,3 @@
+# GSEA reuses species definitions and local GO/KEGG reference paths from enrichments/species_config.yaml.
+species_config: tool_configs/enrichments/species_config.yaml
+runtime_image: omichub-r-enrichment:v1

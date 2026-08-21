@@ -343,9 +343,11 @@ class PipelineResultService:
         return rate if 0 <= rate <= 1 else None
 
     async def _resolve_preview_path(self, root: Path, requested: str) -> Path:
+        if str(requested).strip().startswith("file://"):
+            raise ValidationError("不支持的引用协议，应为工作区相对路径（projects/... 或 inbox/...）")
         relative = Path(requested)
         if not requested.strip() or relative.is_absolute() or ".." in relative.parts:
-            raise ValidationError("文件路径必须是任务目录内的安全相对路径")
+            raise ValidationError("文件路径必须是工作区内的安全相对路径")
         resolved_root = root.resolve()
         current_rel = self._factory.relative_to_root(resolved_root)
         for part in relative.parts:
@@ -359,7 +361,9 @@ class PipelineResultService:
             raise ValidationError("文件路径超出任务目录") from exc
         stat_info = await self._backend.stat(current_rel)
         if stat_info is None or stat_info.get("is_dir"):
-            raise ValidationError("请求的任务文件不存在或不是普通文件")
+            if stat_info is None:
+                raise ValidationError("路径不存在")
+            raise ValidationError("路径是目录，不是普通文件")
         return resolved
 
     async def _summarize_differential_table(

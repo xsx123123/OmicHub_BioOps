@@ -1,0 +1,9 @@
+input:
+  gff3_extensions: [.gff3, .gff]
+  blast_extensions: [.tsv, .txt, .outfmt6]
+output:
+  block_table: synteny_blocks.tsv
+  pair_table: synteny_pairs.json
+visualization:
+  scattergl_point_limit: 50000
+  require_chromosome_filter_above_limit: true

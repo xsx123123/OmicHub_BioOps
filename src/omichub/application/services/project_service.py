@@ -141,6 +141,33 @@ class ProjectService:
             "updated_at": model.updated_at.isoformat() if model.updated_at else None,
         }
 
+    async def get_or_create_project_by_name(self, user_id: UUID, name: str) -> dict:
+        """按名称复用或创建项目（AgentTeams 聊天 Case 建单场景）。
+
+        聊天式 Case 的项目名由需求文本自动生成；删除 Case 不会删除项目，
+        用户用同一需求重新建单时 slug 必然撞上存量项目。此时应复用既有项目
+        （每个 Case 仍会在其下创建独立的带时间戳 run 目录），而不是把
+        "同名项目已存在"抛给用户。
+        """
+        slug = project_slug((name or "").strip())
+        if slug:
+            result = await self._session.execute(
+                select(ProjectModel).where(
+                    ProjectModel.user_id == user_id, ProjectModel.slug == slug
+                )
+            )
+            model = result.scalar_one_or_none()
+            if model is not None:
+                return {
+                    "id": str(model.id),
+                    "name": model.name,
+                    "slug": model.slug,
+                    "description": model.description,
+                    "created_at": model.created_at.isoformat() if model.created_at else None,
+                    "updated_at": model.updated_at.isoformat() if model.updated_at else None,
+                }
+        return await self.create_project(user_id, name)
+
     async def delete_project(self, user_id: UUID, project_id: UUID) -> bool:
         """删除项目（仅删 DB 记录 + 目录记录，不删物理文件，避免误删数据）。"""
         stmt = select(ProjectModel).where(

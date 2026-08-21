@@ -27,7 +27,14 @@ from omichub.infrastructure.database.models.chat import (
 logger = logging.getLogger(__name__)
 
 WATCHED_STATUSES = frozenset(
-    {"approval_pending", "quality_blocked", "delivery_ready", "execution_failed", "cancelled"}
+    {
+        "approval_pending",
+        "quality_blocked",
+        "delivery_ready",
+        "execution_failed",
+        "cancelled",
+        "closed",
+    }
 )
 TERMINAL_STATUSES = frozenset({"closed", "cancelled"})
 
@@ -91,6 +98,7 @@ class AgentTeamsCaseWatchService:
         legacy_cursors = dict(meta.get("agentteams_case_event_cursor", {}) or {})
         titles = dict(meta.get("agentteams_case_titles") or {})
         failure_counts = dict(meta.get("agentteams_case_watch_failures") or {})
+        handoff_notifications = dict(meta.get("agentteams_case_handoff_notifications") or {})
         changed = False
         cursor_mismatches = 0
         scanned = notified = failed = 0
@@ -178,6 +186,20 @@ class AgentTeamsCaseWatchService:
                         flow_id=str(meta.get("flow_id") or ""),
                     ):
                         await publish_chat_case_event(session.session_id, projected)
+                    if audit_event.get("event_type") == "room.agent_handoff":
+                        handoff_event_id = str(audit_event.get("event_id") or "")
+                        if handoff_event_id and handoff_event_id != handoff_notifications.get(case_id):
+                            from omichub.infrastructure.celery_app.tasks.agentteams import (
+                                respond_to_room_message,
+                            )
+
+                            respond_to_room_message.delay(
+                                case_id,
+                                session.user_id,
+                                "系统交接：请 Manager 汇总刚完成的领域 Agent 交接，并说明风险与下一步。",
+                            )
+                            handoff_notifications[case_id] = handoff_event_id
+                            changed = True
                 next_cursor = events_page.get("next_cursor")
                 last_event_id = str(events[-1].get("event_id") or "") if events else ""
                 next_value = ""
@@ -198,7 +220,13 @@ class AgentTeamsCaseWatchService:
                 value for value in cursor_state.notified_statuses if isinstance(value, str)
             }
             if status != previous and status in WATCHED_STATUSES and status not in seen:
-                event = await self._add_notification(session.session_id, case_id, title, status)
+                event = await self._add_notification(
+                    session.session_id,
+                    case_id,
+                    title,
+                    status,
+                    flow_id=str(case.get("flow_id") or ""),
+                )
                 seen.add(status)
                 if migration_mode != "legacy_only":
                     cursor_state.notified_statuses = sorted(seen)
@@ -236,6 +264,7 @@ class AgentTeamsCaseWatchService:
             meta["agentteams_case_status"] = statuses
             meta["agentteams_case_titles"] = titles
             meta["agentteams_case_watch_failures"] = failure_counts
+            meta["agentteams_case_handoff_notifications"] = handoff_notifications
             session.sandbox_meta = meta
             session.updated_at = datetime.now(UTC)
         return {"scanned": scanned, "notified": notified, "failed": failed}
@@ -271,21 +300,37 @@ class AgentTeamsCaseWatchService:
         return state
 
     async def _add_notification(
-        self, session_id: str, case_id: str, title: str, status: str
+        self,
+        session_id: str,
+        case_id: str,
+        title: str,
+        status: str,
+        *,
+        flow_id: str = "",
     ) -> dict[str, str]:
         next_actor = agentteams_next_actor(status)
         message_id = str(uuid.uuid4())
         case_url = f"/agent-teams/cases/{case_id}"
+        completion_kind = "analysis_execution" if flow_id else "plan_delivery"
+        if status == "closed":
+            completion_label = "分析执行完成" if completion_kind == "analysis_execution" else "方案交付完成"
+            content = (
+                f"协作 Case「{title}」{completion_label}，"
+                "交付清单与产物入口已在协作室中保留。"
+            )
+            next_actor = "无需处理（已完成）"
+        else:
+            content = (
+                f"协作 Case「{title}」已进入「{status}」，"
+                f"下一步请由 {next_actor} 处理。"
+            )
         self._db.add(
             ChatMessageModel(
                 id=uuid.uuid4(),
                 message_id=message_id,
                 session_id=session_id,
                 role="system",
-                content=(
-                    f"协作 Case「{title}」已进入「{status}」，"
-                    f"下一步请由 {next_actor} 处理。"
-                ),
+                content=content,
                 content_type="text",
                 status="complete",
                 metadata_json={
@@ -295,6 +340,7 @@ class AgentTeamsCaseWatchService:
                     "title": title,
                     "status": status,
                     "next_actor": next_actor,
+                    "completion_kind": completion_kind if status == "closed" else None,
                     "case_url": case_url,
                     "session_id": session_id,
                     "message_id": message_id,
@@ -315,6 +361,7 @@ class AgentTeamsCaseWatchService:
             "title": title,
             "status": status,
             "next_actor": next_actor,
+            "completion_kind": completion_kind if status == "closed" else "",
             "case_url": case_url,
             "session_id": session_id,
             "message_id": message_id,

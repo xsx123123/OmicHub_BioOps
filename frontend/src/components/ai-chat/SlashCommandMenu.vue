@@ -23,17 +23,20 @@ import {
   FlagOutline,
 } from '@vicons/ionicons5'
 import type { AgentTemplate } from '@/types/agent'
+import type { SkillItem } from '@/types/agent'
 import { recentRank } from './recentItems'
 
 interface Props {
   query?: string
   /** / 面板「智能体」分组数据源（选中后插入 @mention 标签） */
   agents?: AgentTemplate[]
+  skills?: SkillItem[]
 }
 
 const props = withDefaults(defineProps<Props>(), {
   query: '',
   agents: () => [],
+  skills: () => [],
 })
 
 const emit = defineEmits<{
@@ -55,6 +58,7 @@ interface Row {
   shortcut?: string
   isCategory?: boolean
   agent?: AgentTemplate
+  skill?: SkillItem
 }
 
 /** 技能分组：能力调用命令（现有 /analysis、/rna、/go 等） */
@@ -120,7 +124,17 @@ const rows = computed<Row[]>(() => {
   const q = props.query.toLowerCase().trim()
 
   const skills = sortRows(
-    SKILL_COMMANDS.filter((c) => matches(q, c.name, c.description, c.id)),
+    [
+      ...SKILL_COMMANDS,
+      ...props.skills.map<Row>((skill) => ({
+        id: `/skill:${skill.id}`,
+        name: `/skill:${skill.name}`,
+        description: skill.description || '加载此技能并按其方法执行本轮任务',
+        icon: ExtensionPuzzleOutline,
+        shortcut: `/skill:${skill.name}`,
+        skill,
+      })),
+    ].filter((c) => matches(q, c.name, c.description, c.id)),
   )
   const agentRows = sortRows(
     props.agents

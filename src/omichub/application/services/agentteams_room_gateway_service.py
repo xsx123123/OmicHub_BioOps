@@ -52,6 +52,27 @@ class AgentTeamsRoomGatewayService:
         """批量供给 AppService 持有的 Matrix 账号（幂等）。"""
         return await self._request("POST", "/users/ensure", json={"identities": identities})
 
+    async def health_check(self) -> dict[str, Any]:
+        """Report configuration and reachability separately for operational diagnosis."""
+        if not self.available:
+            return {"configured": False, "connected": False, "reason": "gateway_not_configured"}
+        try:
+            payload = await self._request("GET", "/healthz")
+        except RuntimeError as exc:
+            return {
+                "configured": True,
+                "connected": False,
+                "reason": "gateway_unreachable",
+                "detail": str(exc),
+            }
+        connected = payload.get("status") == "ok"
+        return {
+            "configured": True,
+            "connected": connected,
+            "reason": None if connected else "gateway_unhealthy",
+            "matrix": payload.get("matrix", {}),
+        }
+
     async def post_message(
         self,
         room_id: str,

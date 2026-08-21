@@ -4,8 +4,8 @@ import {
   buildRoomCreateIntent,
   formatDuration,
   formatHardGate,
+  formatRoomAskReply,
   groupRoomMessages,
-  isContentTruncated,
   MANAGER_TYPING_TTL_MS,
   parseManagerReport,
   projectCaseEvent,
@@ -13,6 +13,7 @@ import {
   resolveElementRoomUrl,
   resolveManagerTyping,
   resolveRoomSender,
+  ROOM_ASK_REPLY_MARKER,
   shouldStartNewRoomCase,
   type RoomRoleMetadata,
 } from '@/utils/agentTeamsRoom'
@@ -90,12 +91,73 @@ describe('projectCaseEvent', () => {
     expect(message).toMatchObject({ kind: 'speech', content: '短消息' })
   })
 
+  it('projects a structured domain-agent handoff', () => {
+    const message = projectCaseEvent(
+      makeEvent('room.agent_handoff', {
+        payload: {
+          from_agent_id: 'agent-data',
+          to_agent_id: 'bioops-manager',
+          work_item_ids: ['qc-1'],
+          summary: '样本表核验已完成。',
+          risks: ['缺少一个批次字段'],
+          artifact_refs: ['output/sample-sheet.json'],
+          recommended_next_action: 'request_user_review',
+        },
+      }, 'agent-data'),
+      METADATA,
+    )
+    expect(message?.handoff).toMatchObject({
+      fromAgentId: 'agent-data',
+      toAgentId: 'bioops-manager',
+      workItemIds: ['qc-1'],
+      risks: ['缺少一个批次字段'],
+      artifactRefs: ['output/sample-sheet.json'],
+    })
+    expect(message?.content).toBe('样本表核验已完成。')
+  })
+
+  it('projects a change assessment with decision options', () => {
+    const message = projectCaseEvent(
+      makeEvent('room.change_assessment', {
+        payload: {
+          agent_id: 'agent-scrna',
+          work_item_ids: ['scrna-deg-1'],
+          conclusion: '下游 DEG 需要重算。',
+          risks: ['3v3 统计效能有限'],
+          decision_options: ['resume', 'replan', 'branch', 'cancel'],
+          decision: 'pending_user_confirmation',
+        },
+      }, 'agent-scrna'),
+      METADATA,
+    )
+    expect(message?.changeAssessment?.workItemIds).toEqual(['scrna-deg-1'])
+    expect(message?.changeAssessment?.decisionOptions).toEqual(['resume', 'replan', 'branch', 'cancel'])
+    expect(message?.content).toBe('下游 DEG 需要重算。')
+  })
+
   it('projects room.created as a collapsed system line', () => {
     const message = projectCaseEvent(
       makeEvent('room.created', { payload: { room_id: '!room:test' } }),
       METADATA,
     )
     expect(message).toMatchObject({ kind: 'system', collapsed: true })
+  })
+
+  it('projects Matrix room provisioning failure as a visible fallback event', () => {
+    const message = projectCaseEvent(
+      makeEvent('room.provisioning_failed', {
+        payload: {
+          detail: 'connection refused',
+          recovery: '检查 Gateway 网络后重试',
+        },
+      }),
+      METADATA,
+    )
+    expect(message).toMatchObject({
+      kind: 'system',
+      content: 'Matrix 协作房间创建失败，已降级为平台事件流；分析任务不受影响。',
+      technicalDetail: 'connection refused',
+    })
   })
 
   it('projects room.agent_message as manager speech', () => {
@@ -132,12 +194,14 @@ describe('projectCaseEvent', () => {
     expect(message?.content).toContain('并将进行质量检查')
   })
 
-  it('projects work_item.assigned as a system line naming the target role', () => {
+  it('projects work_item.assigned as a manager dispatch card', () => {
     const message = projectCaseEvent(
       makeEvent('work_item.assigned', { target: 'data-steward', objective: '预检样本表' }),
       METADATA,
     )
-    expect(message).toMatchObject({ kind: 'system', content: 'Manager 将任务分派给 数据管理员：预检样本表' })
+    expect(message).toMatchObject({ kind: 'speech', content: 'Manager 将任务分派给 数据管理员：预检样本表' })
+    expect(message?.sender.role).toBe('manager')
+    expect(message?.dispatch).toEqual({ targetName: '数据管理员', objective: '预检样本表' })
   })
 
   it('strips the plan contract tail from work_item.assigned objectives', () => {
@@ -148,9 +212,10 @@ describe('projectCaseEvent', () => {
       makeEvent('work_item.assigned', { target: 'agent-code', objective }),
       METADATA,
     )
-    expect(message?.kind).toBe('system')
+    expect(message?.kind).toBe('speech')
     expect(message?.content).toContain('对这个 treefile 进行可视化并解释')
     expect(message?.content).not.toContain('proposed_submission')
+    expect(message?.dispatch?.objective).toBe('对这个 treefile 进行可视化并解释')
   })
 
   it('strips the plan contract tail from work_item.claimed objectives', () => {
@@ -207,6 +272,60 @@ describe('projectCaseEvent', () => {
       METADATA,
     )
     expect(message?.content).toBe('查询流程 调用失败')
+  })
+
+  it('projects tool lifecycle while collapsing internal reinjection events', () => {
+    const started = projectCaseEvent(
+      makeEvent('agent.tool_started', { tool: 'workspace_read_file' }, 'data-steward'),
+      METADATA,
+    )
+    expect(started).toMatchObject({ kind: 'progress', content: '工具执行中：读取文件', tool: { status: 'running' } })
+
+    const reinjected = projectCaseEvent(
+      makeEvent('agent.context_reinjected', { round: 2 }, 'data-steward'),
+      METADATA,
+    )
+    expect(reinjected).toBeNull()
+
+    const continued = projectCaseEvent(
+      makeEvent('agent.turn_continued', { round: 3 }, 'data-steward'),
+      METADATA,
+    )
+    expect(continued).toBeNull()
+  })
+
+  it('preserves correlated debug trace fields without expanding them into content', () => {
+    const message = projectCaseEvent(
+      makeEvent('agent.tool_result', {
+        tool: 'workspace_read_file',
+        tool_call_id: 'call-42',
+        round: 2,
+        execution_path: 'agentteams_worker_react',
+        result_summary: '读取到 3 个样本',
+        status: 'ok',
+      }, 'data-steward'),
+      METADATA,
+    )
+    expect(message?.content).toBe('读取文件 调用完成')
+    expect(message?.debugTrace).toEqual({
+      toolCallId: 'call-42',
+      round: 2,
+      executionPath: 'agentteams_worker_react',
+      resultSummary: '读取到 3 个样本',
+    })
+  })
+
+  it('projects loop guard as recoverable progress rather than an error card', () => {
+    const message = projectCaseEvent(
+      makeEvent('agent.loop_guard_triggered', {
+        reason: 'duplicate_tool_call',
+        tool: 'workspace_read_file',
+        execution_path: 'agentteams_worker_react',
+      }, 'data-steward'),
+      METADATA,
+    )
+    expect(message).toMatchObject({ kind: 'progress', content: '已停止重复调用（读取文件），正在整理已有结果' })
+    expect(message?.technicalDetail).toBe('agentteams_worker_react')
   })
 
   it('projects agent.tool_call from Bridge-wrapped nested payload', () => {
@@ -475,6 +594,99 @@ describe('projectCaseEvent', () => {
   })
 })
 
+describe('room.agent_stream projection', () => {
+  it('merges reasoning and text deltas into one live message, then settles on the final reply', () => {
+    const streamId = 'manager-reply-1'
+    const messages = projectCaseEvents(
+      [
+        makeEvent('room.agent_stream', {
+          payload: { stream_id: streamId, channel: 'reasoning', delta: '先检查输入。', agent_id: 'agent-general' },
+        }, 'bioops-manager', '2026-08-12T08:00:00Z'),
+        makeEvent('room.agent_stream', {
+          payload: { stream_id: streamId, channel: 'content', delta: '我已完成检查', agent_id: 'agent-general' },
+        }, 'bioops-manager', '2026-08-12T08:00:01Z'),
+        makeEvent('room.agent_message', {
+          summary: '我已完成检查。',
+          payload: { stream_id: streamId, content: '我已完成检查。', agent_id: 'agent-general' },
+        }, 'bioops-manager', '2026-08-12T08:00:02Z'),
+      ],
+      METADATA,
+    )
+
+    expect(messages).toHaveLength(1)
+    expect(messages[0]).toMatchObject({
+      id: `stream:${streamId}`,
+      content: '我已完成检查。',
+      thought: '先检查输入。',
+      streaming: false,
+      streamId,
+    })
+  })
+
+  it('shows an envelope conclusion while streaming and places its clarification card on the same message', () => {
+    const streamId = 'manager-envelope-1'
+    const pastedTextNotice = 'pasted text file: /tmp/pasted-text-1.txt. Read this file before continuing.'
+    const messages = projectCaseEvents(
+      [
+        makeEvent('room.agent_stream', {
+          payload: { stream_id: streamId, channel: 'content', delta: '{"conclusion":"收到需求。', agent_id: 'agent-general' },
+        }, 'bioops-manager', '2026-08-12T08:00:00Z'),
+        makeEvent('room.agent_stream', {
+          payload: { stream_id: streamId, channel: 'content', delta: '请确认输入文件。","recommendations":["上传文件"]}', agent_id: 'agent-general' },
+        }, 'bioops-manager', '2026-08-12T08:00:01Z'),
+        makeEvent('room.ask_user', {
+          payload: {
+            stream_id: streamId,
+            content: '收到需求。请确认输入文件。',
+            manager_report: {
+              conclusion: '收到需求。请确认输入文件。',
+              recommendations: ['上传文件'],
+              risks: ['尚未收到数据'],
+            },
+            questions: [{ question: '请上传输入文件。', options: [] }],
+          },
+        }, 'bioops-manager', '2026-08-12T08:00:02Z'),
+        makeEvent('room.agent_message', { payload: { content: pastedTextNotice } }, 'bioops-manager', '2026-08-12T08:00:03Z'),
+      ],
+      METADATA,
+    )
+
+    expect(messages).toHaveLength(1)
+    expect(messages[0]).toMatchObject({
+      id: `stream:${streamId}`,
+      content: '收到需求。请确认输入文件。',
+      streaming: false,
+      managerReport: {
+        recommendations: ['上传文件'],
+        risks: ['尚未收到数据'],
+      },
+      askRequest: { questions: [{ question: '请上传输入文件。', options: [] }] },
+    })
+    expect(messages[0].content).not.toContain('{"conclusion"')
+  })
+})
+
+describe('malformed manager envelope recovery', () => {
+  it('renders a trailing-comma envelope as a structured report', () => {
+    const content = `{
+      "conclusion": "收到需求。在制定分析方案前，需要确认数据状态。",
+      "recommendations": ["完成注释后进行 pseudobulk 差异分析"],
+      "risks": ["3v3 设计的统计效能有限"],
+      "ask_user": [{"question": "来自什么组织？", "options": [],}],
+    }`
+    const message = projectCaseEvent(
+      makeEvent('room.agent_message', { payload: { content } }, 'bioops-manager'),
+      METADATA,
+    )
+
+    expect(message?.managerReport).toMatchObject({
+      conclusion: '收到需求。在制定分析方案前，需要确认数据状态。',
+      recommendations: ['完成注释后进行 pseudobulk 差异分析'],
+      risks: ['3v3 设计的统计效能有限'],
+    })
+  })
+})
+
 describe('resolveManagerTyping', () => {
   const NOW = Date.parse('2026-08-13T12:00:00Z')
 
@@ -514,7 +726,7 @@ describe('projectCaseEvents', () => {
       makeEvent('approval.requested'),
       makeEvent('work_item.assigned', { target: 'data-steward' }),
     ], METADATA)
-    expect(messages.map((m) => m.kind)).toEqual(['system'])
+    expect(messages.map((m) => m.kind)).toEqual(['speech'])
   })
 
   it('attaches structured tool info to tool progress messages', () => {
@@ -542,6 +754,35 @@ describe('projectCaseEvents', () => {
       },
     ], METADATA)
     expect(messages.map((m) => m.kind)).toEqual(['progress', 'speech'])
+  })
+
+  it('closes open streams when a typing:false event arrives', () => {
+    const messages = projectCaseEvents([
+      makeEvent('room.agent_stream', { payload: { stream_id: 's-1', channel: 'content', delta: '正在分析' } }),
+      makeEvent('room.typing', { payload: { typing: false } }),
+    ], METADATA)
+    expect(messages).toHaveLength(1)
+    expect(messages[0].streaming).toBe(false)
+    expect(messages[0].content).toBe('正在分析')
+  })
+
+  it('closes an orphan stream when the final reply arrives without stream_id', () => {
+    const messages = projectCaseEvents([
+      makeEvent('room.agent_stream', { payload: { stream_id: 's-1', channel: 'content', delta: '部分回复' } }),
+      makeEvent('room.agent_message', { payload: { content: '完整回复' } }),
+    ], METADATA)
+    expect(messages).toHaveLength(2)
+    expect(messages[0].streaming).toBe(false)
+    expect(messages[1].content).toBe('完整回复')
+  })
+
+  it('keeps long skill.finished conclusions up to the 2k cap', () => {
+    const conclusion = '结论'.repeat(300)
+    const message = projectCaseEvent(
+      makeEvent('skill.finished', { conclusion, work_item_id: 'wi-1' }, 'data-steward'),
+      METADATA,
+    )
+    expect(message?.content).toBe(conclusion)
   })
 })
 
@@ -617,7 +858,7 @@ describe('groupRoomMessages', () => {
       makeEvent('work_item.assigned', { target: 'data-steward' }),
       makeEvent('quality.decision', { summary: '质量通过' }, 'quality-auditor'),
     ], METADATA))
-    expect(blocks.map((block) => block.type)).toEqual(['timeline', 'speech'])
+    expect(blocks.map((block) => block.type)).toEqual(['speech', 'speech'])
   })
 
   it('splits runs when the sender changes', () => {
@@ -627,6 +868,18 @@ describe('groupRoomMessages', () => {
     ], METADATA))
     expect(blocks).toHaveLength(2)
     expect(blocks.every((block) => block.type === 'worker')).toBe(true)
+  })
+
+  it('closes a manager tool card when the final reply bubble follows', () => {
+    const blocks = groupRoomMessages(projectCaseEvents([
+      makeEvent('agent.tool_call', { tool: 'sandbox_execute' }, 'bioops-manager'),
+      makeEvent('agent.tool_result', { tool: 'sandbox_execute', duration_ms: 100, status: 'ok' }, 'bioops-manager'),
+      makeEvent('room.agent_message', { payload: { content: '会诊结论' } }),
+    ], METADATA))
+    expect(blocks.map((block) => block.type)).toEqual(['worker', 'speech'])
+    const card = blocks[0]
+    if (card.type !== 'worker') throw new Error('expected a worker card')
+    expect(card.active).toBe(false)
   })
 })
 
@@ -676,18 +929,6 @@ describe('formatDuration', () => {
 
   it('returns empty string for undefined duration', () => {
     expect(formatDuration(undefined)).toBe('')
-  })
-})
-
-describe('isContentTruncated', () => {
-  it('detects content not ending with sentence punctuation', () => {
-    expect(isContentTruncated('以')).toBe(true)
-    expect(isContentTruncated('This is incomplete')).toBe(true)
-  })
-
-  it('treats sentence-ending punctuation as complete', () => {
-    expect(isContentTruncated('已完成。')).toBe(false)
-    expect(isContentTruncated('Done!')).toBe(false)
   })
 })
 
@@ -852,5 +1093,393 @@ describe('groupRoomMessages terminal-state cards', () => {
     ], METADATA))
     expect(blocks).toHaveLength(1)
     expect(blocks[0].type).toBe('action')
+  })
+})
+
+describe('room.ask_user clarification card', () => {
+  const askEvent = () =>
+    makeEvent('room.ask_user', {
+      summary: '启动规划前需要你确认几个关键信息。',
+      payload: {
+        content: '启动规划前需要你确认几个关键信息。',
+        role: 'bioops-manager',
+        questions: [
+          { question: '输入数据是计数矩阵还是 FASTQ？', options: ['已有计数矩阵', '从 FASTQ 开始'] },
+          { question: '物种与参考基因组版本？', options: [] },
+        ],
+      },
+    })
+
+  it('projects a room.ask_user event into a speech message with an interactive ask card', () => {
+    const message = projectCaseEvent(askEvent(), METADATA)
+    expect(message).not.toBeNull()
+    expect(message?.kind).toBe('speech')
+    expect(message?.sender.role).toBe('manager')
+    expect(message?.content).toBe('启动规划前需要你确认几个关键信息。')
+    expect(message?.askRequest?.questions).toEqual([
+      { question: '输入数据是计数矩阵还是 FASTQ？', options: ['已有计数矩阵', '从 FASTQ 开始'] },
+      { question: '物种与参考基因组版本？', options: [] },
+    ])
+    expect(message?.askRequest?.answered).toBeFalsy()
+  })
+
+  it('drops room.ask_user events without any valid question', () => {
+    const message = projectCaseEvent(
+      makeEvent('room.ask_user', { payload: { content: '无问题', questions: [] } }),
+      METADATA,
+    )
+    expect(message).toBeNull()
+  })
+
+  it('ends the manager typing indicator when the ask card arrives', () => {
+    const now = Date.parse('2026-08-12T08:01:00Z')
+    expect(
+      resolveManagerTyping(
+        [
+          makeEvent('room.typing', { payload: { typing: true } }),
+          askEvent(),
+        ],
+        now,
+      ),
+    ).toBe(false)
+  })
+
+  it('marks the card unanswered while no later user message exists', () => {
+    const messages = projectCaseEvents([askEvent()], METADATA)
+    expect(messages[0].askRequest?.answered).toBeFalsy()
+  })
+
+  it('marks the card answered and backfills answers from the formatted reply message', () => {
+    const questions = [
+      { question: '输入数据是计数矩阵还是 FASTQ？', options: ['已有计数矩阵', '从 FASTQ 开始'] },
+      { question: '物种与参考基因组版本？', options: [] },
+    ]
+    const reply = formatRoomAskReply(questions, ['从 FASTQ 开始', ''])
+    expect(reply).toContain(ROOM_ASK_REPLY_MARKER)
+    const messages = projectCaseEvents(
+      [
+        askEvent(),
+        makeEvent(
+          'room.user_message',
+          { summary: reply.slice(0, 80), payload: { actor: 'current-user', content: reply } },
+          'current-user',
+          '2026-08-12T08:02:00Z',
+        ),
+      ],
+      METADATA,
+    )
+    expect(messages[0].askRequest?.answered).toBe(true)
+    expect(messages[0].askRequest?.answers).toEqual(['从 FASTQ 开始', '无偏好，由你决定'])
+  })
+
+  it('folds the consumed clarification reply into the card instead of a separate user bubble', () => {
+    const questions = [
+      { question: '输入数据是计数矩阵还是 FASTQ？', options: ['已有计数矩阵', '从 FASTQ 开始'] },
+      { question: '物种与参考基因组版本？', options: [] },
+    ]
+    const reply = formatRoomAskReply(questions, ['从 FASTQ 开始', ''])
+    const messages = projectCaseEvents(
+      [
+        askEvent(),
+        makeEvent(
+          'room.user_message',
+          { summary: reply.slice(0, 80), payload: { actor: 'current-user', content: reply } },
+          'current-user',
+          '2026-08-12T08:02:00Z',
+        ),
+      ],
+      METADATA,
+    )
+    // 回复被卡片消费：时间线上只剩 ask 卡片，不再出现蓝色用户气泡
+    expect(messages).toHaveLength(1)
+    expect(messages[0].askRequest?.answered).toBe(true)
+    expect(messages.some((item) => item.isUser)).toBe(false)
+  })
+
+  it('degrades an unconsumed clarification reply to plain text without the internal marker', () => {
+    // 历史落库缺卡片（room.ask_user 无有效问题被丢弃）：回复剥离标记后纯文本展示，不崩
+    const questions = [{ question: '物种？', options: [] }]
+    const reply = formatRoomAskReply(questions, ['人'])
+    const messages = projectCaseEvents(
+      [
+        makeEvent('room.ask_user', { payload: { content: '无问题', questions: [] } }),
+        makeEvent(
+          'room.user_message',
+          { summary: reply.slice(0, 80), payload: { actor: 'current-user', content: reply } },
+          'current-user',
+          '2026-08-12T08:02:00Z',
+        ),
+      ],
+      METADATA,
+    )
+    expect(messages).toHaveLength(1)
+    expect(messages[0].isUser).toBe(true)
+    expect(messages[0].content).not.toContain(ROOM_ASK_REPLY_MARKER)
+    expect(messages[0].content).toContain('人')
+  })
+
+  it('keeps a normal later user message visible without marking the card answered', () => {
+    const messages = projectCaseEvents(
+      [
+        askEvent(),
+        makeEvent(
+          'room.user_message',
+          { summary: '继续', payload: { actor: 'current-user', content: '继续' } },
+          'current-user',
+          '2026-08-12T08:02:00Z',
+        ),
+      ],
+      METADATA,
+    )
+    expect(messages[0].askRequest?.answered).toBeFalsy()
+    expect(messages).toHaveLength(2)
+    expect(messages[1].content).toBe('继续')
+  })
+})
+
+describe('room.route_decision routing card', () => {
+  const decisionPayload = (overrides: Record<string, unknown> = {}) => ({
+    path: 'bridge_workflow',
+    flow_id: 'rnaseq',
+    flow_label: 'bulk RNA-seq 差异分析',
+    matched_hints: ['RNA-seq'],
+    lead_planner: 'agent-rnaseq',
+    planner_scores: { 'agent-rnaseq': 1 },
+    estimated_stages: [
+      { key: 'quantify', title: '定量' },
+      { key: 'differential', title: '差异分析' },
+    ],
+    participants: ['agent-rnaseq'],
+    confidence: 'high',
+    ...overrides,
+  })
+  const routeEvent = (payload: Record<string, unknown>) =>
+    makeEvent('room.route_decision', { summary: '路由决策', payload })
+
+  it('projects a high-confidence decision into a collapsible route card message', () => {
+    const message = projectCaseEvent(routeEvent(decisionPayload()), METADATA)
+    expect(message).not.toBeNull()
+    expect(message?.kind).toBe('speech')
+    expect(message?.sender.role).toBe('manager')
+    expect(message?.content).toBe('已选择「bulk RNA-seq 差异分析」 · 规划者 agent-rnaseq · 预计 2 个阶段')
+    expect(message?.askRequest).toBeUndefined()
+    expect(message?.routeDecision).toMatchObject({
+      path: 'bridge_workflow',
+      flowId: 'rnaseq',
+      flowLabel: 'bulk RNA-seq 差异分析',
+      matchedHints: ['RNA-seq'],
+      leadPlanner: 'agent-rnaseq',
+      plannerScores: { 'agent-rnaseq': 1 },
+      confidence: 'high',
+    })
+    expect(message?.routeDecision?.estimatedStages).toEqual([
+      { key: 'quantify', title: '定量' },
+      { key: 'differential', title: '差异分析' },
+    ])
+  })
+
+  it('upgrades an ambiguous decision into an option-style confirmation card', () => {
+    const message = projectCaseEvent(
+      routeEvent(
+        decisionPayload({
+          path: 'overdrive',
+          flow_id: null,
+          flow_label: '通用分析',
+          matched_hints: [],
+          lead_planner: 'agent-general',
+          confidence: 'ambiguous',
+          options: [
+            { flow_id: 'rnaseq', label: 'bulk RNA-seq 差异分析', lead_planner: 'agent-rnaseq', stages: 2 },
+            { flow_id: null, label: '通用分析(由 Manager 自由规划)', lead_planner: 'agent-general', stages: 3 },
+          ],
+        }),
+      ),
+      METADATA,
+    )
+    expect(message).not.toBeNull()
+    expect(message?.routeDecision?.confidence).toBe('ambiguous')
+    expect(message?.content).toContain('请点选裁决')
+    expect(message?.askRequest?.questions).toEqual([
+      {
+        question: '检测到多种可能的执行路径，请点选裁决：',
+        options: [
+          'bulk RNA-seq 差异分析（规划者 agent-rnaseq · 2 个阶段）',
+          '通用分析(由 Manager 自由规划)（规划者 agent-general · 3 个阶段）',
+        ],
+      },
+    ])
+  })
+
+  it('consumes the option reply into the ambiguous card via the ask-answer backfill chain', () => {
+    const event = routeEvent(
+      decisionPayload({
+        confidence: 'ambiguous',
+        options: [
+          { flow_id: 'rnaseq', label: 'bulk RNA-seq 差异分析', lead_planner: 'agent-rnaseq', stages: 2 },
+          { flow_id: null, label: '通用分析(由 Manager 自由规划)', lead_planner: 'agent-general', stages: 3 },
+        ],
+      }),
+    )
+    const questions = [
+      {
+        question: '检测到多种可能的执行路径，请点选裁决：',
+        options: ['bulk RNA-seq 差异分析（规划者 agent-rnaseq · 2 个阶段）'],
+      },
+    ]
+    const reply = formatRoomAskReply(questions, ['bulk RNA-seq 差异分析（规划者 agent-rnaseq · 2 个阶段）'])
+    const messages = projectCaseEvents(
+      [
+        event,
+        makeEvent(
+          'room.user_message',
+          { summary: reply.slice(0, 80), payload: { actor: 'current-user', content: reply } },
+          'current-user',
+          '2026-08-12T08:02:00Z',
+        ),
+      ],
+      METADATA,
+    )
+    // 回复被卡片消费：卡片标记已答，时间线上不再出现单独的用户气泡
+    expect(messages).toHaveLength(1)
+    expect(messages[0].askRequest?.answered).toBe(true)
+    expect(messages[0].askRequest?.answers).toEqual(['bulk RNA-seq 差异分析（规划者 agent-rnaseq · 2 个阶段）'])
+    expect(messages.some((item) => item.isUser)).toBe(false)
+  })
+
+  it('drops route_decision events without a valid path', () => {
+    expect(projectCaseEvent(routeEvent({ flow_id: 'rnaseq' }), METADATA)).toBeNull()
+  })
+})
+
+describe('room.proposal_confirm 立项确认卡投影', () => {
+  function proposalPayload(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+    return {
+      agent_id: 'bioops-manager',
+      role: 'bioops-manager',
+      causation_event_id: 'evt-room.user_message',
+      confirm_token: 'tok-test-0123456789abcdef',
+      proposal_kind: 'new_case',
+      status: 'pending',
+      objective: '我有 6 个小鼠样本 3vs3 要做差异分析',
+      flow_id: 'rnaseq',
+      flow_label: 'bulk RNA-seq 差异分析',
+      lead_planner: 'agent-rnaseq',
+      route_path: 'bridge_workflow',
+      participants: ['data-steward', 'quality-auditor'],
+      estimated_stages: [
+        { key: 'plan', title: '计划' },
+        { key: 'execution', title: '执行' },
+      ],
+      confidence: 'high',
+      origin_content: '我有 6 个小鼠样本 3vs3 要做差异分析',
+      context_refs: [],
+      source_case_id: null,
+      options: ['confirm', 'modify', 'cancel'],
+      created_at: '2026-08-20T08:00:00Z',
+      ...overrides,
+    }
+  }
+
+  function proposalEvent(
+    overrides: Record<string, unknown> = {},
+    recordedAt = '2026-08-12T08:00:00Z',
+    eventId = 'evt-room.proposal_confirm',
+  ): AgentTeamsEvent {
+    // 房间级事件挂在 room-<room_id> 命名空间记录下，与 Case 事件同一渲染
+    return {
+      ...makeEvent('room.proposal_confirm', { summary: '立项确认：小鼠差异分析', payload: proposalPayload(overrides) }, 'bioops-manager', recordedAt),
+      event_id: eventId,
+      case_id: 'room-room-1',
+    }
+  }
+
+  it('projects a pending new_case proposal into an interactive card message', () => {
+    const message = projectCaseEvent(proposalEvent(), METADATA)
+    expect(message?.kind).toBe('speech')
+    expect(message?.hideContent).toBe(true)
+    expect(message?.proposal).toMatchObject({
+      proposalKind: 'new_case',
+      confirmToken: 'tok-test-0123456789abcdef',
+      status: 'pending',
+      objective: '我有 6 个小鼠样本 3vs3 要做差异分析',
+      flowLabel: 'bulk RNA-seq 差异分析',
+      participants: ['data-steward', 'quality-auditor'],
+      options: ['confirm', 'modify', 'cancel'],
+    })
+    expect(message?.proposal?.estimatedStages).toHaveLength(2)
+  })
+
+  it('projects a followup proposal with continue/new/cancel options and source case', () => {
+    const message = projectCaseEvent(proposalEvent({
+      proposal_kind: 'followup',
+      source_case_id: 'bioops_prev1',
+      options: ['continue', 'new', 'cancel'],
+    }), METADATA)
+    expect(message?.proposal?.proposalKind).toBe('followup')
+    expect(message?.proposal?.sourceCaseId).toBe('bioops_prev1')
+    expect(message?.proposal?.options).toEqual(['continue', 'new', 'cancel'])
+  })
+
+  it('keeps proposal events without a confirm_token (B1: token 不再经事件流分发)', () => {
+    const message = projectCaseEvent(proposalEvent({ confirm_token: null }), METADATA)
+    expect(message?.proposal).toMatchObject({
+      proposalKind: 'new_case',
+      confirmToken: '',
+      status: 'pending',
+      objective: '我有 6 个小鼠样本 3vs3 要做差异分析',
+    })
+  })
+
+  it('marks the card confirmed when room.case_bound lands after it', () => {
+    const messages = projectCaseEvents([
+      proposalEvent(),
+      {
+        ...makeEvent('room.case_bound', { summary: '立项已确认，协作 Case 创建完成', payload: { case_id: 'bioops_new1' } }, 'bioops-manager', '2026-08-12T08:01:00Z'),
+        case_id: 'room-room-1',
+      },
+    ], METADATA)
+    const card = messages.find((item) => item.proposal)
+    expect(card?.proposal?.status).toBe('confirmed')
+    // case_bound 自身投影为系统时间轴行
+    expect(messages.some((item) => item.kind === 'system' && item.content.includes('立项已确认'))).toBe(true)
+  })
+
+  it('marks the card cancelled / modify_requested from the close events', () => {
+    const cancelled = projectCaseEvents([
+      proposalEvent(),
+      { ...makeEvent('room.proposal_cancelled', { summary: '用户取消了本次立项' }, 'bioops-manager', '2026-08-12T08:01:00Z'), case_id: 'room-room-1' },
+    ], METADATA)
+    expect(cancelled.find((item) => item.proposal)?.proposal?.status).toBe('cancelled')
+
+    const modified = projectCaseEvents([
+      proposalEvent(),
+      { ...makeEvent('room.proposal_modify_requested', { summary: '用户要求调整立项内容，请补充说明' }, 'bioops-manager', '2026-08-12T08:01:00Z'), case_id: 'room-room-1' },
+    ], METADATA)
+    expect(modified.find((item) => item.proposal)?.proposal?.status).toBe('modify_requested')
+  })
+
+  it('marks an earlier pending card superseded when a newer proposal replaces it', () => {
+    const messages = projectCaseEvents([
+      proposalEvent({ confirm_token: 'tok-old-0123456789abcdef' }, '2026-08-12T08:00:00Z', 'evt-proposal-old'),
+      proposalEvent({ confirm_token: 'tok-new-0123456789abcdef' }, '2026-08-12T08:02:00Z', 'evt-proposal-new'),
+    ], METADATA)
+    const cards = messages.filter((item) => item.proposal)
+    expect(cards).toHaveLength(2)
+    expect(cards[0].proposal?.status).toBe('superseded')
+    expect(cards[1].proposal?.status).toBe('pending')
+  })
+
+  it('merges room-namespace and case events by recorded_at into one timeline', () => {
+    const messages = projectCaseEvents([
+      // Case 流事件先到达但时间更晚；房间命名空间事件应在它之前
+      makeEvent('room.agent_message', { payload: { content: 'Case 侧回复' } }, 'bioops-manager', '2026-08-12T08:00:02Z'),
+      { ...makeEvent('room.user_message', { payload: { actor: 'current-user', content: '房间侧发言' } }, 'current-user', '2026-08-12T08:00:01Z'), case_id: 'room-room-1' },
+      proposalEvent({}, '2026-08-12T08:00:03Z'),
+    ], METADATA)
+    expect(messages.map((item) => (item.proposal ? 'proposal' : item.content))).toEqual([
+      '房间侧发言',
+      'Case 侧回复',
+      'proposal',
+    ])
   })
 })

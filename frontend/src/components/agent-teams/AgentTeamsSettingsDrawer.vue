@@ -48,7 +48,8 @@ watch(() => props.show, (show) => { if (show) syncDraft() }, { immediate: true }
 
 async function saveSettings() {
   try {
-    await store.save({ ...draft, managerName: draft.managerName.trim() || 'Manager' })
+    // 称呼留空 = 清除用户覆盖，透传后端下发的 Manager display_name。
+    await store.save({ ...draft, managerName: draft.managerName?.trim() || null })
     message.success('团队协作室设置已保存，将应用到所有协作房间。')
     emit('update:show', false)
   } catch (error: any) {
@@ -71,7 +72,7 @@ function restoreDefaults() {
       <NForm label-placement="top" class="settings-form">
         <h3>Manager 回复偏好</h3>
         <NFormItem label="Manager 称呼">
-          <NInput v-model:value="draft.managerName" maxlength="24" show-count placeholder="例如：Manager、小 O、管家" />
+          <NInput v-model:value="draft.managerName" maxlength="24" show-count placeholder="留空使用平台默认称呼；例如：小 O、管家" />
         </NFormItem>
         <NFormItem label="沟通风格">
           <NSelect v-model:value="draft.communicationStyle" :options="styleOptions" />

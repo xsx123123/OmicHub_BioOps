@@ -21,6 +21,11 @@ class Settings(BaseSettings):
     app_name: str = "OmicHub"
     app_env: str = "development"
     app_debug: bool = True
+    # 部署版本可观测：由镜像构建期 ARG/ENV 注入（APP_VERSION/APP_GIT_SHA/APP_BUILD_TIME），
+    # /health 对外暴露，缺省 unknown 表示未经规范构建流程产出。
+    app_version: str = "0.1.0"
+    app_git_sha: str = "unknown"
+    app_build_time: str = "unknown"
     app_host: str = "0.0.0.0"
     app_port: int = 8000
     app_secret_key: str = "change-me-in-production"
@@ -98,9 +103,15 @@ class Settings(BaseSettings):
     minio_access_key: str = ""
     minio_secret_key: str = ""
     minio_agentteams_bucket: str = "agentteams-evidence"
+    # 依据: 待测（经验初值）— 1h 覆盖人工点击下载场景；验证: 统计产物下载因签名过期的失败率
     minio_presign_expire_seconds: int = 3600
+    # 依据: 上游契约 — docs/modules/04_yaml_schema.md:2618 容量表（GTF 注释 50–500MB → 上限 512MB），
+    # data/ai/update/archive/AgentTeams_update_v2.1.md §4 同口径
     agentteams_artifact_fetch_max_mb: int = 512
+    # 依据: 待测（经验初值）— 预览只取报告头部，20MB 为经验上限；验证: 统计真实报告体积分布再校准
     agentteams_report_preview_max_mb: int = 20
+    # 依据: 上游契约 — 与平台日志保留口径一致（loguru retention 30 天，README.md:1069、
+    # ARCHITECTURE_DESIN/LOG_ARCHITECTURE.md:69）
     agentteams_evidence_retention_days: int = 30
     # ===== Session 目录引用 =====
     # 目录仅生成轻量清单，避免一次递归扫描或将大型输入直接注入模型上下文。
@@ -128,35 +139,20 @@ class Settings(BaseSettings):
     agent_memory_semantic_retrieval_enabled: bool = False
     agent_memory_embedding_model: str = ""
     agent_memory_semantic_candidate_limit: int = 100
-    agent_memory_auto_summary_enabled: bool = False
-    agent_memory_auto_summary_min_messages: int = 6
-    agent_memory_summary_model: str = ""
     agent_memory_conflict_adjudication_enabled: bool = False
     agent_memory_conflict_adjudication_model: str = ""
-    # ===== mem0 记忆引擎（26.8.4：mem0 v2 替换自研记忆内核） =====
-    # 设计见 docs/26.8.4/OmicHub_mem0记忆引擎替换实施方案.md
-    # 关闭时完全走原 agent_memories 自研链路（回滚位）。
-    mem0_engine_enabled: bool = False
-    mem0_extraction_model: str = "qwen3.7-plus"  # 事实抽取 LLM（provider 名或模型名，从 provider 注册表解析凭据）
-    mem0_embedding_provider: str = "ollama"  # ollama | openai（openai 兼容端点）
-    mem0_embedding_model: str = "bge-m3"
-    mem0_embedding_dims: int = 1024
-    mem0_ollama_base_url: str = "http://127.0.0.1:11434"
-    mem0_openai_base_url: str = ""  # mem0_embedding_provider=openai 时的 embeddings 端点
-    mem0_openai_api_key: str = ""
-    mem0_collection: str = "mem0_memories"
-    mem0_data_dir: str = "/data/omichub/omichub_data/_mem0"  # 记忆数据目录：主密钥与 history 审计库
-    mem0_encryption_enabled: bool = True  # 记忆内容静态加密（Fernet）；密钥见 mem0_encryption_key
-    mem0_encryption_key: str = ""  # Fernet 密钥；留空则自动生成并持久化到 mem0_data_dir/master.key（0600）
-    mem0_history_dir: str = ""  # mem0 history sqlite 目录；留空则落 mem0_data_dir/history
-    mem0_llm_temperature: float = 0.1
-    mem0_dedup_similarity_threshold: float = 0.95  # 直存查重阈值（e5-large 无前缀实测：同义≥0.96，同领域不同工具≈0.90）
-    mem0_search_score_threshold: float = 0.87  # 检索分数下限（e5-large 实测：跨话题≈0.85，同领域相关≥0.90，无关≈0.80）
-    mem0_settle_every_n_messages: int = 6  # 每累计 N 条消息异步入库一次长期记忆
+    memory_v2_enabled: bool = False
+    memory_fact_time_decay_lambda: float = 0.02
+    memory_settle_min_new_messages: int = 4
+    memory_extraction_model: str = "qwen3.7-plus"
     multi_expert_consultation_enabled: bool = False
     multi_expert_consultation_max_experts: int = 3
     overdrive_authoritative_mode: Literal["constraint", "override", "off"] = "constraint"
     overdrive_plan_repair_enabled: bool = True
+    # MAS Orchestrator 引擎灰度：legacy 维持现状路径（默认，行为完全不变）；
+    # langgraph 走新编排图（plan_generate/plan_confirm/dispatch/aggregate +
+    # checkpoint 恢复）。langgraph 启用时 legacy 路径进入 deprecation 倒计时。
+    orchestrator_engine: Literal["legacy", "langgraph"] = "legacy"
     # 统一协作意图路由：关闭时保持既有 Router 行为，用于灰度与一键回退。
     unified_intent_router_enabled: bool = False
     # ===== 对话内子 Agent 并行 fan-out（默认关闭，按 Agent 白名单灰度）=====
@@ -165,8 +161,11 @@ class Settings(BaseSettings):
     agentteams_chat_entry_enabled: bool = False
     agentteams_chat_flow_whitelist: str = "rna_seq,atac_seq,scrna_seq"
     # SSE/event consumer is the primary path; polling only reconciles non-event sources.
+    # 依据: 待测（经验初值）— 15s 为事件主通道之外的兜底对账节拍；验证: 观察对账触发频率与 DB 压力
     agentteams_case_watch_interval_seconds: int = 15
+    # 依据: 待测（经验初值）— SSE 重连间隔；验证: 断网恢复场景下事件补发延迟
     agentteams_case_event_stream_interval_seconds: int = 5
+    # 依据: 待测（经验初值）— 55s 意在小于常见反代 60s 空闲超时；验证: 经生产反代实测 SSE 是否被空闲切断
     agentteams_case_event_stream_seconds: int = 55
     # Cursor migration follows dual-write -> verified new-store reads -> legacy rollback.
     agentteams_case_cursor_migration_mode: Literal["dual_write", "new_only", "legacy_only"] = "dual_write"
@@ -176,6 +175,7 @@ class Settings(BaseSettings):
     subagent_child_timeout_seconds: int = 180  # 单个子任务墙钟上限
     subagent_max_rounds_per_child: int = 6  # 子循环工具轮数上限
     # 超频专家做多步工具任务的子循环轮数上限（普通聊天 fan-out 仍用上面的默认值）
+    # 依据: 待测（经验初值）— 25 轮为长链工具调用的经验上限；验证: 统计超频任务真实轮数分布的 P95
     overdrive_subagent_max_rounds: int = 25
     subagent_max_children_per_message: int = 1  # 父单轮工具回合内允许的 fan-out 调用次数
     upload_dir: str = "uploads"
@@ -314,19 +314,33 @@ class Settings(BaseSettings):
 
     # ===== AgentTeams 协作控制面（独立 Bridge 的受控用户代理） =====
     # 浏览器不接触 Bridge 身份凭证；Data Steward 仅可执行只读预检。
+    # 协作室 Manager 的 LLM 人格 agent（对应 data/ai/agentteams_manager.yaml）；
+    # 不可用时按既定降级链回退并写 room.manager_persona_fallback 审计事件。
+    # 配置非法（空值等）时 Settings 构造直接报错，不做静默回退。
+    agentteams_manager_agent_id: str = "agentteams-manager"
     agentteams_bridge_enabled: bool = False
     agentteams_bridge_url: str = ""
     agentteams_bridge_manager_token: str = ""
     agentteams_bridge_data_steward_token: str = ""
     agentteams_bridge_approval_token: str = ""
     agentteams_bridge_workflow_operator_token: str = ""
+    # 依据: 待测（经验初值）— 平台到 Bridge 单次调用上限；验证: deploy/agentteams/verify_latency_budget.py
+    # 的 approval_accept_ms P95 ≤ 1000ms 约束下复核是否过紧
     agentteams_bridge_timeout_seconds: float = 10.0
+    # 依据: 待测（经验初值）— 判定 Celery 任务失联的阈值；验证: evidence/e2e-2026-08-21/E2E-1
+    # 曾观测 preflight 卡死 17min+，据此校准用户可容忍等待
     agentteams_stale_task_seconds: int = 600
+    # A3（Part 2.7 失败降级路径）：@领域 Agent 直答的超时秒数；超时/报错/目标
+    # 不可用时 Manager 降级接管（可见降级消息 + room.agent_timeout 审计事件）。
+    # 依据: 实测 E2E-11 — 真实 LLM 直答耗时 26.9s（evidence/e2e-2026-08-21/summary.md），
+    # 30s 余量很薄；上调需同步评估降级触发率
+    agentteams_direct_timeout_seconds: float = 30.0
 
     # ===== Matrix Gateway（OmicHub 仅持有 Gateway 服务凭证，绝不保存 Matrix 凭证） =====
     agentteams_gateway_enabled: bool = False
     agentteams_gateway_url: str = ""
     agentteams_gateway_manager_token: str = ""
+    # 依据: 待测（经验初值）— 平台到 Gateway 单次调用上限；验证: 同 bridge_timeout 的 P95 口径
     agentteams_gateway_timeout_seconds: float = 10.0
 
     # ===== 节日彩蛋系统 =====
@@ -406,6 +420,18 @@ class Settings(BaseSettings):
     rate_limit_enabled: bool = True
     rate_limit_max: int = 100  # 窗口内最大请求数
     rate_limit_window: int = 60  # 窗口秒数
+    rate_limit_ban_enabled: bool = True  # 连续触发限流后临时封禁 IP
+    rate_limit_ban_threshold: int = 3  # 在 ban_window 内触发多少次限流后封禁
+    rate_limit_ban_window: int = 300  # 封禁计数窗口（秒）
+    rate_limit_ban_seconds: int = 900  # 临时封禁时长（秒）
+    rate_limit_trusted_networks: list[str] = [
+        "127.0.0.0/8",
+        "10.0.0.0/8",
+        "172.16.0.0/12",
+        "192.168.0.0/16",
+        "::1/128",
+        "fc00::/7",
+    ]  # 白名单网段：命中后跳过全局限流与临时封禁
 
     # ===== 可观测性（OpenTelemetry：Trace / Log 关联 / Metrics）=====
     # 总开关；关闭后所有埋点退化为 noop，不产生任何导出开销。
@@ -461,6 +487,15 @@ class Settings(BaseSettings):
     # ===== 敏感信息脱敏 =====
     # 逗号分隔的敏感词列表，AI 对话送 LLM 前 / 落库前替换为 [REDACTED]（不可逆）
     sensitive_keywords: list[str] = []
+
+    @field_validator("agentteams_manager_agent_id", mode="before")
+    @classmethod
+    def validate_manager_agent_id(cls, v: Any) -> str:
+        # 配置加载/取值失败必须显式报错，禁止静默回退到硬编码默认。
+        value = str(v or "").strip()
+        if not value:
+            raise ValueError("AGENTTEAMS_MANAGER_AGENT_ID 不能为空")
+        return value
 
     @field_validator("database_url", mode="before")
     @classmethod

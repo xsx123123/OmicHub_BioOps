@@ -37,6 +37,15 @@ const toolLabel = computed(() => TOOL_LABELS[props.tool.name] || props.tool.name
 
 const approval = computed(() => props.tool.approval)
 const isPending = computed(() => approval.value?.status === 'pending')
+const isPlanApproval = computed(
+  () => approval.value?.approval_kind === 'plan' || props.tool.name === 'update_plan',
+)
+const planSteps = computed(() => {
+  const steps = props.tool.arguments?.steps
+  return Array.isArray(steps)
+    ? steps.map((step) => String((step as Record<string, unknown>)?.title || step))
+    : []
+})
 
 const language = computed(() => {
   const l = props.tool.arguments?.language
@@ -123,7 +132,7 @@ const statusMeta = computed(() => STATUS_META[approval.value?.status || ''] || n
   <div class="approval-card" :class="{ pending: isPending }">
     <div class="approval-header">
       <n-icon size="15" class="shield-icon"><ShieldCheckmarkOutline /></n-icon>
-      <span class="approval-title">操作审批 · {{ toolLabel }}</span>
+      <span class="approval-title">{{ isPlanApproval ? '计划审批' : '操作审批' }} · {{ toolLabel }}</span>
       <n-tag v-if="tool.name === 'sandbox_execute'" size="tiny" round :bordered="false" type="info">
         {{ LANG_BADGES[language] || language }}
       </n-tag>
@@ -137,6 +146,13 @@ const statusMeta = computed(() => STATUS_META[approval.value?.status || ''] || n
     </div>
 
     <div v-if="approval?.risk_hint" class="risk-hint">⚠️ {{ approval.risk_hint }}</div>
+
+    <div v-if="isPlanApproval && planSteps.length" class="plan-approval-steps">
+      <div class="plan-approval-caption">批准后将按以下步骤自动执行：</div>
+      <ol>
+        <li v-for="(step, index) in planSteps" :key="`${index}-${step}`">{{ step }}</li>
+      </ol>
+    </div>
 
     <!-- 参数预览 -->
     <div class="approval-body">

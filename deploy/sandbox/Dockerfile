@@ -108,7 +108,9 @@ RUN pip install --no-cache-dir -i https://pypi.mirrors.ustc.edu.cn/simple \
         "scvi-tools>=1.1.0" \
         "celltypist>=1.6.0" \
         "decoupler>=1.6.0" \
-        "kaleido>=0.2.1"
+        "kaleido>=0.2.1" \
+        "pypdf==5.9.0" \
+        "PyMuPDF==1.26.4"
 
 # R + Seurat + IRkernel
 # 注意：r-base 必须 >=4.5 —— Python 栈已引入 icu 78（libharfbuzz 依赖），

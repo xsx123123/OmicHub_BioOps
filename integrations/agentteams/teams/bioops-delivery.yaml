@@ -92,3 +92,8 @@ workers:
     bridge_identity_env: AGENTTEAMS_AGENT_MCP_BUILDER_TOKEN
     work_inbox: "GET /v1/work-items/assigned"
     forbidden_capabilities: [workflow_submit, workflow_cancel, database_access, shell, file_write]
+  - identity: agent-skill-builder
+    skills: [skill-candidate-generation, osdp-compliance-review]
+    bridge_identity_env: AGENTTEAMS_AGENT_SKILL_BUILDER_TOKEN
+    work_inbox: "GET /v1/work-items/assigned"
+    forbidden_capabilities: [workflow_submit, workflow_cancel, database_access, shell, file_write]

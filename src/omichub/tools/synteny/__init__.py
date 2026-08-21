@@ -1,0 +1,1 @@
+"""Genome synteny toolbox module."""

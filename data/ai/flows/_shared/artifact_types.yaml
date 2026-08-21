@@ -28,6 +28,16 @@ visualization_bundle:
   media_types: [text/html, application/zip]
   max_size_gb: 10
   retention_days: 180
+docx_report:
+  format: docx
+  media_types: [application/vnd.openxmlformats-officedocument.wordprocessingml.document]
+  max_size_gb: 1
+  retention_days: 180
+html_report:
+  format: html
+  media_types: [text/html]
+  max_size_gb: 1
+  retention_days: 180
 decision:
   format: json
   media_types: [application/json]

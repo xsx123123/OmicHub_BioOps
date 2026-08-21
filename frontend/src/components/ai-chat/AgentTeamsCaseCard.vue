@@ -2,7 +2,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { NButton, NCollapse, NCollapseItem, NInput, NModal, NPopconfirm, NTag } from 'naive-ui'
 import { useRouter } from 'vue-router'
-import { agentTeamsApi, type AgentTeamsEvent } from '@/api/agentTeams'
+import { agentTeamsApi, type AgentTeamsCapabilityCheck, type AgentTeamsEvent } from '@/api/agentTeams'
 import { useAgentTeamsStore } from '@/stores/agentTeams'
 import { shouldPollAgentTeamsCase } from '@/utils/agentTeamsState'
 import { agentTeamsNextActor, formatAgentTeamsStatus } from '@/utils/agentTeamsStatus'
@@ -17,6 +17,7 @@ const loading = ref(false)
 const decisionLoading = ref(false)
 const decisionError = ref('')
 const recentEvents = ref<AgentTeamsEvent[]>([])
+const capabilityCheck = ref<AgentTeamsCapabilityCheck | null>(null)
 const rejectVisible = ref(false)
 const rejectReason = ref('')
 const revisionVisible = ref(false)
@@ -44,9 +45,10 @@ async function refresh() {
   if (!shouldPollAgentTeamsCase(document.visibilityState) || loading.value) return
   loading.value = true
   try {
-    const [value, eventPage] = await Promise.all([
+    const [value, eventPage, capability] = await Promise.all([
       agentTeamsStore.refreshCase(detail.value.case_id),
       agentTeamsApi.getEvents(detail.value.case_id, { limit: 3 }),
+      agentTeamsApi.getCapabilityCheck(detail.value.case_id).catch(() => null),
     ])
     detail.value = {
       ...detail.value,
@@ -57,8 +59,12 @@ async function refresh() {
       plan_hash: value.plan_hash,
       plan_version: value.plan_version,
       proposed_submission: value.proposed_submission,
+      work_items: value.work_items,
+      quality_decision: value.quality_decision,
+      manifest_uri: value.manifest_uri,
     }
     recentEvents.value = eventPage.events.slice(-3).reverse()
+    capabilityCheck.value = capability
   } catch {
   } finally {
     loading.value = false
@@ -197,6 +203,25 @@ onUnmounted(() => {
     </div>
     <p class="case-meta">下一责任方：{{ detail.next_actor }}</p>
     <p v-if="updatedAt" class="case-updated">最近更新：{{ updatedAt }}</p>
+    <section class="fact-panel" aria-label="Case 运行事实">
+      <div class="fact-heading"><strong>运行事实</strong><span>{{ detail.status }}</span></div>
+      <div v-if="detail.work_items?.length" class="fact-list">
+        <div v-for="item in detail.work_items" :key="item.work_item_id" class="fact-row">
+          <span>{{ item.work_item_id }} · {{ item.target }}</span><NTag size="tiny">{{ item.status }}</NTag>
+        </div>
+      </div>
+      <p v-else class="fact-empty">
+        {{ detail.status === 'received' ? '尚未派发：Case 已创建，等待规划或人工确认。' : '当前还没有可展示的工作项。' }}
+      </p>
+      <p class="fact-note">质量门：{{ detail.quality_decision || '尚未形成判定' }}</p>
+      <p v-if="detail.manifest_uri" class="fact-note">交付 Manifest 已生成。</p>
+      <div v-if="capabilityCheck?.stages?.length" class="capability-list">
+        <div v-for="stage in capabilityCheck.stages" :key="stage.stage" class="fact-row">
+          <span>{{ stage.stage }} · {{ stage.agent_id }}</span>
+          <NTag size="tiny" :type="stage.available ? 'success' : 'warning'">{{ stage.available ? '可交接' : stage.reason }}</NTag>
+        </div>
+      </div>
+    </section>
     <div v-if="isApprovalPending" class="approval-rail">
       <p>审批待处理：确认冻结计划后继续执行。</p>
       <p v-if="planShortHash" class="plan-hash">
@@ -262,6 +287,12 @@ onUnmounted(() => {
 .case-header { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
 .eyebrow { margin: 0 0 4px; color: var(--chat-text-muted); font-size: 12px; }
 .case-meta, .case-updated, .approval-rail, .failure-rail { margin: 10px 0 0; font-size: 13px; color: var(--chat-text-secondary); }
+.fact-panel { display: grid; gap: 7px; margin-top: 10px; padding: 9px; border: 1px solid var(--chat-border); border-radius: 9px; background: color-mix(in srgb, var(--chat-bg) 94%, #64748b 6%); }
+.fact-heading, .fact-row { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.fact-heading { color: var(--chat-text-secondary); font-size: 12px; }
+.fact-heading span, .fact-empty, .fact-note { margin: 0; color: var(--chat-text-muted); font-size: 11px; }
+.fact-list, .capability-list { display: grid; gap: 5px; }
+.fact-row { color: var(--chat-text-secondary); font-size: 11px; }
 .approval-rail { display: grid; gap: 8px; padding: 8px; border-left: 3px solid var(--warning-color, #f59e0b); background: color-mix(in srgb, var(--warning-color, #f59e0b) 12%, transparent); }
 .failure-rail { display: grid; gap: 8px; padding: 8px; border-left: 3px solid var(--error-color); background: color-mix(in srgb, var(--error-color) 10%, transparent); }
 .approval-rail p, .failure-rail p { margin: 0; }
