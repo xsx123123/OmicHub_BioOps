@@ -75,7 +75,7 @@ async function handleSetup(e: Event) {
     }
     await authStore.setupFirstAdmin(req)
     markSetupComplete()
-    message.success('root 管理员账号创建成功，欢迎进入 OmicHub')
+    message.success('root 管理员账号创建成功，欢迎进入 CygnusX')
     router.push('/')
   } catch (error: any) {
     const detail = error.response?.data?.detail || '初始化失败，请稍后重试'
@@ -87,7 +87,7 @@ async function handleSetup(e: Event) {
 </script>
 
 <template>
-  <main class="setup-page" aria-label="初始化 OmicHub" :aria-busy="loading">
+  <main class="setup-page" aria-label="初始化 CygnusX" :aria-busy="loading">
     <div class="setup-overlay" />
     <div class="setup-content">
       <NCard class="setup-card" :bordered="false">
@@ -96,7 +96,7 @@ async function handleSetup(e: Event) {
             <Planet />
           </NIcon>
           <h1 class="setup-title">
-            欢迎来到 OmicHub
+            欢迎来到 CygnusX
           </h1>
           <p class="setup-subtitle">
             首次使用，请创建 root 管理员账号

@@ -83,6 +83,7 @@ export const useChatSessionStore = defineStore('chatSession', () => {
         content: m.content,
         reasoning: '',
         status: m.status as 'complete' | 'streaming' | 'error',
+        error: typeof m.metadata_json?.error === 'string' ? m.metadata_json.error : undefined,
         created_at: m.created_at,
       }))
     } finally {
@@ -90,13 +91,14 @@ export const useChatSessionStore = defineStore('chatSession', () => {
     }
   }
 
-  /** 创建新会话 */
-  async function createSession(modelId: string, assistantId?: string): Promise<string | null> {
+  /** 创建新会话（projectId 为后端必填的项目边界，调用方需先让用户选择项目） */
+  async function createSession(modelId: string, assistantId?: string, projectId?: string): Promise<string | null> {
     try {
       const res = await apiClient.post<ChatSessionDTO>('/chat/sessions', {
         model_id: modelId,
         assistant_id: assistantId,
         title: '新对话',
+        project_id: projectId || undefined,
       })
       sessions.value.unshift(res.data)
       currentSessionId.value = res.data.session_id
@@ -221,7 +223,8 @@ export const useChatSessionStore = defineStore('chatSession', () => {
         onError: (error) => {
           streamError.value = error
           aiMsg.status = 'error'
-          aiMsg.content = streamingContent.value || error
+          aiMsg.content = streamingContent.value
+          aiMsg.error = error
         },
         onDone: (_sessionId, _messageId) => {
           aiMsg.status = 'complete'

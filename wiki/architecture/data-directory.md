@@ -1,12 +1,12 @@
 # 数据目录结构
 
-平台运行时数据统一收口在宿主机 `/data/omichub`。
+平台运行时数据统一收口在宿主机 `/data/cygnusx`。
 
 ## 顶层目录
 
 ```text
-/data/omichub/
-├── omichub_data/          # 集中数据区
+/data/cygnusx/
+├── cygnusx_data/          # 集中数据区
 │   ├── _pgdata/           # PostgreSQL 数据
 │   ├── _redis/            # Redis 持久化
 │   ├── jbrowse/           # JBrowse 2 参考基因组与轨道
@@ -19,7 +19,7 @@
 └── .tmp/                  # 临时文件
 ```
 
-## `omichub_data` 子目录
+## `cygnusx_data` 子目录
 
 | 目录 | 作用 | 备注 |
 |---|---|---|
@@ -33,7 +33,7 @@
 
 ```bash
 make docker-down-all
-sudo rsync -aP --info=progress2 /data/omichub/ <目标机>:/data/omichub/
+sudo rsync -aP --info=progress2 /data/cygnusx/ <目标机>:/data/cygnusx/
 ```
 
 迁移前同时备份数据库、`.env`、`data/worker_config.yaml` 和外部对象存储配置。恢复后运行迁移、健康

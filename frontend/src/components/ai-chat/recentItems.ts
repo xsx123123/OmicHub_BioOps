@@ -4,7 +4,7 @@
  * Part C 统一体验：最近使用置顶，其余按名称排序。
  */
 
-const STORAGE_KEY = 'omichub.panel.recent.v1'
+const STORAGE_KEY = 'cygnusx.panel.recent.v1'
 const MAX_RECENT = 5
 
 export type PanelKind = 'mention' | 'slash'

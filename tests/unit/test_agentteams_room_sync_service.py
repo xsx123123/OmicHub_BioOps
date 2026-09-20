@@ -7,12 +7,12 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from omichub.application.services.agentteams_room_sync_service import (
+from cygnusx.application.services.agentteams_room_sync_service import (
     ROOM_SYNC_CURSOR_KEY_PREFIX,
     AgentTeamsRoomSyncService,
     record_room_binding,
 )
-from omichub.core.exceptions import BusinessError, NotFoundError
+from cygnusx.core.exceptions import BusinessError, NotFoundError
 
 
 class FakeRedis:
@@ -130,7 +130,7 @@ async def test_external_message_reprojected_and_responder_dispatched() -> None:
 @pytest.mark.asyncio
 async def test_echo_messages_filtered() -> None:
     events = [
-        {"event_id": "$m1", "origin": "omichub", "sender_identity": "omichub-user", "content": "平台镜像消息"},
+        {"event_id": "$m1", "origin": "cygnusx", "sender_identity": "cygnusx-user", "content": "平台镜像消息"},
         {"event_id": "$m2", "origin": "external", "sender_matrix_id": "@alice:matrix", "content": "真人发言"},
     ]
     agentteams = _agentteams()
@@ -307,7 +307,7 @@ async def test_record_room_binding_failure_only_logs() -> None:
 
 
 def test_celery_task_delegates_to_async_impl(monkeypatch) -> None:
-    import omichub.infrastructure.celery_app.tasks.agentteams as task_module
+    import cygnusx.infrastructure.celery_app.tasks.agentteams as task_module
 
     async def fake_impl() -> dict[str, object]:
         return {"status": "ok"}
@@ -319,7 +319,7 @@ def test_celery_task_delegates_to_async_impl(monkeypatch) -> None:
 
 @pytest.mark.asyncio
 async def test_sync_task_skipped_when_gateway_unavailable(monkeypatch) -> None:
-    import omichub.infrastructure.celery_app.tasks.agentteams as task_module
+    import cygnusx.infrastructure.celery_app.tasks.agentteams as task_module
 
     class UnavailableGateway:
         @property
@@ -327,7 +327,7 @@ async def test_sync_task_skipped_when_gateway_unavailable(monkeypatch) -> None:
             return False
 
     monkeypatch.setattr(
-        "omichub.application.services.agentteams_room_gateway_service.AgentTeamsRoomGatewayService",
+        "cygnusx.application.services.agentteams_room_gateway_service.AgentTeamsRoomGatewayService",
         UnavailableGateway,
     )
 

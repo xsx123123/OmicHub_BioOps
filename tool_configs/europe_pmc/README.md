@@ -1,6 +1,6 @@
 # Europe PMC MCP 检索工具
 
-`europe_pmc_search` 是内置 `omichub-platform` MCP 的只读开放网络工具，面向生物医学研究问题检索 Europe PMC。
+`europe_pmc_search` 是内置 `cygnusx-platform` MCP 的只读开放网络工具，面向生物医学研究问题检索 Europe PMC。
 
 ## 输入
 

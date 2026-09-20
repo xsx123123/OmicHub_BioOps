@@ -2,23 +2,23 @@
 
 from fastmcp import FastMCP
 
-from client.api_client import OmicHubAPIClient
+from client.api_client import CygnusXAPIClient
 
 
-def register(mcp: FastMCP, api: OmicHubAPIClient) -> None:
+def register(mcp: FastMCP, api: CygnusXAPIClient) -> None:
 
     @mcp.prompt()
     def new_analysis(flow_id: str = "rna_seq") -> str:
         """引导完成一次完整的新分析流程"""
         return f"""请帮我完成一次 {flow_id} 分析，按以下步骤操作：
 
-1. 调用 omichub_get_flow_detail(flow_id="{flow_id}") 了解流程参数要求
-2. 调用 omichub_list_files() 查看我已有的数据文件
+1. 调用 cygnusx_get_flow_detail(flow_id="{flow_id}") 了解流程参数要求
+2. 调用 cygnusx_list_files() 查看我已有的数据文件
 3. 根据我的数据配置参数和样本表
-4. 调用 omichub_preview_analysis() 验证参数
-5. 调用 omichub_submit_analysis(user_confirmed=True) 提交分析
-6. 使用 omichub_get_task_progress() 轮询监控进度直到完成
-7. 完成后调用 omichub_get_task_outputs() 查看结果
+4. 调用 cygnusx_preview_analysis(flow_id="{flow_id}") 验证参数
+5. 调用 cygnusx_submit_analysis(user_confirmed=True) 提交分析
+6. 使用 cygnusx_get_task_progress() 轮询监控进度直到完成
+7. 完成后调用 cygnusx_get_task_outputs() 查看结果
 
 请在每一步向我确认关键参数后再继续。"""
 
@@ -27,9 +27,9 @@ def register(mcp: FastMCP, api: OmicHubAPIClient) -> None:
         """引导解读分析结果"""
         return f"""请帮我解读任务 {task_id} 的分析结果：
 
-1. 调用 omichub_get_task(task_id="{task_id}") 确认任务已完成
-2. 调用 omichub_get_task_outputs(task_id="{task_id}") 获取输出路径
-3. 使用 omichub_read_file_content() 读取关键结果文件：
+1. 调用 cygnusx_get_task(task_id="{task_id}") 确认任务已完成
+2. 调用 cygnusx_get_task_outputs(task_id="{task_id}") 获取输出路径
+3. 使用 cygnusx_read_file_content() 读取关键结果文件：
    - 差异表达基因表 (DEG table)
    - QC 报告
    - 标准化计数矩阵
@@ -44,14 +44,19 @@ def register(mcp: FastMCP, api: OmicHubAPIClient) -> None:
         """引导在沙箱中进行结果优化分析"""
         return f"""请帮我在沙箱中对任务 {task_id} 的结果进行深入分析：
 
-1. 调用 omichub_get_task_outputs(task_id="{task_id}") 获取结果路径
-2. 创建沙箱会话: omichub_sandbox_create()
-3. 在沙箱中加载数据:
+1. 调用 cygnusx_get_task_outputs(task_id="{task_id}") 获取结果路径
+2. 创建沙箱会话: cygnusx_sandbox_create()
+3. 先在沙箱中探明实际结果文件位置（不同流程目录结构不同，勿臆测路径）:
+   ```python
+   import subprocess
+   # 列出任务结果目录，找到差异基因表 / 计数矩阵等关键文件
+   print(subprocess.run(["find", "/data/platform/tasks/{task_id}", "-name", "*.csv"],
+                        capture_output=True, text=True).stdout)
+   ```
+   再用 pandas 读取上一步确认存在的文件，例如:
    ```python
    import pandas as pd
-   import scanpy as sc
-   # 读取差异基因结果
-   degs = pd.read_csv('/data/platform/tasks/{task_id}/work/.../results/deseq2/all_degs.csv')
+   degs = pd.read_csv("<上一步确认的 all_degs.csv 实际路径>")
    ```
 4. 进行自定义分析:
    - 调整筛选阈值 (|log2FC| > 1, padj < 0.05)
@@ -66,25 +71,25 @@ def register(mcp: FastMCP, api: OmicHubAPIClient) -> None:
         """引导完成从数据下载到分析的完整流程"""
         return f"""请帮我完成从数据下载到分析的完整流程：
 
-1. 提交下载: omichub_submit_download(source="ebi", accession="{accession}", user_confirmed=True)
-2. 监控下载进度: omichub_get_download_progress() 直到完成
-3. 查看下载的数据: omichub_list_files(directory="raw_data")
+1. 提交下载: cygnusx_submit_download(source="ebi", accession="{accession}", user_confirmed=True)
+2. 监控下载进度: cygnusx_get_download_progress() 直到完成
+3. 查看下载的数据: cygnusx_list_files(directory="raw_data")
 4. 配置 {flow_id} 分析参数（根据下载的样本信息）
-5. 提交分析: omichub_submit_analysis(flow_id="{flow_id}", ..., user_confirmed=True)
+5. 提交分析: cygnusx_submit_analysis(flow_id="{flow_id}", ..., user_confirmed=True)
 6. 监控分析进度直到完成
 7. 解读分析结果
 
- accession: {accession}
- 目标流程: {flow_id}"""
+accession: {accession}
+目标流程: {flow_id}"""
 
     @mcp.prompt()
     def troubleshoot_task(task_id: str) -> str:
         """引导排查任务失败原因"""
         return f"""请帮我排查任务 {task_id} 的问题：
 
-1. 调用 omichub_get_task(task_id="{task_id}") 查看状态和错误信息
-2. 调用 omichub_get_task_logs(task_id="{task_id}", lines=100) 查看详细日志
-3. 如果是运行中卡住，检查 omichub_get_task_progress()
+1. 调用 cygnusx_get_task(task_id="{task_id}") 查看状态和错误信息
+2. 调用 cygnusx_get_task_logs(task_id="{task_id}", lines=100) 查看详细日志
+3. 如果是运行中卡住，检查 cygnusx_get_task_progress()
 4. 分析错误原因:
    - 内存不足？→ 建议减少样本数或增加资源
    - 参考基因组缺失？→ 检查参数配置

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # author : zhang jian
 # date : 2026-08-03
-# skill : scrna-deg-analysis (OmicHub OSDP v1.0)
+# skill : scrna-deg-analysis (CygnusX OSDP v1.0)
 # description : 合并 DEG 结果根目录下全部 *-DEG-infor.csv 为一张汇总表。
 #   重写自 tools/DEG/Extert_DEG.PY: 移除 /titan3/ 硬编码路径, 改为 argparse CLI。
 # 退出码: 0 成功; 1 未找到任何 -DEG-infor.csv; 2 读取/合并失败。

@@ -1,6 +1,6 @@
 # 分析流程与工作流
 
-OmicHub 使用 YAML 声明式 Flow + 通用构建器接入 Snakemake 流程。流程 YAML 定义用户可见的参数与
+CygnusX 使用 YAML 声明式 Flow + 通用构建器接入 Snakemake 流程。流程 YAML 定义用户可见的参数与
 输入输出契约，Worker 和运行时镜像执行实际计算；新增流程前必须同时验证 YAML、Snakefile、运行时
 依赖和交付目录。
 

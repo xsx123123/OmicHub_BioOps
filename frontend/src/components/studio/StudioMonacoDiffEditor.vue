@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import * as monaco from 'monaco-editor'
+import { useThemeStore } from '@/stores/theme'
+import { cygnusxMonacoTheme, ensureCygnusxMonacoThemes } from './monacoTheme'
 
 const props = withDefaults(defineProps<{
   original: string
@@ -9,6 +11,7 @@ const props = withDefaults(defineProps<{
 }>(), { language: 'plaintext' })
 
 const host = ref<HTMLDivElement | null>(null)
+const themeStore = useThemeStore()
 let editor: monaco.editor.IStandaloneDiffEditor | null = null
 let originalModel: monaco.editor.ITextModel | null = null
 let modifiedModel: monaco.editor.ITextModel | null = null
@@ -23,8 +26,9 @@ function createModels() {
 
 onMounted(() => {
   if (!host.value) return
+  ensureCygnusxMonacoThemes()
   editor = monaco.editor.createDiffEditor(host.value, {
-    theme: 'omichub-studio-light',
+    theme: cygnusxMonacoTheme(themeStore.isDark),
     automaticLayout: true,
     readOnly: true,
     renderSideBySide: true,
@@ -38,6 +42,7 @@ onMounted(() => {
   createModels()
 })
 watch(() => [props.original, props.modified, props.language], createModels)
+watch(() => themeStore.isDark, (isDark) => monaco.editor.setTheme(cygnusxMonacoTheme(isDark)))
 onBeforeUnmount(() => { editor?.dispose(); originalModel?.dispose(); modifiedModel?.dispose() })
 </script>
 

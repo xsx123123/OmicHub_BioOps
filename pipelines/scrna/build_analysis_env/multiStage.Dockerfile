@@ -1,6 +1,6 @@
 # author  : zhang jian
 # date    : 2025-12-23
-# version : v4.0.4-alpha
+# version : v4.1.2-alpha
 # description : this is scRNAseqMulticommand docker images dockerfile
 # setting base docker images
 
@@ -13,7 +13,7 @@ FROM mambaorg/micromamba:latest AS builder
 LABEL org.opencontainers.image.authors="zhang jian zhangjian199567@outlook.com"
 LABEL org.opencontainers.image.title="scRNAseqMulticommand Docker Image"
 LABEL org.opencontainers.image.description="Docker image for scRNAseqMulticommand analysis."
-LABEL org.opencontainers.image.version="0.4.7v"
+LABEL org.opencontainers.image.version="v4.1.2-alpha"
 
 # Create directories
 RUN mkdir -p /home/mambauser/scRNAseqMulticommand && \
@@ -46,7 +46,7 @@ FROM mambaorg/micromamba:latest
 
 # Metadata
 LABEL org.opencontainers.image.authors="zhang jian zhangjian199567@outlook.com"
-LABEL org.opencontainers.image.version="0.4.7v"
+LABEL org.opencontainers.image.version="v4.1.2-alpha"
 
 # 1. Copy the Conda environment from builder
 # Note: 'scrna' is the name defined in the yaml file

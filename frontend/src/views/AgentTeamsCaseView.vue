@@ -34,11 +34,20 @@ import {
 import PageHeader from '@/components/PageHeader.vue'
 import {
   agentTeamsApi,
+  type AgentTeamsArtifactLineageResponse,
   type AgentTeamsCase,
   type AgentTeamsCaseStatus,
   type AgentTeamsEvent,
+  type AgentTeamsTurnSummary,
+  type AgentTeamsTurnDetail,
 } from '@/api/agentTeams'
-import { mergeAgentTeamsEvents, shouldPollAgentTeamsCase } from '@/utils/agentTeamsState'
+import {
+  formatAgentTeamsArtifactSize,
+  mergeAgentTeamsEvents,
+  qcVerdictLabel,
+  qcVerdictTagType,
+  shouldPollAgentTeamsCase,
+} from '@/utils/agentTeamsState'
 import { formatAgentTeamsStatus } from '@/utils/agentTeamsStatus'
 
 const POLLING_INTERVAL_MS = 20_000
@@ -63,6 +72,13 @@ const retrying = ref(false)
 const manifestVisible = ref(false)
 const manifestLoading = ref(false)
 const manifest = ref<Record<string, unknown> | null>(null)
+const lineage = ref<AgentTeamsArtifactLineageResponse | null>(null)
+const turns = ref<AgentTeamsTurnSummary[]>([])
+const selectedTurn = ref<AgentTeamsTurnDetail | null>(null)
+const turnDetailVisible = ref(false)
+const turnDetailLoading = ref(false)
+const turnDetailError = ref('')
+const flowReportGenerating = ref(false)
 const approvalConfirmed = ref(false)
 const submitForm = ref({
   task_name: '',
@@ -82,8 +98,17 @@ let eventStreamRetryTimer: number | null = null
 let eventStreamFailures = 0
 
 const caseId = computed(() => String(route.params.caseId || ''))
+const turnGroups = computed(() => {
+  const grouped = new Map<string, AgentTeamsTurnSummary[]>()
+  for (const turn of turns.value) {
+    const current = grouped.get(turn.work_item_id) || []
+    current.push(turn)
+    grouped.set(turn.work_item_id, current)
+  }
+  return [...grouped.entries()].map(([workItemId, items]) => ({ workItemId, items }))
+})
 const phases: { key: AgentTeamsCaseStatus[]; label: string }[] = [
-  { key: ['received', 'preflight_running', 'preflight_blocked', 'waiting_for_correction'], label: '预检' },
+  { key: ['received', 'preflight_running', 'preflight_blocked', 'waiting_for_correction', 'planning_failed'], label: '预检' },
   { key: ['approval_pending', 'approved'], label: '审批' },
   { key: ['executing', 'execution_failed'], label: '执行' },
   { key: ['quality_running', 'quality_blocked', 'remediation_pending'], label: '质量' },
@@ -108,7 +133,7 @@ const nextStep = computed(() => {
   if (status === 'approval_pending') {
     return {
       title: '预检已通过，等待人工审批',
-      description: '审批机关确认后，Workflow Operator 才能携带短期令牌提交 OmicHub 计算任务。',
+      description: '审批机关确认后，Workflow Operator 才能携带短期令牌提交 CygnusX 计算任务。',
     }
   }
   if (status === 'preflight_blocked' || status === 'waiting_for_correction') {
@@ -117,10 +142,16 @@ const nextStep = computed(() => {
       description: '查看时间线中的预检证据，修正样本表或分组对比后创建新的协作 Case。',
     }
   }
+  if (status === 'planning_failed') {
+    return {
+      title: '规划失败，已耗尽自动修正与用户修正预算',
+      description: '多次计划校验均未通过，当前 Case 无法继续推进；建议取消后重新创建 Case 并检查输入数据。',
+    }
+  }
   if (status === 'executing') {
     return {
       title: 'Workflow Operator 正在跟踪执行',
-      description: 'OmicHub 是任务状态、日志和产物的唯一事实来源；完成后将进入质量门禁。',
+      description: 'CygnusX 是任务状态、日志和产物的唯一事实来源；完成后将进入质量门禁。',
     }
   }
   if (status === 'execution_failed') {
@@ -155,6 +186,13 @@ const canSubmitQualityGate = computed(() => {
   )
 })
 const planShortHash = computed(() => detail.value?.plan_hash ? detail.value.plan_hash.slice(0, 12) : '')
+const lineageVersions = computed(() => lineage.value?.versions ?? [])
+const qcVerdictCounts = computed(() => lineage.value?.qc_verdicts.counts ?? {})
+const qcTotal = computed(() =>
+  Object.values(qcVerdictCounts.value).reduce((sum, count) => sum + count, 0),
+)
+/** 判决行后端已按 created_at 倒序；展示位只取最近几条，全量以审计链为准。 */
+const recentQcChecks = computed(() => (lineage.value?.qc_verdicts.checks ?? []).slice(0, 5))
 const eventLabel = (type: string) => ({
   'case.created': 'Case 已创建',
   'case.state_changed': '阶段已更新',
@@ -163,7 +201,7 @@ const eventLabel = (type: string) => ({
   'skill.failed': 'Skill 未完成',
   'approval.requested': '已请求人工审批',
   'approval.resolved': '审批已决议',
-  'omic_task.submitted': 'OmicHub 任务已提交',
+  'omic_task.submitted': 'CygnusX 任务已提交',
   'omic_task.status_changed': '任务状态已回传',
   'omic_task.completed': '任务已完成，已转入质量核验',
   'omic_task.failed': '任务执行失败，等待修复处理',
@@ -218,6 +256,27 @@ async function downloadManifest() {
   }
 }
 
+async function exportFlowReport() {
+  if (!detail.value?.case_id || flowReportGenerating.value) return
+  flowReportGenerating.value = true
+  try {
+    const artifact = await agentTeamsApi.createCaseFlowReport(detail.value.case_id)
+    const blob = await agentTeamsApi.downloadCaseArtifact(detail.value.case_id, artifact.artifact_path)
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = artifact.artifact_path.split('/').at(-1) || `${detail.value.case_id}-flow-report.html`
+    link.click()
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+    await loadArtifactLineage()
+    message.success('流程报告已生成并开始下载。')
+  } catch (cause: any) {
+    message.error(cause?.response?.data?.detail || '流程报告导出失败。')
+  } finally {
+    flowReportGenerating.value = false
+  }
+}
+
 async function confirmSubmit() {
   if (!detail.value) return
   const taskName = submitForm.value.task_name.trim()
@@ -235,7 +294,7 @@ async function confirmSubmit() {
       task_name: taskName,
     })
     submitVisible.value = false
-    message.success(`已通过 Workflow Operator 提交 OmicHub 任务 ${receipt.omic_task_id}。`)
+    message.success(`已通过 Workflow Operator 提交 CygnusX 任务 ${receipt.omic_task_id}。`)
     await refresh({ resetEvents: true })
   } catch (cause: any) {
     message.error(cause?.response?.data?.detail || '任务提交失败，未确认前请勿重复操作。')
@@ -325,10 +384,12 @@ async function refresh(options: { background?: boolean; resetEvents?: boolean } 
     }
     const eventData = await agentTeamsApi.getEvents(caseId.value, { cursor, limit: 100 })
     detail.value = caseData
+    turns.value = await agentTeamsApi.listCaseTurns(caseId.value).catch(() => [])
     if (options.resetEvents) events.value = eventData.events
     else mergeEvents(eventData.events)
     eventCursor.value = eventData.next_cursor ?? (events.value.at(-1)?.event_id ?? null)
     lastSyncedAt.value = new Date()
+    void loadArtifactLineage()
   } catch (cause: any) {
     if (!options.background) {
       error.value = cause?.response?.data?.detail || '无法获取协作 Case 详情。'
@@ -339,9 +400,34 @@ async function refresh(options: { background?: boolean; resetEvents?: boolean } 
   }
 }
 
+async function openTurnDetail(recordId: string) {
+  if (!caseId.value) return
+  turnDetailVisible.value = true
+  turnDetailLoading.value = true
+  turnDetailError.value = ''
+  selectedTurn.value = null
+  try {
+    selectedTurn.value = await agentTeamsApi.getCaseTurn(caseId.value, recordId)
+  } catch (cause: any) {
+    turnDetailError.value = cause?.response?.data?.detail || '无法读取过程记录详情。'
+  } finally {
+    turnDetailLoading.value = false
+  }
+}
+
 function syncIfVisible() {
   pollingActive.value = shouldPollAgentTeamsCase(document.visibilityState)
   if (pollingActive.value && !eventStreamHealthy.value) void refresh({ background: true })
+}
+
+async function loadArtifactLineage() {
+  if (!caseId.value) return
+  try {
+    lineage.value = await agentTeamsApi.getArtifactLineage(caseId.value)
+  } catch {
+    // 血缘/判决展示位失败时降级为空态，不阻断 Case 详情主流程。
+    lineage.value = null
+  }
 }
 
 function startPolling() {
@@ -491,6 +577,26 @@ onBeforeUnmount(() => {
             </ul>
             <NEmpty v-else size="small" description="Manager 尚未分派工作项" />
           </NCard>
+          <NCard title="Agent 过程记录" size="small">
+            <template #header-extra>
+              <NButton size="tiny" secondary :loading="flowReportGenerating" @click="exportFlowReport">导出流程报告</NButton>
+            </template>
+            <ul v-if="turns.length" class="work-item-list turn-list">
+              <li v-for="group in turnGroups" :key="group.workItemId" class="turn-group">
+                <strong>工作项：{{ group.workItemId }}</strong>
+                <NButton
+                  v-for="turn in group.items"
+                  :key="turn.record_id"
+                  text
+                  class="turn-row"
+                  @click="openTurnDetail(turn.record_id)"
+                >
+                  第 {{ turn.round_number }} 轮 · {{ turn.agent_id }} · {{ turn.model || turn.provider || '模型调用' }} · {{ turn.usage.total_tokens || 0 }} tokens · {{ turn.duration_ms }}ms · {{ turn.status }}
+                </NButton>
+              </li>
+            </ul>
+            <NEmpty v-else size="small" description="暂无过程记录" />
+          </NCard>
           <NCard title="角色边界" size="small">
             <ul class="role-list">
               <li><strong>Manager</strong><span>拆解、状态汇总与审批协调</span></li>
@@ -530,7 +636,7 @@ onBeforeUnmount(() => {
             <dl class="approval-card__scope">
               <div><dt>执行者</dt><dd>Workflow Operator</dd></div>
               <div><dt>输入</dt><dd>已通过预检的固定样本表与分组对比</dd></div>
-              <div><dt>动作</dt><dd>创建一个真实 OmicHub RNA-seq 计算任务</dd></div>
+              <div><dt>动作</dt><dd>创建一个真实 CygnusX RNA-seq 计算任务</dd></div>
               <div><dt>审计</dt><dd>审批、提交回执与后续状态均写入此 Case</dd></div>
             </dl>
             <NButton type="primary" size="small" @click="openSubmit">审阅并批准执行</NButton>
@@ -583,6 +689,46 @@ onBeforeUnmount(() => {
               </NDescriptionsItem>
             </NDescriptions>
           </NCard>
+          <NCard title="产物血缘" size="small">
+            <ul v-if="lineageVersions.length" class="lineage-list">
+              <li v-for="version in lineageVersions" :key="version.version_id">
+                <strong>{{ version.artifact_id }}</strong>
+                <span>
+                  v{{ version.version_no }} · {{ formatAgentTeamsArtifactSize(version.size_bytes) }}
+                  · {{ version.created_at ? new Date(version.created_at).toLocaleString('zh-CN') : '—' }}
+                </span>
+                <small v-if="version.upstream.length">
+                  上游：{{ version.upstream.map((up) => up.artifact_id).join('、') }}
+                </small>
+              </li>
+            </ul>
+            <NEmpty v-else size="small" description="暂无平台登记的产物版本" />
+          </NCard>
+          <NCard title="质量判决分布" size="small">
+            <template v-if="qcTotal > 0">
+              <div class="qc-counts">
+                <NTag type="success" :bordered="false">通过 {{ qcVerdictCounts.pass ?? 0 }}</NTag>
+                <NTag type="warning" :bordered="false">警告 {{ qcVerdictCounts.warn ?? 0 }}</NTag>
+                <NTag type="error" :bordered="false">失败 {{ qcVerdictCounts.fail ?? 0 }}</NTag>
+                <NTag v-if="(qcVerdictCounts.inconclusive ?? 0) > 0" :bordered="false">
+                  存疑 {{ qcVerdictCounts.inconclusive }}
+                </NTag>
+              </div>
+              <ul class="qc-check-list">
+                <li v-for="(check, index) in recentQcChecks" :key="index">
+                  <NTag size="small" :type="qcVerdictTagType(check.verdict)" :bordered="false">
+                    {{ qcVerdictLabel(check.verdict) }}
+                  </NTag>
+                  <span>{{ check.reason || '—' }}</span>
+                  <small>
+                    {{ check.reviewer_agent }}
+                    · {{ check.created_at ? new Date(check.created_at).toLocaleString('zh-CN') : '—' }}
+                  </small>
+                </li>
+              </ul>
+            </template>
+            <NEmpty v-else size="small" description="暂无 qc 判决记录" />
+          </NCard>
           <NCard title="安全边界" size="small">
             <div class="security-note"><NIcon><ShieldCheckmarkOutline /></NIcon><span>所有计算操作经独立 Bridge；此页面只展示经授权的 Case 证据。</span></div>
           </NCard>
@@ -591,7 +737,7 @@ onBeforeUnmount(() => {
     </NSpin>
     <NModal v-model:show="submitVisible" preset="card" title="人工确认并提交计算任务" :style="{ width: 'min(92vw, 560px)' }" :mask-closable="!submitting">
       <NAlert type="warning" :show-icon="true" class="submit-warning">
-        此操作会由后端以独立审批与 Workflow Operator 身份创建真实 OmicHub 计算任务，并严格复用已通过预检的样本表、分组对比和流程输入。浏览器无法修改这些输入。
+        此操作会由后端以独立审批与 Workflow Operator 身份创建真实 CygnusX 计算任务，并严格复用已通过预检的样本表、分组对比和流程输入。浏览器无法修改这些输入。
       </NAlert>
       <NForm label-placement="top" @submit.prevent="confirmSubmit">
         <NFormItem label="任务名称" required><NInput v-model:value="submitForm.task_name" /></NFormItem>
@@ -607,7 +753,7 @@ onBeforeUnmount(() => {
     <NModal v-model:show="qualityGateVisible" preset="card" title="提交质量门禁结论" :style="{ width: 'min(92vw, 520px)' }" :mask-closable="!qualityGateSubmitting">
       <NForm label-placement="top" @submit.prevent="confirmQualityGate">
         <NFormItem label="关联任务" required>
-          <NSelect v-model:value="qualityGateForm.task_id" :options="detail?.omic_task_ids.map((id) => ({ label: id, value: id })) || []" placeholder="选择 OmicHub 任务" />
+          <NSelect v-model:value="qualityGateForm.task_id" :options="detail?.omic_task_ids.map((id) => ({ label: id, value: id })) || []" placeholder="选择 CygnusX 任务" />
         </NFormItem>
         <NFormItem label="决策" required>
           <NSelect v-model:value="qualityGateForm.decision" :options="[
@@ -629,6 +775,27 @@ onBeforeUnmount(() => {
           <NButton type="primary" attr-type="submit" :loading="qualityGateSubmitting">提交结论</NButton>
         </div>
       </NForm>
+    </NModal>
+    <NModal v-model:show="turnDetailVisible" preset="card" title="Agent 过程记录详情" :style="{ width: 'min(94vw, 860px)' }">
+      <NSpin :show="turnDetailLoading">
+        <NAlert v-if="turnDetailError" type="error" :show-icon="true">{{ turnDetailError }}</NAlert>
+        <template v-else-if="selectedTurn">
+          <p class="turn-detail-meta">{{ selectedTurn.agent_id }} · 第 {{ selectedTurn.round_number }} 轮 · {{ selectedTurn.model || selectedTurn.provider }} · {{ selectedTurn.duration_ms }}ms · {{ selectedTurn.status }}</p>
+          <h4>模型输入</h4>
+          <div v-if="selectedTurn.messages" class="turn-message-list">
+            <pre v-for="(item, index) in selectedTurn.messages" :key="index"><strong>{{ item.role }}</strong>\n{{ item.content }}</pre>
+          </div>
+          <NText v-else depth="3">无权查看</NText>
+          <h4>思考过程</h4>
+          <pre v-if="selectedTurn.reasoning_text" class="turn-detail-pre">{{ selectedTurn.reasoning_text }}</pre>
+          <NText v-else depth="3">无权查看</NText>
+          <h4>输出全文</h4>
+          <pre class="turn-detail-pre">{{ selectedTurn.output_text || '无输出内容' }}</pre>
+          <h4>工具调用</h4>
+          <pre v-if="selectedTurn.tool_calls.length" class="turn-detail-pre">{{ JSON.stringify(selectedTurn.tool_calls, null, 2) }}</pre>
+          <NText v-else depth="3">本轮没有工具调用</NText>
+        </template>
+      </NSpin>
     </NModal>
   </main>
 </template>
@@ -666,6 +833,18 @@ onBeforeUnmount(() => {
 .manifest-uri { overflow-wrap: anywhere; color: var(--text-secondary); font-size: 12px; }
 .manifest-preview { max-height: 60vh; overflow: auto; margin: 0; padding: 12px; border-radius: 8px; background: var(--surface-color-soft); color: var(--text-secondary); font: 12px/1.6 ui-monospace, monospace; white-space: pre-wrap; }
 .quality-decision-line { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.lineage-list, .qc-check-list { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.lineage-list li, .qc-check-list li { display: grid; gap: 3px; }
+.lineage-list strong { color: var(--text-primary); font-size: 13px; overflow-wrap: anywhere; }
+.lineage-list span, .qc-check-list span { color: var(--text-secondary); font-size: 12px; line-height: 1.5; }
+.lineage-list small, .qc-check-list small { color: var(--text-tertiary); font-size: 11px; overflow-wrap: anywhere; }
+.qc-counts { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.turn-group { display: grid; gap: 4px; }
+.turn-row { justify-content: flex-start; height: auto; white-space: normal; text-align: left; color: var(--text-secondary); font-size: 12px; line-height: 1.5; }
+.turn-detail-meta { color: var(--text-secondary); font-size: 13px; }
+.turn-message-list, .turn-detail-pre { max-height: 260px; overflow: auto; margin: 8px 0 16px; padding: 12px; border-radius: 8px; background: var(--surface-color-soft); color: var(--text-secondary); font: 12px/1.6 ui-monospace, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+.turn-message-list pre { margin: 0 0 12px; white-space: pre-wrap; }
+.turn-message-list pre:last-child { margin-bottom: 0; }
 @media (max-width: 1024px) { .case-workbench { grid-template-columns: minmax(190px, 240px) minmax(0, 1fr); } .evidence-column { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 768px) { .case-workbench, .evidence-column { grid-template-columns: 1fr; } .overview-column, .timeline-column, .evidence-column { grid-column: auto; } }
 </style>

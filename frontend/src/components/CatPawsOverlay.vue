@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * 全局猫爪彩蛋覆盖层 —— 全局挂载（App.vue），监听 window 事件
- * `omicHub:triggerCatPaws`，收到后全屏随机浮现发光猫爪足迹。
+ * `cygnusX:triggerCatPaws`，收到后全屏随机浮现发光猫爪足迹。
  *
  * 设计为“被动触发”：不自行弹 Toast，由调用方决定是否提示
  * （如关于页召唤按钮自己弹 Toast 后再派发事件；激活弹窗第 5 次点击只派发事件）。
@@ -18,7 +18,7 @@ interface CatPaw {
   delay: number
 }
 
-const EVENT_NAME = 'omicHub:triggerCatPaws'
+const EVENT_NAME = 'cygnusX:triggerCatPaws'
 const PAW_COUNT = 26
 const VISIBLE_MS = 7000
 

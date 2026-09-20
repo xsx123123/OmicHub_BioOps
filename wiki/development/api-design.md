@@ -27,7 +27,7 @@ class PageModel(BaseModel, Generic[T]):
 
 | 异常 | HTTP body code | 说明 |
 |---|---|---|
-| 业务异常 | 4xx/5xx | `OmicsHubException` |
+| 业务异常 | 4xx/5xx | `CygnusXException` |
 | 参数校验失败 | 422 | `RequestValidationError` |
 | 未处理异常 | 500 | 兜底，不暴露堆栈 |
 
@@ -40,4 +40,4 @@ class PageModel(BaseModel, Generic[T]):
 
 ## 路由注册
 
-所有模块路由在 `src/omichub/api/v1/router.py` 统一挂载，不要在应用入口散落注册。
+所有模块路由在 `src/cygnusx/api/v1/router.py` 统一挂载，不要在应用入口散落注册。

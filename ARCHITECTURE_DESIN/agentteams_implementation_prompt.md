@@ -1,12 +1,12 @@
 # 超频模式（Overdrive）实施提示词
 
-> 用法：把下面「提示词正文」整段复制给执行 AI（ChatGPT/Codex 等），并保证它能在仓库根目录 `/home/zj/zj_code_libarary/OmicHub` 下读写文件、运行命令。
+> 用法：把下面「提示词正文」整段复制给执行 AI（ChatGPT/Codex 等），并保证它能在仓库根目录 `/home/zj/zj_code_libarary/CygnusX` 下读写文件、运行命令。
 
 ---
 
 ## 提示词正文
 
-你是资深全栈工程师，在 OmicHub 仓库（Vue3 + TS + naive-ui 前端 `frontend/`，Python FastAPI 后端 `src/omichub/`）中实现"超频模式（Overdrive）"第一期：**内置超频编排**。
+你是资深全栈工程师，在 CygnusX 仓库（Vue3 + TS + naive-ui 前端 `frontend/`，Python FastAPI 后端 `src/cygnusx/`）中实现"超频模式（Overdrive）"第一期：**内置超频编排**。
 
 ### 第一步（必做）：读设计文档
 

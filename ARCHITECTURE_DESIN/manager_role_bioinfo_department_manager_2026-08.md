@@ -17,14 +17,14 @@
 ### 2.1 安全/审计身份 `bioops-manager`（非 LLM agent）
 
 - `integrations/agentteams/teams/bioops-delivery.yaml:10-13` 声明 manager 身份与 skills 边界（该文件为描述性文档，无代码加载）。
-- `integrations/agentteams/bridge/omichub_agentteams_bridge/config.py:39` token 配置；`app.py` 多处 `require_role(identity, "bioops-manager")` 权限控制。
+- `integrations/agentteams/bridge/cygnusx_agentteams_bridge/config.py:39` token 配置；`app.py` 多处 `require_role(identity, "bioops-manager")` 权限控制。
 - `bridge/room_mirror.py:31,134` Manager 回复以 `bioops-manager` 身份镜像到 Matrix 房间。
 
 **建议：此身份不改名。** 它散落在 token 配置与权限校验中，改名无收益、改动面大。
 
 ### 2.2 LLM 人格（Manager 回复的实际生成者 = `agent-general`）
 
-- `src/omichub/application/services/agentteams_room_response_service.py:66` `_PREFERRED_MANAGER_AGENT_ID = "agent-general"`（硬编码）；`:1057-1068` 回退逻辑。
+- `src/cygnusx/application/services/agentteams_room_response_service.py:66` `_PREFERRED_MANAGER_AGENT_ID = "agent-general"`（硬编码）；`:1057-1068` 回退逻辑。
 - Manager 房间话术硬编码在同文件 `:1153-1176` `_build_question()`（"扮演 Manager……澄清协议……"）。
 - 名称偏好链路：前端 `frontend/src/stores/agentTeamsPreferences.ts:21`（默认 `'Manager'`）→ 后端 `:1140` 注入 prompt「称呼自己为 {manager_name}」→ 前端 `AgentTeamsRoomView.vue` 用 `managerLabel` 展示。
 - 前端角色后缀：2026-08-20 已将 `AgentTeamsRoomView.vue:1508,1539` 的 ` · 管家` 改为 ` · 生物信息部门经理`（展示层，已上线）。

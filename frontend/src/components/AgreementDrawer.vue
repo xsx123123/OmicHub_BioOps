@@ -53,7 +53,7 @@ function agreeAndClose() {
     :mask-closable="true"
     @update:show="$emit('update:show', $event)"
   >
-    <NDrawerContent title="OmicHub 平台服务协议" :native-scrollbar="false" closable>
+    <NDrawerContent title="CygnusX 平台服务协议" :native-scrollbar="false" closable>
       <div class="agreement-body">
         <NSpin v-if="loading" size="large" />
         <div v-else-if="error" class="agreement-error">{{ error }}</div>

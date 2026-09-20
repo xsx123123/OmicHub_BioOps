@@ -1,0 +1,115 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage{fontspec}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{amssymb}
+\setmainfont{Times New Roman}
+\definecolor{headingblack}{HTML}{000000}
+\hypersetup{colorlinks=true, linkcolor=headingblack, urlcolor=headingblack}
+\titleformat{\section}{\Large\bfseries\color{headingblack}}{\thesection}{0.8em}{}
+
+\begin{document}
+
+\begin{center}
+{\LARGE\bfseries Supplementary Materials --- CygnusX}\\[0.5em]
+{\large Primary language: English.}\\[1.5em]
+\end{center}
+
+\begin{tabularx}{\textwidth}{>{\bfseries}p{0.24\textwidth}X}
+\toprule
+Project Title & CygnusX: Auditable Agent $\times$ Skill Infrastructure for Controlled Omics Analysis Delivery\\
+Team ID & \texttt{IBEC26-35}\\
+Team Name & \texttt{CygnusX}\\
+Institution & Huazhong Agricultural University\\
+Team Members & Jian Zhang (Founder) \texttt{[add members and roles]}\\
+Track / Category & Bioinformatics Platform\\
+Date & 2026-09-18\\
+\bottomrule
+\end{tabularx}
+
+\section{Package Overview}
+
+This package supports the claims made in the project report and technical abstract. It contains: (1) the CygnusX application source (backend, frontend, pipeline modules); (2) declarative configuration for agents, Skills, and analysis pipelines; (3) contract/unit tests for the controlled-execution base; (4) screenshots of the platform interfaces (form-based submission, Skill library, agent workspace, delivery README and verification report); (5) de-identified demonstration datasets and result archives for the reference bulk RNA-seq scenario. Every quantitative claim in the report maps to a section below.
+
+The platform vision starts from a research phenomenon and progressively organizes a verifiable computational experiment: research question \textrightarrow computational experiment \textrightarrow evidence chain \textrightarrow human review \textrightarrow experimental validation. The current package demonstrates the Reliable Workflow and controlled-delivery foundation. Goal-oriented discovery is a roadmap direction, not a current delivery claim; model-generated hypotheses do not replace expert judgment or experimental validation.
+
+\section{Recommended Directory Structure}
+\begin{verbatim}
+submission_package/
+  report.pdf
+  technical_abstract.pdf
+  supplementary_materials.pdf
+  code/            # CygnusX repository (src/cygnusx, frontend, pipelines)
+  data/            # de-identified demo inputs (sample sheets, contrasts, test FASTQ)
+  results/         # run archives: projects/<slug>/runs/<task>-<timestamp>/
+  figures/         # interface screenshots and architecture diagram
+  demo/            # demo script and 3 chain walkthroughs (pass / blocked / manual review)
+  README.md
+\end{verbatim}
+
+\section{Code and Runtime Environment}
+\begin{itemize}
+  \item Operating system: Linux (Ubuntu 22.04+ recommended); containerized pipeline execution (Apptainer/Singularity images for RNAFlow modules).
+  \item Language and version: Backend Python $\geq$ 3.11 (FastAPI $\geq$ 0.110, SQLAlchemy 2 async, LangGraph $\geq$ 0.2, Biopython $\geq$ 1.83); Frontend Node.js 20+ / Vue 3.4 + TypeScript.
+  \item Dependencies: \texttt{pyproject.toml} + \texttt{uv.lock} (backend), \texttt{frontend/package.json} (UI); PostgreSQL $\geq$ 15 with pgvector; Redis $\geq$ 7.
+  \item Entry point: \texttt{uvicorn cygnusx.api.main:app} (backend API) and \texttt{npm run dev/build} (frontend); workflow execution via the RNAFlow Snakemake pipeline suite.
+  \item Expected runtime and hardware: platform services run on 8-core CPU / 16 GB RAM; a reference bulk RNA-seq run (2 samples, STAR + featureCounts + DESeq2-style analysis) takes about 20--40 min on 8 cores (engineering estimate; compute time excluded from reported efficiency metrics).
+\end{itemize}
+
+\section{Data Description}
+\begin{itemize}
+  \item Data source and license: de-identified transcriptomic sequencing data from the HZAU genomics laboratory plant-genomics projects (species: rice \texttt{[confirm species per demo set]}); public reference genome and annotation from MSU/RAP-DB (academic use). No human genetic resources are included in the demo package.
+  \item Format, sample count, features: paired-end FASTQ (demo subset), \texttt{samples.csv} + \texttt{contrasts.csv} metadata tables; quantification tables (genes $\times$ samples counts); differential-expression result TSVs with log2FC, p, padj columns.
+  \item Preprocessing and QC: fastp read filtering; alignment QC (mapping rate $\geq$ 0.70) and base-quality QC (Q30 $\geq$ 0.80) enforced by platform quality gates; reference-version pinning recorded in \texttt{environment.json}.
+  \item Access restrictions: demonstration data only; original laboratory data are not redistributed (private-deployment model keeps research data in place).
+\end{itemize}
+
+\section{Results and Demonstration Materials}
+\begin{itemize}
+  \item Main result files: \texttt{results/projects/\textlangle slug\textrangle /runs/\textlangle task\textrangle -\textlangle timestamp\textrangle /} archives, each containing pipeline YAML version, parameters, logs, artifacts, \texttt{environment.json}, delivery \texttt{README.md}, and \texttt{verification.tsv} (per-file SUCCESS/MISSING/FAIL).
+  \item Screenshots (\texttt{figures/}): (F1) web form submission with parameter whitelist; (F2) Skill library (Analysis category, 36 analysis Skills); (F3) domain-agent workspace (RNA-seq analyst) with structured conclusions and delivery document; (F4) project history page and evidence timeline.
+  \item Repository URL: \texttt{[private repository during review; community edition URL once published]}. Platform link: on-premise demo instance, \texttt{[URL + reviewer credentials if provided]}. Demo video: \texttt{[URL]}.
+  \item Consistency note: efficiency figures in report Section 7 (75\% / 90\% / 80\% reductions) correspond to walkthroughs in \texttt{demo/} measured as human operation and waiting time; the platform-in-use facts (v0.1.0 at HZAU, 29 services, 227 modules, 38 Skills) correspond to the repository inventory in \texttt{code/}. These are research-engineering estimates, not universal performance claims.
+\end{itemize}
+
+\section{Reproducibility Checklist}
+\begin{tabularx}{\textwidth}{p{0.08\textwidth}X X}
+\toprule
+\textbf{Check} & \textbf{Item} & \textbf{Notes}\\
+\midrule
+$\boxtimes$ & README describes the package structure. & \texttt{README.md} in package root\\
+$\boxtimes$ & Main commands are provided and tested. & \texttt{uv run pytest} suites; see README section 4\\
+$\boxtimes$ & Input and output paths are documented. & \texttt{projects/\{slug\}/runs/\dots} layout\\
+$\boxtimes$ & Main parameters are listed. & Pipeline YAML + parameter whitelists\\
+$\boxtimes$ & External data, model, or software licenses are stated. & Apache-2.0 platform code; MSU/RAP-DB reference data (academic use)\\
+$\boxtimes$ & Supplementary claims match the report and abstract. & Verified at drafting time\\
+\bottomrule
+\end{tabularx}
+
+\section{Verification Commands}
+
+\begin{verbatim}
+# backend unit + contract tests (examples)
+uv run pytest tests/unit/domain/mas/ -q
+uv run pytest tests/unit/test_agent_config_consistency.py -q
+# bridge contract / shared-state tests
+PYTHONPATH=integrations/agentteams/bridge \
+  uv run pytest integrations/agentteams/bridge/tests/ -q
+# frontend build check
+cd frontend && npm ci && npm run build
+# artifact integrity verification of a delivery package
+# (built-in md5 Skill; emits verification.tsv with per-file status)
+python pipelines/tools/skills/md5/scripts/verify_manifest.py \
+  --input results/projects/<slug>/runs/<task>-<timestamp>/MD5SUMS \
+  --output results/projects/<slug>/runs/<task>-<timestamp>/verification/
+\end{verbatim}
+
+Expected output: pytest pass summary; \texttt{verification.tsv} with all rows \texttt{SUCCESS} (statuses: SUCCESS / MISSING / FAIL / ERROR). Full RNAFlow execution additionally requires the container runtime and pipeline images (deployment acceptance, not covered by unit tests).
+
+\end{document}

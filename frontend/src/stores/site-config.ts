@@ -3,7 +3,7 @@
  *
  * 两类配置、两个公开接口：
  *   - 注册开关：GET /site-settings → registration_enabled（DB 驱动，/auth/register 强制校验）
- *   - 提示文案 + 管理员联系方式：GET /site-content → registration（data/OmicHub.yaml 驱动，改文件即生效）
+ *   - 提示文案 + 管理员联系方式：GET /site-content → registration（data/CygnusX.yaml 驱动，改文件即生效）
  *
  * 任一接口失败都回退到“允许注册 + 默认文案”，保证登录页永不卡死。
  */
@@ -27,12 +27,12 @@ const DEFAULT_ACTIVATION: ActivationContent = {
   button_text_urgent: '我这就去！',
 }
 const DEFAULT_EASTER_EGG: EasterEggContent = {
-  message: '🎉 恭喜你发现了 OmicHub 的隐藏星际守护者！',
+  message: '🎉 恭喜你发现了 CygnusX 的隐藏星际守护者！',
   button_text: '🐾 召唤星际猫咪',
   toast: '🎉 星际守护者已响应召唤！快看看屏幕上留下的足迹吧～ ✨',
 }
 const DEFAULT_PLATFORM: PlatformContent = {
-  title: 'OmicHub',
+  title: 'CygnusX · 天鹅座智能科研平台',
   author: '',
   email: '',
   github: '',

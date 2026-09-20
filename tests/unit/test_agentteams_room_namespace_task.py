@@ -12,8 +12,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-import omichub.infrastructure.celery_app.tasks.agentteams as task_module
-from omichub.application.services import agentteams_room_service as room_service_module
+import cygnusx.infrastructure.celery_app.tasks.agentteams as task_module
+from cygnusx.application.services import agentteams_room_service as room_service_module
 
 
 class _FakeSession:

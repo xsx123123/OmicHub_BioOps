@@ -1,6 +1,6 @@
 ---
 name: ATACFlow
-description: 使用 OmicHub ATACFlow 完成 Bulk ATAC-seq 从 FASTQ 质控、比对、峰识别、差异可及性、motif/footprinting 到报告交付。正式提交必须走平台预检与确认协议。
+description: 使用 CygnusX ATACFlow 完成 Bulk ATAC-seq 从 FASTQ 质控、比对、峰识别、差异可及性、motif/footprinting 到报告交付。正式提交必须走平台预检与确认协议。
 skill_id: atacflow
 version: 1.0.0
 category: workflow
@@ -8,7 +8,7 @@ category: workflow
 
 # ATACFlow
 
-完整流程通过 OmicHub Pipelines MCP 执行：依次使用 `check_workspace_data`、`atac_seq_prepare`、
+完整流程通过 CygnusX Pipelines MCP 执行：依次使用 `check_workspace_data`、`atac_seq_prepare`、
 用户确认后的 `atac_seq_submit`、`atac_seq_status` 和 `atac_seq_results`。不得绕过平台任务、权限、
 计费和审计直接启动主流程。
 

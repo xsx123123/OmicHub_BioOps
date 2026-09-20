@@ -4,9 +4,7 @@ import { NButton, NIcon } from 'naive-ui'
 import { ChevronDownOutline } from '@vicons/ionicons5'
 import { DynamicScroller, DynamicScrollerItem } from 'vue-virtual-scroller'
 import KimiMessageItem from './KimiMessageItem.vue'
-import StudioPlanTimeline from '@/components/studio/StudioPlanTimeline.vue'
 import StudioTaskUnderstanding from '@/components/studio/StudioTaskUnderstanding.vue'
-import type { StudioPlanStep } from '@/api/studio'
 import type { StudioTaskUnderstanding as TaskUnderstanding } from '@/utils/studioPresentation'
 import type { ChatMessage, CollaborationRouteInfo, CopyMode } from './types'
 
@@ -24,7 +22,8 @@ interface Props {
   sessionId?: string
   targetMessageId?: string
   taskUnderstanding?: TaskUnderstanding | null
-  planSteps?: StudioPlanStep[]
+  /** 建议追问 Chips 总开关（默认关闭；开启后由本列表决定哪条 assistant 消息展示 chips） */
+  suggestionsEnabled?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -34,13 +33,13 @@ const props = withDefaults(defineProps<Props>(), {
   modelName: 'AI 助手',
   userName: '我',
   userAvatar: '',
-  agentName: 'OmicHub AI',
+  agentName: 'CygnusX AI',
   agentAvatar: '🤖',
   agentColor: '#4f8ef7',
   sessionId: '',
   targetMessageId: '',
   taskUnderstanding: null,
-  planSteps: () => [],
+  suggestionsEnabled: false,
 })
 
 const firstUserMessageIndex = computed(() => props.messages.findIndex((message) => message.role === 'user'))
@@ -57,9 +56,12 @@ const emit = defineEmits<{
   openToolPage: [route: string, args: Record<string, unknown>]
   createCaseFromConsultation: [summary: string, consultationId?: string]
   correctCollaborationRoute: [route: CollaborationRouteInfo]
+  suggestionSend: [prompt: string]
+  suggestionPrefill: [prompt: string]
 }>()
 
 interface ScrollerExpose {
+  /** DynamicScroller 内置的贴底逻辑会等待异步高度测量完成。 */
   scrollToBottom: () => void
   scrollToItem?: (index: number) => void
 }
@@ -79,6 +81,19 @@ const streamingMessageId = computed(() => {
     return lastMsg.id
   }
   return ''
+})
+
+/**
+ * 建议追问 Chips 的宿主消息：仅"最后一条消息是已完成的 assistant 回复且当前无流式输出"时返回其 id。
+ * 用户发送新消息（最后一条变为 user）或新回复开始流式输出时自动变为空串，
+ * 旧 chips 随之消失；新回复完成后指向新消息，chips 被新一组替换。
+ */
+const suggestionMessageId = computed(() => {
+  if (!props.suggestionsEnabled || props.isTyping) return ''
+  const lastMsg = props.messages[props.messages.length - 1]
+  if (!lastMsg || lastMsg.role !== 'assistant') return ''
+  if (lastMsg.status && lastMsg.status !== 'complete') return ''
+  return lastMsg.id
 })
 
 function getScrollerEl(): HTMLElement | undefined {
@@ -108,6 +123,12 @@ function cancelFollowFrame() {
  * 自动跟随到底部。
  * 流式 token、Markdown 重排和 DynamicScroller 高度测量会在同一帧连续触发；
  * 统一合并到下一绘制帧后一次贴底，避免缓动 scrollTop 与列表校正互相拉扯。
+ *
+ * 注意不能只直接写 scroller.scrollTop。DynamicScroller 的消息项（工具卡、思考
+ * 区、Markdown）会在本帧之后才由 ResizeObserver 回填实际高度；直接写入会贴到
+ * "旧的" scrollHeight，随后列表校正高度时就表现为新内容没有自动下滑。
+ * DynamicScroller.scrollToBottom() 会持续等待这些未定高度完成，正是这里需要的
+ * 语义。
  * force=true（点击"回到底部" / 新审批 / 澄清事件）时取消缓动并立即贴底。
  */
 function scrollToBottom(force = false) {
@@ -123,15 +144,14 @@ function scrollToBottom(force = false) {
     hasNewWhileAway.value = false
     cancelScrollAnim()
     cancelFollowFrame()
-    el.scrollTop = Math.max(0, el.scrollHeight - el.clientHeight)
+    scrollerRef.value?.scrollToBottom()
     return
   }
   if (followFrame !== null) return
   followFrame = requestAnimationFrame(() => {
     followFrame = null
-    const current = getScrollerEl()
-    if (!current || showScrollToBottom.value) return
-    current.scrollTop = Math.max(0, current.scrollHeight - current.clientHeight)
+    if (!getScrollerEl() || showScrollToBottom.value) return
+    scrollerRef.value?.scrollToBottom()
   })
 }
 
@@ -182,6 +202,15 @@ function handleScroll() {
   if (!awayFromBottom) hasNewWhileAway.value = false
 }
 
+/**
+ * 工具卡、Markdown 图片和 CodeMirror 等内容的高度可在 Vue 更新之后继续变化。
+ * DynamicScrollerItem 在真实尺寸变化时发出 resize；再次走同一个跟随调度，保证
+ * 已贴底的会话会继续贴底，同时仍会尊重用户主动上滑后的暂停状态。
+ */
+function handleItemResize() {
+  scrollToBottom()
+}
+
 defineExpose({ scrollToBottom, scrollToMessage })
 
 watch(
@@ -190,6 +219,66 @@ watch(
     nextTick(() => scrollToBottom())
   },
 )
+
+/**
+ * 末尾内容体量：流式 token 与工具执行输出（sandbox stdout 等）都是原地追加，
+ * messages.length 与 streamingContent 均不变，但列表持续变高。
+ * 汇总各消息 toolCalls[].output 与末尾消息正文体量，任何增长都驱动一次吸底。
+ * 只读取 length 字段，依赖精确、逐 chunk 重算开销可忽略。
+ */
+const tailVolume = computed(() => {
+  let volume = 0
+  const last = props.messages[props.messages.length - 1]
+  if (last) volume += (last.content?.length || 0) + (last.thought?.length || 0)
+  for (const message of props.messages) {
+    for (const tc of message.toolCalls || []) {
+      volume += tc.output?.length || 0
+    }
+  }
+  return volume
+})
+
+watch(tailVolume, () => {
+  nextTick(() => scrollToBottom())
+})
+
+/**
+ * 工具/审批/技能卡首次出现或切换状态时，正文和 stdout 的长度可能都不变，原来的
+ * tailVolume 不会触发贴底。这里保留影响卡片布局的轻量指纹，而不是 stringify 整个
+ * result/uiPayload（结果可能很大），确保实时执行流中每个新卡片也会跟随到底部。
+ */
+const layoutFingerprint = computed(() => props.messages.map((message) => {
+  const tools = (message.toolCalls || []).map((tool) => [
+    tool.id,
+    tool.status,
+    tool.output?.length || 0,
+    Object.keys(tool.arguments || {}).join(','),
+    Object.keys((tool.result && typeof tool.result === 'object' ? tool.result : {}) as Record<string, unknown>).join(','),
+    Object.keys(tool.uiPayload || {}).join(','),
+    tool.approval?.status || '',
+    tool.approval?.approval_id || '',
+  ].join(':')).join('|')
+  const skills = (message.skillInvocations || [])
+    .map((skill) => `${skill.id}:${skill.status}:${skill.count}:${skill.summary || ''}:${skill.error || ''}`)
+    .join('|')
+  return [
+    message.id,
+    message.status || '',
+    message.content.length,
+    message.thought?.length || 0,
+    tools,
+    skills,
+    message.timeline?.length || 0,
+    message.charts?.length || 0,
+    message.askRequest?.answered === false ? 'ask-pending' : '',
+    message.overdriveApproval?.status || '',
+    message.overdriveProgress?.phase || '',
+  ].join('~')
+}).join('\n'))
+
+watch(layoutFingerprint, () => {
+  nextTick(() => scrollToBottom())
+})
 
 watch(
   () => [props.streamingContent, props.streamingThought],
@@ -233,6 +322,7 @@ onUnmounted(() => {
         <DynamicScrollerItem
           :item="item"
           :active="active"
+          :emit-resize="true"
           :size-dependencies="[
             item.content,
             item.thought,
@@ -244,10 +334,11 @@ onUnmounted(() => {
             JSON.stringify(item.askRequest),
             JSON.stringify(item.overdriveArtifacts),
             index === firstUserMessageIndex ? JSON.stringify(taskUnderstanding) : '',
-            index === firstUserMessageIndex ? JSON.stringify(planSteps) : '',
+            item.id === suggestionMessageId ? 'with-suggestion-chips' : '',
           ]"
           :data-index="index"
           :class="{ 'message-target': targetMessageId === item.id }"
+          @resize="handleItemResize"
         >
           <KimiMessageItem
             :message="item"
@@ -261,6 +352,8 @@ onUnmounted(() => {
             :agent-avatar="agentAvatar"
             :agent-color="agentColor"
             :session-id="sessionId"
+            :suggestions-enabled="suggestionsEnabled"
+            :show-suggestions="item.id === suggestionMessageId"
             @feedback="(id, type) => emit('feedback', id, type)"
             @copy="(mode) => emit('copy', mode)"
             @regenerate="(id) => emit('regenerate', id)"
@@ -272,14 +365,12 @@ onUnmounted(() => {
             @open-tool-page="(route, args) => emit('openToolPage', route, args)"
             @create-case-from-consultation="(summary, consultationId) => emit('createCaseFromConsultation', summary, consultationId)"
             @correct-collaboration-route="(route) => emit('correctCollaborationRoute', route)"
+            @suggestion-send="(prompt) => emit('suggestionSend', prompt)"
+            @suggestion-prefill="(prompt) => emit('suggestionPrefill', prompt)"
           />
           <StudioTaskUnderstanding
             v-if="index === firstUserMessageIndex && taskUnderstanding"
             :understanding="taskUnderstanding"
-          />
-          <StudioPlanTimeline
-            v-if="index === firstUserMessageIndex && planSteps.length"
-            :steps="planSteps"
           />
         </DynamicScrollerItem>
       </template>

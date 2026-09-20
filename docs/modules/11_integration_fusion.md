@@ -1,9 +1,9 @@
-# OmicHub "AI Copilot & Interactive Code Sandbox" Integration Fusion Plan
+# CygnusX "AI Copilot & Interactive Code Sandbox" Integration Fusion Plan
 
 > **Version**: v1.0  
 > **Date**: 2025-01  
 > **Status**: Architecture Design  
-> **Scope**: Integration of AI Copilot and interactive code-execution sandbox into the existing OmicHub monolith (Vue3 + FastAPI + PostgreSQL + Redis + Celery + Snakemake + Docker Compose)
+> **Scope**: Integration of AI Copilot and interactive code-execution sandbox into the existing CygnusX monolith (Vue3 + FastAPI + PostgreSQL + Redis + Celery + Snakemake + Docker Compose)
 
 ---
 
@@ -38,7 +38,7 @@ The fusion adheres to three core principles:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                              OmicHub Platform                            │
+│                              CygnusX Platform                            │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌─────────────┐  │
 │  │   Vue3 SPA   │  │  Copilot UI  │  │  Sandbox IDE │  │   Chat UI   │  │
 │  │  (Existing)  │  │   (New)      │  │   (New)      │  │  (Existing) │  │
@@ -954,11 +954,11 @@ async def switch_project(session_id: str, new_project_id: int, user: User):
 ```python
 # Option 1: Inotify-based file watching (Linux only)
 # Option 2: Polling-based detection
-# Option 3: Event-driven (OmicHub API triggers sandbox refresh)
+# Option 3: Event-driven (CygnusX API triggers sandbox refresh)
 
 # Recommended: Option 3 (Event-driven via API)
 class SandboxDataRefreshHandler:
-    """Handle data updates from the main OmicHub system."""
+    """Handle data updates from the main CygnusX system."""
 
     async def on_file_uploaded(self, user_id: int, project_id: int, file_path: str):
         """Called when user uploads a new file to a project."""
@@ -1378,7 +1378,7 @@ MODE_B_CONFIG = {
 │     │ }                                                     │    │
 │     └─────────────────────────────────────────────────────────┘    │
 │                                                                     │
-│  4. WorkflowMCP → OmicHub Task API:                               │
+│  4. WorkflowMCP → CygnusX Task API:                               │
 │     POST /api/v1/tasks                                            │
 │     → Creates task record in tasks table                          │
 │     → Enqueues Celery task                                        │
@@ -1460,11 +1460,11 @@ class GetTaskLogsParams(BaseModel):
 class WorkflowMCPServer:
     """
     MCP Server for workflow execution integration.
-    Bridges Agent requests to the existing OmicHub Task API.
+    Bridges Agent requests to the existing CygnusX Task API.
     """
 
     def __init__(self, task_api_base_url: str, service_token: str):
-        self.server = Server("omicshub-workflow-mcp")
+        self.server = Server("cygnusx-workflow-mcp")
         self.task_api = task_api_base_url
         self.service_token = service_token
         self.http_client = httpx.AsyncClient(
@@ -1480,7 +1480,7 @@ class WorkflowMCPServer:
         @self.server.tool()
         async def submit_snakemake_task(params: SubmitSnakemakeTaskParams) -> list[TextContent]:
             """
-            Submit a Snakemake analysis workflow to the OmicHub task system.
+            Submit a Snakemake analysis workflow to the CygnusX task system.
             The workflow will be queued and executed by Celery workers.
             Returns a task ID for status tracking.
             """
@@ -1514,7 +1514,7 @@ class WorkflowMCPServer:
         @self.server.tool()
         async def submit_nextflow_task(params: SubmitNextflowTaskParams) -> list[TextContent]:
             """
-            Submit a Nextflow pipeline to the OmicHub task system.
+            Submit a Nextflow pipeline to the CygnusX task system.
             The pipeline will be queued and executed by Celery workers.
             Returns a task ID for status tracking.
             """
@@ -1719,7 +1719,7 @@ MCP_SERVER_REGISTRY = {
     # ... existing MCP servers ...
 
     "workflow": {
-        "name": "OmicHub Workflow Executor",
+        "name": "CygnusX Workflow Executor",
         "description": "Submit and monitor bioinformatics analysis workflows",
         "transport": "sse",
         "endpoint": "http://workflow-mcp:9001/mcp/workflow/sse",
@@ -1865,7 +1865,7 @@ async def on_task_completed(task_id: int, project_id: int, user_id: int):
 | **Recommended?** | **Yes** (current phase) | Future (if Copilot load >70%) | Future (enterprise scale) |
 
 **Rationale:**
-- OmicHub is a research platform, not a high-scale consumer app
+- CygnusX is a research platform, not a high-scale consumer app
 - The added components (Copilot + Sandbox) share the same data domain (users, projects, files)
 - Separate deployment adds operational complexity without proportional benefit
 - **Migration path**: When Copilot CPU usage consistently exceeds 70%, extract to Option B
@@ -2149,7 +2149,7 @@ from fastapi import FastAPI
 from app.routers import auth, projects, tasks, chat, mcp
 from app.routers_new import copilot, sandbox, artifacts, workflow_mcp
 
-app = FastAPI(title="OmicHub API")
+app = FastAPI(title="CygnusX API")
 
 # --- Existing routers (unchanged) ---
 app.include_router(auth.router, prefix="/api/v1/auth")
@@ -2244,13 +2244,13 @@ async def create_sandbox_session(
     session = await sandbox_orchestrator.create_session(
         user=user,
         project=project,
-        image=request.image or "omicshub/sandbox-base:latest",
+        image=request.image or "cygnusx/sandbox-base:latest",
         resources=permission.limits
     )
     
     return {
         "session_id": session.session_id,
-        "ws_url": f"wss://api.omicshub.com/ws/v1/unified?token={user.ws_token}",
+        "ws_url": f"wss://api.cygnusx.com/ws/v1/unified?token={user.ws_token}",
         "status": session.status,
         "resources": permission.limits,
         "expires_at": session.expires_at
@@ -2452,7 +2452,7 @@ def create_sandbox_container(self, session_id: str, user_id: int, project_id: in
         container = client.containers.run(
             image=image,
             detach=True,
-            name=f"omicshub-sandbox-{session_id}",
+            name=f"cygnusx-sandbox-{session_id}",
             mounts=mounts,
             mem_limit=f"{memory_mb}m",
             memswap_limit=f"{memory_mb}m",  # No swap
@@ -2464,7 +2464,7 @@ def create_sandbox_container(self, session_id: str, user_id: int, project_id: in
             cap_add=["CHOWN", "SETUID", "SETGID"],
             read_only=True,
             tmpfs={"/tmp": f"noexec,nosuid,size={memory_mb // 4}m"},
-            network="omicshub_sandbox_network",
+            network="cygnusx_sandbox_network",
             environment={
                 "SANDBOX_SESSION_ID": session_id,
                 "SANDBOX_USER_ID": str(user_id),
@@ -2473,10 +2473,10 @@ def create_sandbox_container(self, session_id: str, user_id: int, project_id: in
                 "JUPYTER_ENABLE_LAB": "yes"
             },
             labels={
-                "omicshub.session_id": session_id,
-                "omicshub.user_id": str(user_id),
-                "omicshub.project_id": str(project_id),
-                "omicshub.created_by": "celery"
+                "cygnusx.session_id": session_id,
+                "cygnusx.user_id": str(user_id),
+                "cygnusx.project_id": str(project_id),
+                "cygnusx.created_by": "celery"
             }
         )
         
@@ -2504,7 +2504,7 @@ def terminate_sandbox_container(session_id: str):
     """Terminate a specific sandbox container."""
     try:
         client = docker.from_env()
-        container = client.containers.get(f"omicshub-sandbox-{session_id}")
+        container = client.containers.get(f"cygnusx-sandbox-{session_id}")
         container.stop(timeout=30)
         container.remove(force=True)
         
@@ -2534,16 +2534,16 @@ def report_sandbox_usage():
 ### 5.1 Updated Docker Compose
 
 ```yaml
-# docker-compose.yml - OmicHub Platform with Sandbox Integration
+# docker-compose.yml - CygnusX Platform with Sandbox Integration
 # ================================================================
 version: "3.8"
 
 # Networks
 networks:
-  omicshub_internal:
+  cygnusx_internal:
     driver: bridge
     internal: false
-  omicshub_sandbox:
+  cygnusx_sandbox:
     driver: bridge
     internal: true  # Sandbox containers have no external access by default
 
@@ -2566,13 +2566,13 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     environment:
-      - POSTGRES_DB=omicshub
+      - POSTGRES_DB=cygnusx
       - POSTGRES_USER=${DB_USER}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
     networks:
-      - omicshub_internal
+      - cygnusx_internal
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d omicshub"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d cygnusx"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -2583,7 +2583,7 @@ services:
       - redis_data:/data
     command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
     networks:
-      - omicshub_internal
+      - cygnusx_internal
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -2601,22 +2601,22 @@ services:
       - media_files:/app/media
       - /var/run/docker.sock:/var/run/docker.sock:ro  # For Docker API access
     environment:
-      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/omicshub
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/cygnusx
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/1
       - CELERY_RESULT_BACKEND=redis://redis:6379/2
       - SANDBOX_ENABLED=${SANDBOX_ENABLED:-true}
-      - SANDBOX_NETWORK=omicshub_sandbox
+      - SANDBOX_NETWORK=cygnusx_sandbox
       - SANDBOX_MAX_CONCURRENT=${SANDBOX_MAX_CONCURRENT:-10}
       - SANDBOX_DEFAULT_TIMEOUT=${SANDBOX_DEFAULT_TIMEOUT:-3600}
-      - SANDBOX_IMAGE_DEFAULT=omicshub/sandbox-base:latest
+      - SANDBOX_IMAGE_DEFAULT=cygnusx/sandbox-base:latest
       - LLM_API_KEY=${KIMI_API_KEY}
       - MCP_WORKFLOW_ENABLED=${MCP_WORKFLOW_ENABLED:-true}
     ports:
       - "8000:8000"
     networks:
-      - omicshub_internal
-      - omicshub_sandbox
+      - cygnusx_internal
+      - cygnusx_sandbox
     depends_on:
       db:
         condition: service_healthy
@@ -2637,15 +2637,15 @@ services:
       - /data:/data
       - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
-      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/omicshub
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/cygnusx
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/1
       - CELERY_RESULT_BACKEND=redis://redis:6379/2
       - SANDBOX_ENABLED=${SANDBOX_ENABLED:-true}
-      - SANDBOX_NETWORK=omicshub_sandbox
+      - SANDBOX_NETWORK=cygnusx_sandbox
     networks:
-      - omicshub_internal
-      - omicshub_sandbox
+      - cygnusx_internal
+      - cygnusx_sandbox
     depends_on:
       - redis
       - db
@@ -2661,12 +2661,12 @@ services:
       dockerfile: Dockerfile
     command: celery -A app.celery beat --loglevel=info
     environment:
-      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/omicshub
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/cygnusx
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/1
       - CELERY_RESULT_BACKEND=redis://redis:6379/2
     networks:
-      - omicshub_internal
+      - cygnusx_internal
     depends_on:
       - redis
       - db
@@ -2682,7 +2682,7 @@ services:
       - static_files:/var/www/static:ro
       - media_files:/var/www/media:ro
     networks:
-      - omicshub_internal
+      - cygnusx_internal
     depends_on:
       - web
 
@@ -2697,7 +2697,7 @@ services:
       - sandbox_tmp:/tmp/sandbox
     command: "true"
     networks:
-      - omicshub_sandbox
+      - cygnusx_sandbox
     profiles: ["setup"]
 
   # Optional: Dedicated workflow MCP server (if separating from web)
@@ -2709,13 +2709,13 @@ services:
   #     dockerfile: Dockerfile
   #   command: python -m app.mcp.workflow_mcp_server
   #   environment:
-  #     - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/omicshub
+  #     - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/cygnusx
   #     - TASK_API_URL=http://web:8000/api/v1
   #     - SERVICE_TOKEN=${SERVICE_TOKEN}
   #   ports:
   #     - "9001:9001"
   #   networks:
-  #     - omicshub_internal
+  #     - cygnusx_internal
   #   depends_on:
   #     - web
   #     - db
@@ -2820,7 +2820,7 @@ server {
 
 ```dockerfile
 # ================================================================
-# Dockerfile.sandbox-base - OmicHub Sandbox Base Image
+# Dockerfile.sandbox-base - CygnusX Sandbox Base Image
 # ================================================================
 # Multi-stage build for optimized image size
 
@@ -3034,7 +3034,7 @@ mkdir -p /workspace/output /workspace/data /workspace/shared
 
 # Print session info
 echo "========================================"
-echo "  OmicHub Sandbox Session"
+echo "  CygnusX Sandbox Session"
 echo "========================================"
 echo "  Session: ${SANDBOX_SESSION_ID:-unknown}"
 echo "  User:    ${SANDBOX_USER_ID:-unknown}"
@@ -3060,23 +3060,23 @@ exec "$@"
 ### 5.6 Alternative Specialized Images
 
 ```dockerfile
-# --- omicshub/sandbox-minimal ---
+# --- cygnusx/sandbox-minimal ---
 # Lightweight: Python only, no R
 # Size: ~1.5 GB
 # Use case: Python-only analyses, quick explorations
 
-# --- omicshub/sandbox-r ---
+# --- cygnusx/sandbox-r ---
 # R-focused: Tidyverse + Bioconductor
 # Size: ~2 GB
 # Use case: R-based statistical analyses
 
-# --- omicshub/sandbox-gpu ---
+# --- cygnusx/sandbox-gpu ---
 # CUDA-enabled: PyTorch, JAX, scVI GPU
 # Size: ~6 GB
 # Use case: Deep learning, GPU-accelerated computations
 # Requires: NVIDIA Container Toolkit
 
-# --- omicshub/sandbox-full ---
+# --- cygnusx/sandbox-full ---
 # Everything: Python + R + GPU + all tools
 # Size: ~8 GB
 # Use case: Premium users with full access
@@ -3238,7 +3238,7 @@ Phase 4: Full Rollout (Week 9)
 
 ```sql
 -- ============================================================
--- OmicHub Sandbox Module - Complete SQL Schema
+-- CygnusX Sandbox Module - Complete SQL Schema
 -- Run as migration: alembic revision -m "add sandbox tables"
 -- ============================================================
 
@@ -3336,7 +3336,7 @@ CREATE TABLE IF NOT EXISTS sandbox_sessions (
     chat_session_id         INTEGER REFERENCES chat_sessions(id),
     container_id            VARCHAR(64),
     container_name          VARCHAR(128),
-    sandbox_image           VARCHAR(128) NOT NULL DEFAULT 'omicshub/sandbox-base:latest',
+    sandbox_image           VARCHAR(128) NOT NULL DEFAULT 'cygnusx/sandbox-base:latest',
     cpu_cores               INTEGER NOT NULL DEFAULT 2,
     memory_mb               INTEGER NOT NULL DEFAULT 4096,
     disk_mb                 INTEGER NOT NULL DEFAULT 2048,
@@ -3551,10 +3551,10 @@ CREATE POLICY sandbox_sessions_admin ON sandbox_sessions
 
 set -e
 
-REGISTRY="omicshub"
+REGISTRY="cygnusx"
 VERSION=${1:-"latest"}
 
-echo "Building OmicHub Sandbox Images (version: $VERSION)..."
+echo "Building CygnusX Sandbox Images (version: $VERSION)..."
 
 # Base image
 docker build \
@@ -3622,20 +3622,20 @@ services:
     volumes:
       - ./test_data:/workspace/data:ro
     networks:
-      - omicshub_sandbox
+      - cygnusx_sandbox
     profiles:
       - dev
 
   # For testing sandbox in isolation
   sandbox_test:
-    image: omicshub/sandbox-base:latest
+    image: cygnusx/sandbox-base:latest
     volumes:
       - ./test_data:/workspace/data:ro
       - ./test_output:/workspace/output:rw
     ports:
       - "8888:8888"  # Direct Jupyter access for testing
     networks:
-      - omicshub_sandbox
+      - cygnusx_sandbox
     profiles:
       - test
 ```
@@ -3647,7 +3647,7 @@ services:
 
 .PHONY: sandbox-build sandbox-push sandbox-test sandbox-clean
 
-SANDBOX_REGISTRY ?= omicshub
+SANDBOX_REGISTRY ?= cygnusx
 SANDBOX_VERSION ?= latest
 
 # Build all sandbox images
@@ -3670,8 +3670,8 @@ sandbox-test:
 # Clean sandbox containers and temp files
 sandbox-clean:
 	@echo "Cleaning up sandbox resources..."
-	# Remove all OmicHub sandbox containers
-	-docker ps -aq --filter "name=omicshub-sandbox" | xargs docker rm -f 2>/dev/null
+	# Remove all CygnusX sandbox containers
+	-docker ps -aq --filter "name=cygnusx-sandbox" | xargs docker rm -f 2>/dev/null
 	# Remove orphaned volumes
 	-docker volume prune -f
 	# Clean temp directories
@@ -3680,12 +3680,12 @@ sandbox-clean:
 
 # View sandbox logs
 sandbox-logs:
-	@docker logs -f $$(docker ps -q --filter "name=omicshub-sandbox" | head -1) 2>/dev/null || echo "No running sandbox containers"
+	@docker logs -f $$(docker ps -q --filter "name=cygnusx-sandbox" | head -1) 2>/dev/null || echo "No running sandbox containers"
 
 # Check sandbox quota usage
 sandbox-usage:
 	@echo "Current sandbox usage:"
-	@docker-compose exec db psql -U $$DB_USER -d omicshub -c "
+	@docker-compose exec db psql -U $$DB_USER -d cygnusx -c "
 		SELECT tier, 
 		       active_sessions,
 		       sessions_used_month,

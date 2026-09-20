@@ -7,9 +7,9 @@ import pytest
 from starlette.requests import Request
 from starlette.responses import Response
 
-from omichub.infrastructure.config.module_registry import ModuleEntry, ModuleRegistry
-from omichub.middleware import module_gate
-from omichub.middleware.module_gate import ModuleGateMiddleware, match_module_by_path
+from cygnusx.infrastructure.config.module_registry import ModuleEntry, ModuleRegistry
+from cygnusx.middleware import module_gate
+from cygnusx.middleware.module_gate import ModuleGateMiddleware, match_module_by_path
 
 
 def _module(key: str, api_prefix: list[str], lockable: bool = True) -> ModuleEntry:
@@ -175,7 +175,7 @@ class _FakeSession:
 
 
 def _patch_session_factory(monkeypatch: pytest.MonkeyPatch, user):
-    from omichub.infrastructure.database import session as db_session
+    from cygnusx.infrastructure.database import session as db_session
 
     monkeypatch.setattr(db_session, "get_session_factory", lambda: (lambda: _FakeSession(user)))
 

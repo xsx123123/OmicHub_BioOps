@@ -15,9 +15,9 @@ from pathlib import Path
 import pytest
 import yaml
 
-from omichub.reference_genomes import indexer
-from omichub.reference_genomes.config import VersionConfig, gene_index_path
-from omichub.reference_genomes.sequence import fetch_kv
+from cygnusx.reference_genomes import indexer
+from cygnusx.reference_genomes.config import VersionConfig, gene_index_path
+from cygnusx.reference_genomes.sequence import fetch_kv
 
 FIXTURE_DIR = Path(__file__).parent / "reference_genomes" / "fixtures"
 

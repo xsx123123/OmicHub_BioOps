@@ -8,12 +8,12 @@ from typing import Any
 
 import pytest
 
-from omichub.application.services.agent_service import AgentService
-from omichub.application.services.agentteams_case_tool_service import (
+from cygnusx.application.services.agent_service import AgentService
+from cygnusx.application.services.agentteams_case_tool_service import (
     AgentTeamsCaseToolService,
     agentteams_next_actor,
 )
-from omichub.core.exceptions import BusinessError
+from cygnusx.core.exceptions import BusinessError
 
 
 @pytest.mark.parametrize("agent_file", ["code.yaml", "viz.yaml", "scrna.yaml"])
@@ -29,7 +29,7 @@ def test_specialist_agents_expose_agentteams_case_creation_tool(agent_file: str)
 
 
 def test_case_tool_contract_is_confirmed_and_idempotent() -> None:
-    from omichub.tools.schema_loader import schema_loader
+    from cygnusx.tools.schema_loader import schema_loader
 
     schema = schema_loader.get_tool("create_agentteams_case")
 

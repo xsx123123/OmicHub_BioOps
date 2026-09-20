@@ -1,11 +1,11 @@
-# OmicHub 多 Agent 存储架构与云迁移设计
+# CygnusX 多 Agent 存储架构与云迁移设计
 
 > 文档状态：现状说明与后续优化建议  
 > 适用范围：OmicStudio、超频模式（Overdrive）、AgentTeams、生物信息分析任务、用户工作空间与云端存储迁移
 
 ## 1. 结论
 
-OmicHub 当前不应在“现有工作区”和“AgentTeams/MinIO”之间二选一，更合理的总体架构是：
+CygnusX 当前不应在“现有工作区”和“AgentTeams/MinIO”之间二选一，更合理的总体架构是：
 
 ```text
 用户权威数据存储
@@ -578,7 +578,7 @@ FASTQ
 11. Agent 错误覆盖或发布未完成产物；
 12. 通用聊天协作状态与生信任务真实执行状态不一致。
 
-因此 OmicHub 应保留面向生信优化的执行面，把 AgentTeams 作为协同控制面，而不是让 AgentTeams 的通用存储方式替代生信执行工作区。
+因此 CygnusX 应保留面向生信优化的执行面，把 AgentTeams 作为协同控制面，而不是让 AgentTeams 的通用存储方式替代生信执行工作区。
 
 ## 7. 优化后的目标架构
 
@@ -773,7 +773,7 @@ Pod / VM 临时 POSIX 工作区
 
 ## 9. 最终架构定位
 
-OmicHub 的目标不是构建一个只会在聊天室中传文件的通用 Agent 系统，而是构建一个面向生物信息分析的多 Agent 科学计算平台。
+CygnusX 的目标不是构建一个只会在聊天室中传文件的通用 Agent 系统，而是构建一个面向生物信息分析的多 Agent 科学计算平台。
 
 因此各层职责应保持清晰：
 
@@ -801,7 +801,7 @@ Artifact Registry
 Replaceable S3-compatible Durable Storage
 ```
 
-这既保留了 AgentTeams 的通用多 Agent 协作能力，也保留了 OmicHub 针对大型生信文件、POSIX 工具链、DAG、可复现执行和独立 QC 的优化，并为后续完整上云提供清晰迁移路径。
+这既保留了 AgentTeams 的通用多 Agent 协作能力，也保留了 CygnusX 针对大型生信文件、POSIX 工具链、DAG、可复现执行和独立 QC 的优化，并为后续完整上云提供清晰迁移路径。
 
 ## 10. 近期实施优先级
 

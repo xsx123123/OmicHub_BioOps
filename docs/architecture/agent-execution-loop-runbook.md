@@ -23,8 +23,8 @@
 
 | `execution_path` | 入口 | 关键事件 |
 | --- | --- | --- |
-| `chat_legacy` | `ChatService` 传统聊天循环 | `agent_turn_started` → `agent_tool_call` → `agent_tool_result` → `agent_context_reinjected` → `agent_turn_continued` → `agent_final_result` |
-| `chat_langgraph` | LangGraph 聊天运行时 | 与传统聊天使用相同语义事件。 |
+| `chat_legacy` | `ChatService` 手写循环（**已退化为逃生舱**：仅 `engine:"legacy"` 或 `chat_force_legacy_runtime`，2026-09-19 起） | `agent_turn_started` → `agent_tool_call` → `agent_tool_result` → `agent_context_reinjected` → `agent_turn_continued` → `agent_final_result` |
+| `chat_langgraph` | LangGraph 聊天运行时（**普通聊天默认全量**，单 Runtime 收敛已落地） | 与传统聊天使用相同语义事件；终止态额外含 `awaiting_input`（ask_user 澄清）与 `action="finalize"`（submit_output 显式 Finalize）。 |
 | `studio_chat_loop` | Studio 沙盒工具循环 | 与聊天相同事件，工具结果可包含受控产物信息。 |
 | `agentteams_manager_consultation` | 协助室纯会诊 | Manager 生成会诊回复；不应伪装为工具已执行。 |
 | `agentteams_tool_execution` | 协助室单步只读工具请求 | 路由决策 → 受控只读工具 → 结果回灌 → Manager 房间回复。 |
@@ -54,12 +54,12 @@
 
 关键实现位置：
 
-- `src/omichub/application/services/execution_events.py`
-- `src/omichub/application/services/chat_service.py`
-- `src/omichub/infrastructure/execution/langgraph_nodes.py`
-- `src/omichub/application/services/parallel_subagent_service.py`
-- `src/omichub/application/services/agent_consultation_service.py`
-- `src/omichub/application/services/agentteams_room_response_service.py`
+- `src/cygnusx/application/services/execution_events.py`
+- `src/cygnusx/application/services/chat_service.py`
+- `src/cygnusx/infrastructure/execution/langgraph_nodes.py`
+- `src/cygnusx/application/services/parallel_subagent_service.py`
+- `src/cygnusx/application/services/agent_consultation_service.py`
+- `src/cygnusx/application/services/agentteams_room_response_service.py`
 - `frontend/src/utils/agentTeamsRoom.ts`
 - `frontend/src/views/AgentTeamsRoomView.vue`
 

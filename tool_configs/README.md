@@ -9,7 +9,7 @@
 
 > 展示元数据集中在一处（`tool_configs/tools_setting.yaml`），功能配置各自独立成目录，互不耦合。
 >
-> 目录名使用 `tool_configs/` 而非 `tools/`，是为了与后端代码包 `src/omichub/tools/` 明确区分：
+> 目录名使用 `tool_configs/` 而非 `tools/`，是为了与后端代码包 `src/cygnusx/tools/` 明确区分：
 > 前者只放 YAML 配置，后者放工具后端实现。
 
 ## 目录结构
@@ -28,7 +28,7 @@ tool_configs/
 └── deg/
     ├── README.md               # 引擎口径与 R 容器契约
     ├── deg_config.yaml         # 镜像 / 资源 / 默认参数 / 输入限制（mtime 热重载）
-    ├── scripts/                # run_deseq2.r / run_edger.r（打包进 omichub-r-deg:v1）
+    ├── scripts/                # run_deseq2.r / run_edger.r（打包进 cygnusx-r-deg:v1）
     └── examples/               # 示例 counts/metadata/pairs/annotation
 ```
 
@@ -36,21 +36,21 @@ tool_configs/
 
 ## 后端入口
 
-工具代码已按「模块化」收口到 `src/omichub/tools/` 包，每个工具自成子包（api/service/schema/config）。路由由 `omichub.tools.register_tool_routers` **自动发现**挂载，新增工具无需改 `api/v1/router.py`。
+工具代码已按「模块化」收口到 `src/cygnusx/tools/` 包，每个工具自成子包（api/service/schema/config）。路由由 `cygnusx.tools.register_tool_routers` **自动发现**挂载，新增工具无需改 `api/v1/router.py`。
 
 | 工具 | 代码子包 | 配置项（`core/config.py`） | API |
 |------|----------|---------------------------|-----|
-| 注册表 | `omichub.tools.registry`（api/schema/config） | `tools_setting_yaml` | `GET /api/v1/tools`、`POST /api/v1/tools/reload` |
-| FASTQ 极速质控 | `omichub.tools.fastq_qc`（待接入） | `fastq_qc_config_yaml`（待接入） | `/api/v1/qc/*` |
-| JBrowse | `omichub.tools.jbrowse`（api/service/schema/config/tasks） | `jbrowse_config_yaml` | `/api/v1/jbrowse/*` |
-| 富集分析 | `omichub.tools.enrichments`（api/service/schema/config/runner） | `enrichment_config_yaml` | `/api/v1/enrichment/*` |
-| DEG 差异表达分析 | `omichub.tools.deg`（api/service/schema/config/runner/tasks） | `deg_config_yaml` | `/api/v1/deg/*` |
+| 注册表 | `cygnusx.tools.registry`（api/schema/config） | `tools_setting_yaml` | `GET /api/v1/tools`、`POST /api/v1/tools/reload` |
+| FASTQ 极速质控 | `cygnusx.tools.fastq_qc`（待接入） | `fastq_qc_config_yaml`（待接入） | `/api/v1/qc/*` |
+| JBrowse | `cygnusx.tools.jbrowse`（api/service/schema/config/tasks） | `jbrowse_config_yaml` | `/api/v1/jbrowse/*` |
+| 富集分析 | `cygnusx.tools.enrichments`（api/service/schema/config/runner） | `enrichment_config_yaml` | `/api/v1/enrichment/*` |
+| DEG 差异表达分析 | `cygnusx.tools.deg`（api/service/schema/config/runner/tasks） | `deg_config_yaml` | `/api/v1/deg/*` |
 
 各工具的配置加载器同模式：单例 + mtime 热重载，文件缺失/解析失败回退默认配置，绝不抛异常。
 
 ## 新增工具（模块化流程）
 
-1. **建代码子包**：`src/omichub/tools/<工具名>/`，内含 `api.py`（声明 `router` + `prefix` + `tags`）及 `service.py`/`schema.py`/`config.py` 等；
+1. **建代码子包**：`src/cygnusx/tools/<工具名>/`，内含 `api.py`（声明 `router` + `prefix` + `tags`）及 `service.py`/`schema.py`/`config.py` 等；
 2. **登记前端展示**：在仓库根 `tool_configs/tools_setting.yaml` 的 `tools` 列表追加一项（key/title/description/icon/gradient/route/order）；
 3. **放功能配置**：仓库根 `tool_configs/<工具名>/` 下放 YAML，由子包内 `config.py` 加载器读取，并在 `core/config.py` 加 `xxx_config_yaml` 字段指向它；
 4. **前端路由/图标**：`frontend/src/router/index.ts` 加 `tools/<key>` 子路由（前端路由保持 `/tools/*` 不变）；若用新图标在 `ToolsHubView.vue` 的 `ICON_MAP` 登记。

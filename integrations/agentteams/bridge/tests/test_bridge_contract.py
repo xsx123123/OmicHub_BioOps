@@ -8,16 +8,16 @@ from typing import Any
 
 import httpx
 import pytest
-from omichub_agentteams_bridge.app import create_app
-from omichub_agentteams_bridge.audit import AuditStore
-from omichub_agentteams_bridge.case_store import CaseStore
-from omichub_agentteams_bridge.client import OmicHubClient
-from omichub_agentteams_bridge.config import BridgeSettings
-from omichub_agentteams_bridge.models import CaseRecord
+from cygnusx_agentteams_bridge.app import create_app
+from cygnusx_agentteams_bridge.audit import AuditStore
+from cygnusx_agentteams_bridge.case_store import CaseStore
+from cygnusx_agentteams_bridge.client import CygnusXClient
+from cygnusx_agentteams_bridge.config import BridgeSettings
+from cygnusx_agentteams_bridge.models import CaseRecord
 
 
-class FixtureOmicHubClient:
-    """Loop-neutral OmicHub fake used by ASGI contract tests."""
+class FixtureCygnusXClient:
+    """Loop-neutral CygnusX fake used by ASGI contract tests."""
 
     def __init__(self, settings: BridgeSettings, calls: list[httpx.Request]) -> None:
         self._settings = settings
@@ -36,9 +36,17 @@ class FixtureOmicHubClient:
     async def get_agentteams_capabilities(self) -> dict:
         self._record("GET", "/api/v1/agent-teams/capabilities")
         return {
-            "allowed_flow_ids": ["rna_seq", "test_general"],
-            "flow_agent_map": {"rna_seq": "agent-rnaseq", "test_general": "agent-code"},
-            "flow_quality_gate_map": {"rna_seq": True, "test_general": False},
+            "allowed_flow_ids": ["rna_seq", "scrna_seq", "test_general"],
+            "flow_agent_map": {
+                "rna_seq": "agent-rnaseq",
+                "scrna_seq": "agent-scrna",
+                "test_general": "agent-code",
+            },
+            "flow_quality_gate_map": {
+                "rna_seq": True,
+                "scrna_seq": True,
+                "test_general": False,
+            },
             "role_agent_map": {"test-specialist": "agent-code"},
             "worker_profiles": {
                 "test-specialist": {
@@ -66,7 +74,7 @@ class FixtureOmicHubClient:
         return {"id": task_id, "status": "cancelled"}
 
     def _record(self, method: str, path: str, payload: dict | None = None) -> None:
-        headers = {"Authorization": f"Bearer {self._settings.omichub_service_token}"}
+        headers = {"Authorization": f"Bearer {self._settings.cygnusx_service_token}"}
         self._calls.append(
             httpx.Request(method, f"http://omic.test{path}", headers=headers, json=payload)
         )
@@ -82,7 +90,7 @@ async def test_healthz_exposes_build_metadata(tmp_path: Path) -> None:
         build_sha="abc123",
         build_time="2026-08-19T00:00:00Z",
     )
-    app = create_app(settings, FixtureOmicHubClient(settings, []))
+    app = create_app(settings, FixtureCygnusXClient(settings, []))
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://bridge.test"
     ) as client:
@@ -109,7 +117,7 @@ class LoopLocalASGIClient:
     def _client(self) -> httpx.AsyncClient:
         loop = asyncio.get_running_loop()
         if loop not in self._clients:
-            bridge = create_app(self._settings, FixtureOmicHubClient(self._settings, self._calls))
+            bridge = create_app(self._settings, FixtureCygnusXClient(self._settings, self._calls))
             self._clients[loop] = httpx.AsyncClient(
                 transport=httpx.ASGITransport(app=bridge), base_url="http://bridge.test"
             )
@@ -125,8 +133,8 @@ class LoopLocalASGIClient:
 @pytest.fixture
 def settings(tmp_path):
     return BridgeSettings(
-        omichub_base_url="http://omic.test",
-        omichub_service_token="service-token",
+        cygnusx_base_url="http://omic.test",
+        cygnusx_service_token="service-token",
         approval_signing_secret="test-signing-secret",
         identities=(
             "approval-authority:approval,bioops-manager:manager,data-steward:steward,"
@@ -156,17 +164,17 @@ def test_production_settings_reject_default_bridge_secrets() -> None:
     with pytest.raises(ValueError, match="审批签名密钥"):
         BridgeSettings(
             environment="production",
-            omichub_service_token="restricted-token",
+            cygnusx_service_token="restricted-token",
             identities="approval-authority:approval,bioops-manager:manager",
             allowed_flow_ids="rna_seq",
         )
 
 
 def test_production_settings_reject_template_bridge_secrets() -> None:
-    with pytest.raises(ValueError, match="OmicHub 受限服务令牌或 API Key"):
+    with pytest.raises(ValueError, match="CygnusX 受限服务令牌或 API Key"):
         BridgeSettings(
             environment="production",
-            omichub_service_token="replace-with-restricted-service-user-token",
+            cygnusx_service_token="replace-with-restricted-service-user-token",
             approval_signing_secret="replace-with-32-byte-random-secret",
             identities="approval-authority:replace-human-approval-gateway",
             allowed_flow_ids="rna_seq",
@@ -177,8 +185,8 @@ def test_production_settings_rejects_multiple_upstream_credentials() -> None:
     with pytest.raises(ValueError, match="只能配置一种"):
         BridgeSettings(
             environment="production",
-            omichub_service_token="restricted-token",
-            omichub_api_key="omh_restricted_key",
+            cygnusx_service_token="restricted-token",
+            cygnusx_api_key="omh_restricted_key",
             approval_signing_secret="test-signing-secret",
             identities="approval-authority:approval,bioops-manager:manager,data-steward:steward,workflow-operator:operator,quality-auditor:auditor,delivery-reporter:reporter",
             allowed_flow_ids="rna_seq",
@@ -248,7 +256,7 @@ async def test_capability_reload_discovers_new_flow_without_restart(client) -> N
     flows = await request_client.get("/v1/flows", headers=headers("bioops-manager", "manager"))
 
     assert snapshot.status_code == 200
-    assert snapshot.json()["allowed_flow_ids"] == ["rna_seq", "test_general"]
+    assert snapshot.json()["allowed_flow_ids"] == ["rna_seq", "scrna_seq", "test_general"]
     assert snapshot.json()["flow_agent_map"]["test_general"] == "agent-code"
     assert snapshot.json()["worker_profiles"]["test-specialist"]["agent_id"] == "agent-code"
     assert flows.json()["items"] == [{"id": "rna_seq"}, {"id": "test_general"}]
@@ -400,12 +408,12 @@ async def test_upstream_uses_api_key_when_configured(settings) -> None:
         return httpx.Response(200, json={"items": [], "total": 0})
 
     api_key_settings = settings.model_copy(
-        update={"omichub_service_token": "", "omichub_api_key": "omh_restricted_key"}
+        update={"cygnusx_service_token": "", "cygnusx_api_key": "omh_restricted_key"}
     )
     upstream = httpx.AsyncClient(
         transport=httpx.MockTransport(handler), base_url="http://omic.test"
     )
-    client = OmicHubClient(api_key_settings, upstream)
+    client = CygnusXClient(api_key_settings, upstream)
     await client.list_flows()
     await upstream.aclose()
 
@@ -432,15 +440,15 @@ async def test_capability_snapshot_uses_only_integration_token(settings) -> None
 
     api_key_settings = settings.model_copy(
         update={
-            "omichub_service_token": "",
-            "omichub_api_key": "omh_restricted_key",
-            "omichub_integration_token": "integration-secret",
+            "cygnusx_service_token": "",
+            "cygnusx_api_key": "omh_restricted_key",
+            "cygnusx_integration_token": "integration-secret",
         }
     )
     upstream = httpx.AsyncClient(
         transport=httpx.MockTransport(handler), base_url="http://omic.test"
     )
-    client = OmicHubClient(api_key_settings, upstream)
+    client = CygnusXClient(api_key_settings, upstream)
     await client.get_agentteams_capabilities()
     await upstream.aclose()
 
@@ -585,6 +593,70 @@ async def test_approved_submission_is_queued_without_exposing_approval_to_analys
 
 
 @pytest.mark.asyncio
+async def test_queued_scrna_submission_refreshes_a_stale_flow_allowlist(client, settings) -> None:
+    request_client, calls = client
+    await create_case(request_client, "bioops_scrna_refresh")
+    preflight = await request_client.post(
+        "/v1/projects/project-1/preflight",
+        headers=headers("data-steward", "steward"),
+        json={
+            "case_id": "bioops_scrna_refresh",
+            "flow_id": "scrna_seq",
+            "sample_sheet": [{"sample": "S01", "group": "control"}],
+        },
+    )
+    assert preflight.status_code == 200
+    assigned = await request_client.post(
+        "/v1/cases/bioops_scrna_refresh/work-items",
+        headers=headers("bioops-manager", "manager"),
+        json={
+            "work_item_id": "submit-01",
+            "target": "analysis-worker",
+            "objective": "Submit approved scRNA analysis",
+            "skill_name": "workflow-submit",
+            "read_only": False,
+            "approval_required": True,
+        },
+    )
+    assert assigned.status_code == 201
+    approval = await request_client.post(
+        "/v1/approvals",
+        headers=headers("approval-authority", "approval"),
+        json={
+            "case_id": "bioops_scrna_refresh",
+            "work_item_id": "submit-01",
+            "action": "submit_task",
+            "flow_id": "scrna_seq",
+        },
+    )
+    assert approval.status_code == 201
+
+    settings.allowed_flow_ids = "rna_seq"
+    queued = await request_client.post(
+        "/v1/approved-submissions",
+        headers=headers("approval-authority", "approval"),
+        json={
+            "case_id": "bioops_scrna_refresh",
+            "work_item_id": "submit-01",
+            "idempotency_key": "bioops-scrna-refresh-v1",
+            "approval_token": approval.json()["token"],
+            "task": {
+                "flow_id": "scrna_seq",
+                "name": "scRNA cluster delivery",
+                "sample_sheet": [{"sample": "S01", "group": "control"}],
+                "execution_mode": "cluster",
+            },
+        },
+    )
+
+    assert queued.status_code == 201
+    assert queued.json()["status"] == "queued"
+    assert sum(
+        request.url.path == "/api/v1/agent-teams/capabilities" for request in calls
+    ) >= 2
+
+
+@pytest.mark.asyncio
 async def test_case_success_path_generates_quality_evidence_and_manifest(client) -> None:
     request_client, _ = client
     await create_case(request_client)
@@ -658,6 +730,9 @@ async def test_case_success_path_generates_quality_evidence_and_manifest(client)
             "summary": "All required artifacts are present.",
             "evidence_refs": [{"kind": "task", "id": "task-001"}],
             "artifact_hashes": {"artifact-001": "abc123"},
+            # 产物血缘（F1）硬约束：上报 artifact_hashes 必须携带 source_refs。
+            "source_refs": [{"artifact_id": "projects/p1/input.fastq", "relation": "input_to"}],
+            "execution_summary": "rna_seq run over the declared input sheet",
         },
     )
     assert quality.status_code == 200
@@ -1114,7 +1189,7 @@ async def test_case_and_event_queries_support_scoped_cursor_pagination(client) -
 async def test_bridge_rejects_oversized_request_before_route_execution(settings, tmp_path) -> None:
     limited_settings = settings.model_copy(update={"max_request_bytes": 1_024})
     upstream = httpx.AsyncClient(transport=httpx.MockTransport(lambda _: httpx.Response(404)))
-    bridge = create_app(limited_settings, OmicHubClient(limited_settings, upstream))
+    bridge = create_app(limited_settings, CygnusXClient(limited_settings, upstream))
     transport = httpx.ASGITransport(app=bridge)
     async with httpx.AsyncClient(
         transport=transport, base_url="http://bridge.test"
@@ -1138,7 +1213,7 @@ async def test_bridge_rejects_oversized_request_before_route_execution(settings,
 async def test_bridge_rejects_oversized_response(settings) -> None:
     limited_settings = settings.model_copy(update={"max_response_bytes": 1_024})
     upstream = httpx.AsyncClient(transport=httpx.MockTransport(lambda _: httpx.Response(404)))
-    bridge = create_app(limited_settings, OmicHubClient(limited_settings, upstream))
+    bridge = create_app(limited_settings, CygnusXClient(limited_settings, upstream))
     transport = httpx.ASGITransport(app=bridge)
     async with httpx.AsyncClient(
         transport=transport, base_url="http://bridge.test"
@@ -1806,3 +1881,63 @@ async def test_standard_work_item_targets_fall_back_to_legacy_defaults(client) -
     work_items = {item["work_item_id"]: item for item in reconciled.json()["work_items"]}
     assert work_items["interpret-01"]["target"] == "agent-rnaseq"
     assert work_items["quality-01"]["target"] == "quality-auditor"
+
+
+@pytest.mark.asyncio
+async def test_query_case_facts_uses_integration_token_and_forwards_payload(settings) -> None:
+    """F4 自省查询面：Bridge 内部客户端只转发，scope/denied 在平台端强制。"""
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        if request.url.path.endswith("/introspection/schema"):
+            return httpx.Response(200, json={"document": "schema doc"})
+        return httpx.Response(
+            200,
+            json={
+                "case_id": "bioops_case1",
+                "rows": [],
+                "row_count": 0,
+                "total_count": 0,
+                "truncated": False,
+                "aggregate": {},
+            },
+        )
+
+    token_settings = settings.model_copy(
+        update={
+            "cygnusx_service_token": "",
+            "cygnusx_api_key": "omh_restricted_key",
+            "cygnusx_integration_token": "integration-secret",
+        }
+    )
+    upstream = httpx.AsyncClient(
+        transport=httpx.MockTransport(handler), base_url="http://omic.test"
+    )
+    client = CygnusXClient(token_settings, upstream)
+    result = await client.query_case_facts(
+        case_id="bioops_case1",
+        caller="manager",
+        room_id="room-1",
+        template="artifact_lineage",
+        limit=20,
+    )
+    schema = await client.get_introspection_schema()
+    await upstream.aclose()
+
+    query_call, schema_call = calls
+    assert query_call.url.path == "/api/v1/agent-teams/introspection/query"
+    assert query_call.headers["x-integration-token"] == "integration-secret"
+    assert "x-api-key" not in query_call.headers
+    assert "authorization" not in query_call.headers
+    body = json.loads(query_call.content)
+    assert body == {
+        "case_id": "bioops_case1",
+        "caller": "manager",
+        "room_id": "room-1",
+        "template": "artifact_lineage",
+        "limit": 20,
+    }
+    assert result["truncated"] is False
+    assert schema_call.url.path == "/api/v1/agent-teams/introspection/schema"
+    assert schema["document"] == "schema doc"

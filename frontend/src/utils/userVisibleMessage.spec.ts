@@ -8,10 +8,10 @@ describe('user message visibility policy', () => {
     expect(isUserVisibleMessage({ role: 'assistant', metadata_json: { message_type: 'routing' }, content: '路由' })).toBe(false)
   })
 
-  it('hides the OmicHub AI collaboration suggestion from history and live fallback payloads', () => {
+  it('hides the CygnusX AI collaboration suggestion from history and live fallback payloads', () => {
     expect(isUserVisibleMessage({
       role: 'system',
-      agent_name: 'OmicHub AI',
+      agent_name: 'CygnusX AI',
       content: '建议升级为协作室协作，以便完成多步骤真实计算。',
     })).toBe(false)
     expect(isUserVisibleMessage({

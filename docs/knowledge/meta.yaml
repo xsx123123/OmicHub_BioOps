@@ -41,6 +41,6 @@ items:
   file: knowledge-base-architecture-summary.md
   category: 架构说明
 - id: platform-ai-assistants-and-overdrive
-  title: OmicHub AI 助手与超频模式指南
+  title: CygnusX AI 助手与超频模式指南
   file: platform/ai-assistants-and-overdrive.md
   category: 平台使用指南

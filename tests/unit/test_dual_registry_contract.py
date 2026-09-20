@@ -9,14 +9,14 @@ from __future__ import annotations
 
 import pytest
 
-from omichub.application.services.agentteams_capability_registry import (
+from cygnusx.application.services.agentteams_capability_registry import (
     AgentTeamsCapabilityRegistry,
 )
-from omichub.application.services.agentteams_intent_router import (
+from cygnusx.application.services.agentteams_intent_router import (
     explain_intent_route,
     infer_intent_route,
 )
-from omichub.application.services.flow_registry import FlowRegistry
+from cygnusx.application.services.flow_registry import FlowRegistry
 
 
 class _Abilities:
@@ -301,6 +301,7 @@ def test_chat_catalog_filters_router_and_chat_entry_false(tmp_path) -> None:
         "routing_hints",
         "capability_tags",
         "routing_notes",
+        "persona",
         "avatar",
         "color",
     ):

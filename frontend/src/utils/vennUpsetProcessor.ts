@@ -133,7 +133,7 @@ export function genSampleLists(): { name: string; text: string }[] {
 /* ==================== 配色（对齐 tools_design.md §5.6.3.1） ==================== */
 
 /**
- * OmicHub 标准离散色板。`color_1_extended` 为 color_1 的登记扩展版：
+ * CygnusX 标准离散色板。`color_1_extended` 为 color_1 的登记扩展版：
  * 在 4 色基础上补充青绿与紫，覆盖本工具最多 6 个集合的场景。
  */
 export const PLOT_COLOR_PALETTES = {

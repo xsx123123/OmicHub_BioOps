@@ -27,6 +27,7 @@
 - [Docker 部署](deployment/docker-deployment)
 - [更新与回滚](deployment/update-rollback)
 - [生产检查清单](deployment/production-checklist)
+- [开启 Multi-Agent 与 AgentTeams](deployment/agentteams-enablement)
 - [常用命令](operations/common-commands)
 - [问题排查](operations/troubleshooting)
 - [部署索引](deployment)

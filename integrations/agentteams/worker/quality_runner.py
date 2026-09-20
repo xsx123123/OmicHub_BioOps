@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Quality Worker backed by the real OmicHub agent-qc consultation."""
+"""Quality Worker backed by the real CygnusX agent-qc consultation."""
 
 from __future__ import annotations
 

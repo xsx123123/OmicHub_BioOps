@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from omichub.infrastructure.mcp.builder.versioning import (
+from cygnusx.infrastructure.mcp.builder.versioning import (
     compare_versions,
     determine_version,
     is_valid_semver,

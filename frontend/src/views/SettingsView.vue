@@ -2,7 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import {
-  NCard, NTabs, NTabPane, NForm, NFormItem, NInput, NButton,
+  NCard, NTabs, NTabPane, NForm, NFormItem, NInput, NInputNumber, NButton,
   NSpace, NAvatar, NIcon, NTag, NSwitch, useMessage,
   NAlert, NDivider,
 } from 'naive-ui'
@@ -23,6 +23,11 @@ import apiClient from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 import type { SiteSettings } from '@/types'
 import { isFestivalEffectsEnabled, setFestivalEffectsEnabled } from '@/utils/interfacePreferences'
+import {
+  DEFAULT_TOKEN_PRICING,
+  loadTokenPricing,
+  saveTokenPricing,
+} from '@/utils/tokenCost'
 import PageHeader from '@/components/PageHeader.vue'
 import { displayName as getDisplayName } from '@/utils/displayName'
 
@@ -46,6 +51,24 @@ const passwordFormRef = ref<FormInst | null>(null)
 const savingProfile = ref(false)
 const savingPassword = ref(false)
 const festivalEffectsEnabled = ref(false)
+
+// ===== AI 用量计费单价（元 / M tokens，localStorage 持久化） =====
+const tokenInputPrice = ref(DEFAULT_TOKEN_PRICING.inputPerM)
+const tokenOutputPrice = ref(DEFAULT_TOKEN_PRICING.outputPerM)
+const tokenInputCachePrice = ref(DEFAULT_TOKEN_PRICING.inputCachePerM)
+const tokenOutputCachePrice = ref(DEFAULT_TOKEN_PRICING.outputCachePerM)
+
+function updateTokenPricing() {
+  saveTokenPricing({
+    inputPerM: tokenInputPrice.value,
+    outputPerM: tokenOutputPrice.value,
+    inputCachePerM: tokenInputCachePrice.value,
+    outputCachePerM: tokenOutputCachePrice.value,
+  })
+  // 通知已打开的工作台页面热更新单价
+  window.dispatchEvent(new Event('token-pricing-changed'))
+  message.success('AI 用量单价已保存')
+}
 
 const profileForm = ref({
   username: '',
@@ -204,6 +227,11 @@ const passwordRules: FormRules = {
 
 onMounted(async () => {
   festivalEffectsEnabled.value = isFestivalEffectsEnabled()
+  const pricing = loadTokenPricing()
+  tokenInputPrice.value = pricing.inputPerM
+  tokenOutputPrice.value = pricing.outputPerM
+  tokenInputCachePrice.value = pricing.inputCachePerM
+  tokenOutputCachePrice.value = pricing.outputCachePerM
   if (!authStore.isLoggedIn) {
     router.push('/login')
     return
@@ -590,6 +618,70 @@ const totpPolicyOptions: { key: SiteSettings['totp_policy']; label: string; desc
                 </div>
                 <NTag size="small" type="info">即将支持</NTag>
               </div>
+              <div class="pref-item">
+                <div class="pref-info">
+                  <div class="pref-label">AI 用量单价（全局兜底）</div>
+                  <div class="pref-desc">按每 M（百万）tokens 计价（元）；模型在 AI 配置中心配置了单价时优先使用模型单价，此处作为未配置模型的兜底价；缓存命中为输入中按缓存单价计费的重复部分</div>
+                </div>
+                <div class="pricing-inputs">
+                  <span class="pricing-field">
+                    <label>Input</label>
+                    <NInputNumber
+                      v-model:value="tokenInputPrice"
+                      size="small"
+                      :min="0"
+                      :precision="2"
+                      :step="0.5"
+                      style="width: 110px"
+                      @update:value="updateTokenPricing"
+                    >
+                      <template #suffix>元/M</template>
+                    </NInputNumber>
+                  </span>
+                  <span class="pricing-field">
+                    <label>Output</label>
+                    <NInputNumber
+                      v-model:value="tokenOutputPrice"
+                      size="small"
+                      :min="0"
+                      :precision="2"
+                      :step="0.5"
+                      style="width: 110px"
+                      @update:value="updateTokenPricing"
+                    >
+                      <template #suffix>元/M</template>
+                    </NInputNumber>
+                  </span>
+                  <span class="pricing-field">
+                    <label>Cache In</label>
+                    <NInputNumber
+                      v-model:value="tokenInputCachePrice"
+                      size="small"
+                      :min="0"
+                      :precision="2"
+                      :step="0.25"
+                      style="width: 110px"
+                      @update:value="updateTokenPricing"
+                    >
+                      <template #suffix>元/M</template>
+                    </NInputNumber>
+                  </span>
+                  <span class="pricing-field">
+                    <label>Cache Out</label>
+                    <NInputNumber
+                      v-model:value="tokenOutputCachePrice"
+                      size="small"
+                      :min="0"
+                      :precision="2"
+                      :step="0.25"
+                      style="width: 110px"
+                      @update:value="updateTokenPricing"
+                    >
+                      <template #suffix>元/M</template>
+                    </NInputNumber>
+                  </span>
+                </div>
+              </div>
             </div>
           </NCard>
         </NTabPane>
@@ -690,7 +782,7 @@ const totpPolicyOptions: { key: SiteSettings['totp_policy']; label: string; desc
                 {{ totpPolicyOptions.find(o => o.key === platformConfig.totp_policy)?.desc }}
               </p>
               <div class="platform-setting-card__control">
-                <div class="omichub-segmented-toggle" role="group" aria-label="二次验证 TOTP 策略">
+                <div class="cygnusx-segmented-toggle" role="group" aria-label="二次验证 TOTP 策略">
                   <button
                     v-for="opt in totpPolicyOptions"
                     :key="opt.key"
@@ -799,6 +891,25 @@ const totpPolicyOptions: { key: SiteSettings['totp_policy']; label: string; desc
   font-size: 13px;
   color: var(--neutral-text-3);
   margin-top: 4px;
+}
+
+.pricing-inputs {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.pricing-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pricing-field label {
+  font-size: 12px;
+  color: var(--neutral-text-3);
+  white-space: nowrap;
 }
 
 .twofa-card {
@@ -932,7 +1043,7 @@ const totpPolicyOptions: { key: SiteSettings['totp_policy']; label: string; desc
   flex: 0 0 auto;
 }
 
-.platform-setting-card :deep(.omichub-segmented-toggle button:disabled) {
+.platform-setting-card :deep(.cygnusx-segmented-toggle button:disabled) {
   cursor: not-allowed;
   opacity: 0.55;
 }

@@ -2,9 +2,9 @@
 set -euo pipefail
 
 repository_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-config_path=${OMICHUB_WORKER_CONFIG:-"${repository_root}/data/worker_config.yaml"}
+config_path=${CYGNUSX_WORKER_CONFIG:-"${repository_root}/data/worker_config.yaml"}
 rendered_env="${repository_root}/data/.worker-config.env"
-compose_overlay=${OMICHUB_WORKER_COMPOSE_OVERLAY:-""}
+compose_overlay=${CYGNUSX_WORKER_COMPOSE_OVERLAY:-""}
 
 cd "${repository_root}"
 python3 scripts/render_worker_config.py --config "${config_path}" --output "${rendered_env}"

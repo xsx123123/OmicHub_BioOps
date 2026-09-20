@@ -1,7 +1,7 @@
 id: default
 name: "流程监控总览"
 version: "1.0.0"
-description: "OmicHub 分析流程实时监控面板"
+description: "CygnusX 分析流程实时监控面板"
 scope: user
 refresh:
   mode: websocket

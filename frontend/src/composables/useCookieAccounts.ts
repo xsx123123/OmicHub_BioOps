@@ -43,19 +43,19 @@ const GROUPS = ['王鑫课题组', '作物遗传实验室', '张鹏课题组', '
 const AVATAR_COLORS = ['#165DFF', '#00B42A', '#FF7D00', '#722ED1', '#0FC6C2', '#F53F3F']
 
 const USERS: Omit<CookieAccountRow, 'avatar_color' | 'group'>[] = [
-  { user_id: 'u_zhangjian', username: 'Zhang Jian', email: 'zhangjian@omichub.cn', balance: 1280, total_spent: 3420, status: 'active' },
-  { user_id: 'u_lisi', username: '李四', email: 'lisi@omichub.cn', balance: 35, total_spent: 880, status: 'active' },
-  { user_id: 'u_wangwu', username: '王五', email: 'wangwu@omichub.cn', balance: 0, total_spent: 2100, status: 'frozen' },
-  { user_id: 'u_zhaoliu', username: '赵六', email: 'zhaoliu@omichub.cn', balance: 642, total_spent: 1560, status: 'active' },
-  { user_id: 'u_qianqi', username: '钱七', email: 'qianqi@omichub.cn', balance: 48, total_spent: 520, status: 'active' },
-  { user_id: 'u_sunba', username: '孙八', email: 'sunba@omichub.cn', balance: 2310, total_spent: 4870, status: 'active' },
-  { user_id: 'u_zhoujiu', username: '周九', email: 'zhoujiu@omichub.cn', balance: 156, total_spent: 1340, status: 'active' },
-  { user_id: 'u_wushi', username: '吴十', email: 'wushi@omichub.cn', balance: 12, total_spent: 980, status: 'frozen' },
-  { user_id: 'u_zhengshen', username: '郑深', email: 'zhengshen@omichub.cn', balance: 880, total_spent: 670, status: 'active' },
-  { user_id: 'u_fengxue', username: '冯雪', email: 'fengxue@omichub.cn', balance: 524, total_spent: 1090, status: 'active' },
-  { user_id: 'u_chenchen', username: '陈晨', email: 'chenchen@omichub.cn', balance: 3120, total_spent: 7250, status: 'active' },
-  { user_id: 'u_weiyi', username: '魏一', email: 'weiyi@omichub.cn', balance: 42, total_spent: 360, status: 'active' },
-  { user_id: 'u_jiangshan', username: '蒋珊', email: 'jiangshan@omichub.cn', balance: 730, total_spent: 2210, status: 'active' },
+  { user_id: 'u_zhangjian', username: 'Zhang Jian', email: 'zhangjian@cygnusx.cn', balance: 1280, total_spent: 3420, status: 'active' },
+  { user_id: 'u_lisi', username: '李四', email: 'lisi@cygnusx.cn', balance: 35, total_spent: 880, status: 'active' },
+  { user_id: 'u_wangwu', username: '王五', email: 'wangwu@cygnusx.cn', balance: 0, total_spent: 2100, status: 'frozen' },
+  { user_id: 'u_zhaoliu', username: '赵六', email: 'zhaoliu@cygnusx.cn', balance: 642, total_spent: 1560, status: 'active' },
+  { user_id: 'u_qianqi', username: '钱七', email: 'qianqi@cygnusx.cn', balance: 48, total_spent: 520, status: 'active' },
+  { user_id: 'u_sunba', username: '孙八', email: 'sunba@cygnusx.cn', balance: 2310, total_spent: 4870, status: 'active' },
+  { user_id: 'u_zhoujiu', username: '周九', email: 'zhoujiu@cygnusx.cn', balance: 156, total_spent: 1340, status: 'active' },
+  { user_id: 'u_wushi', username: '吴十', email: 'wushi@cygnusx.cn', balance: 12, total_spent: 980, status: 'frozen' },
+  { user_id: 'u_zhengshen', username: '郑深', email: 'zhengshen@cygnusx.cn', balance: 880, total_spent: 670, status: 'active' },
+  { user_id: 'u_fengxue', username: '冯雪', email: 'fengxue@cygnusx.cn', balance: 524, total_spent: 1090, status: 'active' },
+  { user_id: 'u_chenchen', username: '陈晨', email: 'chenchen@cygnusx.cn', balance: 3120, total_spent: 7250, status: 'active' },
+  { user_id: 'u_weiyi', username: '魏一', email: 'weiyi@cygnusx.cn', balance: 42, total_spent: 360, status: 'active' },
+  { user_id: 'u_jiangshan', username: '蒋珊', email: 'jiangshan@cygnusx.cn', balance: 730, total_spent: 2210, status: 'active' },
 ]
 
 // 用确定性 hash 给用户分配头像色与课题组，避免每次刷新跳变

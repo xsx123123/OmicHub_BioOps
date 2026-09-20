@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from omichub.application.services.flow_service import FlowService
-from omichub.tools.flow_schema_compiler import FlowToolSchemaCompiler
+from cygnusx.application.services.flow_service import FlowService
+from cygnusx.tools.flow_schema_compiler import FlowToolSchemaCompiler
 
 
 @pytest.fixture
@@ -22,7 +22,7 @@ def rna_flow():
 def test_compile_prepare_tool_for_rna_seq(compiler: FlowToolSchemaCompiler, rna_flow) -> None:
     tool_def = compiler.compile_prepare_tool(rna_flow)
 
-    assert tool_def["name"] == "omichub_prepare_rna_seq_submission"
+    assert tool_def["name"] == "cygnusx_prepare_rna_seq_submission"
     assert "RNA-seq" in tool_def["description"]
 
     schema = tool_def["input_schema"]
@@ -65,25 +65,25 @@ def test_compile_comparisons_schema(compiler: FlowToolSchemaCompiler, rna_flow) 
 @pytest.mark.unit
 def test_compile_status_and_summary_tools(compiler: FlowToolSchemaCompiler) -> None:
     status = compiler.compile_status_tool()
-    assert status["name"] == "omichub_get_analysis_task_status"
+    assert status["name"] == "cygnusx_get_analysis_task_status"
     assert "task_id" in status["input_schema"]["required"]
 
     summary = compiler.compile_summary_tool()
-    assert summary["name"] == "omichub_get_analysis_task_summary"
+    assert summary["name"] == "cygnusx_get_analysis_task_summary"
     assert "task_id" in summary["input_schema"]["required"]
 
 
 @pytest.mark.unit
 def test_dynamic_tools_loaded_by_schema_loader() -> None:
-    from omichub.tools.schema_loader import schema_loader
+    from cygnusx.tools.schema_loader import schema_loader
 
-    tool = schema_loader.get_tool("omichub_prepare_rna_seq_submission")
+    tool = schema_loader.get_tool("cygnusx_prepare_rna_seq_submission")
     assert tool is not None
     assert tool.invocation_mode == "analysis_flow"
     assert tool.extra["flow_id"] == "rna_seq"
 
     names = {t.name for t in schema_loader.list_tools()}
-    assert "omichub_prepare_rna_seq_submission" in names
-    assert "omichub_prepare_atac_seq_submission" in names
-    assert "omichub_get_analysis_task_status" in names
-    assert "omichub_get_analysis_task_summary" in names
+    assert "cygnusx_prepare_rna_seq_submission" in names
+    assert "cygnusx_prepare_atac_seq_submission" in names
+    assert "cygnusx_get_analysis_task_status" in names
+    assert "cygnusx_get_analysis_task_summary" in names

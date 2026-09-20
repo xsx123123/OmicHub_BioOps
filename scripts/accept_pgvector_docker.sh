@@ -3,13 +3,13 @@
 set -euo pipefail
 
 COMPOSE_COMMAND="${COMPOSE_COMMAND:-docker compose -f deploy/docker/docker-compose.yml -f deploy/docker/docker-compose.pgvector.yml}"
-POSTGRES_USER="${POSTGRES_USER:-omichub}"
-POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-omichub_dev_password}"
-POSTGRES_DB="${POSTGRES_DB:-omichub}"
-RESTORE_DB="omichub_restore_acceptance_${RANDOM}${RANDOM}"
+POSTGRES_USER="${POSTGRES_USER:-cygnusx}"
+POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-cygnusx_dev_password}"
+POSTGRES_DB="${POSTGRES_DB:-cygnusx}"
+RESTORE_DB="cygnusx_restore_acceptance_${RANDOM}${RANDOM}"
 DATABASE_URL="postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}"
 RESTORE_DATABASE_URL="postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${RESTORE_DB}"
-BACKUP_DIR="/tmp/omichub-pgvector-acceptance"
+BACKUP_DIR="/tmp/cygnusx-pgvector-acceptance"
 
 compose() {
   # shellcheck disable=SC2086
@@ -60,7 +60,7 @@ compose exec -T \
   -e DATABASE_URL="$DATABASE_URL" \
   -e BACKUP_DIR="$BACKUP_DIR" \
   web scripts/backup_polardb_postgres.sh
-backup_path="$(compose exec -T web sh -ec "find '$BACKUP_DIR' -maxdepth 1 -type f -name 'omichub-*.dump' -print -quit")"
+backup_path="$(compose exec -T web sh -ec "find '$BACKUP_DIR' -maxdepth 1 -type f -name 'cygnusx-*.dump' -print -quit")"
 if [[ -z "$backup_path" ]]; then
   echo 'Backup drill did not produce a dump file.' >&2
   exit 1

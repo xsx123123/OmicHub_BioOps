@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from omichub.application.services import studio_context_service, studio_tools
-from omichub.infrastructure.celery_app.tasks.memory import _extract_json_array
+from cygnusx.application.services import studio_context_service, studio_tools
+from cygnusx.infrastructure.celery_app.tasks.memory import _extract_json_array
 
 
 def test_fact_extraction_parser_accepts_only_json_arrays() -> None:

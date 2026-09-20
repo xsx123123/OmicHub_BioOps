@@ -1,4 +1,4 @@
-from omichub.application.services.mas_plan_adapter import MASPlanPreviewAdapter
+from cygnusx.application.services.mas_plan_adapter import MASPlanPreviewAdapter
 
 
 def test_plan_preview_adapter_returns_frontend_safe_dual_payload() -> None:

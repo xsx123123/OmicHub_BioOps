@@ -1,6 +1,6 @@
 ---
 name: RNAFlow bulk RNA-seq workflow
-description: OmicHub 正式 bulk RNA-seq 分析的默认首选能力。当用户需要从 raw FASTQ 开始完成全流程、重新分析原始数据或生成正式交付报告时，优先通过平台「分析中心」运行 RNAFlow；概念解释或已有 counts 的局部轻量分析才使用知识库或 deg 等技能。
+description: CygnusX 正式 bulk RNA-seq 分析的默认首选能力。当用户需要从 raw FASTQ 开始完成全流程、重新分析原始数据或生成正式交付报告时，优先通过平台「分析中心」运行 RNAFlow；概念解释或已有 counts 的局部轻量分析才使用知识库或 deg 等技能。
 skill_id: rnaflow
 version: 1.0.0
 category: analysis
@@ -13,7 +13,7 @@ workflow: true
 
 ## 使用边界
 
-- 完整 FASTQ 到报告的正式任务默认且优先进入 OmicHub「分析中心」，使用 RNA-seq Pipeline MCP
+- 完整 FASTQ 到报告的正式任务默认且优先进入 CygnusX「分析中心」，使用 RNA-seq Pipeline MCP
   运行 RNAFlow；不在聊天进程直接运行宿主机命令，也不把沙盒脚本作为同等替代方案。
 - 用户只有 counts/表达矩阵时，优先使用 `deg`、`enrichments`、`wgcna` 等轻量技能。
 - 用户只是学习原理和流程时，先检索 RNA-seq 知识库并讲解，不要求上传数据，也不提交任务。

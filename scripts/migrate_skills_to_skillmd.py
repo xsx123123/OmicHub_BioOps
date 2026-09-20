@@ -21,10 +21,10 @@ import asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from omichub.infrastructure.database.models.skill import SkillModel
-from omichub.infrastructure.database.session import get_session_factory
-from omichub.infrastructure.skills.skillmd import ParsedSkill, render_skill_md
-from omichub.infrastructure.skills.skill_store import skills_root, write_skill_folder
+from cygnusx.infrastructure.database.models.skill import SkillModel
+from cygnusx.infrastructure.database.session import get_session_factory
+from cygnusx.infrastructure.skills.skillmd import ParsedSkill, render_skill_md
+from cygnusx.infrastructure.skills.skill_store import skills_root, write_skill_folder
 
 
 def _to_parsed(m: SkillModel) -> ParsedSkill:
@@ -57,7 +57,7 @@ async def migrate(session: AsyncSession, apply: bool) -> None:
         # 已有磁盘文件夹且内容一致 → 跳过
         if folder_exists:
             try:
-                from omichub.infrastructure.skills.skillmd import split_frontmatter
+                from cygnusx.infrastructure.skills.skillmd import split_frontmatter
 
                 _, existing_body = split_frontmatter(
                     (folder / "SKILL.md").read_text(encoding="utf-8")

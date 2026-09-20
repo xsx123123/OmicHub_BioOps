@@ -2,7 +2,7 @@
 name: 单细胞差异表达分析
 skill_id: scrna-deg-analysis
 description: 当用户需要对已注释的 scRNA-seq Seurat 对象按"细胞类型 × 分组"做批量差异表达分析（FindMarkers）、基因注释和火山图可视化时触发。输入为 Seurat RDS 对象路径与分组/细胞类型列名。边界：cluster marker 查找（聚类鉴定）由主流程 scrna-pipeline-overview 完成，细胞比例统计走 scrna-annotation-stats，本技能只做"细胞类型内 处理组 vs 对照组"的 DEG。
-version: 0.9.0
+version: 0.9.1
 author: "zj"
 icon: 🌋
 category: analysis
@@ -38,11 +38,11 @@ category: analysis
    - RDS 存在可读；`meta.data` 含 `--celltype-col` / `--pair-col`（缺失时报错并列出实际可用列名）；
    - 分组列含 `--treat` / `--control` 两水平（缺失时列出实际水平）；
    - 每个细胞类型在两组中的细胞数 < 30 时不中断，写入 summary.json 的 `warnings`。
-2. **确认注释参考**：环境变量 `SCRNA_DEG_REF_DIR` 指向 gene_info 目录（见"质控与限制"）；未设置时默认相对目录 `DEG_Annotation_reference`。
+2. **确认注释参考**：gene_info 目录由平台管理员预置在共享数据卷（沙盒内 `ref/DEG_Annotation_reference/`，供给清单见 `references/provisioning.md`）；运行前确认环境变量 `SCRNA_DEG_REF_DIR` 已指向该目录（未注入时先 `export SCRNA_DEG_REF_DIR=ref/DEG_Annotation_reference`），**运行时模型不要自行下载 gene_info**。
 3. **运行**：
 
    ```bash
-   Rscript scripts/deg_analysis.R \
+   Rscript /workspace/.skills/scrna-deg-analysis/scripts/deg_analysis.R \
      --input {seurat.rds}          # 用户输入
      --output {output_dir}         # 用户指定产物目录
      --treat {Treat} --control {Control} \
@@ -52,7 +52,7 @@ category: analysis
 4. **汇总计数**（可选但推荐）：合并各细胞类型的上下调基因计数为一张表：
 
    ```bash
-   python3 scripts/merge_deg_infor.py --input {output_dir} --output {output_dir}/merged_DEG_infor.csv
+   python3 /workspace/.skills/scrna-deg-analysis/scripts/merge_deg_infor.py --input {output_dir} --output {output_dir}/merged_DEG_infor.csv
    ```
 
 5. **结果汇报**：只读 `{output_dir}/summary.json` 向用户汇报——`stats.n_celltypes`（完成分析的细胞类型数）、`n_deg_total` / `n_up` / `n_down`、以及 `warnings` 中的小样本预警；不要逐个解析大结果 csv。
@@ -77,7 +77,7 @@ category: analysis
 
 ## 质控与限制（QC & Constraints）
 
-- **参考数据不进技能包（红线）**：DEG 基因注释依赖 NCBI gene_info（约 47MB），一律走环境变量 `SCRNA_DEG_REF_DIR`（目录内需含 `mm10_Mus_musculus.gene_info` / `hg19_Homo_sapiens.gene_info`）。仓库内参考位于 `tools/DEG/DEG_Annotation_reference/`（另含 `hg38_Homo_sapiens.gene_info`，当前脚本注释用 hg19 版本）；文件缺失时脚本报错"请设置 SCRNA_DEG_REF_DIR 指向 gene_info 目录"，按指引设置后重跑。
+- **参考数据不进技能包（红线）**：DEG 基因注释依赖 NCBI gene_info（约 47MB），由平台管理员按 `references/provisioning.md` 预置到共享数据卷（沙盒内 `ref/DEG_Annotation_reference/`），经环境变量 `SCRNA_DEG_REF_DIR` 注入（目录内需含 `mm10_Mus_musculus.gene_info` / `hg19_Homo_sapiens.gene_info`；出处为源仓库 `tools/DEG/DEG_Annotation_reference/`，另含 hg38 版本，当前脚本注释用 hg19）。文件缺失时脚本报错"请设置 SCRNA_DEG_REF_DIR 指向 gene_info 目录"——此时向用户/管理员上报缺失，**不要自行下载**。
 - **默认阈值含义**：`pct-1=0.25` 先按表达细胞比例过滤；火山图 DEG 判定用 `p_val_adj < 0.05 且 |avg_log2FC| > 1`；`logfc.threshold=log(2)` 是 FindMarkers 预过滤阈值，函数库内固定，不暴露为 CLI 参数。
 - **细胞数 < 30** 的细胞类型仅 warning 不跳过，汇报时须提示用户谨慎解读。
 - **被排除的变体脚本**（§6.4，本技能只保留一个权威实现）：`multithreadingFindMarkerCluster.r`（cluster-vs-rest + 多线程旧版）、`findmarker.r`、`FindClusterMarkersDotplot.r` 不进包；`Extert_DEG.PY` 已由 `scripts/merge_deg_infor.py` 重写替代（去掉 /titan3 硬编码）。

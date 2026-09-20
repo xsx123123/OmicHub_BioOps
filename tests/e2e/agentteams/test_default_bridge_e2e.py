@@ -13,8 +13,8 @@ BRIDGE_PACKAGE = Path(__file__).parents[3] / "integrations" / "agentteams" / "br
 if str(BRIDGE_PACKAGE) not in sys.path:
     sys.path.insert(0, str(BRIDGE_PACKAGE))
 
-from omichub_agentteams_bridge.app import create_app
-from omichub_agentteams_bridge.config import BridgeSettings
+from cygnusx_agentteams_bridge.app import create_app
+from cygnusx_agentteams_bridge.config import BridgeSettings
 
 
 def _headers(identity: str, token: str) -> dict[str, str]:
@@ -25,7 +25,7 @@ def _headers(identity: str, token: str) -> dict[str, str]:
 @pytest.mark.asyncio
 async def test_default_case_dispatch_and_event_projection_contract(tmp_path: Path) -> None:
     settings = BridgeSettings(
-        omichub_service_token="service-token",
+        cygnusx_service_token="service-token",
         approval_signing_secret="test-signing-secret",
         identities="bioops-manager:manager,agent-code:code",
         role_agent_map="agent-code:agent-code",

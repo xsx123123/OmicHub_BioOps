@@ -10,8 +10,8 @@
  *   状态 B（链接生成期）：只读 URL 文本框 + 复制按钮（复制成功变绿 2s）+ 索引防呆提示
  *
  * URL 策略：origin + /tracks/ + file.path
- *   - file.path 是相对 /data/omichub 的路径（file_service._resolve_abs = storage_root / path）
- *   - nginx /tracks/ alias 到 /data/omichub/，配好 Accept-Ranges + CORS（见 pipelines/jbrowse2/README.md）
+ *   - file.path 是相对 /data/cygnusx 的路径（file_service._resolve_abs = storage_root / path）
+ *   - nginx /tracks/ alias 到 /data/cygnusx/，配好 Accept-Ranges + CORS（见 pipelines/jbrowse2/README.md）
  *   - 故该 URL 即 JBrowse 2 可流式读取的直链，外部 JBrowse 无需 JWT
  */
 import { computed, onUnmounted, ref, watch } from 'vue'
@@ -90,7 +90,7 @@ function metaOf(f: DataFile) {
 // ==================== 直链生成（核心）====================
 const trackUrl = computed(() => {
   if (!selectedFile.value) return ''
-  // file.path 相对 /data/omichub；nginx /tracks/ alias 到 /data/omichub/ → 直接拼
+  // file.path 相对 /data/cygnusx；nginx /tracks/ alias 到 /data/cygnusx/ → 直接拼
   return `${window.location.origin}/tracks/${selectedFile.value.path}`
 })
 

@@ -4,7 +4,26 @@
 
 ---
 
-## 📅 最新更新 (2026-03-26)
+## 📅 最新更新 (2026-09-09)
+
+### 🌟 鲁棒性增强 (v4.1.2-alpha) - 整合流程前置校验与依赖提示优化
+
+1.  **依赖缺失精准提示 (`src/core/06.Merge_integer.r` `DealPatchHarmony`)**:
+    *   **修复逻辑错误**: 修复了原包检查 `if/else` 分支反转的问题(全部安装时误报 "need Install")。
+    *   **精准缺失提示**: 缺失依赖时逐个列出具体缺失的包名(如 `Missing required packages: harmony、batchelor`)。
+    *   **安装命令引导**: 针对每个缺失包给出对应安装命令(`SeuratWrappers` → `remotes::install_github('satijalab/seurat-wrappers')`,`harmony` → `install.packages('harmony')`,`batchelor` → `BiocManager::install('batchelor')`)。
+    *   **清晰错误终止**: `stop()` 错误信息携带缺失包名,便于快速定位问题。
+
+2.  **orig.ident 分组前置校验 (`IntergetPatch`)**:
+    *   整合前自动检查 `orig.ident` 列是否存在,以及是否包含至少 2 个不同的样本分组。
+    *   当所有细胞 `orig.ident` 同名(单分组)时,提前报错并停止,避免无意义的整合操作及其引发的运行错误;正常时打印检测到的分组列表便于核对。
+
+3.  **版本统一**:
+    *   代码、文档、Dockerfile 及技能引用中的流程版本号统一更新为 `v4.1.2-alpha`。
+
+---
+
+## 📅 历史更新 (2026-03-26)
 
 ### 🌟 核心功能优化 (v4.1.1-alpha) - 鲁棒性与规范化增强
 

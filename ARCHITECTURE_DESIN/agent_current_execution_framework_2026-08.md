@@ -1,11 +1,11 @@
-# OmicHub Agent 当前执行框架
+# CygnusX Agent 当前执行框架
 
 > 更新时间：2026-08-18  
 > 文档定位：记录仓库当前已经存在的 Agent 请求装配、思考—工具闭环、LangGraph、Studio、AgentTeams Worker、房间路由和前端事件投影。本文优先描述“现在代码实际怎么运行”，不把未来规划误写成已上线能力。
 
 ## 1. 一页结论
 
-OmicHub 当前是一个**多入口、共享工具契约、部分统一事件、分路径执行**的 Agent 平台：
+CygnusX 当前是一个**多入口、共享工具契约、部分统一事件、分路径执行**的 Agent 平台：
 
 1. 用户消息先经过会话、Agent、模型、MCP、Skill、Studio 和功能开关装配。
 2. 普通聊天有两条主执行引擎：Legacy 手写 ReAct 循环和 LangGraph 状态图。
@@ -190,7 +190,7 @@ LangGraph 不是另一套工具契约；它复用 Provider、工具执行器、M
 
 ### 6.1 后端事件构造
 
-统一生命周期事件由 `src/omichub/application/services/execution_events.py` 构造，核心字段为：
+统一生命周期事件由 `src/cygnusx/application/services/execution_events.py` 构造，核心字段为：
 
 | 字段 | 含义 |
 | --- | --- |
@@ -217,7 +217,7 @@ LangGraph 不是另一套工具契约；它复用 Provider、工具执行器、M
 
 ### 6.2 SSE 发送约束
 
-`src/omichub/api/v1/chat.py` 将 `ChatChunk.type`、`content` 和 `metadata` 合并为 SSE JSON。生命周期事件必须在 `done` 之前发出，因为 `done` 是客户端认为本次流结束的终止事件。
+`src/cygnusx/api/v1/chat.py` 将 `ChatChunk.type`、`content` 和 `metadata` 合并为 SSE JSON。生命周期事件必须在 `done` 之前发出，因为 `done` 是客户端认为本次流结束的终止事件。
 
 ### 6.3 前端投影
 
@@ -331,17 +331,17 @@ LangGraph 不是另一套工具契约；它复用 Provider、工具执行器、M
 
 | 位置 | 职责 |
 | --- | --- |
-| `src/omichub/application/services/chat_service.py` | 普通聊天、Studio、Legacy/LangGraph 分流、工具执行和消息收尾 |
-| `src/omichub/application/services/execution_events.py` | 统一 Agent 生命周期事件构造 |
-| `src/omichub/infrastructure/execution/langgraph_nodes.py` | LangGraph LLM/工具节点和路由 |
-| `src/omichub/infrastructure/execution/langgraph_runtime.py` | LangGraph 图运行和队列流式输出 |
-| `src/omichub/application/services/studio_loop_guard.py` | Studio 工具循环护栏 |
-| `src/omichub/application/services/parallel_subagent_service.py` | Worker fan-out、子 ReAct、隔离和控制 |
-| `src/omichub/application/services/agentteams_execution_intent.py` | 协助室执行意图三态判定 |
-| `src/omichub/application/services/agentteams_room_response_service.py` | 房间消息响应、澄清、Case 执行触发和路由卡片 |
-| `src/omichub/application/services/agentteams_route_decision.py` | `room.route_decision` 观察卡片构造 |
-| `src/omichub/application/services/agent_consultation_service.py` | Manager 会诊和 Worker 证据投影 |
-| `src/omichub/api/v1/chat.py` | ChatChunk → SSE |
+| `src/cygnusx/application/services/chat_service.py` | 普通聊天、Studio、Legacy/LangGraph 分流、工具执行和消息收尾 |
+| `src/cygnusx/application/services/execution_events.py` | 统一 Agent 生命周期事件构造 |
+| `src/cygnusx/infrastructure/execution/langgraph_nodes.py` | LangGraph LLM/工具节点和路由 |
+| `src/cygnusx/infrastructure/execution/langgraph_runtime.py` | LangGraph 图运行和队列流式输出 |
+| `src/cygnusx/application/services/studio_loop_guard.py` | Studio 工具循环护栏 |
+| `src/cygnusx/application/services/parallel_subagent_service.py` | Worker fan-out、子 ReAct、隔离和控制 |
+| `src/cygnusx/application/services/agentteams_execution_intent.py` | 协助室执行意图三态判定 |
+| `src/cygnusx/application/services/agentteams_room_response_service.py` | 房间消息响应、澄清、Case 执行触发和路由卡片 |
+| `src/cygnusx/application/services/agentteams_route_decision.py` | `room.route_decision` 观察卡片构造 |
+| `src/cygnusx/application/services/agent_consultation_service.py` | Manager 会诊和 Worker 证据投影 |
+| `src/cygnusx/api/v1/chat.py` | ChatChunk → SSE |
 | `frontend/src/composables/useAgentChatStream.ts` | SSE 解析和前端事件回调 |
 | `frontend/src/stores/agentHub.ts` | 普通助手、Studio、工具和护栏状态投影 |
 | `frontend/src/utils/agentTeamsRoom.ts` | AgentTeams 事件到房间块/消息的纯函数投影 |
@@ -353,8 +353,8 @@ LangGraph 不是另一套工具契约；它复用 Provider、工具执行器、M
 - `agent_framework_final_baseline.md` 是较早的 Agent 基线和发布验收文档。
 - `agent_architecture_and_extension_guide.md` 侧重 Agent 配置、扩展和能力状态。
 - `agentteams_room_plan.md` 侧重团队协作室的产品实施路线和里程碑。
-- `omichub_studio.md` 侧重 OmicStudio 工作台的产品实现与交接。
-- `docs/info/26.8.18/OmicHub-Agent思考工具闭环优化实施计划与编码提示词.md` 是本次闭环优化的实施计划、验收标准和编码提示词。
+- `cygnusx_studio.md` 侧重 OmicStudio 工作台的产品实现与交接。
+- `docs/info/26.8.18/CygnusX-Agent思考工具闭环优化实施计划与编码提示词.md` 是本次闭环优化的实施计划、验收标准和编码提示词。
 - `agent_execution_loop_observability_2026-08.md` 记录本轮事件关联、房间只读工具路由、Worker 时间线和验证基线。
 
 当文档之间描述冲突时，以当前代码、测试和运行配置为事实来源；目标方案必须明确标记为“计划”或“待实现”。

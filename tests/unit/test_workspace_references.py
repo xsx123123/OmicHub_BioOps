@@ -5,12 +5,12 @@ from types import SimpleNamespace
 
 import pytest
 
-from omichub.application.services import workspace_references
-from omichub.application.services.workspace_references import (
+from cygnusx.application.services import workspace_references
+from cygnusx.application.services.workspace_references import (
     _build_directory_manifest,
     parse_workspace_resource_ref,
 )
-from omichub.core.exceptions import BusinessError
+from cygnusx.core.exceptions import BusinessError
 
 
 @pytest.mark.unit
@@ -66,7 +66,7 @@ def test_directory_manifest_enforces_limits_and_skips_symlinks(tmp_path: Path, m
 @pytest.mark.unit
 @pytest.mark.asyncio
 async def test_workspace_list_returns_a_bounded_page(monkeypatch) -> None:
-    from omichub.application.services import studio_tools
+    from cygnusx.application.services import studio_tools
 
     async def list_files(*_args, **_kwargs):
         return {
@@ -86,7 +86,7 @@ async def test_workspace_list_returns_a_bounded_page(monkeypatch) -> None:
 
 @pytest.mark.unit
 def test_overdrive_context_includes_frozen_directory_manifest() -> None:
-    from omichub.infrastructure.celery_app.tasks.overdrive import _overdrive_workspace_context
+    from cygnusx.infrastructure.celery_app.tasks.overdrive import _overdrive_workspace_context
 
     run = SimpleNamespace(
         session_id="session-1",

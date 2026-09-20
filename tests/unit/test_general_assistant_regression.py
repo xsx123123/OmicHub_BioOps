@@ -6,9 +6,9 @@ from xml.etree import ElementTree
 
 import pytest
 
-from omichub.application.services.arxiv_literature_service import ArxivLiteratureService
-from omichub.application.services.chat_service import ChatService
-from omichub.infrastructure.mcp.presets import (
+from cygnusx.application.services.arxiv_literature_service import ArxivLiteratureService
+from cygnusx.application.services.chat_service import ChatService
+from cygnusx.infrastructure.mcp.presets import (
     PLATFORM_HANDLERS,
     PLATFORM_PRESET_TOOLS,
     _extract_workspace_pdf_text,
@@ -26,46 +26,74 @@ def test_general_prompt_keeps_existing_workbench_rules_and_adds_research_modes()
     assert "生信任务一律以既有规范为准" in prompt
 
 
-def test_pdf_workspace_extraction_is_paginated_and_bounded(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+@pytest.mark.asyncio
+async def test_pdf_workspace_extraction_is_paginated_and_bounded(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    import json
+
+    pdf_path = tmp_path / "paper.pdf"
+    pdf_path.write_bytes(b"%PDF fake")
+
     class FakeReader:
         pages = [
             SimpleNamespace(extract_text=lambda: "a" * 30_000),
             SimpleNamespace(extract_text=lambda: "b" * 30_000),
         ]
 
-    monkeypatch.setattr("pypdf.PdfReader", lambda _path: FakeReader())
-    result = _extract_workspace_pdf_text(tmp_path / "paper.pdf")
+        def __init__(self, _path: str) -> None:
+            pass
+
+    monkeypatch.setattr("pypdf.PdfReader", FakeReader)
+    result = await _extract_workspace_pdf_text(pdf_path)
 
     assert result["truncated"] is True
     assert result["pages_read"] == 2
-    assert result["content"].startswith("[Page 1]")
-    assert "[Page 2]" in result["content"]
-    assert "[已截断，仅覆盖前 2 页]" in result["content"]
-    assert len(result["content"]) < 50_200
+    parsed = json.loads(result["content"])
+    assert parsed["content"].startswith("[Page 1]")
+    assert "[Page 2]" in parsed["content"]
+    assert "[已截断，仅覆盖前 2 页]" in parsed["content"]
+    assert parsed["metadata"]["total_pages"] == 2
 
 
-def test_pdf_workspace_extraction_reports_scanned_or_encrypted_pdf(
+@pytest.mark.asyncio
+async def test_pdf_workspace_extraction_reports_scanned_or_encrypted_pdf(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
+    pdf_path = tmp_path / "scan.pdf"
+    pdf_path.write_bytes(b"%PDF fake")
+
     class FakeReader:
         pages = [SimpleNamespace(extract_text=lambda: "")]
 
-    monkeypatch.setattr("pypdf.PdfReader", lambda _path: FakeReader())
-    result = _extract_workspace_pdf_text(tmp_path / "scan.pdf")
+        def __init__(self, _path: str) -> None:
+            pass
+
+    monkeypatch.setattr("pypdf.PdfReader", FakeReader)
+    result = await _extract_workspace_pdf_text(pdf_path)
 
     assert "无法提取文本" in result["error"]
     assert "OCR" in result["error"]
 
 
-def test_chat_pdf_extraction_marks_truncation(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.asyncio
+async def test_chat_pdf_extraction_marks_truncation(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     class FakeReader:
         pages = [
             SimpleNamespace(extract_text=lambda: "x" * 50_100),
             SimpleNamespace(extract_text=lambda: "second page"),
         ]
 
-    monkeypatch.setattr("pypdf.PdfReader", lambda _source: FakeReader())
-    result = ChatService._extract_pdf_text(b"not-a-real-pdf")
+        def __init__(self, _path: str) -> None:
+            pass
+
+    monkeypatch.setattr("pypdf.PdfReader", FakeReader)
+
+    pdf_path = tmp_path / "truncated.pdf"
+    pdf_path.write_bytes(b"%PDF fake")
+    result = await ChatService._extract_pdf_text(str(pdf_path))
 
     assert len(result) <= 50_100
     assert "[第 1 页]" in result

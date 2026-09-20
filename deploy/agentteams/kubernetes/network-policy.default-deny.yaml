@@ -4,7 +4,7 @@ metadata:
   name: default-deny-ingress-egress
   namespace: agentteams-system
   labels:
-    app.kubernetes.io/part-of: omichub-agentteams
+    app.kubernetes.io/part-of: cygnusx-agentteams
 spec:
   podSelector: {}
   policyTypes:

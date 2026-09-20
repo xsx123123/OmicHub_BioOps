@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from omichub.application.services.agentteams_execution_intent import (
+from cygnusx.application.services.agentteams_execution_intent import (
     GENERAL_PLAN_CONTRACT,
     ExecutionIntent,
     classify_execution_intent,
@@ -124,9 +124,13 @@ def test_classify_chat_on_veto_even_with_verb_and_refs() -> None:
     refs = [{"kind": "file", "id": "tree-1"}]
     assert classify_execution_intent("可视化能做什么？", refs) is ExecutionIntent.CHAT
     assert classify_execution_intent("什么是RNA-seq", []) is ExecutionIntent.CHAT
+    assert classify_execution_intent("rna-seq分析要如何进行呀", []) is ExecutionIntent.CHAT
 
 
 def test_classify_chat_without_verb_or_empty() -> None:
+    assert classify_execution_intent("@单细胞分析师 @可视化助手 你们两个可以搭配干活吗", []) is (
+        ExecutionIntent.CHAT
+    )
     assert classify_execution_intent("今天天气怎么样", []) is ExecutionIntent.CHAT
     assert classify_execution_intent("", [{"kind": "file", "id": "a.csv"}]) is (
         ExecutionIntent.CHAT
@@ -140,3 +144,15 @@ def test_detect_bool_adapter_only_true_for_execute() -> None:
     assert detect_execution_intent("帮我处理这份数据", refs) is True
     assert detect_execution_intent("帮我做差异分析", []) is False  # clarify
     assert detect_execution_intent("什么是RNA-seq", refs) is False  # chat（否决词）
+
+
+def test_classify_chat_on_restatement_request_with_pasted_execution_text() -> None:
+    """复述/转述类请求即使粘贴了含执行动词的历史卡片文本，也按 chat 处理。"""
+    pasted = (
+        "收到你的执行请求「帮我分析」。如需立即执行，请上传文件或填写工作区路径；"
+        "也可以先讨论分析方案。"
+    )
+    assert classify_execution_intent(f"@RNA-seq 分析师 帮我复述一下经理的回复内容 {pasted}", []) is (
+        ExecutionIntent.CHAT
+    )
+    assert classify_execution_intent("请转述一下刚才的结论", []) is ExecutionIntent.CHAT

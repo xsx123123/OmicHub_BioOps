@@ -48,6 +48,8 @@ export interface SkillMarketplaceItem {
 
 /** 阿里云官方技能源同步状态（AgentExplorer OpenAPI 或 GitHub 兼容回退） */
 export interface AliyunMarketStatus {
+  /** 总开关（ALIYUN_SKILLS_ENABLED）；false 时市场隐藏官方源分组 */
+  enabled: boolean
   available: boolean
   count: number
   repo: string

@@ -1,7 +1,7 @@
 # 分析中心 Celery + Snakemake 跨服务器部署实施方案
 
 **编写日期**：2026 年 7 月 11 日  
-**适用范围**：OmicHub Web 服务与分析计算 Worker 部署在不同服务器的场景  
+**适用范围**：CygnusX Web 服务与分析计算 Worker 部署在不同服务器的场景  
 **目标**：将耗时的 RNAFlow、ATACFlow 等 Snakemake 流程稳定地调度到计算服务器执行，同时让 Web 端持续获取任务状态、日志与流程进度。
 
 ## 一、结论：Snakemake 是否由 Celery 启动？
@@ -32,10 +32,10 @@ Snakemake CLI → RNAFlow / ATACFlow 规则与 Conda 工具环境
 
 对应实现位置：
 
-- 任务提交与 Celery 投递：`src/omichub/application/services/task_service.py`
-- Celery 任务入口：`src/omichub/infrastructure/celery_app/tasks/analysis.py`
-- Snakemake 子进程执行：`src/omichub/infrastructure/execution/local.py`
-- Celery 队列路由：`src/omichub/infrastructure/celery_app/celery.py`
+- 任务提交与 Celery 投递：`src/cygnusx/application/services/task_service.py`
+- Celery 任务入口：`src/cygnusx/infrastructure/celery_app/tasks/analysis.py`
+- Snakemake 子进程执行：`src/cygnusx/infrastructure/execution/local.py`
+- Celery 队列路由：`src/cygnusx/infrastructure/celery_app/celery.py`
 
 因此，Worker 必须部署在能访问以下资源的计算服务器上：流程代码、参考基因组、用户上传数据、任务工作目录，以及 Snakemake/Conda 与流程依赖工具。
 
@@ -47,7 +47,7 @@ Snakemake CLI → RNAFlow / ATACFlow 规则与 Conda 工具环境
 | --- | --- | --- |
 | Web/控制服务器（例如 `10.0.0.10`） | 用户访问、API、鉴权、任务创建、数据库、队列、实时推送 | Nginx、Web、PostgreSQL、Redis、Celery Beat、可选 Flower |
 | Worker/计算服务器（例如 `10.0.0.20`） | 消费分析任务并执行 Snakemake | Celery Worker、Snakemake、Conda/Mamba、RNAFlow/ATACFlow、分析软件环境 |
-| 共享存储（NFS/并行文件系统） | 上传数据、任务工作目录、结果、日志 | 两端同一路径挂载，例如 `/data/omichub` |
+| 共享存储（NFS/并行文件系统） | 上传数据、任务工作目录、结果、日志 | 两端同一路径挂载，例如 `/data/cygnusx` |
 
 ### 2.2 通信拓扑
 
@@ -76,7 +76,7 @@ Snakemake CLI → RNAFlow / ATACFlow 规则与 Conda 工具环境
 │       ├── 启动 Snakemake 子进程                                   │
 │       └── Snakemake logger 事件 → Web Monitor API                 │
 │                                                                    │
-│  /data/omichub（共享挂载）                                        │
+│  /data/cygnusx（共享挂载）                                        │
 │  /home/zj/pipeline（流程代码，只读）                              │
 │  /reference/...（参考基因组，只读）                               │
 └──────────────────────────────────────────────────────────────────┘
@@ -118,7 +118,7 @@ Web 创建任务时会写入任务目录和流程配置；Worker 执行时通过
 推荐统一为：
 
 ```text
-/data/omichub/
+/data/cygnusx/
 ├── users/<user_id>/uploads/...
 ├── users/<user_id>/results/<flow_id>/<task_id>/...
 ├── logs/celery/tasks/...
@@ -129,7 +129,7 @@ Web 创建任务时会写入任务目录和流程配置；Worker 执行时通过
 实施建议：
 
 - 优先使用 NFSv4、CephFS、Lustre 或已有并行文件系统；不要依赖两台机器各自本地磁盘的同名目录。
-- 两台机器的挂载点统一为 `/data/omichub`，并用同一运行 UID/GID 保证读写权限。
+- 两台机器的挂载点统一为 `/data/cygnusx`，并用同一运行 UID/GID 保证读写权限。
 - 工作流代码可使用 Git/镜像同步，也可只读挂载；参考基因组建议在计算节点本地高速盘或共享高性能存储，且配置路径必须与流程 YAML 匹配。
 - 不建议把大型原始 FASTQ 先复制到 Web 本地磁盘再由 Worker 访问；上传目标应直接进入共享存储或对象存储挂载。
 
@@ -139,7 +139,7 @@ Web 创建任务时会写入任务目录和流程配置；Worker 执行时通过
 
 1. Docker 与 Docker Compose v2。
 2. `/home/zj/miniconda3`，包含可运行的 Snakemake 环境。
-3. `/home/zj/.local/share/mamba`，包含 RNAFlow/ATACFlow 所需工具环境，或改为统一由 `--use-conda` 在 `/data/omichub/.conda_envs` 创建。
+3. `/home/zj/.local/share/mamba`，包含 RNAFlow/ATACFlow 所需工具环境，或改为统一由 `--use-conda` 在 `/data/cygnusx/.conda_envs` 创建。
 4. `/home/zj/pipeline`，包含 RNAFlow、ATACFlow 及其规则文件；容器按只读方式挂载。
 5. 每个流程 YAML 指向实际可访问的原始数据、工作目录、结果目录和参考基因组路径。
 
@@ -150,7 +150,7 @@ Web 创建任务时会写入任务目录和流程配置；Worker 执行时通过
 至少应保持以下配置一致：
 
 - `SECRET_KEY`、数据库连接信息与 Redis 密码。
-- `WORKFLOW_MONITOR_INGEST_TOKEN`（或 `OMICHUB_WORKFLOW_MONITOR_TOKEN`）。
+- `WORKFLOW_MONITOR_INGEST_TOKEN`（或 `CYGNUSX_WORKFLOW_MONITOR_TOKEN`）。
 - Workflow Monitor 相关开关与签名配置。
 - 数据库 schema：先在 Web 服务器运行迁移，再启动 Worker。
 - `flow` 配置、流程路径约定、共享存储根路径。
@@ -179,12 +179,12 @@ TCP 2049   NFS（若使用 NFS，按实际 NFS 配置开放）
 在两端挂载同一共享目录，并验证路径与权限：
 
 ```bash
-sudo mkdir -p /data/omichub
+sudo mkdir -p /data/cygnusx
 # 按实际 NFS 服务端、导出路径和运维规范挂载；示例：
-sudo mount -t nfs4 <nfs-server>:/omichub /data/omichub
+sudo mount -t nfs4 <nfs-server>:/cygnusx /data/cygnusx
 
 id
-touch /data/omichub/.write-test && rm /data/omichub/.write-test
+touch /data/cygnusx/.write-test && rm /data/cygnusx/.write-test
 ```
 
 容器使用 `PUID`/`PGID` 运行；两端应使用相同的数值并确保它对共享目录有读写权限。
@@ -194,13 +194,13 @@ touch /data/omichub/.write-test && rm /data/omichub/.write-test
 1. 将生产 `.env` 放在仓库根目录，设置强随机密码和令牌，至少包括：
 
 ```dotenv
-POSTGRES_USER=omichub
+POSTGRES_USER=cygnusx
 POSTGRES_PASSWORD=<strong-password>
-POSTGRES_DB=omichub
+POSTGRES_DB=cygnusx
 REDIS_PASSWORD=<strong-password>
 SECRET_KEY=<strong-random-secret>
 WORKFLOW_MONITOR_INGEST_TOKEN=<long-random-token>
-OMICHUB_WORKFLOW_MONITOR_TOKEN=<same-long-random-token>
+CYGNUSX_WORKFLOW_MONITOR_TOKEN=<same-long-random-token>
 PUID=<shared-uid>
 PGID=<shared-gid>
 ```
@@ -209,7 +209,7 @@ PGID=<shared-gid>
 3. 创建主栈所需外部 Docker 网络（单机主栈内部使用）：
 
 ```bash
-docker network create omichub_net
+docker network create cygnusx_net
 ```
 
 4. 构建并启动 Web 主栈：
@@ -225,8 +225,8 @@ docker compose \
 
 ### 步骤 4：准备 Worker/计算服务器
 
-1. 将同一版本的 OmicHub 代码及 `.env` 放到 Worker；不要让 Worker 与 Web 使用不同提交版本。
-2. 挂载共享 `/data/omichub`，并准备流程与参考资源：
+1. 将同一版本的 CygnusX 代码及 `.env` 放到 Worker；不要让 Worker 与 Web 使用不同提交版本。
+2. 挂载共享 `/data/cygnusx`，并准备流程与参考资源：
 
 ```text
 /home/zj/pipeline/RNAFlow
@@ -269,7 +269,7 @@ Worker 的启动命令必须保留 `-Q analysis`；否则任务可能被投递�
 4. 在 Worker 容器中确认：`snakemake --version`、参考目录、流程目录与共享目录可访问。
 5. 提交一个只含小型 FASTQ 的 `only_qc: true` 任务。
 6. 确认任务状态由 `QUEUED → RUNNING → SUCCESS/FAILED` 正确变化。
-7. 确认 Web 任务日志、流程监控页面、`/data/omichub/logs/snakemake/` 与结果目录均有预期输出。
+7. 确认 Web 任务日志、流程监控页面、`/data/cygnusx/logs/snakemake/` 与结果目录均有预期输出。
 8. QC 验证通过后，再进行 RNAFlow/ATACFlow 的完整 DAG 预演和生产任务。
 
 ## 六、状态、日志与监控如何跨机回传
@@ -340,11 +340,11 @@ Web 的 `/api/v1/workflow-monitor/events` 接口会校验监控令牌，并在�
 
 ## 九、上线检查清单
 
-- [ ] Web 与 Worker 的 OmicHub 镜像/代码版本一致。
+- [ ] Web 与 Worker 的 CygnusX 镜像/代码版本一致。
 - [ ] 数据库迁移已在 Web 端完成。
 - [ ] Worker 可以访问 Web 的 `5432`、`6379`、`8000/443`。
 - [ ] Redis 密码、数据库密码、`SECRET_KEY`、监控 Token 已使用生产强随机值。
-- [ ] 两端 `/data/omichub` 是同一共享存储且挂载路径一致。
+- [ ] 两端 `/data/cygnusx` 是同一共享存储且挂载路径一致。
 - [ ] Worker 可以读取流程代码、参考库、输入 FASTQ 和任务配置。
 - [ ] Worker 可以写任务结果、Celery 日志、Snakemake 日志和 Conda 缓存。
 - [ ] Worker 按 `-Q analysis` 启动并已通过 Celery ping 验证。

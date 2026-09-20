@@ -7,10 +7,11 @@
  * 展开态：完整参数 JSON + 执行结果 + 内嵌操作区（确认/跳转/任务进度）。
  */
 import { ref, computed } from 'vue'
-import { NButton, NIcon, NTag } from 'naive-ui'
+import { NButton, NIcon, NTag, useMessage } from 'naive-ui'
 import { BuildOutline, ChevronForwardOutline } from '@vicons/ionicons5'
 import TaskProgressCard from './TaskProgressCard.vue'
 import PipelineTaskCard from './PipelineTaskCard.vue'
+import { chatApi } from '@/api/chat'
 import type { ToolCall } from './types'
 import type { PipelineType } from '@/types/pipeline'
 
@@ -28,6 +29,17 @@ const emit = defineEmits<{
 }>()
 
 const collapsed = ref(true)
+const confirming = ref(false)
+const confirmed = ref(false)
+const rejected = ref(false)
+// 卡片可能在轻量测试宿主中独立挂载（无 NMessageProvider），降级为控制台告警。
+const message = (() => {
+  try {
+    return useMessage()
+  } catch {
+    return { error: (..._a: unknown[]) => undefined, success: (..._a: unknown[]) => undefined }
+  }
+})()
 
 function toggle() {
   collapsed.value = !collapsed.value
@@ -95,8 +107,54 @@ function pipelineType(tool: ToolCall): PipelineType {
   return String(tool.uiPayload?.pipeline_type) as PipelineType
 }
 
-function handleConfirmTool() {
-  emit('confirmTool', props.tool.name, { ...props.tool.arguments, _confirmed: true })
+type ConfirmCardUi = {
+  confirmation_id?: string
+  actions?: {
+    approve?: { url?: string }
+    reject?: { url?: string }
+  }
+}
+
+async function handleConfirmTool() {
+  if (confirming.value || confirmed.value) return
+  const ui = (props.tool.uiPayload || {}) as ConfirmCardUi
+  const confirmationId = String(ui.confirmation_id || '')
+  const approveUrl = ui.actions?.approve?.url || ''
+  if (!confirmationId) {
+    // 无服务端凭证的旧卡片不应再出现；兜底仅转达意图，不再自证 _confirmed。
+    emit('confirmTool', props.tool.name, { ...props.tool.arguments })
+    return
+  }
+  confirming.value = true
+  try {
+    // 人类（JWT 会话）点击才写 APPROVED；模型无法触达此端点。
+    await chatApi.approveToolConfirmation(confirmationId, approveUrl || undefined)
+    confirmed.value = true
+    emit('confirmTool', props.tool.name, {
+      ...props.tool.arguments,
+      _confirmation_id: confirmationId,
+    })
+  } catch (e) {
+    const detail = (e as { response?: { data?: { detail?: { message?: string } } } })
+      ?.response?.data?.detail
+    message.error(detail?.message || '确认失败，请重试')
+  } finally {
+    confirming.value = false
+  }
+}
+
+async function handleRejectTool() {
+  if (confirming.value) return
+  const ui = (props.tool.uiPayload || {}) as ConfirmCardUi
+  const confirmationId = String(ui.confirmation_id || '')
+  if (!confirmationId) return
+  try {
+    await chatApi.rejectToolConfirmation(confirmationId, undefined, ui.actions?.reject?.url)
+    confirmed.value = true
+    rejected.value = true
+  } catch {
+    message.error('拒绝失败，请重试')
+  }
 }
 
 function handleOpenToolPage() {
@@ -168,9 +226,25 @@ function handleOpenToolPage() {
             <pre>{{ JSON.stringify(tool.uiPayload.args, null, 2) }}</pre>
           </div>
           <div class="confirm-actions">
-            <n-button size="small" type="primary" @click="handleConfirmTool">
-              确认执行
-            </n-button>
+            <n-tag v-if="confirmed && !rejected" size="small" type="success" :bordered="false">
+              已确认，等待执行
+            </n-tag>
+            <n-tag v-else-if="rejected" size="small" type="default" :bordered="false">
+              已拒绝
+            </n-tag>
+            <template v-else>
+              <n-button
+                size="small"
+                type="primary"
+                :loading="confirming"
+                @click="handleConfirmTool"
+              >
+                确认执行
+              </n-button>
+              <n-button size="small" tertiary :disabled="confirming" @click="handleRejectTool">
+                拒绝
+              </n-button>
+            </template>
           </div>
         </div>
 
@@ -376,6 +450,13 @@ function handleOpenToolPage() {
   display: flex;
   justify-content: flex-end;
 }
+/* 深色模式：确认卡边框/标题由硬编码浅色改为状态色变量 */
+:root[data-theme="dark"] .confirm-card {
+  border-color: color-mix(in srgb, var(--chat-warning, #faad14) 40%, transparent);
+}
+:root[data-theme="dark"] .confirm-title {
+  color: var(--chat-warning, #faad14);
+}
 
 /* open_page 引导卡 */
 .open-page-card {
@@ -398,6 +479,13 @@ function handleOpenToolPage() {
 .open-page-actions {
   display: flex;
   justify-content: flex-end;
+}
+/* 深色模式：引导卡边框/标题由硬编码浅色改为 info 状态色变量 */
+:root[data-theme="dark"] .open-page-card {
+  border-color: color-mix(in srgb, var(--chat-info, #4f8ef7) 40%, transparent);
+}
+:root[data-theme="dark"] .open-page-title {
+  color: var(--chat-info, #4f8ef7);
 }
 
 @media (prefers-reduced-motion: reduce) {

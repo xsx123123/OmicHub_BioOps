@@ -10,23 +10,23 @@ from uuid import uuid4
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from omichub.application.schemas.goal import (
+from cygnusx.application.schemas.goal import (
     GoalAnswerRequest,
     GoalControlRequest,
     GoalStartRequest,
 )
-from omichub.application.schemas.tool_invocation import ToolInvocationContext
-from omichub.application.services.goal_adapters.fanout_adapter import GoalFanoutAdapter
-from omichub.application.services.goal_evaluator import GoalEvaluator
-from omichub.application.services.goal_execution_engine import (
+from cygnusx.application.schemas.tool_invocation import ToolInvocationContext
+from cygnusx.application.services.goal_adapters.fanout_adapter import GoalFanoutAdapter
+from cygnusx.application.services.goal_evaluator import GoalEvaluator
+from cygnusx.application.services.goal_execution_engine import (
     ChatServiceGoalStepExecutor,
     GoalExecutionEngine,
     GoalStepResult,
     GoalStepSnapshot,
 )
-from omichub.application.services.goal_service import GoalService
-from omichub.application.services.goal_terminal_tools import GoalTerminalToolService
-from omichub.infrastructure.database.models.goal import AgentGoalModel, AgentGoalWorkUnitModel
+from cygnusx.application.services.goal_service import GoalService
+from cygnusx.application.services.goal_terminal_tools import GoalTerminalToolService
+from cygnusx.infrastructure.database.models.goal import AgentGoalModel, AgentGoalWorkUnitModel
 
 
 def _goal() -> AgentGoalModel:
@@ -57,7 +57,7 @@ def test_goal_model_uses_optimistic_version_column() -> None:
 
 
 def test_goal_events_have_per_goal_dedupe_constraint() -> None:
-    from omichub.infrastructure.database.models.goal import AgentGoalEventModel
+    from cygnusx.infrastructure.database.models.goal import AgentGoalEventModel
 
     constraints = {
         tuple(column.name for column in constraint.columns)
@@ -87,7 +87,7 @@ async def test_goal_engine_skips_step_when_redis_lease_is_held(
 
     executor = Mock()
     monkeypatch.setattr(
-        "omichub.infrastructure.cache.goal_lease.GoalRedisLease",
+        "cygnusx.infrastructure.cache.goal_lease.GoalRedisLease",
         DeniedLease,
     )
 
@@ -100,7 +100,7 @@ async def test_goal_engine_skips_step_when_redis_lease_is_held(
 @pytest.mark.asyncio
 async def test_goal_pause_records_auditable_event(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "omichub.application.services.goal_service.get_settings",
+        "cygnusx.application.services.goal_service.get_settings",
         lambda: SimpleNamespace(goal_runtime_enabled=True),
     )
     session = Mock()
@@ -122,7 +122,7 @@ async def test_goal_pause_records_auditable_event(monkeypatch: pytest.MonkeyPatc
 @pytest.mark.asyncio
 async def test_goal_resume_only_accepts_paused_or_waiting(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "omichub.application.services.goal_service.get_settings",
+        "cygnusx.application.services.goal_service.get_settings",
         lambda: SimpleNamespace(goal_runtime_enabled=True),
     )
     session = Mock()
@@ -140,7 +140,7 @@ async def test_goal_phase_one_rejects_studio_or_non_safe_permissions(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "omichub.application.services.goal_service.get_settings",
+        "cygnusx.application.services.goal_service.get_settings",
         lambda: SimpleNamespace(goal_runtime_enabled=True),
     )
     service = GoalService(Mock())
@@ -162,7 +162,7 @@ async def test_goal_answer_requires_waiting_state_and_is_audited(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "omichub.application.services.goal_service.get_settings",
+        "cygnusx.application.services.goal_service.get_settings",
         lambda: SimpleNamespace(goal_runtime_enabled=True),
     )
     session = Mock()
@@ -189,7 +189,7 @@ async def test_goal_resume_cannot_bypass_waiting_user_state(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "omichub.application.services.goal_service.get_settings",
+        "cygnusx.application.services.goal_service.get_settings",
         lambda: SimpleNamespace(goal_runtime_enabled=True),
     )
     session = Mock()
@@ -270,7 +270,7 @@ async def test_goal_step_passes_idempotent_context_to_chat_runtime(
             yield FakeChunk()
 
     monkeypatch.setattr(
-        "omichub.application.services.chat_service.ChatService",
+        "cygnusx.application.services.chat_service.ChatService",
         FakeChatService,
     )
     snapshot = GoalStepSnapshot(
@@ -314,11 +314,11 @@ async def test_goal_step_enables_parallel_subagents_when_fanout_is_enabled(
                 yield None
 
     monkeypatch.setattr(
-        "omichub.application.services.chat_service.ChatService",
+        "cygnusx.application.services.chat_service.ChatService",
         FakeChatService,
     )
     monkeypatch.setattr(
-        "omichub.application.services.goal_execution_engine.get_settings",
+        "cygnusx.application.services.goal_execution_engine.get_settings",
         lambda: SimpleNamespace(goal_fanout_enabled=True),
     )
     snapshot = GoalStepSnapshot(
@@ -485,7 +485,7 @@ async def test_goal_step_records_usage_from_done_chunk(monkeypatch: pytest.Monke
             yield FakeChunk("done", metadata={"usage": {"total_tokens": 18}})
 
     monkeypatch.setattr(
-        "omichub.application.services.chat_service.ChatService",
+        "cygnusx.application.services.chat_service.ChatService",
         FakeChatService,
     )
     snapshot = GoalStepSnapshot(
@@ -522,7 +522,7 @@ async def test_goal_step_stops_for_ask_user(monkeypatch: pytest.MonkeyPatch) -> 
             yield FakeChunk()
 
     monkeypatch.setattr(
-        "omichub.application.services.chat_service.ChatService",
+        "cygnusx.application.services.chat_service.ChatService",
         FakeChatService,
     )
     snapshot = GoalStepSnapshot(

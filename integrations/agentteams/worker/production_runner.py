@@ -173,6 +173,13 @@ def _execution_modes_for(payload: dict[str, Any], identity: str) -> tuple[str, .
     return tuple(str(mode) for mode in modes)
 
 
+def _question_objective(assignment: dict[str, Any]) -> str:
+    work_item = assignment.get("work_item")
+    if not isinstance(work_item, dict):
+        return ""
+    return str(work_item.get("objective") or "")
+
+
 def _question(assignment: dict[str, Any]) -> str:
     work_item = assignment.get("work_item")
     if not isinstance(work_item, dict):
@@ -186,6 +193,31 @@ def _question(assignment: dict[str, Any]) -> str:
         else "请仅基于以下受控任务给出简洁、可核验的只读专业建议；不要执行任务、修改文件、提交工作流或承诺后续操作。\n"
     )
     return prefix + f"任务：{objective}\n逻辑上下文引用：{json.dumps(refs, ensure_ascii=False)}"
+
+
+def _source_refs(assignment: dict[str, Any]) -> list[dict[str, str]]:
+    """产物血缘（F1）：workspace_execution 声明的上游产物引用（输入产物 id 列表）。
+
+    来源是 Work Item 的 declared_inputs / context_refs 中可定位的输入
+    （location 优先，回退 id）；无声明输入时返回空列表（显式的"无上游"，
+    与"未声明"（None）区分开——后者在平台登记侧会缺失血缘边）。
+    """
+    work_item = assignment.get("work_item")
+    if not isinstance(work_item, dict):
+        return []
+    refs: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for key in ("declared_inputs", "context_refs"):
+        collection = work_item.get(key)
+        for ref in collection if isinstance(collection, list) else []:
+            if not isinstance(ref, dict):
+                continue
+            value = str(ref.get("location") or ref.get("id") or "").strip()
+            if not value or value in seen:
+                continue
+            seen.add(value)
+            refs.append({"artifact_id": value, "relation": "input_to"})
+    return refs
 
 
 def _evidence_refs(assignment: dict[str, Any]) -> list[str]:
@@ -267,6 +299,7 @@ def run_once(config: ProductionWorkerConfig) -> dict[str, Any]:
         summary="Production read-only worker started Gateway consultation.",
         trace_id=trace_id,
     )
+    is_workspace = execution_mode == "workspace_execution"
     result = execute_readonly_work_item(
         config.bridge_url,
         config.identity,
@@ -279,6 +312,10 @@ def run_once(config: ProductionWorkerConfig) -> dict[str, Any]:
         requested_tools=_EVIDENCE_TOOLS,
         execution_mode=execution_mode,
         trace_id=trace_id,
+        source_refs=_source_refs(assignment) if is_workspace else None,
+        execution_summary=(
+            f"workspace_execution: {_question_objective(assignment)[:1_800]}" if is_workspace else None
+        ),
     )
     work_item = result.get("work_item_id") or assignment["work_item"]["work_item_id"]
     return {

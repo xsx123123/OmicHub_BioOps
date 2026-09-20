@@ -2,9 +2,9 @@
 """Read-only acceptance checks for a separately deployed AgentTeams control plane.
 
 This verifier intentionally consumes only the Kubernetes API exposed by ``kubectl``. It does
-not assume a particular AgentTeams / HiClaw CRD schema, create resources, or read OmicHub data.
+not assume a particular AgentTeams / HiClaw CRD schema, create resources, or read CygnusX data.
 It verifies the deployment invariants that are stable across controller releases: an independent
-namespace, isolated network policy, non-privileged Pods, and no forbidden host or OmicHub mounts.
+namespace, isolated network policy, non-privileged Pods, and no forbidden host or CygnusX mounts.
 """
 
 from __future__ import annotations
@@ -18,8 +18,8 @@ from dataclasses import dataclass
 from pathlib import PurePosixPath
 from typing import Any
 
-FORBIDDEN_HOST_PATHS = ("/var/run/docker.sock", "/data/omichub", "/var/lib/omic")
-FORBIDDEN_MOUNT_TOKENS = ("docker.sock", "omichub", "postgres", "redis", "workflow")
+FORBIDDEN_HOST_PATHS = ("/var/run/docker.sock", "/data/cygnusx", "/var/lib/omic")
+FORBIDDEN_MOUNT_TOKENS = ("docker.sock", "cygnusx", "postgres", "redis", "workflow")
 
 
 @dataclass(frozen=True)

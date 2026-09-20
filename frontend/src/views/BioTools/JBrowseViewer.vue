@@ -279,14 +279,14 @@ let centeringTimer: ReturnType<typeof setTimeout> | null = null
 
 function applyWelcomeCentering(doc: Document) {
   // 按文案识别欢迎屏 Container，避免误伤会话视图；id 标记做幂等快路径
-  const marked = doc.getElementById('omichub-welcome-center')
+  const marked = doc.getElementById('cygnusx-welcome-center')
   if (marked) return
   const container = Array.from(doc.querySelectorAll<HTMLElement>('.MuiContainer-root'))
     .find((el) => el.textContent?.includes('Start a new session'))
   if (!container) return
   const parent = container.parentElement
   if (!parent) return
-  container.id = 'omichub-welcome-center'
+  container.id = 'cygnusx-welcome-center'
   // 祖先链逐层补 100% 高度（已有内联高度的节点不动），让 flex 居中生效
   let node: HTMLElement | null = parent
   while (node) {

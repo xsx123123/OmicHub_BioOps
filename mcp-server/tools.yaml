@@ -1,9 +1,12 @@
-# OmicHub MCP Server 工具注册表
+# CygnusX MCP Server 工具注册表
 # 新增工具组时在此声明元数据，然后在 tools/ 下创建对应模块
 #
 # 约定:
 #   - 每个工具组对应 tools/<group>.py，导出 register(mcp, api) 函数
-#   - 工具名统一前缀 omichub_<group>_<action>
+#   - 工具名统一前缀 cygnusx_<group>_<action>
+#   - 例外：与平台内部 preset（src/cygnusx/infrastructure/mcp/）对齐的工具
+#     （list_workspace_files / search_workspace_files / rna_seq_* / atac_seq_* 等）
+#     沿用内部命名，保证内外双端同能力同名
 #   - 破坏性操作必须有 user_confirmed 确认门
 #   - 返回值统一: {success, summary, data, next_steps?}
 
@@ -12,23 +15,23 @@ groups:
     module: tools.tasks
     description: "任务管理 — 查看、监控、取消分析任务"
     tools:
-      - name: omichub_list_tasks
+      - name: cygnusx_list_tasks
         description: "列出用户的分析任务"
         read_only: true
-      - name: omichub_get_task
+      - name: cygnusx_get_task
         description: "获取任务详情"
         read_only: true
-      - name: omichub_get_task_progress
+      - name: cygnusx_get_task_progress
         description: "获取任务进度（轮询用）"
         read_only: true
-      - name: omichub_get_task_logs
+      - name: cygnusx_get_task_logs
         description: "获取任务执行日志"
         read_only: true
-      - name: omichub_cancel_task
+      - name: cygnusx_cancel_task
         description: "取消任务"
         read_only: false
         requires_confirm: true
-      - name: omichub_get_task_dag
+      - name: cygnusx_get_task_dag
         description: "获取 DAG 工作流图"
         read_only: true
 
@@ -36,13 +39,13 @@ groups:
     module: tools.flows
     description: "流程目录 — 浏览可用分析流程和参数"
     tools:
-      - name: omichub_list_flows
+      - name: cygnusx_list_flows
         description: "列出可用分析流程"
         read_only: true
-      - name: omichub_get_flow_detail
+      - name: cygnusx_get_flow_detail
         description: "获取流程详情和参数"
         read_only: true
-      - name: omichub_get_flow_parameters
+      - name: cygnusx_get_flow_parameters
         description: "获取参数 JSON Schema"
         read_only: true
 
@@ -50,11 +53,11 @@ groups:
     module: tools.analysis
     description: "分析提交 — 配置并提交分析任务"
     tools:
-      - name: omichub_submit_analysis
+      - name: cygnusx_submit_analysis
         description: "提交分析任务"
         read_only: false
         requires_confirm: true
-      - name: omichub_preview_analysis
+      - name: cygnusx_preview_analysis
         description: "验证参数（dry-run）"
         read_only: true
 
@@ -62,14 +65,14 @@ groups:
     module: tools.downloads
     description: "数据下载 — 公共数据库(SRA/GEO, PRJ/SRR/GSM 登录号, aws/aspera/ftp 高速下载)、多云存储(aliyun/volc/huawei)、HTTP 直链下载到用户 raw_data"
     tools:
-      - name: omichub_submit_download
+      - name: cygnusx_submit_download
         description: "提交下载任务(SRA/GEO 公共数据库、云存储、直链三类来源)"
         read_only: false
         requires_confirm: true
-      - name: omichub_list_downloads
+      - name: cygnusx_list_downloads
         description: "列出下载任务"
         read_only: true
-      - name: omichub_get_download_progress
+      - name: cygnusx_get_download_progress
         description: "获取逐 run 分阶段下载进度"
         read_only: true
 
@@ -83,19 +86,19 @@ groups:
       - name: search_workspace_files
         description: "递归搜索当前用户工作区文件"
         read_only: true
-      - name: omichub_list_files
+      - name: cygnusx_list_files
         description: "列出用户文件"
         read_only: true
-      - name: omichub_get_file_tree
+      - name: cygnusx_get_file_tree
         description: "获取文件树"
         read_only: true
-      - name: omichub_list_directories
+      - name: cygnusx_list_directories
         description: "列出目录"
         read_only: true
-      - name: omichub_get_task_outputs
+      - name: cygnusx_get_task_outputs
         description: "获取任务输出文件"
         read_only: true
-      - name: omichub_read_file_content
+      - name: cygnusx_read_file_content
         description: "读取文本文件内容"
         read_only: true
 
@@ -103,13 +106,13 @@ groups:
     module: tools.reports
     description: "报告 — 查看分析报告"
     tools:
-      - name: omichub_list_reports
+      - name: cygnusx_list_reports
         description: "列出报告"
         read_only: true
-      - name: omichub_get_report
+      - name: cygnusx_get_report
         description: "获取报告详情"
         read_only: true
-      - name: omichub_get_report_content
+      - name: cygnusx_get_report_content
         description: "获取报告内容"
         read_only: true
 
@@ -117,16 +120,16 @@ groups:
     module: tools.sandbox
     description: "沙箱执行 — 在 mambaforge 环境中运行代码"
     tools:
-      - name: omichub_sandbox_create
+      - name: cygnusx_sandbox_create
         description: "创建/复用沙箱会话"
         read_only: false
-      - name: omichub_sandbox_execute
+      - name: cygnusx_sandbox_execute
         description: "执行代码"
         read_only: false
-      - name: omichub_sandbox_list
+      - name: cygnusx_sandbox_list
         description: "列出会话"
         read_only: true
-      - name: omichub_sandbox_destroy
+      - name: cygnusx_sandbox_destroy
         description: "销毁会话"
         read_only: false
 
@@ -134,9 +137,135 @@ groups:
     module: tools.platform
     description: "平台信息 — 用户和平台状态"
     tools:
-      - name: omichub_get_user_info
+      - name: cygnusx_get_user_info
         description: "获取用户信息和配额"
         read_only: true
-      - name: omichub_get_platform_status
+      - name: cygnusx_get_platform_status
         description: "获取平台状态概览"
+        read_only: true
+
+  - id: pipelines
+    module: tools.pipelines
+    description: "完整分析流水线 — RNA-seq/ATAC-seq 专用预检/提交/状态/结果入口（与内部 preset 同名对齐）"
+    tools:
+      - name: rna_seq_prepare
+        description: "校验 RNA-seq 参数和工作区数据，返回可提交的 prepared_params"
+        read_only: true
+      - name: rna_seq_submit
+        description: "提交经过 rna_seq_prepare 预检的 RNA-seq 任务（需 user_confirmed=True）"
+        read_only: false
+        requires_confirm: true
+      - name: rna_seq_status
+        description: "查询 RNA-seq 任务状态和进度"
+        read_only: true
+      - name: rna_seq_results
+        description: "获取 RNA-seq 结果摘要、差异基因统计和产物清单"
+        read_only: true
+      - name: atac_seq_prepare
+        description: "校验 ATAC-seq 参数和工作区数据，返回可提交的 prepared_params"
+        read_only: true
+      - name: atac_seq_submit
+        description: "提交经过 atac_seq_prepare 预检的 ATAC-seq 任务（需 user_confirmed=True）"
+        read_only: false
+        requires_confirm: true
+      - name: atac_seq_status
+        description: "查询 ATAC-seq 任务状态和进度"
+        read_only: true
+      - name: atac_seq_results
+        description: "获取 ATAC-seq 结果摘要和产物清单"
+        read_only: true
+      - name: list_available_pipelines
+        description: "列出当前平台可通过 MCP 调用的完整分析流程"
+        read_only: true
+      - name: check_workspace_data
+        description: "检查当前 API Key 所属用户工作区内的数据完整性"
+        read_only: true
+
+  - id: seqout
+    module: tools.seqout
+    description: "公共数据库检索 — 完整覆盖 seqout.org API（搜索/项目/样本/统计/下载等）"
+    tools:
+      # Search Tools
+      - name: seqout_search
+        description: "在 GEO/SRA/ENA/GSA 中搜索组学项目"
+        read_only: true
+      - name: seqout_search_geo
+        description: "仅搜索 GEO 数据库"
+        read_only: true
+      - name: seqout_search_sra
+        description: "仅搜索 SRA 数据库"
+        read_only: true
+      - name: seqout_search_structured
+        description: "使用元数据过滤器结构化搜索"
+        read_only: true
+      # Project Tools
+      - name: seqout_get_project_detail
+        description: "获取项目详情（实验设计、平台、文献）"
+        read_only: true
+      - name: seqout_get_project_metadata
+        description: "获取项目标题和描述"
+        read_only: true
+      - name: seqout_get_project_citation
+        description: "获取项目引用文献 (BibTeX)"
+        read_only: true
+      - name: seqout_get_project_enriched
+        description: "获取 AI 增强的样本元数据"
+        read_only: true
+      # Experiment & Sample Tools
+      - name: seqout_get_experiments
+        description: "列出研究中的所有实验"
+        read_only: true
+      - name: seqout_get_runs
+        description: "列出 FASTQ 下载链接"
+        read_only: true
+      - name: seqout_get_run_download
+        description: "获取单个运行的下载链接"
+        read_only: true
+      - name: seqout_get_sample_metadata
+        description: "获取样本元数据"
+        read_only: true
+      - name: seqout_get_sample_detail
+        description: "获取完整的样本详细信息"
+        read_only: true
+      - name: seqout_get_sample_manifest
+        description: "获取数据集的样本清单"
+        read_only: true
+      # Resolution Tools
+      - name: seqout_resolve_accession
+        description: "反查样本归属的项目编号"
+        read_only: true
+      - name: seqout_resolve_prj
+        description: "将 BioProject 解析到研究级别"
+        read_only: true
+      # Ontology & Statistics Tools
+      - name: seqout_get_ontology_term
+        description: "查询本体论术语信息"
+        read_only: true
+      - name: seqout_get_organisms
+        description: "列出所有支持的物种"
+        read_only: true
+      - name: seqout_get_common_name
+        description: "获取物种的常用名称"
+        read_only: true
+      - name: seqout_beacon_info
+        description: "获取 Beacon 元数据"
+        read_only: true
+      - name: seqout_beacon_runs
+        description: "浏览测序运行记录"
+        read_only: true
+      - name: seqout_get_stats_growth
+        description: "获取数据库增长统计"
+        read_only: true
+      - name: seqout_get_organism_totals
+        description: "获取每个物种的实验总数"
+        read_only: true
+      - name: seqout_get_platform_totals
+        description: "获取平台实验总数或过滤选项"
+        read_only: true
+      # Download Tools
+      - name: seqout_get_download_links
+        description: "获取 TSV 格式的下载链接"
+        read_only: true
+      - name: seqout_get_metadata_csv
+        description: "下载合并的元数据 CSV"
         read_only: true

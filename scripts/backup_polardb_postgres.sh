@@ -13,11 +13,11 @@ require_command pg_dump
 require_command pg_restore
 
 : "${DATABASE_URL:?Set DATABASE_URL}"
-BACKUP_DIR="${BACKUP_DIR:-/data/omichub/backups/postgres}"
+BACKUP_DIR="${BACKUP_DIR:-/data/cygnusx/backups/postgres}"
 mkdir -p "$BACKUP_DIR"
 PSQL_URL="${DATABASE_URL/postgresql+asyncpg/postgresql}"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
-TARGET="$BACKUP_DIR/omichub-${STAMP}.dump"
+TARGET="$BACKUP_DIR/cygnusx-${STAMP}.dump"
 pg_dump --format=custom --no-owner --no-privileges --file "$TARGET" "$PSQL_URL"
 pg_restore --list "$TARGET" >/dev/null
 printf 'Created %s\n' "$TARGET"

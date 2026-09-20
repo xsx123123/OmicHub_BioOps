@@ -9,10 +9,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from omichub.api.v1.admin import users as admin_users
-from omichub.application.schemas.user import UserModulesUpdateRequest
-from omichub.core.exceptions import AuthorizationError, BusinessError, NotFoundError
-from omichub.infrastructure.config.module_registry import ModuleEntry, ModuleRegistry
+from cygnusx.api.v1.admin import users as admin_users
+from cygnusx.application.schemas.user import UserModulesUpdateRequest
+from cygnusx.core.exceptions import AuthorizationError, BusinessError, NotFoundError
+from cygnusx.infrastructure.config.module_registry import ModuleEntry, ModuleRegistry
 
 
 def _registry() -> ModuleRegistry:
@@ -54,7 +54,7 @@ class _FakeDB:
 @pytest.fixture(autouse=True)
 def fake_registry(monkeypatch: pytest.MonkeyPatch):
     # 端点内局部 import get_module_registry，patch 源模块即可生效
-    import omichub.infrastructure.config.module_registry as registry_mod
+    import cygnusx.infrastructure.config.module_registry as registry_mod
 
     monkeypatch.setattr(registry_mod, "get_module_registry", _registry)
 

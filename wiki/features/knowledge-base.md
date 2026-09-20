@@ -1,6 +1,6 @@
 # 实验室知识库
 
-OmicHub 知识库以 Markdown 作为可审阅的源内容，以数据库中的文档版本、分块和检索索引作为运行时
+CygnusX 知识库以 Markdown 作为可审阅的源内容，以数据库中的文档版本、分块和检索索引作为运行时
 权威副本。修改仓库中的 Markdown 后，必须执行同步，网页端和 AI 检索才会看到更新。
 
 ## 内容来源
@@ -27,7 +27,7 @@ make knowledge-reindex
 也可以在容器内直接执行：
 
 ```bash
-docker exec omichub-web python scripts/sync_knowledge_from_files.py \
+docker exec cygnusx-web python scripts/sync_knowledge_from_files.py \
   --meta-yaml docs/knowledge/meta.yaml \
   --auto-admin
 ```

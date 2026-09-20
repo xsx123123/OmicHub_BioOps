@@ -7,11 +7,11 @@ from typing import Any
 
 import httpx
 import pytest
-from omichub_agentteams_bridge.app import create_app
-from omichub_agentteams_bridge.audit import AuditStore
-from omichub_agentteams_bridge.config import BridgeSettings
-from omichub_agentteams_bridge.room_mirror import AuditRoomMirror
-from test_bridge_contract import FixtureOmicHubClient, create_case, headers
+from cygnusx_agentteams_bridge.app import create_app
+from cygnusx_agentteams_bridge.audit import AuditStore
+from cygnusx_agentteams_bridge.config import BridgeSettings
+from cygnusx_agentteams_bridge.room_mirror import AuditRoomMirror
+from test_bridge_contract import FixtureCygnusXClient, create_case, headers
 
 
 class FakeGatewayClient:
@@ -32,7 +32,7 @@ class FakeGatewayClient:
         sender_identity: str,
         content: str,
         sender: dict[str, Any],
-        source: str = "omichub",
+        source: str = "cygnusx",
     ) -> dict[str, Any]:
         if self.fail:
             raise RuntimeError("gateway down")
@@ -81,7 +81,7 @@ async def test_mirror_binds_room_and_mirrors_user_message() -> None:
     assert len(gateway.sent) == 1
     mirrored = gateway.sent[0]
     assert mirrored["room_id"] == "!room:test"
-    assert mirrored["sender_identity"] == "omichub-user-user-1"
+    assert mirrored["sender_identity"] == "cygnusx-user-user-1"
     assert mirrored["content"] == "你好"
     assert mirrored["sender"] == {"kind": "user", "name": "user-1"}
 
@@ -204,8 +204,8 @@ async def test_audit_store_invokes_append_hook(tmp_path) -> None:
 @pytest.fixture
 def settings(tmp_path):
     return BridgeSettings(
-        omichub_base_url="http://omic.test",
-        omichub_service_token="service-token",
+        cygnusx_base_url="http://omic.test",
+        cygnusx_service_token="service-token",
         approval_signing_secret="test-signing-secret",
         identities=(
             "approval-authority:approval,bioops-manager:manager,data-steward:steward,"
@@ -233,7 +233,7 @@ class MirrorASGIClient:
         if loop not in self._clients:
             bridge = create_app(
                 self._settings,
-                FixtureOmicHubClient(self._settings, self._calls),
+                FixtureCygnusXClient(self._settings, self._calls),
                 gateway_client=self._gateway,
             )
             self._clients[loop] = httpx.AsyncClient(
@@ -327,7 +327,7 @@ async def test_case_events_mirrored_into_bound_room(mirror_client, mirror_gatewa
 
     assert len(mirror_gateway.sent) == 1
     mirrored = mirror_gateway.sent[0]
-    assert mirrored["sender_identity"] == "omichub-user-user-1"
+    assert mirrored["sender_identity"] == "cygnusx-user-user-1"
     assert mirrored["content"] == "请解释一下质控结果"
 
 
@@ -368,9 +368,9 @@ async def test_mirror_failure_does_not_break_evidence_recording(settings, tmp_pa
 
 
 def test_matrix_identity_for_requester_mapping() -> None:
-    from omichub_agentteams_bridge.room_mirror import matrix_identity_for_requester
+    from cygnusx_agentteams_bridge.room_mirror import matrix_identity_for_requester
 
-    assert matrix_identity_for_requester("user-1") == "omichub-user-user-1"
-    assert matrix_identity_for_requester(" 张三@EXAMPLE.com ") == "omichub-user-example.com"
-    assert matrix_identity_for_requester("") == "omichub-user"
-    assert matrix_identity_for_requester("用户") == "omichub-user"
+    assert matrix_identity_for_requester("user-1") == "cygnusx-user-user-1"
+    assert matrix_identity_for_requester(" 张三@EXAMPLE.com ") == "cygnusx-user-example.com"
+    assert matrix_identity_for_requester("") == "cygnusx-user"
+    assert matrix_identity_for_requester("用户") == "cygnusx-user"

@@ -2,7 +2,7 @@
 
 import pytest
 
-from omichub.application.services.studio_micro_compaction import compact_tool_history
+from cygnusx.application.services.studio_micro_compaction import compact_tool_history
 
 
 @pytest.mark.unit

@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from omichub.api.v1 import studio as studio_api
+from cygnusx.api.v1 import studio as studio_api
 
 
 @pytest.fixture(autouse=True)
@@ -30,7 +30,11 @@ async def test_schedule_prewarm_starts_dedicated_session_container(monkeypatch):
     await asyncio.gather(*list(studio_api._prewarm_tasks))
 
     ensure_running.assert_awaited_once_with(
-        "sess-1", image="sandbox:bio", user_id="user-1"
+        "sess-1",
+        image="sandbox:bio",
+        user_id="user-1",
+        agent_id=None,
+        capabilities_requested=None,
     )
 
 
@@ -48,3 +52,13 @@ async def test_schedule_prewarm_respects_disabled_config(monkeypatch):
 
     assert studio_api._prewarm_tasks == set()
     ensure_running.assert_not_awaited()
+
+
+def test_session_sandbox_capabilities_defaults_legacy_sessions_to_code():
+    session = SimpleNamespace(sandbox_meta=None)
+    assert studio_api._session_sandbox_capabilities(session) == ["code"]
+
+
+def test_session_sandbox_capabilities_reads_runtime_capability_metadata():
+    session = SimpleNamespace(sandbox_meta={"sandbox_capabilities": ["browser", "code"]})
+    assert studio_api._session_sandbox_capabilities(session) == ["browser", "code"]

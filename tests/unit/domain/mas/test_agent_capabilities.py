@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from omichub.infrastructure.mas.agent_capabilities import load_agent_capabilities
+from cygnusx.infrastructure.mas.agent_capabilities import load_agent_capabilities
 
 
 def test_loads_server_owned_agent_capabilities(tmp_path: Path) -> None:

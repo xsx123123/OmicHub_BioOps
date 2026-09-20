@@ -6,10 +6,12 @@
 import { NIcon, NProgress } from 'naive-ui'
 import { ExpandOutline } from '@vicons/ionicons5'
 import { useUploadStore } from '@/stores/upload'
+import { useAiAssistantSidebarStore } from '@/stores/aiAssistantSidebar'
 import { storeToRefs } from 'pinia'
 
 const uploadStore = useUploadStore()
 const { activeCount, overallProgress } = storeToRefs(uploadStore)
+const aiSidebarStore = useAiAssistantSidebarStore()
 
 function expand() {
   uploadStore.minimized = false
@@ -18,7 +20,12 @@ function expand() {
 </script>
 
 <template>
-  <div v-if="uploadStore.minimized && uploadStore.hasActive" class="floating-ball" @click="expand">
+  <!-- AI 助手侧边栏展开时隐藏：悬浮球（z-index 2000）会盖住侧边栏底部的输入框与发送按钮 -->
+  <div
+    v-if="uploadStore.minimized && uploadStore.hasActive && !aiSidebarStore.open"
+    class="floating-ball"
+    @click="expand"
+  >
     <NProgress
       type="circle"
       :percentage="overallProgress"

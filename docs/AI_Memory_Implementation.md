@@ -1,4 +1,4 @@
-# OmicHub AI 记忆机制
+# CygnusX AI 记忆机制
 
 ## 范围
 
@@ -27,7 +27,7 @@
 ## 工作区记忆
 
 Studio 在每轮提示词中注入 `MEMORY.md` 索引，正文存放在 `.memory/` 并仅通过
-`workspace_read` 按需读取。`omichub_workspace_remember` 同时写正文和索引，失败时
+`workspace_read` 按需读取。`cygnusx_workspace_remember` 同时写正文和索引，失败时
 恢复两者。索引上限为 200 条和 8,000 字符。
 
 ## 治理

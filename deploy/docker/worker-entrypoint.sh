@@ -31,13 +31,13 @@ prepare_directory() {
 }
 
 for directory in \
-  /data/omichub/.cache \
-  /data/omichub/.conda_envs \
-  /data/omichub/.mamba \
-  /data/omichub/logs/app \
-  /data/omichub/logs/celery/tasks \
-  /data/omichub/logs/snakemake \
-  /tmp/omichub-home
+  /data/cygnusx/.cache \
+  /data/cygnusx/.conda_envs \
+  /data/cygnusx/.mamba \
+  /data/cygnusx/logs/app \
+  /data/cygnusx/logs/celery/tasks \
+  /data/cygnusx/logs/snakemake \
+  /tmp/cygnusx-home
 do
   prepare_directory "$directory"
 done
@@ -45,24 +45,24 @@ done
 if [ "$(id -u)" -eq 0 ]; then
   run_as_worker sh -c '
     for directory do
-      probe="$directory/.omichub-write-test-$$"
+      probe="$directory/.cygnusx-write-test-$$"
       touch "$probe"
       rm -f "$probe"
     done
   ' sh \
-    /data/omichub/.cache \
-    /data/omichub/.conda_envs \
-    /data/omichub/.mamba \
-    /data/omichub/logs/app \
-    /data/omichub/logs/celery/tasks \
-    /data/omichub/logs/snakemake \
-    /tmp/omichub-home
+    /data/cygnusx/.cache \
+    /data/cygnusx/.conda_envs \
+    /data/cygnusx/.mamba \
+    /data/cygnusx/logs/app \
+    /data/cygnusx/logs/celery/tasks \
+    /data/cygnusx/logs/snakemake \
+    /tmp/cygnusx-home
   if [ -n "$DOCKER_SOCKET_GID" ]; then
     exec setpriv --reuid "$PUID" --regid "$PGID" --groups "$DOCKER_SOCKET_GID" -- \
-      env HOME="$HOME" LOGNAME=omichub USER=omichub "$@"
+      env HOME="$HOME" LOGNAME=cygnusx USER=cygnusx "$@"
   fi
   exec setpriv --reuid "$PUID" --regid "$PGID" --clear-groups -- \
-    env HOME="$HOME" LOGNAME=omichub USER=omichub "$@"
+    env HOME="$HOME" LOGNAME=cygnusx USER=cygnusx "$@"
 fi
 
 exec "$@"

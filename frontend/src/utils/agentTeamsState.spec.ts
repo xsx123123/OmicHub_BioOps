@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { AgentTeamsEvent } from '@/api/agentTeams'
-import { mergeAgentTeamsEvents, shouldPollAgentTeamsCase } from './agentTeamsState'
+import {
+  formatAgentTeamsArtifactSize,
+  mergeAgentTeamsEvents,
+  qcVerdictLabel,
+  qcVerdictTagType,
+  shouldPollAgentTeamsCase,
+} from './agentTeamsState'
 
 const event = (eventId: string): AgentTeamsEvent => ({
   event_id: eventId,
@@ -27,5 +33,26 @@ describe('agentTeamsState', () => {
   it('polls only while the browser page is visible', () => {
     expect(shouldPollAgentTeamsCase('visible')).toBe(true)
     expect(shouldPollAgentTeamsCase('hidden')).toBe(false)
+  })
+
+  it('maps qc verdicts to tag types with a default fallback', () => {
+    expect(qcVerdictTagType('pass')).toBe('success')
+    expect(qcVerdictTagType('warn')).toBe('warning')
+    expect(qcVerdictTagType('fail')).toBe('error')
+    expect(qcVerdictTagType('inconclusive')).toBe('default')
+  })
+
+  it('labels qc verdicts in Chinese and keeps unknown values as-is', () => {
+    expect(qcVerdictLabel('pass')).toBe('通过')
+    expect(qcVerdictLabel('fail')).toBe('失败')
+    expect(qcVerdictLabel('custom-verdict')).toBe('custom-verdict')
+  })
+
+  it('formats artifact sizes and tolerates invalid input', () => {
+    expect(formatAgentTeamsArtifactSize(0)).toBe('0 B')
+    expect(formatAgentTeamsArtifactSize(512)).toBe('512 B')
+    expect(formatAgentTeamsArtifactSize(2048)).toBe('2.0 KB')
+    expect(formatAgentTeamsArtifactSize(5 * 1024 * 1024)).toBe('5.0 MB')
+    expect(formatAgentTeamsArtifactSize(Number.NaN)).toBe('—')
   })
 })

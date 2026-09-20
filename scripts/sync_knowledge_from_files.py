@@ -14,7 +14,7 @@
         --admin-user-id 00000000-0000-0000-0000-000000000001
 
 Docker 部署环境：
-    docker exec omichub-web python scripts/sync_knowledge_from_files.py \
+    docker exec cygnusx-web python scripts/sync_knowledge_from_files.py \
         --meta-yaml docs/knowledge/meta.yaml \
         --auto-admin
 """
@@ -31,12 +31,12 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from omichub.application.services.knowledge_index_service import KnowledgeIndexService
-from omichub.infrastructure.database.models.knowledge_document import KbDocumentModel
-from omichub.infrastructure.database.models.knowledge_editor import DocEditorModel
-from omichub.infrastructure.database.models.knowledge_revision import DocRevisionModel
-from omichub.infrastructure.database.models.user import UserModel
-from omichub.infrastructure.database.session import get_engine, get_session_factory
+from cygnusx.application.services.knowledge_index_service import KnowledgeIndexService
+from cygnusx.infrastructure.database.models.knowledge_document import KbDocumentModel
+from cygnusx.infrastructure.database.models.knowledge_editor import DocEditorModel
+from cygnusx.infrastructure.database.models.knowledge_revision import DocRevisionModel
+from cygnusx.infrastructure.database.models.user import UserModel
+from cygnusx.infrastructure.database.session import get_engine, get_session_factory
 from rich.console import Console
 from rich.table import Table
 from rich.theme import Theme
@@ -140,22 +140,24 @@ async def resolve_admin_user_id(
 
 async def sync(
     meta_yaml_path: Path,
-    admin_user_id: uuid.UUID | None,
+    actor_user_id: uuid.UUID | None,
     session: AsyncSession,
     auto_admin: bool = False,
+    *,
+    index_documents: bool = True,
 ) -> tuple[int, int, int]:
     """执行同步，返回 (更新的文档数, 新建的文档数, 跳过的文档数)。"""
     section_dir = meta_yaml_path.parent
 
-    admin_user_id = await resolve_admin_user_id(session, admin_user_id, auto_admin)
+    actor_user_id = await resolve_admin_user_id(session, actor_user_id, auto_admin)
 
     user_result = await session.execute(
-        select(UserModel.username, UserModel.nickname).where(UserModel.id == admin_user_id)
+        select(UserModel.username, UserModel.nickname).where(UserModel.id == actor_user_id)
     )
     user_row = user_result.one_or_none()
     if user_row is None:
-        raise ValueError(f"admin_user_id {admin_user_id} 不存在")
-    admin_name = user_row.nickname or user_row.username
+        raise ValueError(f"actor_user_id {actor_user_id} 不存在")
+    actor_name = user_row.nickname or user_row.username
 
     with open(meta_yaml_path, encoding="utf-8") as f:
         meta = yaml.safe_load(f) or {}
@@ -198,7 +200,8 @@ async def sync(
                 category=category,
                 file_path=str(file_path),
                 status=1,
-                created_by=admin_user_id,
+                created_by=actor_user_id,
+                kb_id="lab",
             )
             session.add(document)
             await session.flush()
@@ -207,19 +210,20 @@ async def sync(
                 document_id=document.id,
                 content=content,
                 edit_summary="从文件系统同步导入",
-                edited_by=admin_user_id,
+                edited_by=actor_user_id,
                 status=1,
             )
             session.add(revision)
             await session.flush()
 
             document.current_rev = revision.id
-            await indexer.index_document(document, content, include_unreferenced_assets=True)
+            if index_documents:
+                await indexer.index_document(document, content, include_unreferenced_assets=True)
 
             editor = DocEditorModel(
                 document_id=document.id,
-                user_id=admin_user_id,
-                user_name=admin_name,
+                user_id=actor_user_id,
+                user_name=actor_name,
                 edit_count=1,
             )
             session.add(editor)
@@ -230,6 +234,7 @@ async def sync(
             # 同步 title / category
             document.title = title
             document.category = category
+            document.kb_id = "lab"
 
             # 只有当内容发生变化时才创建新版本
             current_revision = await session.get(DocRevisionModel, document.current_rev)
@@ -245,7 +250,7 @@ async def sync(
                 document_id=document.id,
                 content=content,
                 edit_summary="从文件系统同步更新",
-                edited_by=admin_user_id,
+                edited_by=actor_user_id,
                 status=1,
             )
             session.add(revision)
@@ -253,27 +258,28 @@ async def sync(
 
             document.current_rev = revision.id
             document.status = 1
-            await indexer.index_document(document, content, include_unreferenced_assets=True)
+            if index_documents:
+                await indexer.index_document(document, content, include_unreferenced_assets=True)
 
             # 更新编辑者统计
             editor_result = await session.execute(
                 select(DocEditorModel).where(
                     DocEditorModel.document_id == document.id,
-                    DocEditorModel.user_id == admin_user_id,
+                    DocEditorModel.user_id == actor_user_id,
                 )
             )
             editor = editor_result.scalar_one_or_none()
             if editor is None:
                 editor = DocEditorModel(
                     document_id=document.id,
-                    user_id=admin_user_id,
-                    user_name=admin_name,
+                    user_id=actor_user_id,
+                    user_name=actor_name,
                     edit_count=1,
                 )
                 session.add(editor)
             else:
                 editor.edit_count += 1
-                editor.user_name = admin_name
+                editor.user_name = actor_name
 
             updated += 1
             results.append(("[success]更新[/success]", doc_id, title))

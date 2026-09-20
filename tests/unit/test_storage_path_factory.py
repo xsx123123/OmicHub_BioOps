@@ -5,10 +5,10 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from omichub.infrastructure.config.storage_config import StorageConfig
-from omichub.infrastructure.storage.path_factory import StoragePathFactory, project_slug
-from omichub.tools.fastq_qc.schema import CreateQCTaskRequest
-from omichub.tools.phylogenetic_tree.schema import PhyloSubmitRequest
+from cygnusx.infrastructure.config.storage_config import StorageConfig
+from cygnusx.infrastructure.storage.path_factory import StoragePathFactory, project_slug
+from cygnusx.tools.fastq_qc.schema import CreateQCTaskRequest
+from cygnusx.tools.phylogenetic_tree.schema import PhyloSubmitRequest
 
 
 @pytest.mark.unit

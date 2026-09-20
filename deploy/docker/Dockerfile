@@ -1,5 +1,5 @@
 # ============================================
-# OmicHub 后端 Dockerfile
+# CygnusX 后端 Dockerfile
 # 多阶段构建：uv 安装依赖 + slim 运行
 # ============================================
 
@@ -86,9 +86,11 @@ RUN if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
 # validate_stdio_command 走 shutil.which，容器内必须有 node 运行时（python:3.11-slim 默认不带）。
 # bookworm apt 源（已切中科大镜像）提供 nodejs 18 / npm 9，满足绝大多数 MCP server。
 # tesseract：知识库图片索引使用中英文 OCR；缺失时只能索引文件名、说明和尺寸。
+# git：Studio 工作区检查点（studio_checkpoints）依赖 git CLI；缺失时创建/升级工作台会话会 500。
 RUN apt-get update && apt-get install -y --no-install-recommends \
     bzip2 \
     curl \
+    git \
     nodejs \
     npm \
     postgresql-client \
@@ -130,10 +132,10 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV APP_ENV=production
 
 # 部署版本可观测：构建时经 --build-arg 注入，/health 的 git_sha/build_time 由此取值。
-ARG OMICHUB_BUILD_SHA=unknown
-ARG OMICHUB_BUILD_TIME=unknown
-ENV APP_GIT_SHA=${OMICHUB_BUILD_SHA} \
-    APP_BUILD_TIME=${OMICHUB_BUILD_TIME}
+ARG CYGNUSX_BUILD_SHA=unknown
+ARG CYGNUSX_BUILD_TIME=unknown
+ENV APP_GIT_SHA=${CYGNUSX_BUILD_SHA} \
+    APP_BUILD_TIME=${CYGNUSX_BUILD_TIME}
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
@@ -142,4 +144,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 EXPOSE 8000
 
 # 默认启动命令（可被 docker-compose 覆盖）
-CMD ["uvicorn", "omichub.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "cygnusx.main:app", "--host", "0.0.0.0", "--port", "8000"]

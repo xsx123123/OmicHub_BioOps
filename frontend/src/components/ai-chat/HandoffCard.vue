@@ -45,6 +45,8 @@ function list(key: string): string[] {
 
 <style scoped>
 .handoff-card { margin: 10px 0; padding: 8px 10px; border: 1px solid var(--border-color, #e5e7eb); border-radius: 8px; background: var(--card-color, #f8fafc); color: var(--text-color-2, #64748b); font-size: 12px; }
+/* 深色模式：--card-color/--text-color-2 未定义时的浅色兜底会突兀，改用聊天主题变量 */
+:root[data-theme="dark"] .handoff-card { border-color: var(--chat-border, #333333); background: var(--chat-surface, #1a1a1a); color: var(--chat-text-secondary, #888888); }
 .handoff-card summary { display: flex; align-items: center; gap: 6px; cursor: pointer; list-style: none; }
 .handoff-card summary::-webkit-details-marker { display: none; }
 .handoff-icon { font-size: 14px; }

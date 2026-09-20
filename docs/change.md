@@ -23,18 +23,18 @@
 
 ### 参考数据库离线构建工具
 
-- 新增 `scripts/pyproject.toml`，支持通过 `pip install -e ./scripts` 单独安装 `omichubtools`。
-- 新增 `omichubtools` CLI，当前包含：
-  - `omichubtools version`
-  - `omichubtools refdb build`
-  - `omichubtools build-reference-database` 兼容别名
+- 新增 `scripts/pyproject.toml`，支持通过 `pip install -e ./scripts` 单独安装 `cygnusxtools`。
+- 新增 `cygnusxtools` CLI，当前包含：
+  - `cygnusxtools version`
+  - `cygnusxtools refdb build`
+  - `cygnusxtools build-reference-database` 兼容别名
 - 复用 gpse 工具模块的设计思路，加入 logo、日志、版本和配置加载工具。
 - 清理 `scripts/` 中不再需要的旧脚本，仅保留 Makefile 或部署仍引用的脚本。
 - 使用 `rich-argparse` 美化 CLI help 输出，并保留缺依赖时的标准库 formatter 回退。
 
 ### FA/GFF/GO/KO/KEGG 离线构建能力
 
-- `omichubtools refdb build` 支持从 FA、GFF、GO、KO、KEGG 原始文件生成：
+- `cygnusxtools refdb build` 支持从 FA、GFF、GO、KO、KEGG 原始文件生成：
   - `database.sqlite`
   - FASTA `.fai`
   - `database_manifest.json`
@@ -61,13 +61,13 @@
 - JBrowse 运行只强依赖 `fasta + fai`，GFF 需要作为 preset track 配置后才能显示。
 - 当前 `/database` 页面仍读取前端 mock 数据，尚未接入真实后端数据库 API。
 - 当前后端没有 `/api/database/*`，也没有服务消费 `database.sqlite`。
-- 已明确后续方向：用 `omichubtools` 生成每个物种/版本的 SQLite，再新增后端数据库 API 和前端联通。
+- 已明确后续方向：用 `cygnusxtools` 生成每个物种/版本的 SQLite，再新增后端数据库 API 和前端联通。
 
 ## 已验证
 
-- `uv run ruff check scripts/omichubtools`
-- `python -m compileall scripts/omichubtools`
-- `PYTHONPATH=scripts python -m omichubtools --no-logo refdb build --help`
+- `uv run ruff check scripts/cygnusxtools`
+- `python -m compileall scripts/cygnusxtools`
+- `PYTHONPATH=scripts python -m cygnusxtools --no-logo refdb build --help`
 - `python -m pip install -e ./scripts --dry-run`
 - 使用临时 FA/GFF/GO/GO-terms/KO/KEGG 样例构建 SQLite，验证：
   - GO term 补全正常
@@ -134,7 +134,7 @@
 ### 实验室知识库快速入门文档重写
 
 - 重写 `docs/knowledge/getting-started.md`，将 Carl Sagan 的引言置于文首。
-- 补充 OmicHub 平台理念：让数据回归科学、过程可复现、知识沉淀与共享。
+- 补充 CygnusX 平台理念：让数据回归科学、过程可复现、知识沉淀与共享。
 - 详细说明 10 个核心模块的平台理念与使用方法：
   数据管理、分析流程中心、任务中心、AI 聊天助手、实验室知识库、
   云端沙盒终端、饼干积分、富集分析与可视化、JBrowse 2、MCP 工具扩展。
@@ -307,10 +307,10 @@
 
 ### 平台统一胶囊分段切换器
 
-- 新增全局 `.omichub-segmented-toggle` 样式，统一 Token K/M、柱状/面积等同层级二选一偏好控件。
+- 新增全局 `.cygnusx-segmented-toggle` 样式，统一 Token K/M、柱状/面积等同层级二选一偏好控件。
 - 统一使用语义边框、浅色轨道、品牌主色选中态和 `--text-on-primary` 前景色，避免页面局部样式重复和漂移。
 - 将仪表板 OmicStudio 用量卡片和饼干账户 Token K/M 控件迁移到共享样式，并补充 `aria-pressed` 状态。
-- 在 `ARCHITECTURE_DESIN/fontend.md` 中记录适用边界、视觉参数、无障碍要求、响应式规则及趋势图实现约定，作为 OmicHub 平台统一规范。
+- 在 `ARCHITECTURE_DESIN/fontend.md` 中记录适用边界、视觉参数、无障碍要求、响应式规则及趋势图实现约定，作为 CygnusX 平台统一规范。
 
 ## 已验证
 
@@ -332,7 +332,7 @@
 
 ### mem0 记忆引擎替换（核心变更，已灰度上线）
 
-- 新增 `src/omichub/infrastructure/memory/mem0_engine.py`：mem0 v2.0.15 引擎封装（进程级单例），
+- 新增 `src/cygnusx/infrastructure/memory/mem0_engine.py`：mem0 v2.0.15 引擎封装（进程级单例），
   pgvector 独立 collection `mem0_memories`，不触碰旧 `agent_memories` 表。
 - `AgentMemoryService` 八个 public 方法按 `mem0_engine_enabled` 分流，**对外契约零改动**
   （4 个 LLM 工具、用户/管理员 API、前端、prompt 注入格式全部保留）；开关关闭即回滚旧链路。
@@ -351,10 +351,10 @@
 
 ### 结构性小修
 
-- 子 Agent 工具剥离名单补齐 `omichub_update_memory`、`omichub_forget_memory`
-  （原先子任务可改写/删除主用户记忆；`omichub_search_memory` 只读予以保留）。
+- 子 Agent 工具剥离名单补齐 `cygnusx_update_memory`、`cygnusx_forget_memory`
+  （原先子任务可改写/删除主用户记忆；`cygnusx_search_memory` 只读予以保留）。
 - 记忆注入失败日志 warning→error（主路径 + handoff 路径），不再静默无感。
-- `omichub_search_memory` 工具 limit 上限 5→10（底层本就支持）。
+- `cygnusx_search_memory` 工具 limit 上限 5→10（底层本就支持）。
 - 管理员删除用户时，mem0 引擎开启则同步清理 mem0 存储中的该用户记忆。
 
 ### Embedding 方案落地（fastembed 进程内 ONNX）
@@ -362,7 +362,7 @@
 - 云端 embedding 探针全部出局（阿里云 token-plan 无 embedding 模型、火山 coding key 401）；
   ollama 容器镜像（~4GB）所有 registry 拉取卡死，改走 fastembed。
 - 选用 `intfloat/multilingual-e5-large`（1024 维、多语含中文、MIT），
-  模型缓存落 `/data/omichub/mem0-cache`（web/worker 共享卷，已预置），
+  模型缓存落 `/data/cygnusx/mem0-cache`（web/worker 共享卷，已预置），
   下载源 `HF_ENDPOINT=https://hf-mirror.com`。
 - 按实测分数分布定阈值：检索下限 0.87、查重阈值 0.95
   （e5 无前缀实测：无关≈0.80、跨话题≈0.85、同领域相关≥0.90、同义≥0.96）。
@@ -375,7 +375,7 @@
 - pyproject 新增依赖：`mem0ai==2.0.15`、`psycopg[binary,pool]>=3.1`（worker 镜像缺 libpq，
   binary wheel 自带）、`ollama>=0.6.2`、`fastembed>=0.8.0`，镜像重建后依赖固化。
 - compose 预留备用 `ollama-embed` 服务（profile `embed-ollama` 隔离，不影响全栈启动），
-  模型卷 `omichub_embed` 已预置 bge-m3。
+  模型卷 `cygnusx_embed` 已预置 bge-m3。
 
 ### 记忆引擎管理开关、用户可见性与加密落盘（同日二期）
 
@@ -391,7 +391,7 @@
   - 新增 scope 筛选（全部/用户画像/偏好/项目/对话沉淀）；
   - 记忆行展示归属 Agent 友好名（10 个平台 Agent 映射）、来源会话标记（悬停显示会话 ID）、
     更新时间；空态与提示文案改为说明"记忆来自与 AI 助手的对话，自动沉淀"。
-- **记忆加密落盘**（`/data/omichub/omichub_data/_mem0/`）：
+- **记忆加密落盘**（`/data/cygnusx/cygnusx_data/_mem0/`）：
   - 向量库边界 Fernet 加密：mem0 payload.data 落库即密文，读取解密；mem0 内部
     抽取/去重/实体合并仍见明文（补丁对 insert/search/update/get/list 全覆盖，
     含 pgvector list 的嵌套返回结构与 ndarray→list 适配）。
@@ -441,7 +441,7 @@
 
 ### 文档
 
-- 新增 `docs/26.8.4/OmicHub_mem0记忆引擎替换实施方案.md`：架构与设计决策（D1-D8）、
+- 新增 `docs/26.8.4/CygnusX_mem0记忆引擎替换实施方案.md`：架构与设计决策（D1-D8）、
   PoC 验收记录、对外契约附录、分阶段施工计划、灰度部署记录与三大隐形坑、回滚方案。
 
 ## 已验证
@@ -451,10 +451,10 @@
   L1+L2 注入、update/forget/clear）。
 - 生产容器金丝雀：web 端 7/7 通过；worker 端 settle 对真实会话（18 条消息）抽出 4 条
   高质量 summary 记忆，scope/agent 归属正确，验证数据已清理。
-- 引擎初始化、`mem0_memories` 建表、HNSW 检索在 omichub-db 实测正常。
+- 引擎初始化、`mem0_memories` 建表、HNSW 检索在 cygnusx-db 实测正常。
 - 二期验证：加密落盘 SQL 直查为 Fernet 密文（`gAAAAA…`）且明文零泄露；应用侧读回明文正常；
   管理端开关 6 项联动全过（ON 保存/密文/读回，OFF 后 search/list/注入为空、写入被拒、恢复）；
-  `master.key`（0600）与 `history/history.db` 确认落盘 `/data/omichub/omichub_data/_mem0/`；
+  `master.key`（0600）与 `history/history.db` 确认落盘 `/data/cygnusx/cygnusx_data/_mem0/`；
   alembic 迁移 `k5l6m7n8o9p0` 应用成功；前端 `npm run type-check` / `npm run build` 通过。
 
 ## 当前边界

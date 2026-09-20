@@ -20,10 +20,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 REQUIRED_TASKS = {
-    "omichub.infrastructure.celery_app.tasks.overdrive.advance_run",
-    "omichub.infrastructure.celery_app.tasks.overdrive.replan_run",
-    "omichub.infrastructure.celery_app.tasks.overdrive.run_assistant_job",
-    "omichub.infrastructure.celery_app.tasks.overdrive.run_manager_review_job",
+    "cygnusx.infrastructure.celery_app.tasks.overdrive.advance_run",
+    "cygnusx.infrastructure.celery_app.tasks.overdrive.replan_run",
+    "cygnusx.infrastructure.celery_app.tasks.overdrive.run_assistant_job",
+    "cygnusx.infrastructure.celery_app.tasks.overdrive.run_manager_review_job",
 }
 REQUIRED_QC_EVENTS = {"assistant_result_ready", "manager_review_ready"}
 
@@ -159,9 +159,9 @@ def db_query_command(root: Path, sql: str) -> list[str]:
         "db",
         "psql",
         "-U",
-        os.environ.get("POSTGRES_USER", "omichub"),
+        os.environ.get("POSTGRES_USER", "cygnusx"),
         "-d",
-        os.environ.get("POSTGRES_DB", "omichub"),
+        os.environ.get("POSTGRES_DB", "cygnusx"),
         "-v",
         "ON_ERROR_STOP=1",
         "-t",
@@ -184,9 +184,9 @@ def required_infrastructure_checks(runner: AcceptanceRunner) -> None:
             "db",
             "pg_isready",
             "-U",
-            os.environ.get("POSTGRES_USER", "omichub"),
+            os.environ.get("POSTGRES_USER", "cygnusx"),
             "-d",
-            os.environ.get("POSTGRES_DB", "omichub"),
+            os.environ.get("POSTGRES_DB", "cygnusx"),
         ],
     )
     redis_output = runner.run(
@@ -204,7 +204,7 @@ def required_infrastructure_checks(runner: AcceptanceRunner) -> None:
             "worker",
             "celery",
             "-A",
-            "omichub.infrastructure.celery_app.celery",
+            "cygnusx.infrastructure.celery_app.celery",
             "inspect",
             "ping",
         ],
@@ -220,7 +220,7 @@ def required_infrastructure_checks(runner: AcceptanceRunner) -> None:
             "worker",
             "celery",
             "-A",
-            "omichub.infrastructure.celery_app.celery",
+            "cygnusx.infrastructure.celery_app.celery",
             "inspect",
             "registered",
         ],

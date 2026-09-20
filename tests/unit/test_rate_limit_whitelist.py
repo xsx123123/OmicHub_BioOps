@@ -4,8 +4,8 @@ import pytest
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse
 
-from omichub.core.config import Settings
-from omichub.middleware.rate_limit import (
+from cygnusx.core.config import Settings
+from cygnusx.middleware.rate_limit import (
     RateLimitMiddleware,
     _is_trusted_ip,
     _parse_trusted_networks,
@@ -49,7 +49,7 @@ def test_custom_trusted_networks_are_loaded_from_environment(monkeypatch) -> Non
 @pytest.mark.asyncio
 async def test_trusted_ip_bypasses_redis_rate_limit(monkeypatch) -> None:
     redis = AsyncMock()
-    monkeypatch.setattr("omichub.infrastructure.cache.redis_client.get_redis", lambda: redis)
+    monkeypatch.setattr("cygnusx.infrastructure.cache.redis_client.get_redis", lambda: redis)
     call_next = AsyncMock(return_value=PlainTextResponse("ok"))
     middleware = RateLimitMiddleware(
         lambda scope, receive, send: None,

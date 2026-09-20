@@ -2,7 +2,7 @@
 
 > 本文件是 `kegg-enrichment` 工具的目录级架构说明。它落实
 > `tool_configs/tools_design.md` 的工具配置外置要求，并与
-> `ARCHITECTURE_DESIN/fontend.md` 的工作台页面、主题和状态反馈规范保持一致。
+> `ARCHITECTURE_DESIN/frontend.md` 的工作台页面、主题和状态反馈规范保持一致。
 >
 > 路由 key 保持 `kegg-enrichment` 以兼容既有链接；产品名称统一为 **GO / KEGG 富集分析**。
 
@@ -13,12 +13,12 @@
 | 工具 key | `kegg-enrichment` | `tool_configs/tools_setting.yaml` |
 | 路由 | `/tools/kegg-enrichment` | `frontend/src/router/index.ts` |
 | 页面 | `KeggEnrichmentView.vue` | `frontend/src/views/BioTools/` |
-| 后端前缀 | `/api/v1/enrichment` | `src/omichub/tools/enrichments/api.py` |
+| 后端前缀 | `/api/v1/enrichment` | `src/cygnusx/tools/enrichments/api.py` |
 | 运行配置目录 | `tool_configs/enrichments` | `tools_setting.yaml#config_dir` |
 
 `tools_setting.yaml` 只保存工具箱卡片元数据；物种、参考库和富集阈值在本目录的
 `species_config.yaml` 中维护。容器镜像、网络、资源限制和路径挂载是环境差异，统一由
-`src/omichub/core/config.py` 的 `ENRICHMENT_*` 设置控制，不写入浏览器可见配置。
+`src/cygnusx/core/config.py` 的 `ENRICHMENT_*` 设置控制，不写入浏览器可见配置。
 
 ## 2. 目录职责
 
@@ -61,7 +61,7 @@ deploy/docker/
 
 以下配置必须通过环境变量或核心 Settings 设置，而非 YAML：
 
-- `ENRICHMENT_DOCKER_IMAGE`：默认 `omichub-r-enrichment:v1`；
+- `ENRICHMENT_DOCKER_IMAGE`：默认 `cygnusx-r-enrichment:v1`；
 - `ENRICHMENT_DOCKER_NETWORK`：R 容器加入的 Docker 网络；
 - `ENRICHMENT_PROXY_URL`：可选 KEGG REST 出站代理；
 - `ENRICHMENT_DATA_MOUNT`：基因列表、结果和参考数据的共享挂载根；
@@ -101,7 +101,7 @@ Source, ID, Description, GeneRatio, BgRatio, pvalue, p.adjust, qvalue, geneID, C
 
 ## 5. 前端工作台契约
 
-页面遵循 `tools_design.md` §6 与 `fontend.md` 的标准工作台模式：
+页面遵循 `tools_design.md` §6 与 `frontend.md` 的标准工作台模式：
 
 - 根容器单层 `16px` 留白，参数区与结果区使用 `320px 1fr` 的紧凑双栏；
 - 使用共享 `PageHeader`，页面级操作仅放在其 `#actions` 插槽；
@@ -115,7 +115,7 @@ Source, ID, Description, GeneRatio, BgRatio, pvalue, p.adjust, qvalue, geneID, C
 
 ### Worker 容器边界
 
-Web 不安装 Docker CLI，也不在请求协程中启动 R 容器。独立 `omichub-worker` 订阅 `analysis`
+Web 不安装 Docker CLI，也不在请求协程中启动 R 容器。独立 `cygnusx-worker` 订阅 `analysis`
 队列，具备 Docker CLI 和 Docker socket 访问权，用于编排短生命周期的 R 分析容器。这样 HTTP
 提交快速返回，长时间 R 计算、超时和失败都由 Celery 任务状态表达，前端仅轮询并渲染完成结果。
 

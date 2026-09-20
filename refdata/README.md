@@ -1,4 +1,4 @@
-# OmicHub 参考基因组模块 · 后端搭建指南
+# CygnusX 参考基因组模块 · 后端搭建指南
 
 > 本文档指导后端搭建「参考基因组」模块，对接已搭好的前端（`/reference-genomes`，当前用 mock 数据）。
 > 配置文件：[`reference_genomes.yaml`](./reference_genomes.yaml)
@@ -24,10 +24,10 @@
 
 ## 二、架构设计
 
-对齐现有 `src/omichub/tools/` 模块分层（参考 `jbrowse/`、`enrichments/`）：
+对齐现有 `src/cygnusx/tools/` 模块分层（参考 `jbrowse/`、`enrichments/`）：
 
 ```
-src/omichub/reference_genomes/
+src/cygnusx/reference_genomes/
 ├── __init__.py
 ├── api.py          # FastAPI 路由（APIRouter）
 ├── service.py      # 业务逻辑（基因组查询、基因搜索、ID 映射）
@@ -52,9 +52,9 @@ refdata/
 
 ### 注册到主路由
 
-`src/omichub/api/v1/router.py` 追加：
+`src/cygnusx/api/v1/router.py` 追加：
 ```python
-from omichub.reference_genomes.api import router as reference_genomes_router
+from cygnusx.reference_genomes.api import router as reference_genomes_router
 api_router.include_router(reference_genomes_router, prefix="/reference-genomes", tags=["参考基因组"])
 ```
 
@@ -291,7 +291,7 @@ class GenomeSummary(BaseModel):
 ### 6.1 构建脚本
 
 ```python
-# src/omichub/reference_genomes/indexer.py
+# src/cygnusx/reference_genomes/indexer.py
 import sqlite3
 import re
 from pathlib import Path
@@ -352,8 +352,8 @@ def build_gene_index(gff3_path: str, db_path: str):
 
 ```bash
 # 在容器内或本地（需能访问 GFF3 文件）
-python -m omichub.reference_genomes.indexer build --genome lettuce-v11
-python -m omichub.reference_genomes.indexer build --genome lettuce-v8
+python -m cygnusx.reference_genomes.indexer build --genome lettuce-v11
+python -m cygnusx.reference_genomes.indexer build --genome lettuce-v8
 ```
 
 构建命令读取 `reference_genomes.yaml`，按 `files.gff3` 解析，写入 `gene_index`。
@@ -371,7 +371,7 @@ python -m omichub.reference_genomes.indexer build --genome lettuce-v8
 
 ### 7.1 目录结构
 ```
-/data/omichub/reference/
+/data/cygnusx/reference/
 ├── lettuce-v11/
 │   ├── genome.fa              # FASTA
 │   ├── genome.fa.fai          # samtools faidx 生成
@@ -390,13 +390,13 @@ python -m omichub.reference_genomes.indexer build --genome lettuce-v8
 ### 7.2 索引文件生成
 ```bash
 # FASTA 索引
-samtools faidx /data/omichub/reference/lettuce-v11/genome.fa
+samtools faidx /data/cygnusx/reference/lettuce-v11/genome.fa
 
 # STAR 索引（分析流程用，参考基因组模块仅展示）
 STAR --runMode genomeGenerate \
-     --genomeDir /data/omichub/reference/lettuce-v11/STAR \
-     --genomeFastaFiles /data/omichub/reference/lettuce-v11/genome.fa \
-     --sjdbGTFfile /data/omichub/reference/lettuce-v11/genes.gtf \
+     --genomeDir /data/cygnusx/reference/lettuce-v11/STAR \
+     --genomeFastaFiles /data/cygnusx/reference/lettuce-v11/genome.fa \
+     --sjdbGTFfile /data/cygnusx/reference/lettuce-v11/genes.gtf \
      --runThreadN 16
 ```
 
@@ -416,21 +416,21 @@ def human_size(nbytes):
 ## 八、部署
 
 ### 8.1 Docker 挂载
-`deploy/docker/docker-compose.yml` 的 `omichub-web` 服务追加：
+`deploy/docker/docker-compose.yml` 的 `cygnusx-web` 服务追加：
 ```yaml
 volumes:
-  - /data/omichub:/data/omichub:ro          # 参考基因组文件（只读）
+  - /data/cygnusx:/data/cygnusx:ro          # 参考基因组文件（只读）
   - ../../refdata/reference_genomes.yaml:/app/refdata/reference_genomes.yaml:ro
 ```
 
 ### 8.2 配置路径
-`src/omichub/core/config.py` 的 Settings 追加：
+`src/cygnusx/core/config.py` 的 Settings 追加：
 ```python
 reference_genomes_yaml: str = "/app/refdata/reference_genomes.yaml"
 ```
 
 ### 8.3 容器内依赖
-`omichub-web` 镜像需装 `sqlite3`（Python 自带 `sqlite3` 模块，无需额外装）。GFF3 解析纯 Python，无额外依赖。
+`cygnusx-web` 镜像需装 `sqlite3`（Python 自带 `sqlite3` 模块，无需额外装）。GFF3 解析纯 Python，无额外依赖。
 
 ---
 
@@ -477,13 +477,13 @@ export async function mapIds(genomeId: string, targetId: string, ids: string[]) 
 `frontend/src/types/referenceGenomes.ts`：从 `mock/referenceGenomes.ts` 的 interface 提取，与后端 schema 字段对齐（camelCase）。
 
 ### 9.3 缓存注意
-参考 memory `cached-json-validates-after-cache`：后端若用 `cached_json` 装饰器，确保 dict 字段名与 schema 一致，改完 bump `cache.key_version` 并 `docker restart omichub-web`。
+参考 memory `cached-json-validates-after-cache`：后端若用 `cached_json` 装饰器，确保 dict 字段名与 schema 一致，改完 bump `cache.key_version` 并 `docker restart cygnusx-web`。
 
 ---
 
 ## 十、配置加载器实现要点（config.py）
 
-参考 `src/omichub/tools/registry/config.py` 与 `jbrowse/config.py`：
+参考 `src/cygnusx/tools/registry/config.py` 与 `jbrowse/config.py`：
 
 ```python
 class ReferenceGenomesConfigManager:
@@ -523,18 +523,18 @@ config_manager = ReferenceGenomesConfigManager()
 
 按顺序完成：
 
-- [ ] 1. 创建 `src/omichub/reference_genomes/` 模块目录（`__init__.py`、`api.py`、`service.py`、`schema.py`、`config.py`、`indexer.py`）
+- [ ] 1. 创建 `src/cygnusx/reference_genomes/` 模块目录（`__init__.py`、`api.py`、`service.py`、`schema.py`、`config.py`、`indexer.py`）
 - [ ] 2. `schema.py`：定义 `GenomeSummary` / `GenomeDetail` / `Gene` / `Chromosome` / `GeneTypeStat` / `GenomeFile` / `MapResult`，字段用 alias 对齐前端 camelCase
 - [ ] 3. `config.py`：实现 `ReferenceGenomesConfigManager`（mtime 热重载 + 缺失回退），配置 Pydantic 模型（`GenomeConfig` / `ReferenceGenomesConfig`）
 - [ ] 4. `core/config.py` Settings 加 `reference_genomes_yaml` 路径
-- [ ] 5. `indexer.py`：GFF3 → SQLite FTS5 构建脚本，支持 `python -m omichub.reference_genomes.indexer build --genome <id>`
+- [ ] 5. `indexer.py`：GFF3 → SQLite FTS5 构建脚本，支持 `python -m cygnusx.reference_genomes.indexer build --genome <id>`
 - [ ] 6. `service.py`：实现 `list_genomes` / `get_genome` / `search_genes` / `get_gene` / `list_files` / `map_ids`，基因搜索走 SQLite FTS5
 - [ ] 7. `api.py`：定义 APIRouter，实现 §四 全部端点，`Depends(get_current_user)` 鉴权
 - [ ] 8. `api/v1/router.py` 注册路由
-- [ ] 9. 准备 `/data/omichub/reference/lettuce-v11/` 与 `lettuce-v8/` 数据（FASTA / GFF3 / GTF / 索引）
-- [ ] 10. 执行索引构建：`python -m omichub.reference_genomes.indexer build --genome lettuce-v11`
-- [ ] 11. docker-compose 挂载 `/data/omichub` 与 `refdata/reference_genomes.yaml`
-- [ ] 12. `docker restart omichub-web`
+- [ ] 9. 准备 `/data/cygnusx/reference/lettuce-v11/` 与 `lettuce-v8/` 数据（FASTA / GFF3 / GTF / 索引）
+- [ ] 10. 执行索引构建：`python -m cygnusx.reference_genomes.indexer build --genome lettuce-v11`
+- [ ] 11. docker-compose 挂载 `/data/cygnusx` 与 `refdata/reference_genomes.yaml`
+- [ ] 12. `docker restart cygnusx-web`
 - [ ] 13. 验证：`curl -H "Authorization: Bearer <token>" http://localhost:8888/api/v1/reference-genomes/` 返回 2 个基因组
 - [ ] 14. 前端：新建 `api/referenceGenomes.ts`，视图替换 mock 为 API 调用
 - [ ] 15. 端到端验证：列表页 → 详情页 → 基因搜索 → 抽屉 → 版本映射
@@ -566,4 +566,4 @@ config_manager = ReferenceGenomesConfigManager()
 
 *配置文件：[`reference_genomes.yaml`](./reference_genomes.yaml)*
 *前端 mock：`frontend/src/mock/referenceGenomes.ts`*
-*参考实现：`src/omichub/tools/jbrowse/`、`src/omichub/tools/enrichments/`*
+*参考实现：`src/cygnusx/tools/jbrowse/`、`src/cygnusx/tools/enrichments/`*

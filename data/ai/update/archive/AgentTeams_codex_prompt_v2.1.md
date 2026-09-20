@@ -8,7 +8,7 @@
 
 ## 角色与上下文
 
-你是 OmicHub 仓库的高级全栈工程师。OmicHub 是生信分析平台（FastAPI + Celery + Vue3），仓库内嵌 AgentTeams 协同栈（`integrations/agentteams/`：Bridge / Gateway / Worker 三个 Python 子项目 + `deploy/agentteams/` 部署目录）。
+你是 CygnusX 仓库的高级全栈工程师。CygnusX 是生信分析平台（FastAPI + Celery + Vue3），仓库内嵌 AgentTeams 协同栈（`integrations/agentteams/`：Bridge / Gateway / Worker 三个 Python 子项目 + `deploy/agentteams/` 部署目录）。
 
 当前编排骨架（状态机/租约/审批/审计/投影）已验收（v1 基线），但存在三个核心缺口：
 1. 会诊专家没有读取真实数据的工具（R2）；
@@ -40,11 +40,11 @@ v2.1 规格 §1 P0-1 已标记完成。Codex 无需重做，但需确认：
 
 #### P0-2 任务看门狗（R1）
 
-1. Bridge `integrations/agentteams/bridge/omichub_agentteams_bridge/service.py`：
+1. Bridge `integrations/agentteams/bridge/cygnusx_agentteams_bridge/service.py`：
    - `reconcile_case` 增加 `omic_task_ids` 关联任务 queued 超时臂（默认 900s）；
    - 审计事件 `omic_task.stalled`，复核后仍 queued 则转 `execution_failed`；
    - 任务 failed 时把 `error_message` 尾部 500 字符写入审计 `omic_task.failed.payload.error_excerpt`。
-2. OmicHub `src/omichub/infrastructure/celery_app/tasks/`：新增 `requeue_stale_tasks` beat 任务（300s）。
+2. CygnusX `src/cygnusx/infrastructure/celery_app/tasks/`：新增 `requeue_stale_tasks` beat 任务（300s）。
 3. 存量 `f85c814d…` 手动标记 failed（交付报告中记录）。
 
 #### P0-3 会诊长"手" + 硬规则门（R2）
@@ -56,10 +56,10 @@ v2.1 规格 §1 P0-1 已标记完成。Codex 无需重做，但需确认：
    - `task_compare_metrics`
    - `rule_threshold_lookup`
 2. 实现对应 service/shim（复用 `pipeline_result_service` / `file_records`）。
-3. 新增 `src/omichub/application/services/agentteams_quality_gate_service.py`：
+3. 新增 `src/cygnusx/application/services/agentteams_quality_gate_service.py`：
    - 硬规则：mapping_rate / q30 / duplicate_rate；
    - 输出审计事件 `quality.hard_gate`。
-4. `src/omichub/application/services/agent_consultation_service.py`：
+4. `src/cygnusx/application/services/agent_consultation_service.py`：
    - prompt 升级：要求引用 task:/file: 必须先调用工具；
    - `evidence_refs` 升级为"已核验引用"。
 5. `data/ai/qc.yaml`：提示词要求三态结论引用 metrics 字段名与数值。
@@ -76,18 +76,18 @@ v2.1 规格 §1 P0-1 已标记完成。Codex 无需重做，但需确认：
 1. `case_room_projector.py`：增加 `omic_task.failed` / `case.execution_failed` 发言模板（含 `error_excerpt` + 建议）。
 2. Bridge `service.py`：新增 `retry_case_submission`，幂等键升版；暴露 `POST /v1/cases/{id}/retry`。
 3. `agentteams_case_watch_service.py`：连续 3 次拉取失败时投影同步异常提示。
-4. OmicHub `src/omichub/api/v1/agentteams.py` 加 retry 代理端点。
+4. CygnusX `src/cygnusx/api/v1/agentteams.py` 加 retry 代理端点。
 
 #### P0-G 通用化基础：动态流程/角色/Agent 发现（R6）
 
 **这是整个 v2.1 的底座，必须稳扎稳打。**
 
-1. 新建 `src/omichub/application/services/agentteams_capability_registry.py`：
+1. 新建 `src/cygnusx/application/services/agentteams_capability_registry.py`：
    - 读取 `FlowRegistry` + `agent_ability.yaml` + active Agent YAML；
    - 接口：`allowed_flow_ids()`、`role_agent_map()`、`consultation_agents()`、`worker_profile(identity)`、`agent_for_flow(flow_id)`。
 2. Bridge `config.py`：
    - 删除硬编码 `ROLE_AGENT_MAP`；
-   - `allowed_flow_ids` 从 OmicHub 拉取（启动时缓存，支持热重载）；
+   - `allowed_flow_ids` 从 CygnusX 拉取（启动时缓存，支持热重载）；
    - `role_agent_mapping()` 调用 Registry。
 3. `worker/production_runner.py`：`_AGENT_PROFILES` 运行时从 Registry 加载。
 4. `agent_consultation_service.py`：删除 `ALLOWED_CONSULTATION_AGENTS`，校验 active Agent 的 `internal_case_role`。
@@ -113,7 +113,7 @@ v2.1 规格 §1 P0-1 已标记完成。Codex 无需重做，但需确认：
 
 ### 阶段 P2（P0+P1 验收通过后才开始）
 
-1. **P2-1 Bridge → OmicHub 事件推送**：SSE 长连 + 断线游标重放。
+1. **P2-1 Bridge → CygnusX 事件推送**：SSE 长连 + 断线游标重放。
 2. **P2-2 approval_pending 超时提醒**：24h 提醒，7 天自动取消。
 3. **P2-3 acceptance 残留治理**：reconcile 增加 `received` 态推进臂。
 4. **P2-4 plan diff / partial replay**。
@@ -131,8 +131,8 @@ v2.1 规格 §1 P0-1 已标记完成。Codex 无需重做，但需确认：
 
 ## 硬性约束（违反任何一条视为返工）
 
-1. **业务智能不进 Bridge/Gateway/Worker**：解读、质控判断、规划等 LLM 逻辑只许写在 OmicHub 侧（consultation 服务 + `data/ai/*.yaml` 提示词）。Bridge 只做状态机/租约/审批/审计。
-2. **改动服务后必须重启才生效**：后端代码 → `docker restart omichub-web`；Celery 任务/投影/watch → `docker restart omichub-worker`。
+1. **业务智能不进 Bridge/Gateway/Worker**：解读、质控判断、规划等 LLM 逻辑只许写在 CygnusX 侧（consultation 服务 + `data/ai/*.yaml` 提示词）。Bridge 只做状态机/租约/审批/审计。
+2. **改动服务后必须重启才生效**：后端代码 → `docker restart cygnusx-web`；Celery 任务/投影/watch → `docker restart cygnusx-worker`。
 3. **安全红线**：
    - consultation 只读回合必须 `safe_only=True`；
    - `task_file_preview` 必须做路径校验，禁止 `..`、符号链接、任务目录外文件；

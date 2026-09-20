@@ -1,6 +1,6 @@
-# OmicHub 宏基因组沙盒镜像
-# 构建: docker build -t omichub/sandbox-metagenomics:latest -f tool_configs/terminal/docker/Dockerfile.metagenomics tool_configs/terminal/docker/
-FROM omichub/sandbox-terminal:latest
+# CygnusX 宏基因组沙盒镜像
+# 构建: docker build -t cygnusx-sandbox-metagenomics:v0.0.2dev -f tool_configs/terminal/docker/Dockerfile.metagenomics tool_configs/terminal/docker/
+FROM cygnusx-sandbox-terminal:v0.0.2dev
 
 USER root
 
@@ -18,7 +18,7 @@ COPY --from=mambaorg/micromamba:2.0.5 /usr/bin/micromamba /usr/local/bin/microma
 ENV MAMBA_ROOT_PREFIX=/opt/conda \
     MAMBA_NO_BANNER=1
 
-# 预置中科大镜像源；基础镜像 ENV HOME=/home/omichub，condarc 必须写到该 HOME 下
+# 预置中科大镜像源；基础镜像 ENV HOME=/home/cygnusx，condarc 必须写到该 HOME 下
 # （见 Protocol/镜像构建国内加速规范_v1.md §4）
 RUN printf '%s\n' \
       'show_channel_urls: true' \
@@ -37,9 +37,9 @@ RUN printf '%s\n' \
       '  - bioconda' \
       '  - menpo' \
       '  - defaults' \
-      > /home/omichub/.condarc \
-    && cp /home/omichub/.condarc /root/.condarc \
-    && chown omichub:omichub /home/omichub/.condarc
+      > /home/cygnusx/.condarc \
+    && cp /home/cygnusx/.condarc /root/.condarc \
+    && chown cygnusx:cygnusx /home/cygnusx/.condarc
 
 RUN micromamba create -y -n meta -c conda-forge -c bioconda \
       bracken \
@@ -48,6 +48,6 @@ RUN micromamba create -y -n meta -c conda-forge -c bioconda \
 
 # Kraken2 / Bracken 数据库体积通常为数十 GB，不随镜像发布；
 # 请放入 workspace 或 raw_data 并在命令中通过 --db 显式指定。
-ENV OMICHUB_IMAGE_NOTICE="Kraken2/Bracken 数据库未内置，请在 workspace 或 raw_data 中准备数据库后使用 --db 指定。"
+ENV CYGNUSX_IMAGE_NOTICE="Kraken2/Bracken 数据库未内置，请在 workspace 或 raw_data 中准备数据库后使用 --db 指定。"
 
 USER 1000

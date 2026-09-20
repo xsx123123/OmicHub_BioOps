@@ -5,8 +5,8 @@ from __future__ import annotations
 
 import asyncio
 
-from omichub.application.services.agent_service import AgentService
-from omichub.infrastructure.database.session import get_session_factory
+from cygnusx.application.services.agent_service import AgentService
+from cygnusx.infrastructure.database.session import get_session_factory
 
 
 async def sync_builtin_agents() -> None:

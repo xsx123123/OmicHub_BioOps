@@ -2,14 +2,21 @@
 
 from fastmcp import FastMCP
 
-from client.api_client import OmicHubAPIClient, OmicHubAPIError
+from client.api_client import CygnusXAPIClient, CygnusXAPIError
 
 
-def register(mcp: FastMCP, api: OmicHubAPIClient) -> None:
+def register(mcp: FastMCP, api: CygnusXAPIClient) -> None:
 
     @mcp.tool()
-    async def omichub_get_user_info() -> dict:
-        """获取当前用户信息和存储配额。"""
+    async def cygnusx_get_user_info() -> dict:
+        """获取当前用户信息与存储配额。
+
+        :return: JSON 格式用户信息，含 user_id、storage_quota、storage_used
+
+        示例:
+            await cygnusx_get_user_info()
+            # 返回用户信息和存储使用情况
+        """
         try:
             user = await api.get_me()
             quota = await api.get_quota()
@@ -21,12 +28,19 @@ def register(mcp: FastMCP, api: OmicHubAPIClient) -> None:
                 f"存储: {used_gb:.1f}GB / {total_gb:.1f}GB ({quota.get('percent', 0):.0%})\n"
             )
             return {"success": True, "summary": summary, "data": {"user": user, "quota": quota}}
-        except OmicHubAPIError as e:
+        except CygnusXAPIError as e:
             return {"success": False, "summary": f"获取用户信息失败: {e.detail}"}
 
     @mcp.tool()
-    async def omichub_get_platform_status() -> dict:
-        """获取平台状态概览：任务统计、可用流程、存储情况。"""
+    async def cygnusx_get_platform_status() -> dict:
+        """获取平台概览：任务统计、可用流程数量、存储总量。
+
+        :return: JSON 格式平台状态，含 task_stats、pipeline_count、storage_total
+
+        示例:
+            await cygnusx_get_platform_status()
+            # 返回平台运行状态摘要
+        """
         try:
             tasks = await api.list_tasks()
             flows = await api.list_flows()
@@ -52,5 +66,5 @@ def register(mcp: FastMCP, api: OmicHubAPIClient) -> None:
                 "summary": summary,
                 "data": {"tasks": status_counts, "quota": quota},
             }
-        except OmicHubAPIError as e:
+        except CygnusXAPIError as e:
             return {"success": False, "summary": f"获取平台状态失败: {e.detail}"}

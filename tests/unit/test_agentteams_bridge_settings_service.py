@@ -4,14 +4,14 @@ from __future__ import annotations
 
 import pytest
 
-from omichub.application.schemas.agentteams_bridge import AgentTeamsBridgeConfigUpdateDTO
-from omichub.application.services.agentteams_bridge_settings_service import (
+from cygnusx.application.schemas.agentteams_bridge import AgentTeamsBridgeConfigUpdateDTO
+from cygnusx.application.services.agentteams_bridge_settings_service import (
     MASKED_SECRET,
     AgentTeamsBridgeSettingsService,
 )
-from omichub.core.config import Settings
-from omichub.core.exceptions import BusinessError
-from omichub.infrastructure.database.models.agentteams_bridge import AgentTeamsBridgeSettingsModel
+from cygnusx.core.config import Settings
+from cygnusx.core.exceptions import BusinessError
+from cygnusx.infrastructure.database.models.agentteams_bridge import AgentTeamsBridgeSettingsModel
 
 
 class FakeSession:

@@ -1,7 +1,7 @@
 """初始化默认饼干定价策略
 
 用法: python scripts/init_cookies.py
-或: docker exec omichub-web python scripts/init_cookies.py
+或: docker exec cygnusx-web python scripts/init_cookies.py
 """
 
 import asyncio
@@ -9,12 +9,12 @@ from decimal import Decimal
 
 
 async def main() -> None:
-    from omichub.infrastructure.database.session import get_session_factory
-    from omichub.infrastructure.database.repositories.cookie_repository import (
+    from cygnusx.infrastructure.database.session import get_session_factory
+    from cygnusx.infrastructure.database.repositories.cookie_repository import (
         SqlAlchemyPricingRepository,
     )
-    from omichub.domain.cookie.entities import CookiePricing
-    from omichub.domain.cookie.value_objects import PricingType, PricingUnit
+    from cygnusx.domain.cookie.entities import CookiePricing
+    from cygnusx.domain.cookie.value_objects import PricingType, PricingUnit
 
     default_pricing = [
         CookiePricing(

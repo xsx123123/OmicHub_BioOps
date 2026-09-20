@@ -1,5 +1,9 @@
 version: 1
 selection:
+  # 这是“没有 Agent 专用画像且没有用户显式覆盖”时的最后兜底 profile。
+  # 它不是所有 Agent 的强制镜像，也不能覆盖 data/ai/*.yaml 的 studio.runtime_profile。
+  # 修改 default_profile、profile image/tag 或选择策略前，必须先向用户确认，
+  # 因为这会影响全部未显式声明画像的会话。
   default_profile: analysis-core
   strategy: capability_match
   reject_unknown_profile: true
@@ -8,13 +12,15 @@ selection:
 profiles:
   analysis-core:
     name: 通用多语言分析运行时
-    image: omichub-analysis:core-2026.07
-    family: omichub-analysis
+    image: cygnusx-analysis:core-v0.0.2dev
+    family: cygnusx-analysis
     isolation_class: task-analysis
     runtime_uid: 10001
+    runtime_gid: 10001
+    runtime_group: cygnusx-sandbox
     dockerfile: deploy/runtime-images/core.Dockerfile
     executor_compatibility: [studio, toolbox]
-    description: 基于 micromamba 的独立分析镜像，提供 Python、R 和常用统计/数据处理能力。
+    description: 基于 micromamba 的隔离分析镜像，提供 Python/R/Bash 和通用统计、表格处理能力；默认无外网，不能直接访问 GEO/NCBI/EBI。
     capabilities: [python, r, bash, tabular, statistics, machine-learning]
     task_tags: [general, code, rnaseq-basic, statistics]
     languages:
@@ -34,11 +40,17 @@ profiles:
     network_policy: none
 
   analysis-plot:
+    # 可视化 Agent 的专用构建镜像。agent-viz 在 data/ai/viz.yaml 中显式绑定此 profile；
+    # 不得因 Studio 请求未带 browser/document 能力而回退到 analysis-core 或 browser-office。
+    # 若要更换 tag、Dockerfile 或依赖，先向用户确认并同步核验 plot.Dockerfile、软件清单和
+    # 现有会话兼容性。
     name: 科研绘图运行时
-    image: omichub-analysis:plot-2026.07
-    family: omichub-analysis
+    image: cygnusx-analysis:plot-v0.0.2dev
+    family: cygnusx-analysis
     isolation_class: task-analysis
     runtime_uid: 10001
+    runtime_gid: 10001
+    runtime_group: cygnusx-sandbox
     dockerfile: deploy/runtime-images/plot.Dockerfile
     extends: analysis-core
     executor_compatibility: [studio, toolbox]
@@ -53,6 +65,7 @@ profiles:
       r-dplyr: "installed"
       r-stringr: "installed"
       r-ggrepel: "installed"
+      r-ggpubr: "0.6.0"
       bioconductor-ggtree: "installed"
       bioconductor-treeio: "installed"
       r-ape: "installed"
@@ -63,14 +76,16 @@ profiles:
 
   analysis-scrna:
     name: 单细胞分析运行时
-    image: omichub-analysis:scrna-2026.07
-    family: omichub-analysis
+    image: cygnusx-analysis:scrna-v0.0.3dev
+    family: cygnusx-analysis
     isolation_class: task-analysis-heavy
     runtime_uid: 10001
+    runtime_gid: 10001
+    runtime_group: cygnusx-sandbox
     dockerfile: deploy/runtime-images/scrna.Dockerfile
     extends: analysis-plot
     executor_compatibility: [studio, toolbox]
-    description: 面向单细胞 RNA-seq，提供 Scanpy/AnnData/Seurat 及常用降维、聚类和注释依赖。
+    description: 面向单细胞 RNA-seq 的隔离镜像，提供 Scanpy/AnnData、Seurat 5.1、降维、聚类、注释和 HDF5 读写；默认无外网。
     capabilities: [python, r, bash, tabular, statistics, plotting, single-cell, hdf5]
     task_tags: [scrna, scanpy, seurat, clustering, annotation, trajectory]
     software:
@@ -79,9 +94,61 @@ profiles:
       leidenalg: "0.10.2"
       python-igraph: "0.11.8"
       r-seurat: "5.1.0"
+      r-ggpubr: "0.6.0"
       bioconductor-singlecellexperiment: "1.28.1"
     resources: {cpu: 4, memory: 12g, pids: 1024}
     network_policy: none
+
+  bio:
+    name: Studio 生物信息学沙盒
+    image: cygnusx-sandbox-bio:v0.0.2dev
+    family: cygnusx-sandbox
+    isolation_class: studio-session
+    runtime_uid: 10001
+    runtime_gid: 10001
+    runtime_group: cygnusx-sandbox
+    dockerfile: deploy/studio/bio.Dockerfile
+    executor_compatibility: [studio]
+    description: Studio 生物信息学镜像，提供单细胞分析、序列处理和常用 NGS 命令行工具。
+    capabilities: [python, bash, tabular, statistics, plotting, interactive-plotting, machine-learning, single-cell, hdf5, bioinformatics]
+    task_tags: [studio, bioinformatics, scrna, scanpy, alignment, blast]
+    languages:
+      python: "3.12"
+    software:
+      scanpy: "installed"
+      anndata: "installed"
+      pysam: "installed"
+      bioinfokit: "installed"
+      ncbi-blast+: "installed"
+      samtools: "installed"
+      bedtools: "installed"
+      seqkit: "optional"
+    resources: {cpu: 4, memory: 8g, pids: 1024}
+    network_policy: whitelist
+
+  browser-office:
+    name: Studio 浏览器文档沙盒
+    image: cygnusx-sandbox-browser-office:v0.0.2dev
+    family: cygnusx-sandbox
+    isolation_class: studio-session
+    runtime_uid: 10001
+    runtime_gid: 10001
+    runtime_group: cygnusx-sandbox
+    dockerfile: deploy/studio/browser-office.Dockerfile
+    executor_compatibility: [studio]
+    description: Studio 浏览器与办公文档镜像，提供 Chromium、Playwright、LibreOffice 和 Word/PPTX 处理能力。
+    capabilities: [python, bash, tabular, statistics, plotting, interactive-plotting, machine-learning, single-cell, hdf5, bioinformatics, browser, document]
+    task_tags: [studio, browser, document, office, libreoffice, playwright]
+    languages:
+      python: "3.12"
+    software:
+      playwright: "installed"
+      chromium: "installed"
+      libreoffice: "installed"
+      python-docx: "installed"
+      python-pptx: "installed"
+    resources: {cpu: 2, memory: 8g, pids: 1024}
+    network_policy: whitelist
 
 boundaries:
   forbidden_consumers: [legacy-sandbox-pool, interactive-terminal-pool]
@@ -89,3 +156,7 @@ boundaries:
     - 镜像层可被 Studio 与工具箱任务执行器共同引用，但不得复用容器、容器池、会话或挂载。
     - Studio 必须继续使用会话工作区、非 root 用户、Unix Socket agent 和休眠回收协议。
     - 工具箱必须按工具任务创建独立容器，并使用工具自己的输入输出契约和资源限制。
+    - Agent 共享统一的沙盒工具契约，但按 required_capabilities 选择一个满足任务的 profile；
+      不把所有镜像、浏览器能力和网络出口同时授予同一会话。
+    - analysis-* 默认 network_policy=none；需要公共数据库元数据时使用经前端审批的
+      network_request 工具，browser-office 的浏览器能力仍须显式匹配 browser capability。

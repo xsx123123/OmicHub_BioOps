@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {
   NLayout, NLayoutSider, NLayoutContent, NIcon, NButton, NTooltip, NDropdown, NPopover,
-  NDrawer, NDrawerContent, NAvatar, NBadge, NModal, NAlert,
+  NDrawer, NDrawerContent, NAvatar, NBadge, NModal,
 } from 'naive-ui'
 import { computed, h, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
@@ -13,6 +13,7 @@ import {
   NotificationsOutline, HelpCircleOutline, ChatbubblesOutline, Planet,
   WalletOutline, SparklesOutline, ConstructOutline, LayersOutline,
   TerminalOutline, SearchOutline, DesktopOutline, LockClosedOutline, PeopleOutline, BulbOutline,
+  WarningOutline, BriefcaseOutline, ServerOutline, ArchiveOutline,
 } from '@vicons/ionicons5'
 import CookieBalanceBadge from '@/components/CookieBalanceBadge.vue'
 import NotAuthorized from '@/components/NotAuthorized.vue'
@@ -20,6 +21,7 @@ import NotificationDrawer from '@/components/NotificationDrawer.vue'
 import OnboardingPopup from '@/components/OnboardingPopup.vue'
 import ChunkUploader from '@/components/ChunkUploader.vue'
 import UploadFloatingBall from '@/components/UploadFloatingBall.vue'
+import GlobalAiAssistantSidebar from '@/components/ai-assistant/GlobalAiAssistantSidebar.vue'
 import { useAuthStore } from '@/stores/auth'
 import { displayName } from '@/utils/displayName'
 import { useUploadStore } from '@/stores/upload'
@@ -58,7 +60,7 @@ const notificationDrawerOpen = ref(false)
 // 首次登录迎新弹窗：由 authStore.consumeOnboarding() 触发
 const onboardingVisible = ref(false)
 function loadExpandedKeys(): string[] {
-  const saved = localStorage.getItem('omichub:sidebar-expanded')
+  const saved = localStorage.getItem('cygnusx:sidebar-expanded')
   if (!saved) return ['analysis-center']
 
   try {
@@ -78,7 +80,7 @@ watch(
   (path) => {
     if (!path.startsWith('/admin/') || expandedKeys.value.includes('admin-center')) return
     expandedKeys.value.push('admin-center')
-    localStorage.setItem('omichub:sidebar-expanded', JSON.stringify(expandedKeys.value))
+    localStorage.setItem('cygnusx:sidebar-expanded', JSON.stringify(expandedKeys.value))
   },
   { immediate: true },
 )
@@ -193,11 +195,11 @@ function toggleCollapsed() {
 async function loadCurrentUser() {
   if (!authStore.isLoggedIn || userLoadRetrying.value) return
   userLoadRetrying.value = true
-  userLoadFailed.value = false
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
       await authStore.fetchUser()
       currentUser.value = authStore.user
+      userLoadFailed.value = false
       notificationStore.fetchNotifications()
       if (authStore.consumeOnboarding()) {
         siteConfig.fetchSiteConfig().catch(() => {})
@@ -213,6 +215,10 @@ async function loadCurrentUser() {
   }
   userLoadFailed.value = true
   userLoadRetrying.value = false
+}
+
+function retryCurrentUser() {
+  void loadCurrentUser()
 }
 
 onMounted(() => {
@@ -274,6 +280,7 @@ const mainNavItems = computed<NavItem[]>(() => [
   { key: 'tasks', label: '任务中心', to: '/tasks', icon: DocumentTextOutline },
   { key: 'workflow-monitor', label: '流程监控', to: '/workflow-monitor', icon: BarChartOutline },
   { key: 'reports', label: '结果报告中心', to: '/reports', icon: DocumentTextOutline },
+  { key: 'projects', label: '项目管理', to: '/projects', icon: BriefcaseOutline },
   { key: 'ai', label: 'AI 助手', to: '/ai', icon: ChatbubblesOutline },
   { key: 'studio', label: 'AI 工作台', to: '/studio', icon: DesktopOutline },
   { key: 'agent-teams-room', label: '团队协作室', to: '/agent-teams/room', icon: PeopleOutline },
@@ -284,7 +291,7 @@ const systemNavItems = computed<NavItem[]>(() => [
   { key: 'cookies', label: '用量统计', to: '/cookies', icon: BarChartOutline },
   { key: 'agent-capabilities', label: '我的 Agent 能力', to: '/agent-capabilities', icon: SparklesOutline },
   { key: 'settings', label: '系统设置', to: '/settings', icon: SettingsOutline },
-  { key: 'about', label: '关于 OmicHub', to: '/about', icon: InformationCircleOutline },
+  { key: 'about', label: '关于 CygnusX', to: '/about', icon: InformationCircleOutline },
 ])
 
 const adminNavItems = computed<NavItem[]>(() => [
@@ -297,6 +304,7 @@ const adminNavItems = computed<NavItem[]>(() => [
       { key: 'admin-users', label: '用户管理', to: '/admin/users', icon: PersonOutline },
       { key: 'admin-memory', label: '记忆审计', to: '/admin/memory', icon: BulbOutline },
       { key: 'admin-session-logs', label: '会话日志排查', to: '/admin/session-logs', icon: DocumentTextOutline },
+      { key: 'admin-database-health', label: '数据库健康', to: '/admin/database-health', icon: ServerOutline },
       { key: 'admin-ai-metrics', label: 'AI 指标仪表盘', to: '/admin/ai-metrics', icon: BarChartOutline },
       { key: 'admin-ai-config', label: 'AI 配置中心', to: '/admin/ai-config/providers', icon: SparklesOutline },
       { key: 'admin-home-quick-entries', label: '首页入口管理', to: '/admin/home-quick-entries', icon: GridOutline },
@@ -304,6 +312,7 @@ const adminNavItems = computed<NavItem[]>(() => [
       { key: 'admin-announcements', label: '通知公告', to: '/admin/announcements', icon: NotificationsOutline },
       { key: 'admin-terminals', label: '沙盒终端管理', to: '/admin/terminals', icon: TerminalOutline },
       { key: 'admin-blast-databases', label: 'BLAST 数据库管理', to: '/admin/blast-databases', icon: SearchOutline },
+      { key: 'admin-workspace-archive', label: '工作区归档管理', to: '/admin/workspace-archive', icon: ArchiveOutline },
     ],
   },
 ])
@@ -314,6 +323,8 @@ function isActive(item: NavItem): boolean {
     if (item.key === 'tools') return route.path === '/tools' || route.path.startsWith('/tools/')
     // AI 工作台：会话页面也保持高亮
     if (item.key === 'studio') return route.path === '/studio' || route.path.startsWith('/studio/')
+    // 项目管理：详情页也保持高亮
+    if (item.key === 'projects') return route.path === '/projects' || route.path.startsWith('/projects/')
     // 团队协作室：Case 详情页也保持高亮
     if (item.key === 'agent-teams-room') return route.path.startsWith('/agent-teams')
     // 数据库：新旧入口和详情页都保持高亮
@@ -354,7 +365,7 @@ function toggleExpanded(key: string) {
   } else {
     expandedKeys.value.push(key)
   }
-  localStorage.setItem('omichub:sidebar-expanded', JSON.stringify(expandedKeys.value))
+  localStorage.setItem('cygnusx:sidebar-expanded', JSON.stringify(expandedKeys.value))
 }
 
 function isExpanded(key: string): boolean {
@@ -440,16 +451,6 @@ const UserAvatar = () => {
 
 <template>
   <div class="app-shell">
-    <NAlert
-      v-if="userLoadFailed"
-      type="warning"
-      title="用户信息暂时无法刷新"
-      :show-icon="true"
-      closable
-      class="user-refresh-alert"
-    >
-      当前页面保留已有登录信息；服务恢复后会自动重试，也可以点击账户区“重试”。
-    </NAlert>
     <!-- 顶部导航栏 -->
     <header class="top-nav">
       <div class="top-nav-left">
@@ -464,7 +465,7 @@ const UserAvatar = () => {
               <Planet />
             </NIcon>
           </div>
-          <span class="logo-text">OmicHub</span>
+          <span class="logo-text">CygnusX</span>
         </div>
         <div class="top-nav-divider" />
         <nav class="top-nav-menu">
@@ -484,6 +485,28 @@ const UserAvatar = () => {
         </nav>
       </div>
       <div class="top-nav-right">
+        <NTooltip v-if="userLoadFailed" placement="bottom-end" :delay="300">
+          <template #trigger>
+            <NButton
+              tertiary
+              type="warning"
+              size="small"
+              class="user-refresh-trigger focus-ring"
+              :loading="userLoadRetrying"
+              aria-label="账户信息同步失败，点击重试"
+              @click="retryCurrentUser"
+            >
+              <template #icon>
+                <NIcon :size="15">
+                  <WarningOutline />
+                </NIcon>
+              </template>
+              <span class="user-refresh-trigger__label">账户同步异常</span>
+              <span class="user-refresh-trigger__action">重试</span>
+            </NButton>
+          </template>
+          当前页面保留已有登录信息；服务恢复后会自动重试。
+        </NTooltip>
         <CookieBalanceBadge />
         <NTooltip placement="bottom" :delay="300">
           <template #trigger>
@@ -807,7 +830,7 @@ const UserAvatar = () => {
                     size="tiny"
                     class="user-retry-button"
                     :loading="userLoadRetrying"
-                    @click.stop="loadCurrentUser"
+                    @click.stop="retryCurrentUser"
                   >
                     重试
                   </NButton>
@@ -829,7 +852,7 @@ const UserAvatar = () => {
               <NIcon :size="26" class="mobile-logo-icon">
                 <Planet />
               </NIcon>
-              <span class="mobile-logo-text">OmicHub</span>
+              <span class="mobile-logo-text">CygnusX</span>
             </div>
             <nav class="mobile-nav-group">
               <RouterLink
@@ -903,7 +926,7 @@ const UserAvatar = () => {
                   size="tiny"
                   class="user-retry-button"
                   :loading="userLoadRetrying"
-                  @click.stop="loadCurrentUser"
+                  @click.stop="retryCurrentUser"
                 >
                   重试
                 </NButton>
@@ -950,6 +973,9 @@ const UserAvatar = () => {
       <ChunkUploader />
     </NModal>
     <UploadFloatingBall />
+
+    <!-- 平台全局 AI 助手侧边栏 -->
+    <GlobalAiAssistantSidebar />
 
     <!-- 首次登录迎新弹窗 -->
     <OnboardingPopup
@@ -1090,6 +1116,27 @@ const UserAvatar = () => {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.user-refresh-trigger {
+  min-width: 0;
+  padding: 0 10px;
+  border-radius: 8px;
+}
+
+.user-refresh-trigger :deep(.n-button__content) {
+  gap: 5px;
+}
+
+.user-refresh-trigger__label {
+  font-size: 12px;
+}
+
+.user-refresh-trigger__action {
+  padding-left: 6px;
+  border-left: 1px solid currentColor;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .top-icon-btn {
@@ -1613,6 +1660,18 @@ const UserAvatar = () => {
   min-height: 18px;
   margin-top: 2px;
   color: var(--arco-primary);
+}
+
+@media (max-width: 640px) {
+  .user-refresh-trigger {
+    width: 32px;
+    padding: 0;
+  }
+
+  .user-refresh-trigger__label,
+  .user-refresh-trigger__action {
+    display: none;
+  }
 }
 
 .user-chevron {

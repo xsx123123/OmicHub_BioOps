@@ -35,10 +35,10 @@ from typing import Any
 
 from sqlalchemy import func, select
 
-from omichub.application.services.domain_registry import normalize_marker
-from omichub.infrastructure.database.models.chat import ChatMessageModel
-from omichub.infrastructure.database.models.skill import SkillInvocationModel
-from omichub.infrastructure.database.session import get_session_factory
+from cygnusx.application.services.domain_registry import normalize_marker
+from cygnusx.infrastructure.database.models.chat import ChatMessageModel
+from cygnusx.infrastructure.database.models.skill import SkillInvocationModel
+from cygnusx.infrastructure.database.session import get_session_factory
 
 # 常见停用词，避免分组被虚词主导
 _STOPWORDS = {

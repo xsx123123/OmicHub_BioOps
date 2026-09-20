@@ -40,7 +40,7 @@
   --neutral-text-3: var(--text-tertiary);
   --neutral-text-4: #C9CDD4;
   --neutral-hover: #F2F3F8;
-  /* 分段切换器轨道底（.omichub-segmented-toggle），Arco fill-2 对齐 */
+  /* 分段切换器轨道底（.cygnusx-segmented-toggle），Arco fill-2 对齐 */
   --neutral-fill-2: #F2F3F5;
 
   /* 侧边栏专用 */
@@ -125,7 +125,7 @@
   --neutral-text-3: var(--text-tertiary);
   --neutral-text-4: #4B5163;
   --neutral-hover: var(--surface-highlight);
-  /* 分段切换器轨道底（.omichub-segmented-toggle），与浅色明暗成对 */
+  /* 分段切换器轨道底（.cygnusx-segmented-toggle），与浅色明暗成对 */
   --neutral-fill-2: var(--surface-elevated);
 
   --sidebar-bg: var(--surface-card);
@@ -240,47 +240,47 @@ body {
   box-shadow: var(--shadow-card);
 }
 
-:where(.n-card, .arco-card, .omichub-card) {
+:where(.n-card, .arco-card, .cygnusx-card) {
   background-color: var(--neutral-card);
   border: 1px solid var(--neutral-border);
   border-left: 1px solid var(--neutral-border) !important;
   border-radius: var(--radius-card);
 }
 
-:is(.n-card, .arco-card, .omichub-card, .table-card, .work-card, .result-card, .bottom-table, .table-wrap, .resource-tab) .n-data-table {
+:is(.n-card, .arco-card, .cygnusx-card, .table-card, .work-card, .result-card, .bottom-table, .table-wrap, .resource-tab) .n-data-table {
   min-width: 0;
   background-color: var(--neutral-card);
 }
 
-:is(.n-card, .arco-card, .omichub-card, .table-card, .work-card, .result-card, .bottom-table, .table-wrap, .resource-tab) .n-data-table-wrapper,
-:is(.n-card, .arco-card, .omichub-card, .table-card, .work-card, .result-card, .bottom-table, .table-wrap, .resource-tab) .n-data-table-base-table {
+:is(.n-card, .arco-card, .cygnusx-card, .table-card, .work-card, .result-card, .bottom-table, .table-wrap, .resource-tab) .n-data-table-wrapper,
+:is(.n-card, .arco-card, .cygnusx-card, .table-card, .work-card, .result-card, .bottom-table, .table-wrap, .resource-tab) .n-data-table-base-table {
   max-width: 100%;
   background-color: var(--neutral-card);
 }
 
-:is(.n-card, .arco-card, .omichub-card, .table-card, .work-card, .result-card, .bottom-table, .table-wrap, .resource-tab) .n-data-table th {
+:is(.n-card, .arco-card, .cygnusx-card, .table-card, .work-card, .result-card, .bottom-table, .table-wrap, .resource-tab) .n-data-table th {
   background-color: var(--neutral-bg);
   border-bottom-color: var(--neutral-border);
 }
 
-:is(.n-card, .arco-card, .omichub-card, .table-card, .work-card, .result-card, .bottom-table, .table-wrap, .resource-tab) .n-data-table td {
+:is(.n-card, .arco-card, .cygnusx-card, .table-card, .work-card, .result-card, .bottom-table, .table-wrap, .resource-tab) .n-data-table td {
   background-color: var(--neutral-card);
   border-bottom-color: var(--neutral-border);
 }
 
-:is(.n-card, .arco-card, .omichub-card, .table-card, .work-card, .result-card, .bottom-table, .table-wrap, .resource-tab) .n-data-table tr:hover > td {
+:is(.n-card, .arco-card, .cygnusx-card, .table-card, .work-card, .result-card, .bottom-table, .table-wrap, .resource-tab) .n-data-table tr:hover > td {
   background-color: var(--neutral-hover);
 }
 
 /* 卡片表格分页统一作为独立 footer：避免最后一行分隔线与分页按钮挤在一起，
    并为最右侧按钮保留安全留白，防止贴边或被卡片圆角裁切。 */
-:is(.n-card, .arco-card, .omichub-card, .table-card, .work-card, .result-card, .bottom-table, .table-wrap, .resource-tab)
+:is(.n-card, .arco-card, .cygnusx-card, .table-card, .work-card, .result-card, .bottom-table, .table-wrap, .resource-tab)
   .n-data-table:has(> .n-data-table__pagination)
   .n-data-table-td--last-row {
   border-bottom-color: transparent;
 }
 
-:is(.n-card, .arco-card, .omichub-card, .table-card, .work-card, .result-card, .bottom-table, .table-wrap, .resource-tab)
+:is(.n-card, .arco-card, .cygnusx-card, .table-card, .work-card, .result-card, .bottom-table, .table-wrap, .resource-tab)
   .n-data-table__pagination {
   box-sizing: border-box;
   min-height: 52px;
@@ -290,7 +290,7 @@ body {
   background-color: var(--neutral-card);
 }
 
-:where(.n-card, .arco-card, .omichub-card, .omichub-selectable-card) {
+:where(.n-card, .arco-card, .cygnusx-card, .cygnusx-selectable-card) {
   position: relative;
   transition:
     background-color var(--card-state-duration) var(--card-state-easing),
@@ -299,7 +299,7 @@ body {
     transform var(--card-state-duration) var(--card-state-easing);
 }
 
-:where(.n-card, .arco-card, .omichub-card, .omichub-selectable-card)::before {
+:where(.n-card, .arco-card, .cygnusx-card, .cygnusx-selectable-card)::before {
   content: '';
   position: absolute;
   top: 50%;
@@ -317,34 +317,34 @@ body {
     transform var(--card-state-duration) var(--card-state-easing);
 }
 
-:where(.n-card, .arco-card, .omichub-card, .omichub-selectable-card):not(:is(.is-selected, .card--selected, .card--active, .selected, .active, [aria-selected='true'], [aria-checked='true'], [data-selected='true'])):hover {
+:where(.n-card, .arco-card, .cygnusx-card, .cygnusx-selectable-card):not(:is(.is-selected, .card--selected, .card--active, .selected, .active, [aria-selected='true'], [aria-checked='true'], [data-selected='true'])):hover {
   /* 在卡片自身底色上叠色（不透明），避免替换为透明色导致悬停时透出背后内容 */
   background-color: color-mix(in srgb, var(--arco-primary, #4080ff) 4%, var(--n-color, var(--neutral-card, #fff)));
   border-color: color-mix(in srgb, var(--arco-primary, #4080ff) 14%, var(--n-border-color, var(--neutral-border)));
 }
 
-:where(.n-card, .arco-card, .omichub-card, .omichub-selectable-card):not(:is(.is-selected, .card--selected, .card--active, .selected, .active, [aria-selected='true'], [aria-checked='true'], [data-selected='true'])):hover::before {
+:where(.n-card, .arco-card, .cygnusx-card, .cygnusx-selectable-card):not(:is(.is-selected, .card--selected, .card--active, .selected, .active, [aria-selected='true'], [aria-checked='true'], [data-selected='true'])):hover::before {
   opacity: 0.28;
   transform: translateY(-50%) scaleY(0.72);
 }
 
-:where(.n-card, .arco-card, .omichub-card, .omichub-selectable-card):is(.is-selected, .card--selected, .card--active, .selected, .active, [aria-selected='true'], [aria-checked='true'], [data-selected='true']) {
+:where(.n-card, .arco-card, .cygnusx-card, .cygnusx-selectable-card):is(.is-selected, .card--selected, .card--active, .selected, .active, [aria-selected='true'], [aria-checked='true'], [data-selected='true']) {
   background-color: color-mix(in srgb, var(--arco-primary, #4080ff) 7%, var(--n-color, var(--neutral-card, #fff)));
   border-color: color-mix(in srgb, var(--arco-primary, #4080ff) 20%, var(--n-border-color, var(--neutral-border)));
   box-shadow: inset 0 0 0 1px var(--arco-primary);
 }
 
-:where(.n-card, .arco-card, .omichub-card, .omichub-selectable-card):is(.is-selected, .card--selected, .card--active, .selected, .active, [aria-selected='true'], [aria-checked='true'], [data-selected='true'])::before {
+:where(.n-card, .arco-card, .cygnusx-card, .cygnusx-selectable-card):is(.is-selected, .card--selected, .card--active, .selected, .active, [aria-selected='true'], [aria-checked='true'], [data-selected='true'])::before {
   opacity: 1;
   transform: translateY(-50%) scaleY(1);
 }
 
-:root[data-theme="dark"] :where(.n-card, .arco-card, .omichub-card, .omichub-selectable-card):not(:is(.is-selected, .card--selected, .card--active, .selected, .active, [aria-selected='true'], [aria-checked='true'], [data-selected='true'])):hover {
+:root[data-theme="dark"] :where(.n-card, .arco-card, .cygnusx-card, .cygnusx-selectable-card):not(:is(.is-selected, .card--selected, .card--active, .selected, .active, [aria-selected='true'], [aria-checked='true'], [data-selected='true'])):hover {
   background-color: var(--surface-highlight);
   border-color: var(--border-default);
 }
 
-:root[data-theme="dark"] :where(.n-card, .arco-card, .omichub-card, .omichub-selectable-card):is(.is-selected, .card--selected, .card--active, .selected, .active, [aria-selected='true'], [aria-checked='true'], [data-selected='true']) {
+:root[data-theme="dark"] :where(.n-card, .arco-card, .cygnusx-card, .cygnusx-selectable-card):is(.is-selected, .card--selected, .card--active, .selected, .active, [aria-selected='true'], [aria-checked='true'], [data-selected='true']) {
   background-color: var(--surface-highlight);
   border-color: var(--border-focus);
 }
@@ -680,7 +680,7 @@ body {
   outline-offset: 3px;
 }
 
-.omichub-segmented-toggle {
+.cygnusx-segmented-toggle {
   display: inline-flex;
   overflow: hidden;
   border: 1px solid var(--neutral-border);
@@ -688,7 +688,7 @@ body {
   background: var(--neutral-fill-2);
 }
 
-.omichub-segmented-toggle button {
+.cygnusx-segmented-toggle button {
   padding: 2px 9px;
   border: none;
   background: transparent;
@@ -700,16 +700,16 @@ body {
   transition: background 0.18s ease, color 0.18s ease;
 }
 
-.omichub-segmented-toggle button:hover {
+.cygnusx-segmented-toggle button:hover {
   color: var(--neutral-text-1);
 }
 
-.omichub-segmented-toggle button.active {
+.cygnusx-segmented-toggle button.active {
   background: var(--arco-primary);
   color: var(--text-on-primary);
 }
 
-.omichub-segmented-toggle button:focus-visible {
+.cygnusx-segmented-toggle button:focus-visible {
   position: relative;
   z-index: 1;
   outline: 2px solid var(--arco-primary);
@@ -717,7 +717,7 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .omichub-segmented-toggle button {
+  .cygnusx-segmented-toggle button {
     transition: none;
   }
 }

@@ -1,6 +1,6 @@
 # 云端沙盒终端
 
-OmicHub 生信工具箱中的即用即毁隔离容器终端，支持用户挂载个人工作目录进行命令行操作。
+CygnusX 生信工具箱中的即用即毁隔离容器终端，支持用户挂载个人工作目录进行命令行操作。
 
 ## 目录结构
 
@@ -18,7 +18,7 @@ tool_configs/terminal/
 ## 架构概览
 
 ```
-浏览器 (xterm.js)                FastAPI 后端 (omichub-web)            Docker 沙盒容器
+浏览器 (xterm.js)                FastAPI 后端 (cygnusx-web)            Docker 沙盒容器
 ┌────────────────┐  WebSocket   ┌──────────────────────┐  aiohttp WS  ┌────────────────┐
 │                │  subproto    │                      │  subproto     │                │
 │  XTerminal.vue │  "tty"       │   terminal.py        │  "tty"        │   ttyd:7681    │
@@ -30,9 +30,9 @@ tool_configs/terminal/
         │                                │                                      │
         │ GET /environments              │ Docker SDK (docker.sock)             │ bind mount ×3
         │ (镜像列表)                      ▼                                      ▼
-        ▼                         ┌──────────────┐                   /home/omichub/{workspace,raw_data,temp}
+        ▼                         ┌──────────────┐                   /home/cygnusx/{workspace,raw_data,temp}
   ImageSelector.vue               │ DockerManager│                            ↕
-  (卡片选择器)                     │ (创建/销毁)   │                   /data/omichub/users/{uid}/{workspace,raw_data,temp}
+  (卡片选择器)                     │ (创建/销毁)   │                   /data/cygnusx/users/{uid}/{workspace,raw_data,temp}
   ResourceSettings.vue            └──────────────┘
   (资源设置)
 ```
@@ -41,27 +41,27 @@ tool_configs/terminal/
 
 ```
 Docker Host
-├── omichub-sandbox-net (external bridge)
-│   ├── omichub-web          (加入此网络，经容器 DNS 直连终端容器)
-│   └── omichub-term-xxxx    (终端沙盒容器，暴露内部端口 7681)
+├── cygnusx-sandbox-net (external bridge)
+│   ├── cygnusx-web          (加入此网络，经容器 DNS 直连终端容器)
+│   └── cygnusx-term-xxxx    (终端沙盒容器，暴露内部端口 7681)
 │
-├── omichub_net (external bridge)
-│   ├── omichub-web
-│   ├── omichub-worker
-│   ├── omichub-db
-│   └── omichub-cache
+├── cygnusx_net (external bridge)
+│   ├── cygnusx-web
+│   ├── cygnusx-worker
+│   ├── cygnusx-db
+│   └── cygnusx-cache
 │
 ├── app_net (internal bridge)
-│   ├── omichub-web
-│   └── omichub-nginx
+│   ├── cygnusx-web
+│   └── cygnusx-nginx
 │
 └── data_net (internal bridge)
-    ├── omichub-web
-    ├── omichub-db
-    └── omichub-cache
+    ├── cygnusx-web
+    ├── cygnusx-db
+    └── cygnusx-cache
 ```
 
-**关键设计**：`omichub-web` 容器同时加入 `omichub-sandbox-net` 和主栈网络，使其 WebSocket 代理可以通过 Docker DNS 解析终端容器名称（`ws://omichub-term-xxxx:7681/ws`），而无需经宿主机端口映射。本地开发时回退到 `ws://localhost:{host_port}/ws`。
+**关键设计**：`cygnusx-web` 容器同时加入 `cygnusx-sandbox-net` 和主栈网络，使其 WebSocket 代理可以通过 Docker DNS 解析终端容器名称（`ws://cygnusx-term-xxxx:7681/ws`），而无需经宿主机端口映射。本地开发时回退到 `ws://localhost:{host_port}/ws`。
 
 ## WebSocket 数据流详解
 
@@ -180,17 +180,17 @@ TerminalDockerManager.create_container(image, registry_prefix, resources)
   ├── 创建宿主机 workspace / raw_data / temp 目录
   ├── Docker SDK: containers.run()
   │     ├── 镜像: 由 terminal_images.yaml 中 image 字段决定（支持 registry_prefix 前缀）
-  │     ├── 容器名: omichub-term-{uid[:8]}-{session_id}  (≤63字符 DNS 标签)
-  │     ├── 网络: omichub-sandbox-net
+  │     ├── 容器名: cygnusx-term-{uid[:8]}-{session_id}  (≤63字符 DNS 标签)
+  │     ├── 网络: cygnusx-sandbox-net
   │     ├── 用户: 1000:1000 (非 root)
   │     ├── 安全: read_only=True, cap_drop=ALL, no-new-privileges
   │     ├── 资源: 镜像默认资源 / 用户传入资源 / terminal_config.yaml 默认值 三者合并
   │     │        （memory_mb、cpu_cores 会按用户所选或默认值写入 Docker 资源限制）
   │     ├── 环境变量: 镜像自定义 env + USER_ID/SESSION_ID/HOME/ZDOTDIR/XDG_CACHE_HOME/OMP_CACHE_DIR/ZSH_CACHE_DIR
-  │     ├── tmpfs: /tmp (noexec), /home/omichub/.cache (noexec，承载 shell/oh-my-posh 缓存)
-  │     ├── 挂载: workspace → /home/omichub/workspace (rw)
-  │     │          raw_data → /home/omichub/raw_data (rw)
-  │     │          temp     → /home/omichub/temp (rw)
+  │     ├── tmpfs: /tmp (noexec), /home/cygnusx/.cache (noexec，承载 shell/oh-my-posh 缓存)
+  │     ├── 挂载: workspace → /home/cygnusx/workspace (rw)
+  │     │          raw_data → /home/cygnusx/raw_data (rw)
+  │     │          temp     → /home/cygnusx/temp (rw)
   │     ├── 端口: 7681/tcp → host_port
   │     ├── auto_remove: True (退出后自动删除)
   │     └── healthcheck: wget --spider localhost:7681
@@ -277,7 +277,7 @@ CREATING ──> RUNNING ──> IDLE ──> RUNNING (用户操作)
 |------|------|------|
 | 用户 | `UserModel.username` | 用户名，不存在则回退 `user_id[:8]` |
 | 会话 ID | `TerminalSession.session_id` | 前端展示与操作键 |
-| 容器名称 | 运行时计算 | `omichub-term-{user_id[:8]}-{session_id}` |
+| 容器名称 | 运行时计算 | `cygnusx-term-{user_id[:8]}-{session_id}` |
 | 已使用时长 | 运行时计算 | `now - created_at`（秒） |
 | 资源配额 | `terminal_config.yaml` / `default_resources` | CPU 核数 / 内存 MB / PID 限制 |
 | 实时占用 | Docker SDK `stats` | CPU%、内存使用率、进程数；默认关闭，通过开关按需拉取 |
@@ -315,7 +315,7 @@ TerminalService.admin_delete_session(session_id)
 | 内存硬限制 | `mem_limit` + `memswap_limit`（禁止 swap 绕过） | `docker_manager.py` |
 | CPU 配额 | `cpu_quota = cpu_cores * 100000`, `cpu_period = 100000` | `docker_manager.py` |
 | 进程数限制 | `pids_limit=100`（防 fork bomb） | `docker_manager.py` |
-| 目录隔离 | 仅挂载用户个人 `/data/omichub/users/{uid}/workspace` / `raw_data` / `temp` | `docker_manager.py` |
+| 目录隔离 | 仅挂载用户个人 `/data/cygnusx/users/{uid}/workspace` / `raw_data` / `temp` | `docker_manager.py` |
 | 即用即毁 | `auto_remove=True`，退出后容器自动删除 | `docker_manager.py` |
 | JWT 鉴权 | WebSocket 连接须携带有效 access_token | `terminal.py` |
 | 会话归属校验 | `session.user_id == token.sub` 防止越权 | `terminal.py` |
@@ -331,7 +331,7 @@ TerminalService.admin_delete_session(session_id)
 | 配置段 | 关键参数 | 默认值 | 说明 |
 |--------|---------|--------|------|
 | `enabled` | - | `true` | 功能总开关 |
-| `image` | `name` / `tag` | `omichub/sandbox-terminal:latest` | 容器镜像 |
+| `image` | `name` / `tag` | `cygnusx-sandbox-terminal:v0.0.2dev` | 容器镜像 |
 | `image` | `pull_policy` | `IfNotPresent` | 镜像拉取策略 |
 | `default_resources` | `memory_mb` | `512` | 默认内存上限 (MB) |
 | `default_resources` | `cpu_cores` | `1.0` | 默认 CPU 核数 |
@@ -346,9 +346,9 @@ TerminalService.admin_delete_session(session_id)
 | `security` | `read_only_root` | `true` | 只读根文件系统 |
 | `security` | `cap_drop_all` | `true` | 丢弃所有 capabilities |
 | `security` | `no_new_privileges` | `true` | 禁止权限提升 |
-| `network` | `name` | `omichub-sandbox-net` | Docker 隔离网络 |
+| `network` | `name` | `cygnusx-sandbox-net` | Docker 隔离网络 |
 | `network` | `mode` | `bridge` | 网络模式 |
-| `storage` | `workspace_base` | `/data/omichub/users` | 用户目录基路径 |
+| `storage` | `workspace_base` | `/data/cygnusx/users` | 用户目录基路径 |
 | `port_range` | `base` / `max` | `20000` / `30000` | ttyd 宿主机端口分配范围 |
 
 ### 镜像配置
@@ -363,7 +363,7 @@ TerminalService.admin_delete_session(session_id)
 | `images[].id` | - | - | 镜像唯一标识（前端选择值、落库存储） |
 | `images[].name` | - | - | 前端显示名称 |
 | `images[].description` | - | - | 前端卡片描述 |
-| `images[].image` | - | - | Docker 镜像全名，如 `omichub/sandbox-terminal:latest` |
+| `images[].image` | - | - | Docker 镜像全名，如 `cygnusx-sandbox-terminal:v0.0.2dev` |
 | `images[].tags` | - | `[]` | 前端标签展示 |
 | `images[].icon` | - | `"🔧"` | 前端卡片图标 |
 | `images[].resources` | `memory_mb` / `cpu_cores` / `pid_limit` | - | 镜像默认资源；创建容器时优先于 `terminal_config.yaml` 的 `default_resources` |
@@ -380,7 +380,7 @@ TerminalService.admin_delete_session(session_id)
 
 1. 在 `tool_configs/terminal/docker/` 下新增 `Dockerfile.xxx` 并构建镜像：
    ```bash
-   docker build -t omichub/sandbox-rnaseq:latest -f tool_configs/terminal/docker/Dockerfile.rnaseq tool_configs/terminal/docker/
+   docker build -t cygnusx-sandbox-rnaseq:v0.0.2dev -f tool_configs/terminal/docker/Dockerfile.rnaseq tool_configs/terminal/docker/
    ```
 2. 在 `tool_configs/terminal/terminal_images.yaml` 中增加镜像条目并设置 `enabled: true`。
 3. 刷新前端页面，`GET /terminal/environments` 会自动返回新镜像，前端镜像选择器即时展示。
@@ -390,11 +390,11 @@ TerminalService.admin_delete_session(session_id)
 
 | 宿主机路径 | 容器内路径 | 权限 | 持久化 |
 |-----------|-----------|------|--------|
-| `/data/omichub/users/{uid}/workspace` | `/home/omichub/workspace` | `rw` | 是 |
-| `/data/omichub/users/{uid}/raw_data` | `/home/omichub/raw_data` | `rw` | 是 |
-| `/data/omichub/users/{uid}/temp` | `/home/omichub/temp` | `rw` | 是 |
+| `/data/cygnusx/users/{uid}/workspace` | `/home/cygnusx/workspace` | `rw` | 是 |
+| `/data/cygnusx/users/{uid}/raw_data` | `/home/cygnusx/raw_data` | `rw` | 是 |
+| `/data/cygnusx/users/{uid}/temp` | `/home/cygnusx/temp` | `rw` | 是 |
 | - | `/tmp` | `rw,noexec,nosuid` | 否 (tmpfs) |
-| - | `/home/omichub/.cache` | `rw,noexec,nosuid` | 否 (tmpfs，`XDG_CACHE_HOME` / `OMP_CACHE_DIR`) |
+| - | `/home/cygnusx/.cache` | `rw,noexec,nosuid` | 否 (tmpfs，`XDG_CACHE_HOME` / `OMP_CACHE_DIR`) |
 
 **约定**：三个系统目录由 `FileService.ensure_default_directories()` 懒初始化，物理路径与沙盒挂载路径保持一致；容器启动时也会自动 `mkdir` + `chown`，因此从新建用户到首次开沙盒无需手动创建目录。
 
@@ -418,16 +418,16 @@ CMD ["ttyd", "-p", "7681", "-W", "-t", "fontSize=14", "-t", "fontFamily=JetBrain
 
 ```bash
 # 构建沙盒终端镜像
-docker build -t omichub/sandbox-terminal:latest tool_configs/terminal/docker/
+docker build -t cygnusx-sandbox-terminal:v0.0.2dev tool_configs/terminal/docker/
 
 # 或通过 make 自动化（含清理 + 前端构建 + 服务重启）
 make docker-reload
 ```
 
 `make docker-reload` 执行顺序：
-1. `docker-network` — 创建 `omichub_net` + `omichub-sandbox-net` 外部网络（幂等）
-2. 清理残留 `omichub-*` 容器（防名称冲突）
-3. 构建 `omichub/sandbox-terminal:latest` 镜像
+1. `docker-network` — 创建 `cygnusx_net` + `cygnusx-sandbox-net` 外部网络（幂等）
+2. 清理残留 `cygnusx-*` 容器（防名称冲突）
+3. 构建 `cygnusx-sandbox-terminal:v0.0.2dev` 镜像
 4. 构建前端 (`npm run build`)
 5. 启动主栈 + Worker 栈
 6. 检查 Alembic 迁移状态
@@ -435,38 +435,38 @@ make docker-reload
 ### 用途镜像
 
 除基础镜像外，终端提供三种按用途划分的派生镜像。它们均继承
-`omichub/sandbox-terminal:latest` 的 ttyd、zsh 和非 root 运行环境，并在安装完成后切回 UID 1000。
+`cygnusx-sandbox-terminal:v0.0.2dev` 的 ttyd、zsh 和非 root 运行环境，并在安装完成后切回 UID 1000。
 
 | ID | Dockerfile | 镜像名 | 默认资源 | 主要工具 |
 |---|---|---|---|---|
-| `scrna` | `docker/Dockerfile.scrna` | `omichub/sandbox-scrna:latest` | 4 GB / 2 核 | scanpy、anndata、leiden、Harmony、Scrublet、scVelo |
-| `gatk` | `docker/Dockerfile.gatk` | `omichub/sandbox-gatk:latest` | 4 GB / 4 核 | GATK4、PLINK1.9、PLINK2、tabix |
-| `ggplot2` | `docker/Dockerfile.ggplot2` | `omichub/sandbox-ggplot2:latest` | 1 GB / 1 核 | R、ggplot2、tidyverse、ggrepel、cowplot、plotnine、中文字体 |
-| `rnaseq` | `docker/Dockerfile.rnaseq` | `omichub/sandbox-rnaseq:latest` | 4 GB / 4 核 | hisat2、salmon、kallisto、featureCounts、DESeq2、tximport |
-| `assembly` | `docker/Dockerfile.assembly` | `omichub/sandbox-assembly:latest` | 8 GB / 4 核 | SPAdes、flye、QUAST、BUSCO、minimap2 |
-| `metagenomics` | `docker/Dockerfile.metagenomics` | `omichub/sandbox-metagenomics:latest` | 8 GB / 4 核 | kraken2、bracken、centrifuge、fastp、MultiQC |
+| `scrna` | `docker/Dockerfile.scrna` | `cygnusx-sandbox-scrna:v0.0.2dev` | 4 GB / 2 核 | scanpy、anndata、leiden、Harmony、Scrublet、scVelo |
+| `gatk` | `docker/Dockerfile.gatk` | `cygnusx-sandbox-gatk:v0.0.2dev` | 4 GB / 4 核 | GATK4、PLINK1.9、PLINK2、tabix |
+| `ggplot2` | `docker/Dockerfile.ggplot2` | `cygnusx-sandbox-ggplot2:v0.0.2dev` | 1 GB / 1 核 | R、ggplot2、tidyverse、ggrepel、cowplot、plotnine、中文字体 |
+| `rnaseq` | `docker/Dockerfile.rnaseq` | `cygnusx-sandbox-rnaseq:v0.0.2dev` | 4 GB / 4 核 | hisat2、salmon、kallisto、featureCounts、DESeq2、tximport |
+| `assembly` | `docker/Dockerfile.assembly` | `cygnusx-sandbox-assembly:v0.0.2dev` | 8 GB / 4 核 | SPAdes、flye、QUAST、BUSCO、minimap2 |
+| `metagenomics` | `docker/Dockerfile.metagenomics` | `cygnusx-sandbox-metagenomics:v0.0.2dev` | 8 GB / 4 核 | kraken2、bracken、centrifuge、fastp、MultiQC |
 
 构建顺序必须先构建基础镜像：
 
 ```bash
-docker build -t omichub/sandbox-terminal:latest tool_configs/terminal/docker/
-docker build -t omichub/sandbox-scrna:latest -f tool_configs/terminal/docker/Dockerfile.scrna tool_configs/terminal/docker/
-docker build -t omichub/sandbox-gatk:latest -f tool_configs/terminal/docker/Dockerfile.gatk tool_configs/terminal/docker/
-docker build -t omichub/sandbox-ggplot2:latest -f tool_configs/terminal/docker/Dockerfile.ggplot2 tool_configs/terminal/docker/
-docker build -t omichub/sandbox-rnaseq:latest -f tool_configs/terminal/docker/Dockerfile.rnaseq tool_configs/terminal/docker/
-docker build -t omichub/sandbox-assembly:latest -f tool_configs/terminal/docker/Dockerfile.assembly tool_configs/terminal/docker/
-docker build -t omichub/sandbox-metagenomics:latest -f tool_configs/terminal/docker/Dockerfile.metagenomics tool_configs/terminal/docker/
+docker build -t cygnusx-sandbox-terminal:v0.0.2dev tool_configs/terminal/docker/
+docker build -t cygnusx-sandbox-scrna:v0.0.2dev -f tool_configs/terminal/docker/Dockerfile.scrna tool_configs/terminal/docker/
+docker build -t cygnusx-sandbox-gatk:v0.0.2dev -f tool_configs/terminal/docker/Dockerfile.gatk tool_configs/terminal/docker/
+docker build -t cygnusx-sandbox-ggplot2:v0.0.2dev -f tool_configs/terminal/docker/Dockerfile.ggplot2 tool_configs/terminal/docker/
+docker build -t cygnusx-sandbox-rnaseq:v0.0.2dev -f tool_configs/terminal/docker/Dockerfile.rnaseq tool_configs/terminal/docker/
+docker build -t cygnusx-sandbox-assembly:v0.0.2dev -f tool_configs/terminal/docker/Dockerfile.assembly tool_configs/terminal/docker/
+docker build -t cygnusx-sandbox-metagenomics:v0.0.2dev -f tool_configs/terminal/docker/Dockerfile.metagenomics tool_configs/terminal/docker/
 ```
 
 每个镜像构建后，使用下列命令验证关键工具与普通用户身份：
 
 ```bash
-docker run --rm --entrypoint sh omichub/sandbox-scrna:latest -lc 'id -u; python3 -c "import scanpy, scvelo"'
-docker run --rm --entrypoint sh omichub/sandbox-gatk:latest -lc 'id -u; gatk --version; plink --version; plink2 --version'
-docker run --rm --entrypoint sh omichub/sandbox-ggplot2:latest -lc 'id -u; R --version; R -q -e "library(ggplot2)"; python3 -c "import plotnine"'
-docker run --rm --entrypoint sh omichub/sandbox-rnaseq:latest -lc 'id -u; hisat2 --version; salmon --version; kallisto version; featureCounts -v; R -q -e "library(DESeq2); library(tximport)"'
-docker run --rm --entrypoint sh omichub/sandbox-assembly:latest -lc 'id -u; spades.py --version; flye --version; quast.py --version; busco --version; minimap2 --version'
-docker run --rm --entrypoint sh omichub/sandbox-metagenomics:latest -lc 'id -u; kraken2 --version; bracken -v; centrifuge --version; fastp --version; multiqc --version'
+docker run --rm --entrypoint sh cygnusx-sandbox-scrna:v0.0.2dev -lc 'id -u; python3 -c "import scanpy, scvelo"'
+docker run --rm --entrypoint sh cygnusx-sandbox-gatk:v0.0.2dev -lc 'id -u; gatk --version; plink --version; plink2 --version'
+docker run --rm --entrypoint sh cygnusx-sandbox-ggplot2:v0.0.2dev -lc 'id -u; R --version; R -q -e "library(ggplot2)"; python3 -c "import plotnine"'
+docker run --rm --entrypoint sh cygnusx-sandbox-rnaseq:v0.0.2dev -lc 'id -u; hisat2 --version; salmon --version; kallisto version; featureCounts -v; R -q -e "library(DESeq2); library(tximport)"'
+docker run --rm --entrypoint sh cygnusx-sandbox-assembly:v0.0.2dev -lc 'id -u; spades.py --version; flye --version; quast.py --version; busco --version; minimap2 --version'
+docker run --rm --entrypoint sh cygnusx-sandbox-metagenomics:v0.0.2dev -lc 'id -u; kraken2 --version; bracken -v; centrifuge --version; fastp --version; multiqc --version'
 ```
 
 `terminal_images.yaml` 已注册上述镜像，配置加载器检测 mtime 后自动热加载；镜像必须先在运行终端服务的 Docker 主机上构建或拉取，再允许用户创建会话。
@@ -476,19 +476,19 @@ docker run --rm --entrypoint sh omichub/sandbox-metagenomics:latest -lc 'id -u; 
 
 | 层 | 路径 | 作用 |
 |----|------|------|
-| 配置加载 | `src/omichub/tools/terminal/config.py` | YAML ConfigManager（mtime 热重载，Pydantic 模型）；含运行时配置与镜像配置 |
-| API 路由 | `src/omichub/api/v1/terminal.py` | REST 端点 + WebSocket 双向代理（含 ttyd 协议翻译）；新增 `GET /environments` |
-| API 路由 | `src/omichub/api/v1/admin/terminals.py` | 管理员查看/销毁所有终端会话 |
-| 应用服务 | `src/omichub/application/services/terminal_service.py` | 会话编排（创建/销毁/心跳/回收）；按 image_id 选择镜像配置 |
-| DTO | `src/omichub/application/schemas/terminal.py` | 请求/响应模型；含 `TerminalImageDTO` / `TerminalImagesConfigDTO` |
-| 域实体 | `src/omichub/domain/terminal/entities.py` | `TerminalSession` 聚合根（新增 `image_id` 字段） |
-| 域值对象 | `src/omichub/domain/terminal/value_objects.py` | `TerminalStatus` 状态枚举 |
-| 域服务 | `src/omichub/domain/terminal/services.py` | 会话状态流转 |
-| 域仓储接口 | `src/omichub/domain/terminal/repositories.py` | `ITerminalSessionRepository` |
-| 容器管理 | `src/omichub/infrastructure/terminal/docker_manager.py` | Docker SDK 生命周期管理；按镜像配置创建容器 |
-| 基础设施入口 | `src/omichub/infrastructure/terminal/__init__.py` | `TerminalDockerManager` 单例 |
-| DB 模型 | `src/omichub/infrastructure/database/models/terminal.py` | `terminal_sessions` 表（新增 `image_id` 列） |
-| DB 仓储 | `src/omichub/infrastructure/database/repositories/terminal_repository.py` | SQLAlchemy 异步实现 |
+| 配置加载 | `src/cygnusx/tools/terminal/config.py` | YAML ConfigManager（mtime 热重载，Pydantic 模型）；含运行时配置与镜像配置 |
+| API 路由 | `src/cygnusx/api/v1/terminal.py` | REST 端点 + WebSocket 双向代理（含 ttyd 协议翻译）；新增 `GET /environments` |
+| API 路由 | `src/cygnusx/api/v1/admin/terminals.py` | 管理员查看/销毁所有终端会话 |
+| 应用服务 | `src/cygnusx/application/services/terminal_service.py` | 会话编排（创建/销毁/心跳/回收）；按 image_id 选择镜像配置 |
+| DTO | `src/cygnusx/application/schemas/terminal.py` | 请求/响应模型；含 `TerminalImageDTO` / `TerminalImagesConfigDTO` |
+| 域实体 | `src/cygnusx/domain/terminal/entities.py` | `TerminalSession` 聚合根（新增 `image_id` 字段） |
+| 域值对象 | `src/cygnusx/domain/terminal/value_objects.py` | `TerminalStatus` 状态枚举 |
+| 域服务 | `src/cygnusx/domain/terminal/services.py` | 会话状态流转 |
+| 域仓储接口 | `src/cygnusx/domain/terminal/repositories.py` | `ITerminalSessionRepository` |
+| 容器管理 | `src/cygnusx/infrastructure/terminal/docker_manager.py` | Docker SDK 生命周期管理；按镜像配置创建容器 |
+| 基础设施入口 | `src/cygnusx/infrastructure/terminal/__init__.py` | `TerminalDockerManager` 单例 |
+| DB 模型 | `src/cygnusx/infrastructure/database/models/terminal.py` | `terminal_sessions` 表（新增 `image_id` 列） |
+| DB 仓储 | `src/cygnusx/infrastructure/database/repositories/terminal_repository.py` | SQLAlchemy 异步实现 |
 | 迁移 | `alembic/versions/3e76881cadbc_add_image_id_to_terminal_sessions.py` | 新增 `image_id` 列的迁移 |
 
 ## 前端代码分布
@@ -507,30 +507,30 @@ docker run --rm --entrypoint sh omichub/sandbox-metagenomics:latest -lc 'id -u; 
 
 ## Docker Compose 网络配置
 
-`omichub-web` 容器加入 4 个网络：
+`cygnusx-web` 容器加入 4 个网络：
 
 ```yaml
 networks:
   - app_net              # 内部网络：与 nginx 通信
   - data_net             # 内部网络：与 db / cache 通信
-  - omichub_net          # 外部跨栈网络：与独立 worker 栈互通
-  - omichub-sandbox-net  # 外部沙盒网络：经容器 DNS 直连终端容器 ttyd 端口
+  - cygnusx_net          # 外部跨栈网络：与独立 worker 栈互通
+  - cygnusx-sandbox-net  # 外部沙盒网络：经容器 DNS 直连终端容器 ttyd 端口
 ```
 
-`omichub-sandbox-net` 为 external 网络，由 `make docker-network` 在部署前创建：
+`cygnusx-sandbox-net` 为 external 网络，由 `make docker-network` 在部署前创建：
 
 ```makefile
 docker-network:
-	@docker network create omichub_net 2>/dev/null || true
-	@docker network create omichub-sandbox-net 2>/dev/null || true
+	@docker network create cygnusx_net 2>/dev/null || true
+	@docker network create cygnusx-sandbox-net 2>/dev/null || true
 ```
 
 ## 容器命名规则
 
-容器名称格式：`omichub-term-{user_id[:8]}-{session_id}`
+容器名称格式：`cygnusx-term-{user_id[:8]}-{session_id}`
 
 - `user_id[:8]`：UUID 前 8 位
 - `session_id`：`term_` + 8 位随机字符（如 `term_abc12345`）
-- 示例：`omichub-term-cb79a200-term_abc12345`（35 字符）
+- 示例：`cygnusx-term-cb79a200-term_abc12345`（35 字符）
 
 **约束**：容器名用于 Docker DNS 解析，DNS 标签最大 63 字符，当前格式 ≤ 40 字符。

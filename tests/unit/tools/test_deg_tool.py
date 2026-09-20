@@ -7,12 +7,12 @@ from types import SimpleNamespace
 
 import pytest
 
-from omichub.core.exceptions import ValidationError
-from omichub.tools.deg.config import DegConfig, DegConfigManager
-from omichub.tools.deg import service as deg_service_module
-from omichub.tools.deg.runner import DegDockerRunner, DegRunParams
-from omichub.tools.deg.service import DegService
-from omichub.tools.deg.tasks import _parse_results
+from cygnusx.core.exceptions import ValidationError
+from cygnusx.tools.deg.config import DegConfig, DegConfigManager
+from cygnusx.tools.deg import service as deg_service_module
+from cygnusx.tools.deg.runner import DegDockerRunner, DegRunParams
+from cygnusx.tools.deg.service import DegService
+from cygnusx.tools.deg.tasks import _parse_results
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DEG_CONFIG_YAML = REPO_ROOT / "tool_configs" / "deg" / "deg_config.yaml"
@@ -25,9 +25,9 @@ def _service() -> DegService:
 def _runner() -> DegDockerRunner:
     runner = DegDockerRunner.__new__(DegDockerRunner)
     runner._settings = SimpleNamespace(
-        deg_docker_image="omichub-r-deg:v1",
-        deg_docker_network="omichub_app_net",
-        deg_data_mount="/data/omichub",
+        deg_docker_image="cygnusx-r-deg:v1",
+        deg_docker_network="cygnusx_app_net",
+        deg_data_mount="/data/cygnusx",
         deg_exec_timeout=7200,
     )
     return runner
@@ -41,7 +41,7 @@ def test_config_loads_repo_yaml() -> None:
     cfg = DegConfigManager(DEG_CONFIG_YAML).get_config()
     assert cfg.defaults.method == "auto"
     assert cfg.defaults.bcv == 0.4
-    assert cfg.execution.docker_image == "omichub-r-deg:v1"
+    assert cfg.execution.docker_image == "cygnusx-r-deg:v1"
     assert cfg.input_limits.min_samples == 2
 
 
@@ -150,22 +150,22 @@ def test_counts_header_and_size_limits() -> None:
 def test_runner_command_edger_includes_bcv_and_annotation() -> None:
     params = DegRunParams(
         engine="edger",
-        counts_path="/data/omichub/u/t/input/counts.csv",
-        metadata_path="/data/omichub/u/t/input/metadata.csv",
-        pairs_path="/data/omichub/u/t/input/pairs.csv",
-        output_dir="/data/omichub/u/t/results",
+        counts_path="/data/cygnusx/u/t/input/counts.csv",
+        metadata_path="/data/cygnusx/u/t/input/metadata.csv",
+        pairs_path="/data/cygnusx/u/t/input/pairs.csv",
+        output_dir="/data/cygnusx/u/t/results",
         lfc=1.0,
         pval=0.05,
         bcv=0.4,
-        annotation_path="/data/omichub/u/t/input/annotation.csv",
+        annotation_path="/data/cygnusx/u/t/input/annotation.csv",
     )
-    cmd = _runner().build_command(params, "omichub-deg-test")
+    cmd = _runner().build_command(params, "cygnusx-deg-test")
     joined = " ".join(cmd)
     assert cmd[:3] == ["docker", "run", "--rm"]
-    assert "omichub-r-deg:v1" in cmd
+    assert "cygnusx-r-deg:v1" in cmd
     assert "/opt/deg/run_edger.r" in cmd
     assert "--bcv=0.4" in cmd
-    assert "-v" in cmd and "/data/omichub:/data/omichub" in cmd
+    assert "-v" in cmd and "/data/cygnusx:/data/cygnusx" in cmd
     assert "-a" in cmd
     assert cmd[cmd.index("-o") + 1] == params.output_dir
     assert "--lfc=1.0" in joined and "--pval=0.05" in joined
@@ -179,7 +179,7 @@ def test_runner_command_deseq2_omits_bcv() -> None:
         pairs_path="p",
         output_dir="o",
     )
-    cmd = _runner().build_command(params, "omichub-deg-test2")
+    cmd = _runner().build_command(params, "cygnusx-deg-test2")
     assert "/opt/deg/run_deseq2.r" in cmd
     assert not any("--bcv" in part for part in cmd)
     assert "-a" not in cmd

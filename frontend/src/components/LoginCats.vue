@@ -2,7 +2,7 @@
 /**
  * LoginCats —— 登录页唯一吉祥物：黑猫
  *
- * 仅保留 loader-cat（黑猫）一只，居中放置于 OmicHub 标题正上方，
+ * 仅保留 loader-cat（黑猫）一只，居中放置于 CygnusX 标题正上方，
  * 头部探出登录卡片顶部，不遮挡标题与表单。
  * 复用项目既有 vue3-lottie 模式，资源缺失时兜底为 🐱 emoji。
  */

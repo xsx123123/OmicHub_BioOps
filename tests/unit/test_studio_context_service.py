@@ -9,25 +9,25 @@ from typing import Any
 
 import pytest
 
-from omichub.application.services import studio_context_service
-from omichub.application.services.agent_service import AgentService
-from omichub.application.services.studio_context_service import (
+from cygnusx.application.services import studio_context_service
+from cygnusx.application.services.agent_service import AgentService
+from cygnusx.application.services.studio_context_service import (
     create_session_from_report,
     import_datahub_file,
     register_artifact_report,
     render_context_pack_hint,
 )
-from omichub.core.config import get_settings
-from omichub.core.exceptions import BusinessError, NotFoundError
-from omichub.domain.file.value_objects import FileSource
-from omichub.infrastructure.config.storage_config import StorageConfig
-from omichub.infrastructure.database.models.chat import ChatSessionModel
-from omichub.infrastructure.database.models.report import ReportFileModel, ReportModel
-from omichub.infrastructure.database.models.task import TaskModel
-from omichub.infrastructure.storage.path_factory import StoragePathFactory
-from omichub.infrastructure.storage import reset_storage_backend
-from omichub.infrastructure.storage import backend as _storage_backend_module
-from omichub.infrastructure.storage import path_factory as _path_factory_module
+from cygnusx.core.config import get_settings
+from cygnusx.core.exceptions import BusinessError, NotFoundError
+from cygnusx.domain.file.value_objects import FileSource
+from cygnusx.infrastructure.config.storage_config import StorageConfig
+from cygnusx.infrastructure.database.models.chat import ChatSessionModel
+from cygnusx.infrastructure.database.models.report import ReportFileModel, ReportModel
+from cygnusx.infrastructure.database.models.task import TaskModel
+from cygnusx.infrastructure.storage.path_factory import StoragePathFactory
+from cygnusx.infrastructure.storage import reset_storage_backend
+from cygnusx.infrastructure.storage import backend as _storage_backend_module
+from cygnusx.infrastructure.storage import path_factory as _path_factory_module
 
 
 def _lexists(path: Path) -> bool:
@@ -247,7 +247,7 @@ async def test_import_chat_upload_rejects_non_hex_identifier(platform_env):
 @pytest.mark.unit
 async def test_link_session_file_refs_batch_and_idempotent(platform_env, monkeypatch):
     """批量引入多个上传文件；重复引入幂等；非法引用记入 errors 不中断。"""
-    from omichub.application.services.studio_context_service import link_session_file_refs
+    from cygnusx.application.services.studio_context_service import link_session_file_refs
 
     storage, uid, workspace = platform_env
     up_a = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -297,7 +297,7 @@ async def test_create_session_from_report_packs_context(platform_env, monkeypatc
 
     agent = SimpleNamespace(
         is_active=True,
-        features={"studio": {"image": "omichub-sandbox:base"}},
+        features={"studio": {"image": "cygnusx-sandbox:base"}},
         model_id=uuid.uuid4(),
         name="可视化助手",
     )
@@ -324,7 +324,7 @@ async def test_create_session_from_report_packs_context(platform_env, monkeypatc
     assert _lexists(link)
     assert _readlink(link) == "/data/platform/results/task-1/de.csv"
     # 沙盒镜像沿用 Agent studio 配置
-    assert session.sandbox_meta["image"] == "omichub-sandbox:base"
+    assert session.sandbox_meta["image"] == "cygnusx-sandbox:base"
 
 
 @pytest.mark.unit

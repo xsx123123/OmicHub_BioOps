@@ -2,7 +2,7 @@
 
 `claim_next.py` is a controller-agnostic Worker entrypoint. It retrieves the authenticated
 Worker's Bridge inbox, atomically claims one `pending` Work Item, and prints a JSON task envelope
-to stdout. It neither executes analysis tools nor contains OmicHub database, Docker, filesystem,
+to stdout. It neither executes analysis tools nor contains CygnusX database, Docker, filesystem,
 or shell capabilities.
 
 The AgentTeams/HiClaw release-specific Worker resource can use the container image built from this

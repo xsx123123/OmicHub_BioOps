@@ -3,7 +3,7 @@
  * censor ticks, optional 95% CI ribbons, median-survival guides, an in-plot
  * log-rank p annotation and a "number at risk" table on a second y domain.
  * All colors are concrete values resolved for the current theme — never
- * `var(--xxx)` inside chart options (see fontend.md §13.2).
+ * `var(--xxx)` inside chart options (see frontend.md §13.2).
  */
 import * as Plotly from 'plotly.js-dist-min'
 import { numberAtRisk } from './kmEstimator'

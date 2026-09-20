@@ -2,5 +2,6 @@
 fastapi>=0.110.0
 uvicorn[standard]>=0.27.0
 pydantic>=2.6.0
+loguru>=0.7.2
 # MCP Builder：容器内以 STDIO 运行/验证 AI 生成的实验 MCP Server
 mcp>=1.2.0

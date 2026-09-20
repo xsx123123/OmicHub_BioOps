@@ -36,6 +36,17 @@ export interface StudioSessionDTO {
   overdrive?: boolean
 }
 
+/** Studio 沙箱运行时配置（GET /studio/runtime-profiles） */
+export interface StudioRuntimeProfile {
+  id: string
+  name: string
+  description?: string
+  image: string
+  capabilities?: string[]
+  executor_compatibility?: string[]
+  is_default?: boolean
+}
+
 export type SandboxStatus = 'running' | 'stopped' | 'absent' | 'unavailable'
 
 export interface WorkspaceEntry {
@@ -92,10 +103,35 @@ export interface StudioShareStatus {
   shared_at: string | null
 }
 
+/** 分享快照中的工具执行摘要（R4，对应后端 tool_invocations 信封） */
+export interface SharedToolInvocation {
+  tool_name?: string
+  success?: boolean
+  arguments?: Record<string, unknown>
+  result?: unknown
+  result_truncation?: { payload_truncated?: boolean; truncation_note?: string }
+  ui_payload_truncation?: { payload_truncated?: boolean; truncation_note?: string }
+}
+
 export interface SharedStudioMessage {
   role: 'user' | 'assistant'
   content: string
   created_at: string
+  /** R4：执行历史摘要（tool_invocations/timeline/usage），无工具执行为 null */
+  metadata_json?: {
+    tool_invocations?: SharedToolInvocation[]
+    timeline?: unknown[]
+    usage?: Record<string, unknown>
+    [key: string]: unknown
+  } | null
+}
+
+export interface SharedStudioArtifact {
+  path: string
+  size: number
+  mtime: number
+  /** R4：WP2 登记的 file_records checksum（sha256），未登记为 null */
+  sha256?: string | null
 }
 
 export interface SharedStudioSession {
@@ -105,7 +141,7 @@ export interface SharedStudioSession {
   updated_at: string
   expires_at: string
   messages: SharedStudioMessage[]
-  artifacts: StudioArtifact[]
+  artifacts: SharedStudioArtifact[]
 }
 
 /** Studio 会话级权限模式（supervised=关键操作需用户批准；auto=放权自动执行） */
@@ -129,6 +165,13 @@ export interface StudioPendingApproval {
   approval_kind?: 'tool' | 'plan'
 }
 
+export interface StudioEnvRestoreStatus {
+  status: 'restored' | 'failed' | 'skipped'
+  file: string | null
+  duration_ms: number
+  reason: string | null
+}
+
 export interface StudioSessionDetail {
   session: StudioSessionDTO
   sandbox_status: SandboxStatus
@@ -137,6 +180,8 @@ export interface StudioSessionDetail {
   files: WorkspaceEntry[]
   plan: StudioPlan | null
   capabilities: StudioCapabilitiesState | null
+  /** 最近一次声明式环境还原结果；failed 时给一次性 warning 提示 */
+  env_restore?: StudioEnvRestoreStatus | null
   sandbox_metrics: {
     cpu_percent: number
     memory_percent: number
@@ -213,21 +258,33 @@ export function artifactDownloadUrl(sessionId: string, path: string): string {
 }
 
 export const studioApi = {
-  /** 创建 Studio 会话（mode="studio"，workspace_id = session id） */
+  /** 可用沙箱运行时列表（未登录/接口失败时由调用方降级处理） */
+  async listRuntimeProfiles(): Promise<StudioRuntimeProfile[]> {
+    const res = await apiClient.get<StudioRuntimeProfile[]>('/studio/runtime-profiles')
+    return res.data || []
+  },
+
+  /** 创建 Studio 会话（mode="studio"，workspace_id = session id）；runtime_profile 固定沙箱镜像；project_id 后端必填 */
   async createSession(payload: {
     agent_id: string
     title?: string
     model_id?: string
+    runtime_profile?: string
+    sandbox_capabilities?: Array<'code' | 'browser' | 'document'>
+    project_id?: string
   }): Promise<StudioSessionDTO> {
     const res = await apiClient.post<StudioSessionDTO>('/studio/sessions', payload)
     return res.data
   },
 
-  /** 将普通聊天会话升级为 Studio 工作台（保留历史消息），可选重绑定 Agent */
-  async promoteSession(sessionId: string, agentId?: string): Promise<StudioSessionDTO> {
+  /** 将普通聊天会话升级为 Studio 工作台（保留历史消息），可选重绑定 Agent、固定沙箱运行时 */
+  async promoteSession(
+    sessionId: string,
+    payload?: { agent_id?: string; runtime_profile?: string },
+  ): Promise<StudioSessionDTO> {
     const res = await apiClient.post<StudioSessionDTO>(
       `/studio/sessions/${sessionId}/promote`,
-      agentId ? { agent_id: agentId } : {},
+      payload || {},
     )
     return res.data
   },
@@ -251,6 +308,11 @@ export const studioApi = {
   async getSession(sessionId: string): Promise<StudioSessionDetail> {
     const res = await apiClient.get<StudioSessionDetail>(`/studio/sessions/${sessionId}`)
     return res.data
+  },
+
+  /** 删除 Studio 会话（沙盒忙碌时后端返回 409；工作区文件由保留期机制清理） */
+  async deleteSession(sessionId: string): Promise<void> {
+    await apiClient.delete(`/studio/sessions/${sessionId}`)
   },
 
   async listCheckpoints(sessionId: string): Promise<StudioCheckpoint[]> {
@@ -287,13 +349,15 @@ export const studioApi = {
     return res.data?.approvals || []
   },
 
-  /** 批准待审批的工具调用；带 modifiedArgs 即"编辑后批准" */
+  /** 批准待审批的工具调用；带 modifiedArgs 即"编辑后批准"；always 即"本会话不再询问" */
   async approveApproval(
     approvalId: string,
     modifiedArgs?: Record<string, unknown>,
+    always?: boolean,
   ): Promise<void> {
     await apiClient.post(`/studio/approvals/${approvalId}/approve`, {
       ...(modifiedArgs ? { modified_args: modifiedArgs } : {}),
+      ...(always ? { always: true } : {}),
     })
   },
 

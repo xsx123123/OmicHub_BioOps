@@ -1,4 +1,4 @@
-from omichub.middleware.auth import (
+from cygnusx.middleware.auth import (
     SELF_AUTHENTICATED_PATHS,
     api_key_allows_scope,
     required_api_key_scope,

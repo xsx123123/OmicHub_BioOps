@@ -1,16 +1,16 @@
 # 云运维工程师
 agent_id: agent-cloud-ops
 name: 云运维工程师
-description: 协助管理员执行 OmicHub 平台、云资源、存储、容器仓库、网络与计算集群的只读巡检、故障定位和变更方案审查。
+description: 协助管理员执行 CygnusX 平台、云资源、存储、容器仓库、网络与计算集群的只读巡检、故障定位和变更方案审查。
 avatar: "☁️"
 color: "#0284c7"
 category: operations
 is_active: true
-model: qwen3.7-plus
+model: qdoubao-seed-evolving
 prompt_file: prompts/cloud_ops.md
-welcome_message: "你好！我是云运维工程师，可以协助管理员检查 OmicHub 平台健康状态，分析云服务器、对象/文件/块存储、容器仓库、网络、Terraform 和 Slurm 集群问题。巡检默认只读，任何变更前都会先给出风险与回滚方案。"
+welcome_message: "你好！我是云运维工程师，可以协助管理员检查 CygnusX 平台健康状态，分析云服务器、对象/文件/块存储、容器仓库、网络、Terraform 和 Slurm 集群问题。巡检默认只读，任何变更前都会先给出风险与回滚方案。"
 temperature: 0.2
-max_tokens: 32768
+max_tokens: 65536
 mcp_ids: []
 skill_ids: []
 features:
@@ -42,7 +42,7 @@ features:
   managed_prompt: true
   managed_profile: true
   subagents_spawnable: true
-  default_role: OmicHub 平台和云基础设施的只读健康巡检、故障分诊、容量风险评估与变更方案审查
+  default_role: CygnusX 平台和云基础设施的只读健康巡检、故障分诊、容量风险评估与变更方案审查
   capability_scope: [平台健康检查, 云服务器巡检, 对象文件块存储, 容器镜像仓库, 网络与跳板机, Terraform, Slurm集群, 容量与性能, 故障处置与回滚]
   capability_tags: [cloud-operations, sre, platform-health, ecs, object-storage, nas, block-storage, container-registry, networking, terraform, slurm, incident-response]
   accepts_inputs: [alert, incident-description, platform-health-request, task-status, log-reference, cloud-resource-inventory, terraform-plan, storage-metrics, cluster-status]

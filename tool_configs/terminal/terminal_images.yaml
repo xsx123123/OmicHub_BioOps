@@ -1,4 +1,4 @@
-# OmicHub 沙盒终端可用镜像定义
+# CygnusX 沙盒终端可用镜像定义
 # 修改本文件后：配置加载器基于 mtime 自动热重载，无需重启后端。
 #
 # 设计原则：
@@ -19,14 +19,14 @@ images:
   - id: "base"
     name: "基础生信"
     description: "预装 samtools、bcftools、bedtools、fastqc、seqkit、python3、numpy、pandas、biopython、pysam"
-    image: "omichub/sandbox-terminal:latest"
+    image: "cygnusx-sandbox-terminal:v0.0.2dev"
     tags: ["基础"]
     icon: "🔧"
     resources:
       memory_mb: 512
       cpu_cores: 1.0
     env:
-      - name: "OMICHUB_ENV"
+      - name: "CYGNUSX_ENV"
         value: "base"
       - name: "TERM"
         value: "xterm-256color"
@@ -35,7 +35,7 @@ images:
   - id: "scrna"
     name: "单细胞分析"
     description: "预装 scanpy、anndata、leiden、Harmony、Scrublet、scVelo，适合 10x 数据质控、聚类与细胞注释"
-    image: "omichub/sandbox-scrna:latest"
+    image: "cygnusx-sandbox-scrna:v0.0.2dev"
     tags: ["单细胞", "scanpy"]
     icon: "🧬"
     resources:
@@ -43,7 +43,7 @@ images:
       cpu_cores: 2.0
       pid_limit: 200
     env:
-      - name: "OMICHUB_ENV"
+      - name: "CYGNUSX_ENV"
         value: "scrna"
       - name: "NUMBA_CACHE_DIR"
         value: "/tmp"
@@ -54,7 +54,7 @@ images:
   - id: "gatk"
     name: "变异检测 GATK & PLINK"
     description: "预装 GATK4、PLINK1.9、PLINK2、tabix，配合基础 samtools 链完成变异检测与群体遗传分析"
-    image: "omichub/sandbox-gatk:latest"
+    image: "cygnusx-sandbox-gatk:v0.0.2dev"
     tags: ["变异检测", "WGS", "GWAS"]
     icon: "🧪"
     resources:
@@ -62,14 +62,14 @@ images:
       cpu_cores: 4.0
       pid_limit: 200
     env:
-      - name: "OMICHUB_ENV"
+      - name: "CYGNUSX_ENV"
         value: "gatk"
     enabled: true
 
   - id: "ggplot2"
     name: "科研绘图 ggplot2"
     description: "预装 R、tidyverse 绘图组件、ggrepel、cowplot、中文字体及 Python plotnine"
-    image: "omichub/sandbox-ggplot2:latest"
+    image: "cygnusx-sandbox-ggplot2:v0.0.2dev"
     tags: ["绘图", "R", "ggplot2"]
     icon: "📊"
     resources:
@@ -77,7 +77,7 @@ images:
       cpu_cores: 1.0
       pid_limit: 100
     env:
-      - name: "OMICHUB_ENV"
+      - name: "CYGNUSX_ENV"
         value: "ggplot2"
       - name: "MPLCONFIGDIR"
         value: "/tmp"
@@ -86,7 +86,7 @@ images:
   - id: "rnaseq"
     name: "RNA-seq 流程"
     description: "预装 hisat2、salmon、kallisto、featureCounts、DESeq2、tximport，覆盖比对、定量到差异表达全流程"
-    image: "omichub/sandbox-rnaseq:latest"
+    image: "cygnusx-sandbox-rnaseq:v0.0.2dev"
     tags: ["转录组", "差异表达"]
     icon: "🧬"
     resources:
@@ -94,14 +94,14 @@ images:
       cpu_cores: 4.0
       pid_limit: 200
     env:
-      - name: "OMICHUB_ENV"
+      - name: "CYGNUSX_ENV"
         value: "rnaseq"
     enabled: true
 
   - id: "assembly"
     name: "基因组组装"
     description: "预装 SPAdes、flye、QUAST、BUSCO、minimap2，二代三代组装与质量评估一体"
-    image: "omichub/sandbox-assembly:latest"
+    image: "cygnusx-sandbox-assembly:v0.0.2dev"
     tags: ["组装", "SPAdes", "三代"]
     icon: "🧫"
     resources:
@@ -109,14 +109,14 @@ images:
       cpu_cores: 4.0
       pid_limit: 200
     env:
-      - name: "OMICHUB_ENV"
+      - name: "CYGNUSX_ENV"
         value: "assembly"
     enabled: true
 
   - id: "metagenomics"
     name: "宏基因组"
     description: "预装 kraken2、bracken、centrifuge、fastp、MultiQC；数据库需放入 workspace 或 raw_data 后通过 --db 指定"
-    image: "omichub/sandbox-metagenomics:latest"
+    image: "cygnusx-sandbox-metagenomics:v0.0.2dev"
     tags: ["宏基因组", "物种注释"]
     icon: "🦠"
     resources:
@@ -124,6 +124,6 @@ images:
       cpu_cores: 4.0
       pid_limit: 200
     env:
-      - name: "OMICHUB_ENV"
+      - name: "CYGNUSX_ENV"
         value: "metagenomics"
     enabled: true

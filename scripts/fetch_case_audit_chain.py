@@ -12,7 +12,7 @@ recorded_at 排序输出统一结构（含 correlation 关联字段与断链清�
     uv run python scripts/fetch_case_audit_chain.py --case-id <case_id> --output chain.jsonl
 
 环境：
-    需要能访问 OmicHub 数据库以读取 Bridge 运行时配置（URL 与 manager token）
+    需要能访问 CygnusX 数据库以读取 Bridge 运行时配置（URL 与 manager token）
     及房间-Case 绑定关系。
 """
 
@@ -25,15 +25,15 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from omichub.application.services.agentteams_audit_chain_service import (
+from cygnusx.application.services.agentteams_audit_chain_service import (
     AgentTeamsAuditChainService,
 )
-from omichub.application.services.agentteams_bridge_settings_service import (
+from cygnusx.application.services.agentteams_bridge_settings_service import (
     AgentTeamsBridgeSettingsService,
 )
-from omichub.application.services.agentteams_service import AgentTeamsService
-from omichub.core.config import get_settings
-from omichub.infrastructure.database.session import close_db, get_session_factory
+from cygnusx.application.services.agentteams_service import AgentTeamsService
+from cygnusx.core.config import get_settings
+from cygnusx.infrastructure.database.session import close_db, get_session_factory
 
 
 def _render_table(chain: dict[str, Any]) -> str:

@@ -6,9 +6,9 @@ from uuid import uuid4
 
 import pytest
 
-from omichub.application.schemas.task import TaskResponse
-from omichub.core.security import create_access_token
-from omichub.domain.task.value_objects import ExecutionMode
+from cygnusx.application.schemas.task import TaskResponse
+from cygnusx.core.security import create_access_token
+from cygnusx.domain.task.value_objects import ExecutionMode
 
 
 @pytest.fixture
@@ -39,7 +39,7 @@ async def test_submit_task_endpoint(client, auth_headers):
         finished_at=None,
     )
 
-    with patch("omichub.api.v1.tasks.TaskService.submit", return_value=fake_task):
+    with patch("cygnusx.api.v1.tasks.TaskService.submit", return_value=fake_task):
         response = await client.post(
             "/api/v1/tasks",
             json={
@@ -61,7 +61,7 @@ async def test_submit_task_endpoint(client, auth_headers):
 async def test_list_tasks_endpoint(client, auth_headers):
     """测试任务列表端点返回正确结构"""
     with patch(
-        "omichub.api.v1.tasks.TaskService.list_tasks",
+        "cygnusx.api.v1.tasks.TaskService.list_tasks",
         return_value={"items": [], "total": 0},
     ):
         response = await client.get("/api/v1/tasks", headers=auth_headers)

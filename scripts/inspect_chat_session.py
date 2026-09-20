@@ -8,13 +8,13 @@ import json
 from pathlib import Path
 from typing import Any
 
-from omichub.infrastructure.database.models.chat import (
+from cygnusx.infrastructure.database.models.chat import (
     ChatHandoffEventModel,
     ChatMessageModel,
     ChatSessionModel,
     CollaborationDegradationEventModel,
 )
-from omichub.infrastructure.database.session import close_db, get_session_factory
+from cygnusx.infrastructure.database.session import close_db, get_session_factory
 from sqlalchemy import select
 
 

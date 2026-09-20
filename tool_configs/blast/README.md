@@ -1,7 +1,7 @@
 # BLAST 工具配置
 
-本目录是 OmicHub BLAST 模块的配置与运维入口。运行代码位于
-`src/omichub/tools/blast/`，管理端和检索端分别位于
+本目录是 CygnusX BLAST 模块的配置与运维入口。运行代码位于
+`src/cygnusx/tools/blast/`，管理端和检索端分别位于
 `frontend/src/views/AdminBlastDatabasesView.vue` 与
 `frontend/src/views/BioTools/BlastSearchView.vue`。
 
@@ -106,7 +106,7 @@ databases:
   - db_key: "rice_pan_genome_v2"
     name: "水稻泛基因组 v2"
     db_type: "nucl"
-    path: "/data/omichub/blast/db/rice_pan_genome_v2/rice_pan_genome_v2"
+    path: "/data/cygnusx/blast/db/rice_pan_genome_v2/rice_pan_genome_v2"
     description: "水稻泛基因组核酸序列库"
     source_species: "Oryza sativa"
     source_version: "v2.1"
@@ -168,7 +168,7 @@ defaults:
 ```
 
 配置加载器按文件 mtime 热重载。新增 YAML 字段前必须先在
-`src/omichub/tools/blast/config.py` 中声明；未知字段会被忽略。
+`src/cygnusx/tools/blast/config.py` 中声明；未知字段会被忽略。
 
 ## 部署要点
 
@@ -179,7 +179,7 @@ defaults:
   镜像中仍需 `ncbi-blast+` 用于本地回退或 `blast_formatter`。
 - `deploy/docker/docker-compose.worker.yml` 的 `command` 已包含
   `-Q analysis,blast_search,blast_db_build`，确保 worker 消费 BLAST 专属队列。
-- Web 与 worker 必须共享 `/data/omichub`，否则缓存命中任务无法复用结果文件。
+- Web 与 worker 必须共享 `/data/cygnusx`，否则缓存命中任务无法复用结果文件。
 - Redis 同时承载 Celery broker/backend、结果缓存和任务事件 Pub/Sub。
 - `tool_configs/blast` 需要对 web 与 worker 可读；自动同步 YAML 的进程需要写权限。
 - 运行 `alembic upgrade head`，当前 BLAST 迁移 head 为数据库版本字段迁移之后的 head。
@@ -209,8 +209,8 @@ defaults:
 
 ## 相关文件
 
-- `src/omichub/tools/blast/`
+- `src/cygnusx/tools/blast/`
 - `tests/unit/tools/test_blast_core.py`
 - `tests/integration/test_blast_api.py`
 - `tests/performance/locust_blast.py`
-- `docs/26.7.15/omichub_blast_upgrade_plan.md`
+- `docs/26.7.15/cygnusx_blast_upgrade_plan.md`

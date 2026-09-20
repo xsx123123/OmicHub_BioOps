@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from omichub.api.v1.admin.session_logs import _execution_mode
+from cygnusx.api.v1.admin.session_logs import _execution_mode
 
 
 def _session(

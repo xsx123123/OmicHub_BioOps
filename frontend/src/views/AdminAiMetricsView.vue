@@ -270,7 +270,7 @@ const summary = computed(() => trend.value?.summary ?? { calls: 0, errors: 0, er
         <NGi span="2 m:1">
           <NCard size="small" title="Token 用量与成本趋势">
             <template #header-extra>
-              <div class="omichub-segmented-toggle" role="group" aria-label="Token 图表单位切换">
+              <div class="cygnusx-segmented-toggle" role="group" aria-label="Token 图表单位切换">
                 <button
                   type="button"
                   :class="{ active: tokenUnit === 'K' }"

@@ -4,7 +4,7 @@
 
 *   **Author**: Zhang Jian
 *   **Date**: 2025-12-23
-*   **Version**: v4.1.0-alpha
+*   **Version**: v4.1.2-alpha
 
 ## Introduction
 
@@ -315,7 +315,7 @@ Or manually:
 ```bash
 # Build image
 docker build --no-cache \
-  --tag scrna-seq-multicommand:v4.1.1-alpha \
+  --tag scrna-seq-multicommand:v4.1.2-alpha \
   -f ./build_analysis_env/multiStage.Dockerfile ./
 
 # Run test
@@ -323,7 +323,7 @@ docker run --rm \
   -v $(pwd)/data/testdata:/home/mambauser/workdir/data \
   -v $(pwd)/data/test_output:/home/mambauser/workdir/output \
   -v $(pwd)/Celldex:/home/mambauser/scRNAseqMulticommand/Celldex \
-  scrna-seq-multicommand:v4.1.1-alpha \
+  scrna-seq-multicommand:v4.1.2-alpha \
   Rscript /home/mambauser/scRNAseqMulticommand/scRNAseqMulticommand \
   -c /home/mambauser/workdir/data/scRNA-seq.conf \
   -o /home/mambauser/workdir/output \
@@ -369,6 +369,6 @@ data/
 Build with specific version:
 ```bash
 docker build --no-cache \
-  --tag scrna-seq-multicommand:v4.1.1-alpha \
+  --tag scrna-seq-multicommand:v4.1.2-alpha \
   -f ./build_analysis_env/multiStage.Dockerfile ./
 ```

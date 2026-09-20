@@ -6,11 +6,11 @@ from types import SimpleNamespace
 
 import pytest
 
-import omichub.application.services.agentteams_case_event_consumer_service as consumer_module
-from omichub.application.services.agentteams_case_event_consumer_service import (
+import cygnusx.application.services.agentteams_case_event_consumer_service as consumer_module
+from cygnusx.application.services.agentteams_case_event_consumer_service import (
     AgentTeamsCaseEventConsumerService,
 )
-from omichub.infrastructure.database.models.chat import (
+from cygnusx.infrastructure.database.models.chat import (
     AgentTeamsCaseCursorModel,
     ChatSessionModel,
 )

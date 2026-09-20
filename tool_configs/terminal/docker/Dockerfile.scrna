@@ -1,6 +1,6 @@
-# OmicHub 单细胞分析沙盒镜像
-# 构建: docker build -t omichub/sandbox-scrna:latest -f tool_configs/terminal/docker/Dockerfile.scrna tool_configs/terminal/docker/
-FROM omichub/sandbox-terminal:latest
+# CygnusX 单细胞分析沙盒镜像
+# 构建: docker build -t cygnusx-sandbox-scrna:v0.0.2dev -f tool_configs/terminal/docker/Dockerfile.scrna tool_configs/terminal/docker/
+FROM cygnusx-sandbox-terminal:v0.0.2dev
 
 USER root
 

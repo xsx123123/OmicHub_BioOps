@@ -13,7 +13,7 @@ docker run --rm \
   -e SYNAPSE_SERVER_NAME=localhost -e SYNAPSE_REPORT_STATS=no \
   matrixdotorg/synapse:latest generate
 
-# 2. 从 element-web 镜像提取 nginx 配置并去掉 X-Frame-Options(允许 OmicHub iframe 嵌入)
+# 2. 从 element-web 镜像提取 nginx 配置并去掉 X-Frame-Options(允许 CygnusX iframe 嵌入)
 docker run --rm vectorim/element-web:latest cat /etc/nginx/nginx.conf \
   | sed '/X-Frame-Options/d' > deploy/agentteams/matrix-dev/nginx-no-xfo.conf
 
@@ -35,5 +35,5 @@ docker compose -f deploy/agentteams/matrix-dev/docker-compose.yml up -d
 ## 边界
 
 - 只绑定 127.0.0.1(Synapse 8008 / Element 8081)
-- 与 OmicHub 主栈、Bridge 无网络互通需求:浏览器直接访问 localhost 上的 Element
+- 与 CygnusX 主栈、Bridge 无网络互通需求:浏览器直接访问 localhost 上的 Element
 - 拆除:`docker compose -f deploy/agentteams/matrix-dev/docker-compose.yml down -v && rm -rf deploy/agentteams/matrix-dev/synapse-data`

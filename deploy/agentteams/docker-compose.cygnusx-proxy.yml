@@ -1,0 +1,16 @@
+# CygnusX 主栈的可选 AgentTeams Bridge 网络接入。
+# 仅在启用 AGENTTEAMS_BRIDGE_ENABLED=true 后与主 Compose 文件一起使用。
+
+services:
+  web:
+    networks:
+      - app_net
+      - data_net
+      - cygnusx_net
+      - cygnusx-sandbox-net
+      - cygnusx_bridge_gateway
+
+networks:
+  cygnusx_bridge_gateway:
+    external: true
+    name: ${CYGNUSX_BRIDGE_GATEWAY_NETWORK:-cygnusx_bridge_gateway}

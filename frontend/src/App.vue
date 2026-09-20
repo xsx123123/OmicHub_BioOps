@@ -147,7 +147,7 @@ const themeOverrides = computed<GlobalThemeOverrides>(() => {
           <AppErrorBoundary>
             <RouterView />
           </AppErrorBoundary>
-          <!-- 全局猫爪彩蛋覆盖层：监听 omicHub:triggerCatPaws 事件（激活弹窗第 5 次 / 关于页召唤按钮） -->
+          <!-- 全局猫爪彩蛋覆盖层：监听 cygnusX:triggerCatPaws 事件（激活弹窗第 5 次 / 关于页召唤按钮） -->
           <CatPawsOverlay />
           <MeteorShowerOverlay />
         </NNotificationProvider>

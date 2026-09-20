@@ -4,10 +4,10 @@ from uuid import uuid4
 
 import pytest
 
-from omichub.application.services.artifact_service import ArtifactService
-from omichub.core.exceptions import ValidationError
-from omichub.domain.mas.models import ArtifactKind, ArtifactState, MASArtifact
-from omichub.domain.mas.workspace import WorkspaceLayout
+from cygnusx.application.services.artifact_service import ArtifactService
+from cygnusx.core.exceptions import ValidationError
+from cygnusx.domain.mas.models import ArtifactKind, ArtifactState, MASArtifact
+from cygnusx.domain.mas.workspace import WorkspaceLayout
 
 
 def test_validates_file_artifact_against_workspace_metadata(tmp_path: Path) -> None:

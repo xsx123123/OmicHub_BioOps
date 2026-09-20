@@ -23,7 +23,7 @@
 ## 目标目录结构
 
 ```text
-src/omichub/tools/fastq_qc/
+src/cygnusx/tools/fastq_qc/
 ├── __init__.py
 ├── api.py                 # FastAPI router，声明 prefix=/qc、tags=["FASTQ QC"]
 ├── config.py              # config.yaml 的 Pydantic 模型、mtime 热重载加载器
@@ -33,11 +33,11 @@ src/omichub/tools/fastq_qc/
 ├── chart_service.py       # fastp.json / multiqc.parquet 转前端 JSON
 └── tasks.py               # Celery `qc.run_pipeline` 任务
 
-src/omichub/infrastructure/celery_app/
+src/cygnusx/infrastructure/celery_app/
 └── celery.py              # 注册 QC 队列路由（如项目未自动发现任务）
 
 deploy/docker/
-├── Dockerfile.worker      # 安装或构建 omichub/qc-worker 镜像
+├── Dockerfile.worker      # 安装或构建 cygnusx/qc-worker 镜像
 └── docker-compose.yml     # 挂载 tool_configs 和 QC 数据根目录，启动 QC Worker
 ```
 
@@ -50,7 +50,7 @@ deploy/docker/
 FastAPI：校验输入、创建数据库任务、写 task.yaml、投递 Celery
     │ queue=qc
     ▼
-QC Celery Worker（omichub/qc-worker）
+QC Celery Worker（cygnusx/qc-worker）
     ├── 对每个样本执行 fastp
     ├── 写 reports/{sample}.fastp.json 与 output/*.clean.fastq.gz
     ├── 对成功样本执行 multiqc
@@ -104,10 +104,10 @@ PENDING / QUEUED / RUNNING_FASTP / RUNNING_MULTIQC
 
 ### 镜像
 
-- 镜像：`omichub/qc-worker:${image.tag}`。
+- 镜像：`cygnusx/qc-worker:${image.tag}`。
 - 必需软件：`fastp >= 0.24`、`multiqc >= 1.29`、Python、`pyarrow` 或 `polars`。
 - Worker 启动时执行 `validation.on_worker_start`：`fastp --version`、MultiQC 最低版本检查及 `storage.root` 写权限检查。
-- API 服务与 Worker 都应以只读方式挂载 `tool_configs`，并通过 `OMICHUB_TOOL_CONFIGS` 定位其根目录。
+- API 服务与 Worker 都应以只读方式挂载 `tool_configs`，并通过 `CYGNUSX_TOOL_CONFIGS` 定位其根目录。
 
 ### fastp 命令规则
 

@@ -1,6 +1,6 @@
 """受控聊天消息 metadata 的持久化白名单测试。"""
 
-from omichub.application.services.chat_service import _extract_user_message_metadata
+from cygnusx.application.services.chat_service import _extract_user_message_metadata
 
 
 def test_confirmation_marker_metadata_is_preserved() -> None:

@@ -15,7 +15,7 @@ import type {
 
 // sessionStorage key：首次登录迎新标记。镜像 pendingOnboarding，
 // 以便 LoginView 的 window.location.href 兜底跳转（整页刷新丢失 Pinia）后仍可恢复。
-const FIRST_LOGIN_KEY = 'omichub_first_login'
+const FIRST_LOGIN_KEY = 'cygnusx_first_login'
 
 export const useAuthStore = defineStore('auth', () => {
   const accessToken = ref<string | null>(localStorage.getItem('access_token'))

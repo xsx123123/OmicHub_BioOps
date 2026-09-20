@@ -36,13 +36,13 @@
 
 ## 1. P0 — 让 Case 真干活（执行层、会诊层、通用化基础）
 
-> 执行纪律：业务智能只写在 OmicHub 侧；Bridge/Gateway/Worker 只做编排。每完成一项跑回归测试并重启对应容器。
+> 执行纪律：业务智能只写在 CygnusX 侧；Bridge/Gateway/Worker 只做编排。每完成一项跑回归测试并重启对应容器。
 
 ### P0-1 ✅ snakemake logger 参数修复（R1，2026-08-11 已完成）
 
-- `src/omichub/core/config.py`：`rich_loguru` → `rich-loguru`。
+- `src/cygnusx/core/config.py`：`rich_loguru` → `rich-loguru`。
 - `deploy/docker/docker-compose.worker.yml`：同步 env。
-- `src/omichub/infrastructure/execution/local.py`：守卫放宽为 `{"rich_loguru", "rich-loguru"}`。
+- `src/cygnusx/infrastructure/execution/local.py`：守卫放宽为 `{"rich_loguru", "rich-loguru"}`。
 - 验证：容器内 `snakemake --logger rich-loguru --dry-run` 通过。
 
 ### P0-2 任务看门狗（R1）
@@ -51,7 +51,7 @@
 1. Bridge `service.py:reconcile_case` 增加超时臂：
    - `queued` 超过 900s → 审计 `omic_task.stalled` → 复核 → 仍 queued 则转 `execution_failed`。
    - `failed` 时把 `error_message` 尾部 500 字符写入审计 `omic_task.failed.payload.error_excerpt`。
-2. OmicHub 侧新增 Celery beat `requeue_stale_tasks`（300s）：扫描 queued >10min 且无 `started_at` 的任务，重投一次；仍静止则标记 failed。
+2. CygnusX 侧新增 Celery beat `requeue_stale_tasks`（300s）：扫描 queued >10min 且无 `started_at` 的任务，重投一次；仍静止则标记 failed。
 3. 存量清理：`f85c814d…` 手动标记 failed。
 
 **验证**：停 Worker 提交任务 → 10min 内 Case 进入 `execution_failed` 且聊天可见原因。
@@ -61,7 +61,7 @@
 **问题**：`evidence_refs` 只是字符串，专家看不见真实数据。
 
 **施工**：
-1. OmicHub 新增只读工具（`tool_configs/tools_schema.yaml`，`read_only_hint: true`）：
+1. CygnusX 新增只读工具（`tool_configs/tools_schema.yaml`，`read_only_hint: true`）：
    - `task_result_summary(task_id)`：状态、flow、参数快照、产物清单、QC metrics、错误摘录。
    - `task_file_preview(task_id, path, max_bytes=20000)`：文本产物头部，禁止路径穿越。
    - `workspace_file_preview(path, max_bytes=20000)`：工作区文件预览，按 `requester_ref` 隔离。
@@ -118,7 +118,7 @@
 1. 新增 `AgentTeamsCapabilityRegistry`：
    - 读取 `FlowRegistry` + `agent_ability.yaml` + active Agent YAML。
    - 提供 `allowed_flow_ids()`、`role_agent_map()`、`consultation_agents()`、`worker_profile()`、`agent_for_flow()`。
-2. Bridge `config.py`：删除硬编码 `ROLE_AGENT_MAP`；`allowed_flow_ids` 从 OmicHub 拉取；`role_agent_mapping()` 调用 Registry。
+2. Bridge `config.py`：删除硬编码 `ROLE_AGENT_MAP`；`allowed_flow_ids` 从 CygnusX 拉取；`role_agent_mapping()` 调用 Registry。
 3. `worker/production_runner.py`：`_AGENT_PROFILES` 运行时从 Registry 加载。
 4. `agent_consultation_service.py`：删除 `ALLOWED_CONSULTATION_AGENTS`，校验 active Agent 的 `internal_case_role`。
 5. `case_room_projector.py`：`ROLE_AGENT_MAP` / `ROLE_LABELS` 动态化。
@@ -188,7 +188,7 @@
 
 ## 3. P2 — 架构收敛与健壮性
 
-1. **Bridge → OmicHub 事件推送**：SSE 长连 + 断线游标重放，watch 降为 60s 兜底。
+1. **Bridge → CygnusX 事件推送**：SSE 长连 + 断线游标重放，watch 降为 60s 兜底。
 2. **approval_pending 超时提醒**：24h 提醒，7 天自动取消。
 3. **acceptance 残留治理**：reconcile 增加 `received` 态推进臂。
 4. **plan diff / partial replay**：用户可修改白名单参数，生成新 `plan_hash`，只重跑改动部分。
@@ -312,8 +312,8 @@ stages:
 ## 7. 施工顺序与验证纪律
 
 - P0-1 已完成。其余严格 P0 → P1 → P2 → G。
-- 每完成一项：Bridge/Gateway/Worker 契约测试 + OmicHub 单测回归；后端 `docker restart omichub-web`；Celery `docker restart omichub-worker`。
-- 业务智能只写在 OmicHub 侧；Bridge/Gateway/Worker 只做编排、搬运与审计。
+- 每完成一项：Bridge/Gateway/Worker 契约测试 + CygnusX 单测回归；后端 `docker restart cygnusx-web`；Celery `docker restart cygnusx-worker`。
+- 业务智能只写在 CygnusX 侧；Bridge/Gateway/Worker 只做编排、搬运与审计。
 - 新增 flow/Agent 必须至少通过一个端到端 Case，且不破坏 RNA-seq / scRNA-seq Case。
 
 ---

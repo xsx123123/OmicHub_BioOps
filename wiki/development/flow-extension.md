@@ -1,6 +1,6 @@
 # 分析流程扩展
 
-OmicHub 采用 **YAML 声明式 + 通用构建器** 的架构接入不同的 Snakemake 分析流程。新增流程通常只需在 `flows/` 目录下添加 YAML 配置文件。
+CygnusX 采用 **YAML 声明式 + 通用构建器** 的架构接入不同的 Snakemake 分析流程。新增流程通常只需在 `flows/` 目录下添加 YAML 配置文件。
 
 ## 流程加载方式
 

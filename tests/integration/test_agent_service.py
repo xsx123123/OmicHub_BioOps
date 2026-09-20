@@ -7,12 +7,12 @@ import pytest
 from sqlalchemy import text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from omichub.application.schemas.agent import CreateAgentRequest, UpdateAgentRequest
-from omichub.application.services.agent_service import AgentService
-from omichub.core.exceptions import BusinessError
-from omichub.infrastructure.database.models.agent import AgentTemplateModel
-from omichub.infrastructure.database.models.ai_provider import AIProviderConfigModel
-from omichub.infrastructure.database.session import get_session_factory
+from cygnusx.application.schemas.agent import CreateAgentRequest, UpdateAgentRequest
+from cygnusx.application.services.agent_service import AgentService
+from cygnusx.core.exceptions import BusinessError
+from cygnusx.infrastructure.database.models.agent import AgentTemplateModel
+from cygnusx.infrastructure.database.models.ai_provider import AIProviderConfigModel
+from cygnusx.infrastructure.database.session import get_session_factory
 
 pytestmark = pytest.mark.integration
 
@@ -96,7 +96,7 @@ async def test_update_agent_syncs_model_labels(service: AgentService, db: AsyncS
         id=uuid4(),
         name="测试模型配置",
         provider_type="kimi",
-        model="qwen3.7-plus",
+        model="qdoubao-seed-evolving",
         base_url="https://example.com/v1",
         api_key="sk-test",
         is_active=True,
@@ -111,7 +111,7 @@ async def test_update_agent_syncs_model_labels(service: AgentService, db: AsyncS
     )
     assert updated.model_id == provider.id
     assert updated.model_name == "测试模型配置"
-    assert updated.model_engine == "qwen3.7-plus"
+    assert updated.model_engine == "qdoubao-seed-evolving"
 
 
 async def test_update_agent_with_empty_model_id_clears_labels(service: AgentService) -> None:
@@ -157,7 +157,7 @@ async def test_update_default_agent_with_model_and_mounts(
         id=uuid4(),
         name="默认模型",
         provider_type="openai",
-        model="qwen3.7-plus",
+        model="qdoubao-seed-evolving",
         base_url="https://example.com/v1",
         api_key="sk-test",
         is_active=True,
@@ -181,7 +181,7 @@ async def test_update_default_agent_with_model_and_mounts(
     )
     assert updated.model_id == provider.id
     assert updated.model_name == "默认模型"
-    assert updated.model_engine == "qwen3.7-plus"
+    assert updated.model_engine == "qdoubao-seed-evolving"
     assert updated.mcp_ids == mcp_ids
     assert updated.skill_ids == ["skill-a"]
     assert updated.is_default is True
@@ -193,7 +193,7 @@ async def test_update_agent_rejects_inactive_model(service: AgentService, db: As
         id=uuid4(),
         name="停用模型",
         provider_type="openai",
-        model="qwen3.7-plus",
+        model="qdoubao-seed-evolving",
         base_url="https://example.com/v1",
         api_key="sk-test",
         is_active=False,
@@ -264,7 +264,7 @@ async def test_reconcile_binds_unbound_builtin_agent_to_active_default(
         id=uuid4(),
         name="Studio 默认模型",
         provider_type="openai_compatible",
-        model="qwen3.7-plus",
+        model="qdoubao-seed-evolving",
         base_url="https://example.com/v1",
         api_key="sk-default",
         is_active=True,
@@ -286,4 +286,4 @@ async def test_reconcile_binds_unbound_builtin_agent_to_active_default(
 
     assert builtin_agent.model_id == provider.id
     assert builtin_agent.model_name == "Studio 默认模型"
-    assert builtin_agent.model_engine == "qwen3.7-plus"
+    assert builtin_agent.model_engine == "qdoubao-seed-evolving"

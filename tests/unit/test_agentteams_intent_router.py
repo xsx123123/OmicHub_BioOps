@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import pytest
 
-from omichub.application.services.agentteams_capability_registry import (
+from cygnusx.application.services.agentteams_capability_registry import (
     AgentTeamsCapabilityRegistry,
 )
-from omichub.application.services.agentteams_intent_router import infer_intent_route
-from omichub.application.services.flow_registry import FlowRegistry
+from cygnusx.application.services.agentteams_intent_router import infer_intent_route
+from cygnusx.application.services.flow_registry import FlowRegistry
 
 
 class _Abilities:

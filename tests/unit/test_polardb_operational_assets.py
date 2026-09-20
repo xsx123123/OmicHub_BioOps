@@ -27,7 +27,7 @@ def test_operational_scripts_validate_and_backfill() -> None:
     assert "require_command pg_dump" in backup
     assert "require_command pg_restore" in restore
     assert "KnowledgeIndexService" in reindex
-    assert "omichub_restore_acceptance" in acceptance
+    assert "cygnusx_restore_acceptance" in acceptance
     assert "postgres-exporter:9187/metrics" in acceptance
     assert "READONLY_DATABASE_URL" in acceptance
 

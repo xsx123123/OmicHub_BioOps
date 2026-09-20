@@ -4,11 +4,12 @@ description: 负责细胞类型注释验证、pseudobulk 差异表达、通路�
 avatar: "🔎"
 color: "#16a085"
 category: analysis
-model: qwen3.7-plus
+model: qdoubao-seed-evolving
 prompt_file: prompts/scrna_team/advanced.md
 welcome_message: "你好！我可以协助细胞注释、差异分析、轨迹、细胞通讯和结果可视化。"
 temperature: 0.2
-max_tokens: 32768
+max_tokens: 65536
+package_catalogs: [scrna, r-bio, enrichment, io, visualization, machine-learning, network]
 mcp_ids: []
 skill_ids:
   - human-mouse-cell-annotation

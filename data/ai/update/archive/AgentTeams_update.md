@@ -2,7 +2,7 @@
 
 > 文档性质：比赛阶段以 **AgentTeams 为协同设计基点**的实现框架与施工说明。
 > 更新日期：2026-08-10（已完成全面代码审核，审核结论见 §0，施工清单见 §8，最终审核清单见 §10）。
-> 适用：在 OmicHub 平台已有的 AgentTeams Bridge / Gateway / Worker 集群上，让平台真实定义的
+> 适用：在 CygnusX 平台已有的 AgentTeams Bridge / Gateway / Worker 集群上，让平台真实定义的
 > 专家 Agent（`agent-rnaseq` / `agent-code` / `agent-viz` / `agent-qc` 等）作为执行者，
 > 在**一个聊天窗口**内完成"任务 → 规划 → 确认 → 执行 → 质控 → 汇总交付"的端到端闭环。
 >
@@ -16,7 +16,7 @@
 
 ## 0. 全面审核结论（2026-08-10 实测）
 
-审核方法：对照本文档每项声明，对 Bridge/Gateway/Worker 栈、OmicHub 后端、前端投影三条线
+审核方法：对照本文档每项声明，对 Bridge/Gateway/Worker 栈、CygnusX 后端、前端投影三条线
 做全量代码核查（逐文件读取，非抽样）。
 
 **总结论：编排骨架（状态机/租约/审批/审计/投影）质量高于本文旧版自述，可直接作为比赛协同基点；
@@ -27,28 +27,28 @@
 
 | # | 能力 | 证据（文件:行号） |
 | --- | --- | --- |
-| A1 | Case 状态机：15 态（旧文写 14，以代码为准），`_ALLOWED_TRANSITIONS` 白名单转换、非法转换 409、本地锁 + Redis 分布式锁 | `integrations/agentteams/bridge/omichub_agentteams_bridge/case_store.py:29-44`、`:47-66`、`:175` |
+| A1 | Case 状态机：15 态（旧文写 14，以代码为准），`_ALLOWED_TRANSITIONS` 白名单转换、非法转换 409、本地锁 + Redis 分布式锁 | `integrations/agentteams/bridge/cygnusx_agentteams_bridge/case_store.py:29-44`、`:47-66`、`:175` |
 | A2 | Work Item 租约/认领：原子 claim、heartbeat 续租、过期自动 requeue、attempt/max_attempts 重试预算 | `case_store.py:389-579`；模型字段 `models.py:247-269` |
 | A3 | 审批签名：HMAC-SHA256 + scope 校验（case/action/work_item/flow/task）+ `hmac.compare_digest` 防时序；analysis-worker 走 token-free 预存提交 | `security.py:44-106`；`service.py:744-820`（queue）、`:822-888`（submit-approved） |
 | A4 | 审计 append-only：JSONL 文件 / Redis Stream 只追加；per-case 查询 + SSE 流 | `audit.py:26-222`；`app.py:335-393` |
 | A5 | 只读能力边界三层强制：Bridge 强制 `agent-*` 工单 read_only（422）→ Gateway 硬编码剥离 `allow_task_actions/allow_file_write/database_access/shell` → agent/capability/tool 三层白名单 | `service.py:91-95`；`gateway/client.py:24-45`；`gateway/service.py:81-98` |
 | A6 | 交付 manifest 生成：`{case_id}.delivery_manifest.json` 含 Case、Agent 身份、输入引用、任务快照、质控结论、审批事件、全部审计事件、runbook | `service.py:1132-1194` |
-| A7 | 后端投影器：`CaseRoomProjector` 产出 `room_speech` / `overdrive_progress` / `overdrive_approval_request` / `mode_changed` 四类 SSE 事件 | `src/omichub/application/services/case_room_projector.py:30-97` |
-| A8 | Celery 巡查：`watch_cases` 带 Redis 分布式锁，默认 60s 周期，游标续传 | `src/omichub/infrastructure/celery_app/tasks/agentteams.py:25-67`；beat 配置 `celery.py:128-131` |
+| A7 | 后端投影器：`CaseRoomProjector` 产出 `room_speech` / `overdrive_progress` / `overdrive_approval_request` / `mode_changed` 四类 SSE 事件 | `src/cygnusx/application/services/case_room_projector.py:30-97` |
+| A8 | Celery 巡查：`watch_cases` 带 Redis 分布式锁，默认 60s 周期，游标续传 | `src/cygnusx/infrastructure/celery_app/tasks/agentteams.py:25-67`；beat 配置 `celery.py:128-131` |
 | A9 | 前端 Case 工作台：状态时间线、审计事件流（SSE + 20s 轮询兜底）、审批模态框、协作聊天室抽屉、工单列表 | `frontend/src/components/agentteams/AgentTeamsCaseView.vue`；路由 `router/index.ts:122-126` |
 | A10 | 前端单窗口投影消费：`room_speech` 气泡（头像/角色/折叠）、进度卡、审批卡与超频 v2 **完全共用组件**，零新事件类型 | `stores/agentHub.ts:254-327`（applyCaseRoomEvent 复用超频逻辑）；`KimiMessageItem.vue` |
 | A11 | 管理端面板：外部 Worker 心跳（X/Y 活跃 + 告警）、Case 列表、重协调（TOTP）、接入向导 | `frontend/src/components/admin/AgentTeamsBridgeTab.vue` |
-| A12 | 可复用执行内核：`ParallelSubAgentService` 具备 `safe_only` 只读过滤（`:398-403`）、有界循环、超时、重试、工具结果截断 8000 字符、失败隔离，可直接承载 consultation 回合 | `src/omichub/application/services/parallel_subagent_service.py:161-178` |
-| A13 | 平台 Agent 装载：`AgentService.assemble_context(agent_id, user_id=...)` 可装载系统提示词/Persona/模型/MCP/Skill/工具白名单，user_id 语义即"以真实用户身份运行" | `src/omichub/application/services/agent_service.py:758-969` |
-| A14 | 平台 Agent 已定义并启用：`agent-data` / `agent-qc` / `agent-delivery` / `agent-rnaseq` 均在 `agents.enabled`（共 16 个） | `data/OmicHub.yaml:84-101`；`data/ai/{data,qc,delivery,rnaseq}.yaml` |
-| A15 | OmicHub 侧 Case 管理 API 9 个端点齐全（创建/详情/审批提交/事件/流） | `src/omichub/api/v1/agentteams.py:91-209` |
+| A12 | 可复用执行内核：`ParallelSubAgentService` 具备 `safe_only` 只读过滤（`:398-403`）、有界循环、超时、重试、工具结果截断 8000 字符、失败隔离，可直接承载 consultation 回合 | `src/cygnusx/application/services/parallel_subagent_service.py:161-178` |
+| A13 | 平台 Agent 装载：`AgentService.assemble_context(agent_id, user_id=...)` 可装载系统提示词/Persona/模型/MCP/Skill/工具白名单，user_id 语义即"以真实用户身份运行" | `src/cygnusx/application/services/agent_service.py:758-969` |
+| A14 | 平台 Agent 已定义并启用：`agent-data` / `agent-qc` / `agent-delivery` / `agent-rnaseq` 均在 `agents.enabled`（共 16 个） | `data/CygnusX.yaml:84-101`；`data/ai/{data,qc,delivery,rnaseq}.yaml` |
+| A15 | CygnusX 侧 Case 管理 API 9 个端点齐全（创建/详情/审批提交/事件/流） | `src/cygnusx/api/v1/agentteams.py:91-209` |
 | A16 | Bridge/Gateway/Worker 契约测试约 2600 行（Bridge 1498 行最全） | `integrations/agentteams/**/tests/`、`deploy/agentteams/tests/` |
 
 ### 0.2 已确认缺口（本文旧版已承认，审核复核属实）
 
 | # | 缺口 | 证据 |
 | --- | --- | --- |
-| G1 | **`POST /api/v1/agent-teams/consultations/scientific-interpretation` 不存在**，`agent_consultation_service.py` 不存在——专家工单无法真执行的根因 | `src/omichub/api/v1/agentteams.py` 全文无 consultation |
+| G1 | **`POST /api/v1/agent-teams/consultations/scientific-interpretation` 不存在**，`agent_consultation_service.py` 不存在——专家工单无法真执行的根因 | `src/cygnusx/api/v1/agentteams.py` 全文无 consultation |
 | G2 | **`ROLE_AGENT_MAP` 错配**：`data-steward/quality-auditor/delivery-reporter` → `agent-general` | `case_room_projector.py:7-16` |
 
 ### 0.3 审核新发现（旧文未提；N1–N3 直接卡比赛验收）
@@ -64,7 +64,7 @@
 | N7 | 事件游标存 `ChatSessionModel.sandbox_meta` 单 JSONB 字段，"发布 SSE 后、更新游标前"崩溃会丢/重事件；60s 轮询有延迟 | `agentteams_case_watch_service.py:86,126,149` | 断线重建可靠性 |
 | N8 | `agent-data` / `agent-delivery` 是骨架：`skill_ids` 为空、welcome_message 自述"正在配置" | `data/ai/data.yaml`、`delivery.yaml` | 预检/交付环节有名无实 |
 | N9 | Bridge 文件存储 `_persist()` 整体覆盖写、无原子 rename，崩溃可丢全部 Case；Gateway 成本护栏是进程内内存计数，多实例失效 | `case_store.py:636-646`；`gateway/service.py:31-33` | 生产健壮性 |
-| N10 | consultation 端点缺**集成认证**：现有端点全是终端用户 JWT/API-Key，Gateway→OmicHub 机器间调用需专用集成令牌 | `api/v1/agentteams.py` 全部 `CurrentUserId` | G1 的隐含工作量 |
+| N10 | consultation 端点缺**集成认证**：现有端点全是终端用户 JWT/API-Key，Gateway→CygnusX 机器间调用需专用集成令牌 | `api/v1/agentteams.py` 全部 `CurrentUserId` | G1 的隐含工作量 |
 | N11 | 普通 `/ai` 聊天页（旧 `AIChat.vue`）完全不支持 AgentTeams，仅 Studio 页可用 | `views/AIChatView.vue` | 技术债，赛后随旧组件淘汰 |
 | N12 | `integrations/agentteams/skills/` 只有 `contracts.yaml` 13 个 API 契约，无 skill 实现代码 | `skills/` 目录 | 名义能力 > 实际能力 |
 
@@ -114,18 +114,18 @@
                        │ execute-readonly → Gateway consult
                        ▼
 ┌─────────────────────────────────────────────────────────────┐
-│ 大脑层（OmicHub 平台 Agent，真正干活的）                      │
+│ 大脑层（CygnusX 平台 Agent，真正干活的）                      │
 │   assemble_context(agent_id, user_id=requester_ref)          │
 │   装载该 Agent 的系统提示词/Persona/模型/MCP/Skill/白名单      │
-│   在 omichub-web 进程内经 ParallelSubAgentService 只读回合执行 │
+│   在 cygnusx-web 进程内经 ParallelSubAgentService 只读回合执行 │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**权威角色映射表**（施工后以此为准；Bridge 配置、Gateway 策略、OmicHub 投影器三处必须一致）：
+**权威角色映射表**（施工后以此为准；Bridge 配置、Gateway 策略、CygnusX 投影器三处必须一致）：
 
 | AgentTeams 身份（Worker 容器） | 平台 Agent（大脑） | 职能 | 执行方式 |
 | --- | --- | --- | --- |
-| `bioops-manager` | 当前会话主 Agent（星尘 AI / `agent-general`） | 接单、分派、汇总、交付 | Bridge 侧，由 OmicHub 后端驱动 |
+| `bioops-manager` | 当前会话主 Agent（星尘 AI / `agent-general`） | 接单、分派、汇总、交付 | Bridge 侧，由 CygnusX 后端驱动 |
 | `data-steward` | **`agent-data`** | 数据契约、样本/文件预检 | 只读 consultation |
 | `agent-rnaseq` | `agent-rnaseq` | RNA-seq 分析解读 | 只读 consultation |
 | `agent-scrna` | `agent-scrna` | 单细胞解读 | 只读 consultation |
@@ -133,7 +133,7 @@
 | `agent-viz` | `agent-viz` | 可视化、图表规范 | 只读 consultation |
 | `quality-auditor` | **`agent-qc`** | 独立质控、证据审查 | 只读 consultation（输出真实质控决策） |
 | `delivery-reporter` | **`agent-delivery`** | 交付清单、runbook、证据汇总 | 只读 consultation |
-| `analysis-worker` | （无大脑，提交器） | 持预存审批快照提交 OmicHub 流水线 | approval-gated 提交，不调 LLM |
+| `analysis-worker` | （无大脑，提交器） | 持预存审批快照提交 CygnusX 流水线 | approval-gated 提交，不调 LLM |
 | `approval-authority` | （审批网关，非 Agent） | 人工确认后签发短期、动作受限令牌 | 服务，非 Worker |
 
 > 加粗的三行是本次"替换"的关键：身份名保持 AgentTeams 原语（`data-steward` 等），
@@ -148,7 +148,7 @@
    不加载 `bridge.env`，避免继承 Manager 令牌/审批密钥/其他身份）。这是 AgentTeams 安全模型
    的硬性要求，比赛期间保持不变。
 2. **平台 Agent 不需要新容器**。`agent-data` / `agent-qc` / `agent-delivery` 等大脑运行在
-   既有 `omichub-web` 容器内（consultation 端点 + `ParallelSubAgentService`），它们的能力
+   既有 `cygnusx-web` 容器内（consultation 端点 + `ParallelSubAgentService`），它们的能力
    由 `data/ai/*.yaml` 声明，热更新走平台既有的 Agent 配置链路，不涉及 AgentTeams 部署。
 3. **Worker 容器是薄进程**：无 LLM、无 GPU、无重依赖，只做 轮询 → 认领 → 转发 → 回写。
    全部 Worker 共用一个镜像（`deploy/agentteams` 构建），仅靠环境变量区分身份。
@@ -157,7 +157,7 @@
 
 | 容器 | 身份 | 现状 |
 | --- | --- | --- |
-| `omichub-agentteams-bridge` / `-gateway` / `-state` | 控制面三件套 | ✅ 已在运行 |
+| `cygnusx-agentteams-bridge` / `-gateway` / `-state` | 控制面三件套 | ✅ 已在运行 |
 | `agentteams-worker-code-production` | `agent-code` | ✅ 已定义 |
 | `agentteams-worker-viz-production` | `agent-viz` | ✅ 已定义 |
 | `agentteams-worker-scrna-production` | `agent-scrna` | ✅ 已定义 |
@@ -203,7 +203,7 @@ quality-01    (quality-auditor → agent-qc,     read_only,         独立质控
 delivery-01   (delivery-reporter → agent-delivery, read_only)     交付汇总
 ```
 
-只读专家工单（含规划工单）由对应 Worker 认领后经 Bridge→Gateway→OmicHub consultation
+只读专家工单（含规划工单）由对应 Worker 认领后经 Bridge→Gateway→CygnusX consultation
 端点执行；提交类工单由 `analysis-worker` 在人工审批后执行预存提交。
 
 ### 3.3 规划阶段：Manager 转派领域 Agent 出计划（P0-4b）
@@ -272,7 +272,7 @@ delivery-01 (agent-delivery, readonly)                  交付清单 + 下载链
 
 **工作区执行通道**（施工规格见 §8 P0-6）要点：
 
-- 与只读会诊**同一透传链**（Worker → Bridge → Gateway → OmicHub），仅 OmicHub 侧执行模式不同：
+- 与只读会诊**同一透传链**（Worker → Bridge → Gateway → CygnusX），仅 CygnusX 侧执行模式不同：
   `ParallelSubAgentService` 用 `workspace_access=True`、`safe_only=False`，Agent 按其 YAML 的
   `tool_packs` 白名单使用平台工具（含沙箱命令、文件读写）；
 - 工作目录强制限定 `output/agentteams/<case_id>/<work_item_id>/`，产物按平台规则登记
@@ -296,13 +296,13 @@ delivery-01 (agent-delivery, readonly)                  交付清单 + 下载链
 1. **输入上下文**：Case 创建时携带 `project_ref`、`intent`、`consultation_summary`。
 2. **工单上下文**：每个 Work Item 的 `context_refs` 声明依赖的 project / file / task / report 引用。
 3. **执行透传链**：
-   `Worker → Bridge(execute-readonly) → Gateway(consult) → OmicHub /consultations/scientific-interpretation`，
+   `Worker → Bridge(execute-readonly) → Gateway(consult) → CygnusX /consultations/scientific-interpretation`，
    请求体携带 `case_id / agent_id / question / capability / evidence_refs / requested_tools / requester_ref`。
 4. **用户身份透传（施工要点）**：Case 的 `requester_ref`（真实用户 id）必须一路透传：
    - Bridge：`CaseRecord.requester_ref`（已有）→ `execute_readonly_work_item()`（`service.py:266-378`）
      调 Gateway 时加入请求体（**当前未传，P0-1 补**）；
    - Gateway：`models.py` 上游请求模型加 `requester_ref` 字段，`client.py:24-45` 透传；
-   - OmicHub：consultation 端点取 `requester_ref` 作为 `assemble_context(user_id=...)` 的实参，
+   - CygnusX：consultation 端点取 `requester_ref` 作为 `assemble_context(user_id=...)` 的实参，
      使专家 Agent 以**该用户身份**运行（知识库、工作区、权限按真实用户隔离）。
 5. **产物回流**：执行结果经 Gateway 固定信封（`conclusion / recommendations / evidence_refs / risks`，
    `gateway/models.py:46-52`）回到 Bridge，写为审计事件并作为下游工单的 `context_refs`。
@@ -325,7 +325,7 @@ received
   → approval_pending         （聊天窗口弹计划/提交确认卡，用户聊天内批准 —— P1-6 后成立）
       ├─ cancel → cancelled
       └─ approve → approved
-  → executing                （analysis-worker 提交 OmicHub 流水线；agent-rnaseq 解读）
+  → executing                （analysis-worker 提交 CygnusX 流水线；agent-rnaseq 解读）
   → quality_running          （agent-qc 独立质控）
       ├─ pass → delivery_ready
       └─ blocked → quality_blocked / remediation_pending → 回到 executing / quality_running
@@ -351,7 +351,7 @@ X-Integration-Token: <集成令牌>     # 机器间认证，非终端用户 JWT�
 }
 ```
 
-OmicHub 侧执行（复用已审核通过的 A12/A13）：
+CygnusX 侧执行（复用已审核通过的 A12/A13）：
 
 1. `AgentService.assemble_context(agent_id, user_id=requester_ref)` 装载平台 Agent 全量上下文；
 2. 运行**只读受限回合**：`ParallelSubAgentService.run(...)` 单 task，
@@ -406,8 +406,8 @@ docker compose -f docker-compose.agentteams.yml \
 ```
 
 令牌只通过部署 secret / 环境变量注入；Worker 不加载 `bridge.env`（最小权限）。
-后端代码改动后必须 `docker restart omichub-web`（uvicorn 无热重载）；
-Celery 任务（如 watch 间隔、投影逻辑）改动后必须 `docker restart omichub-worker`。
+后端代码改动后必须 `docker restart cygnusx-web`（uvicorn 无热重载）；
+Celery 任务（如 watch 间隔、投影逻辑）改动后必须 `docker restart cygnusx-worker`。
 
 ---
 
@@ -415,20 +415,20 @@ Celery 任务（如 watch 间隔、投影逻辑）改动后必须 `docker restar
 
 > 执行纪律：
 > - 严格 P0 → P1 → P2 顺序；P0 任意一项未完成不得开始 P1。
-> - **业务智能（解读、质控判断）只允许写在 OmicHub 侧的 Agent/consultation 服务里，
+> - **业务智能（解读、质控判断）只允许写在 CygnusX 侧的 Agent/consultation 服务里，
 >   禁止写进 Bridge/Gateway/Worker 的 Python 代码**——Bridge 只承担状态机/租约/审批/审计，
 >   赛后编排迁移（`update_agent.md`）时专家能力零改动平移。
 > - 每完成一项：跑 `deploy/agentteams/tests/` 与 `integrations/agentteams/**/tests/` 回归；
->   后端改动 `docker restart omichub-web`；Celery 改动 `docker restart omichub-worker`。
+>   后端改动 `docker restart cygnusx-web`；Celery 改动 `docker restart cygnusx-worker`。
 > - 每完成一项，到 §10 对应行把 ⬜ 改为 ✅ 并填验证日期。
 
 ### P0 — 不做则闭环跑不通
 
 #### P0-1 实现 consultation 端点（基石，修 G1+N10）
 
-**OmicHub 侧（新建 + 改动）：**
+**CygnusX 侧（新建 + 改动）：**
 
-1. 新建 `src/omichub/application/services/agent_consultation_service.py`：
+1. 新建 `src/cygnusx/application/services/agent_consultation_service.py`：
    - `AgentConsultationService.run_consultation(case_id, agent_id, question, capability,
      evidence_refs, requested_tools, requester_ref) -> ConsultationEnvelope`；
    - 校验 `agent_id` 在允许集合（`agent-data/qc/delivery/rnaseq/scrna/code/viz`）且已启用；
@@ -439,7 +439,7 @@ Celery 任务（如 watch 间隔、投影逻辑）改动后必须 `docker restar
    - 解析子 Agent 最终答复为 `{conclusion, recommendations, evidence_refs, risks, token_usage}`；
      提示词契约要求输出 ```json 代码块，解析失败降级 conclusion=原文 + risks 记一条；
    - 全程结构化日志（case_id/agent_id/requester_ref/耗时/token）。
-2. `src/omichub/api/v1/agentteams.py` 新增 `POST /consultations/scientific-interpretation`：
+2. `src/cygnusx/api/v1/agentteams.py` 新增 `POST /consultations/scientific-interpretation`：
    - **集成认证（N10）**：新增依赖 `IntegrationTokenRequired`——读 `X-Integration-Token` 头，
      与 `settings.agentteams_integration_token` 做 `hmac.compare_digest` 比较，缺失/不符 401；
      Settings 字段为裸名 `AGENTTEAMS_INTEGRATION_TOKEN`（本项目 Settings 无 env_prefix）；
@@ -458,22 +458,22 @@ Celery 任务（如 watch 间隔、投影逻辑）改动后必须 `docker restar
    （`service.py:266-378`），需加入 `data-steward / quality-auditor / delivery-reporter`。
 5. Gateway：`models.py` 上游请求模型加 `requester_ref`；`client.py:24-45` 透传；
    `config.py:30-39` `agent_policies` 补 `agent-data / agent-qc / agent-delivery` 的
-   capability + tool 白名单（tools 可为空数组——只读研究工具由 OmicHub 侧 safe_only 控制）。
-6. `gateway.env` 增加 `GATEWAY_OMICHUB_INTEGRATION_TOKEN`，与 OmicHub 侧 `AGENTTEAMS_INTEGRATION_TOKEN`
-   一致；`client.py` 调 OmicHub 时带 `X-Integration-Token` 头。
+   capability + tool 白名单（tools 可为空数组——只读研究工具由 CygnusX 侧 safe_only 控制）。
+6. `gateway.env` 增加 `GATEWAY_CYGNUSX_INTEGRATION_TOKEN`，与 CygnusX 侧 `AGENTTEAMS_INTEGRATION_TOKEN`
+   一致；`client.py` 调 CygnusX 时带 `X-Integration-Token` 头。
 
-**验证：** 单元测试通过；`docker restart omichub-web` 后
+**验证：** 单元测试通过；`docker restart cygnusx-web` 后
 `curl -X POST .../consultations/scientific-interpretation -H "X-Integration-Token: ..."`
 以 `agent-rnaseq` 发起真实会诊，返回非空 conclusion；无令牌请求 401。
 
 #### P0-2 修正 ROLE_AGENT_MAP（修 G2）
 
-- `src/omichub/application/services/case_room_projector.py:7-16`：
+- `src/cygnusx/application/services/case_room_projector.py:7-16`：
   `data-steward→agent-data`、`quality-auditor→agent-qc`、`delivery-reporter→agent-delivery`；
   其余保持不变。未命中映射的角色降级 `agent-general` 并记 WARNING。
 - 注意与 Bridge 侧权威映射（P0-1 第 4 步）同源——两处值必须一致，建议在文档/注释中互相引用。
 
-**验证：** `docker restart omichub-web && docker restart omichub-worker`；触发一个 Case，
+**验证：** `docker restart cygnusx-web && docker restart cygnusx-worker`；触发一个 Case，
 聊天气泡显示"数据管理员/质量审计员/交付报告员"头像与名字，不再是"通用助手"。
 
 #### P0-3 补齐身份配置 + 新增 data-steward 容器（修 N1）
@@ -534,7 +534,7 @@ Celery 任务（如 watch 间隔、投影逻辑）改动后必须 `docker restar
    target 由 Manager 按能力选定（创建 Case 的请求体加 `lead_planner` 字段，默认按
    flow 类型映射：rna→agent-rnaseq / scrna→agent-scrna / 其他→agent-code），
    `capability=planning_advice`、`read_only=True`；Case 进入 `planning_running`。
-3. 信封扩展：Gateway/OmicHub 两侧模型在标准四字段外允许 `proposed_submission` 可选字段；
+3. 信封扩展：Gateway/CygnusX 两侧模型在标准四字段外允许 `proposed_submission` 可选字段；
    `agent-rnaseq` 等的 consultation 提示词契约补"规划场景必须输出 proposed_submission
    结构化参数"（只改 `data/ai/*.yaml` 提示词，不改 Bridge 业务逻辑）。
 4. plan-01 完成后：`proposed_submission` 过既有预检校验链（`service.py:594-684`），
@@ -543,7 +543,7 @@ Celery 任务（如 watch 间隔、投影逻辑）改动后必须 `docker restar
 5. `queue_approved_submission`（`service.py:744-820`）：改为冻结 Case 上已校验的
    `proposed_submission` 快照，审批审计事件记录 `plan_hash`；无 `plan_hash` 的 Case
    不得进入 `approval_pending`（状态机硬阻断）。
-6. OmicHub 侧：审批卡（`AgentTeamsCaseView.vue` + P1-6 的聊天内卡片）展示计划摘要 +
+6. CygnusX 侧：审批卡（`AgentTeamsCaseView.vue` + P1-6 的聊天内卡片）展示计划摘要 +
    参数明细 + `plan_hash` 短码，让用户确认的就是这份快照。
 
 **验证：** 无 `plan_hash` 直接提交 → 409；plan-01 产出非法 flow 参数 →
@@ -556,7 +556,7 @@ Celery 任务（如 watch 间隔、投影逻辑）改动后必须 `docker restar
    "workspace_execution"] = "readonly_consultation"`；`service.py` 的 read_only 强制放宽为：
    `workspace_execution` 工单允许 `read_only=False`，但必须 `approval_required=True`
    或所属 Case 已有确认 `plan_hash`，否则 422；执行路由按 `execution_mode` 分发。
-2. OmicHub `agent_consultation_service`：支持 `mode="workspace_execution"`——
+2. CygnusX `agent_consultation_service`：支持 `mode="workspace_execution"`——
    `ParallelSubAgentService.run(..., workspace_access=True, safe_only=False,
    runtime_authorized=True)`；工作目录强制 `output/agentteams/<case_id>/<work_item_id>/`；
    产物完成后登记 `file_records`（复用任务产物登记逻辑，参考"下载产物需登记才可见"约束）；
@@ -616,7 +616,7 @@ plan 外工单认领被拒。
     `agentteams_case_cursors` 表（alembic 迁移；注意迁移历史多 head，须用 mergepoint 合并）
     或在发布 SSE 与更新游标间加幂等键（`case_id + event_id` 去重）。watch 间隔
     `AGENTTEAMS_CASE_WATCH_INTERVAL_SECONDS` 从 60s 降至 10-15s（Redis 锁已兜底，
-    改配置即可，改后 `docker restart omichub-worker`）。
+    改配置即可，改后 `docker restart cygnusx-worker`）。
 11. **Bridge 存储加固（N9）**：生产强制 Redis 模式（`BRIDGE_STATE_STORE_URL`），文件模式
     `_persist()` 改"写临时文件 + os.replace 原子 rename"；启动时检测文件模式且无 Redis 时
     打 WARNING。
@@ -631,7 +631,7 @@ plan 外工单认领被拒。
 - ❌ 不在 Bridge/Gateway/Worker 里写任何领域规则（质量阈值、生物学逻辑）——违反迁移原则。
 - ❌ 不适配旧 `/ai` 聊天页（N11）——赛后随旧组件淘汰。
 - ❌ 不做 `update_agent.md` 的 P1-P4（真异步、逐条点评）——赛后目标，比赛阶段不扩大战线。
-- ❌ 不为平台 Agent 新建容器——大脑跑在 omichub-web 内（§2.2）。
+- ❌ 不为平台 Agent 新建容器——大脑跑在 cygnusx-web 内（§2.2）。
 
 ---
 
@@ -685,9 +685,9 @@ Manager 接单并说明分派（选定领域规划 Agent 及理由）
 
 | # | 检查点 | 状态 | 验证方式 |
 | --- | --- | --- | --- |
-| 10 | consultation 端点上线路由存在且集成令牌认证生效 | 🔶 | 2026-08-10：重启 `omichub-web` 后无令牌实测 401；真实会诊需选定测试项目与模型凭证。 |
+| 10 | consultation 端点上线路由存在且集成令牌认证生效 | 🔶 | 2026-08-10：重启 `cygnusx-web` 后无令牌实测 401；真实会诊需选定测试项目与模型凭证。 |
 | 11 | `agent_consultation_service` 复用 safe_only 只读回合 | ✅ | 2026-08-10：`tests/unit/test_agent_consultation_service.py` 8 passed（工具剥离、信封和降级）。 |
-| 12 | `requester_ref` 三处透传（Bridge→Gateway→OmicHub） | ✅ | 2026-08-10：Bridge 52 passed、Gateway 8 passed；请求体和服务日志字段均受测试覆盖。 |
+| 12 | `requester_ref` 三处透传（Bridge→Gateway→CygnusX） | ✅ | 2026-08-10：Bridge 52 passed、Gateway 8 passed；请求体和服务日志字段均受测试覆盖。 |
 | 13 | Bridge 权威角色映射 + actor 白名单扩展（data/quality/delivery） | ✅ | 2026-08-10：Bridge 契约回归通过；data、quality、delivery 生产 Worker 已启动。 |
 | 14 | Gateway `agent_policies` 补 agent-data/qc/delivery | ✅ | 2026-08-10：Gateway 8 passed，策略越权路径受回归覆盖。 |
 | 15 | 前端 `ROLE_AGENT_MAP` 修正，气泡显示真实专家 | ✅ | 2026-08-10：前端 `type-check` 与生产构建通过，角色投影映射已更新。 |
@@ -717,7 +717,7 @@ Manager 接单并说明分派（选定领域规划 Agent 及理由）
 | 29 | 事件游标幂等/独立存储，watch 10-15s | ✅ | 2026-08-10：watcher 单测通过，重启后的 Worker 内实测 `watch_cases()` 成功执行。 |
 | 30 | Bridge Redis 模式 + 文件模式原子写 | ✅ | 2026-08-10：Bridge Redis/文件持久化回归在 52 passed 中覆盖。 |
 | 31 | Gateway 成本计数 Redis 化 | ✅ | 2026-08-10：Gateway 8 passed，Redis 共享计数回归通过。 |
-| 32 | 端到端 pytest 固化（含并发 claim 竞态） | ✅ | 2026-08-10：Bridge 52 passed（1 skipped）、Gateway 8、Worker 21、OmicHub 聚焦 37。 |
+| 32 | 端到端 pytest 固化（含并发 claim 竞态） | ✅ | 2026-08-10：Bridge 52 passed（1 skipped）、Gateway 8、Worker 21、CygnusX 聚焦 37。 |
 
 ### 10.5 端到端最终验收（§9 全量）
 
@@ -743,4 +743,4 @@ Manager 接单并说明分派（选定领域规划 Agent 及理由）
 1. **角色→平台 Agent 映射**：AgentTeams 身份只是安全边界，大脑永远是 `data/ai/*.yaml`；
 2. **只读执行边界**：专家会诊 safe_only，写操作只走审批令牌单通道；
 3. **单窗口投影**：`room_speech / overdrive_progress / overdrive_approval_request` 契约不变；
-4. **业务智能不进 Bridge**：解读/质控规则全部在 OmicHub 侧，Bridge 只做编排与审计。
+4. **业务智能不进 Bridge**：解读/质控规则全部在 CygnusX 侧，Bridge 只做编排与审计。

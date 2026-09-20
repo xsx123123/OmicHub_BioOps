@@ -4,16 +4,19 @@ from pathlib import Path
 
 import yaml
 
-from omichub.application.services.agentteams_capability_registry import (
+from cygnusx.application.services.agentteams_capability_registry import (
     AgentTeamsCapabilityRegistry,
 )
-from omichub.application.services.flow_registry import FlowRegistry
-from omichub.infrastructure.config.agent_loader import load_agent_configs
+from cygnusx.application.services.flow_registry import FlowRegistry
+from cygnusx.infrastructure.config.agent_loader import load_agent_configs
 
 
 class _Abilities:
     def all(self):
         return {"agent-code": {}, "agent-qc": {}}
+
+    def render_detail(self, agent_id: str) -> str:
+        return f"### {agent_id}\n能力：代码实现"
 
 
 def _features(role: str, *, recruitable: bool = True) -> dict:
@@ -109,6 +112,79 @@ delivery: {quality_gate: true, outputs: [result]}
     assert registry.flow_quality_gate_map() == {"test_general": True}
     assert registry.agent_for_flow("test_general") == "agent-code"
     assert registry.worker_profile("agent-code").capability == "planning_advice"
+
+
+def test_router_catalog_carries_configured_persona_summary(tmp_path) -> None:
+    registry = AgentTeamsCapabilityRegistry(
+        FlowRegistry.from_directory(tmp_path),
+        _Abilities(),
+        [
+            {
+                "agent_id": "agent-code",
+                "name": "Code",
+                "description": "Code",
+                "category": "code",
+                "features": {
+                    **_features("agent-code"),
+                    "persona": {
+                        "archetype": "务实的工程师",
+                        "traits": ["严谨", "可复现"],
+                        "working_style": "先复现再修改",
+                        "status_lines": _features("agent-code")["persona"]["status_lines"],
+                    },
+                },
+            }
+        ],
+    )
+
+    entry = registry.chat_router_catalog()[0]
+    assert entry["persona"]["archetype"] == "务实的工程师"
+    assert entry["persona"]["traits"] == ["严谨", "可复现"]
+    assert "status_lines" not in entry["persona"]
+
+
+def test_router_catalog_carries_compact_role_scope(tmp_path) -> None:
+    registry = AgentTeamsCapabilityRegistry(
+        FlowRegistry.from_directory(tmp_path),
+        _Abilities(),
+        [
+            {
+                "agent_id": "agent-viz",
+                "name": "Visualization",
+                "category": "visualization",
+                "features": {
+                    **_features("agent-viz"),
+                    "default_role": "生成出版级图形",
+                    "capability_scope": ["统计图表", "火山图"],
+                },
+            }
+        ],
+    )
+
+    entry = registry.chat_router_catalog()[0]
+    assert entry["default_role"] == "生成出版级图形"
+    assert entry["capability_scope"] == ["统计图表", "火山图"]
+
+
+def test_capability_detail_context_carries_selected_agent_persona(tmp_path) -> None:
+    features = _features("agent-code")
+    features["persona"].update(
+        {
+            "archetype": "务实的工程师",
+            "traits": ["严谨", "可复现"],
+            "working_style": "先复现再修改",
+        }
+    )
+    registry = AgentTeamsCapabilityRegistry(
+        FlowRegistry.from_directory(tmp_path),
+        _Abilities(),
+        [{"agent_id": "agent-code", "features": features}],
+    )
+
+    detail = registry.capability_detail_context(["agent-code"])
+    assert "Persona：" in detail
+    assert "角色原型：务实的工程师" in detail
+    assert "稳定特质：严谨、可复现" in detail
 
 
 def test_registry_rejects_flow_without_active_actor(tmp_path) -> None:
@@ -217,3 +293,34 @@ def test_agentteams_team_manifest_contains_all_recruitable_experts() -> None:
 
     assert len(recruitable_ids) == 15
     assert worker_ids == recruitable_ids | {"workflow-operator"}
+
+
+def test_room_consultation_catalog_includes_internal_staff_without_chat_entry(tmp_path) -> None:
+    """chat_entry:false 的内部员工不进 chat 侧对外路由目录，但仍是房间会诊候选。"""
+
+    class _ChatEntryAbilities:
+        def all(self):
+            return {
+                "agent-code": {"summary": "代码实现"},
+                "agent-data": {"summary": "数据预检", "chat_entry": False},
+            }
+
+        def render_detail(self, agent_id: str) -> str:
+            return ""
+
+    registry = AgentTeamsCapabilityRegistry(
+        FlowRegistry.from_directory(tmp_path),
+        _ChatEntryAbilities(),
+        [
+            {"agent_id": "agent-code", "name": "Code", "features": _features("agent-code")},
+            {"agent_id": "agent-data", "name": "数据管理员", "features": _features("agent-data")},
+        ],
+    )
+
+    chat_ids = {entry["agent_id"] for entry in registry.chat_router_catalog()}
+    room_entries = {entry["agent_id"]: entry for entry in registry.room_consultation_catalog()}
+    assert "agent-data" not in chat_ids
+    assert set(room_entries) == {"agent-code", "agent-data"}
+    assert room_entries["agent-data"]["chat_entry"] is False
+    assert room_entries["agent-data"]["name"] == "数据管理员"
+    assert room_entries["agent-data"]["description"] == "数据预检"

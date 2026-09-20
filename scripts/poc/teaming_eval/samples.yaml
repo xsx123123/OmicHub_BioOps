@@ -1,0 +1,228 @@
+# F9 离线 eval 闭环 · Manager 组队质量评测样本集（版本化金标准）
+#
+# 用途：scripts/poc/teaming_eval/run_teaming_eval.py 的输入。
+# 每条样本字段：
+#   id                  样本编号（S01...），报告中按 id 引用
+#   text                真实需求文本（尽量 verbatim 摘自 source，仅去尾随引号/截断标记）
+#   gold_experts        人工标注的期望专家集合（agent_id，空列表 = 不应派出任何领域专家）
+#   needs_clarification 期望是否需要先澄清/补全输入（true = 应先 ask_user 而非直接组队执行）
+#   source              文本来源（仓库内真实材料路径；E2E-* 指 evidence/e2e-2026-08-21 实测案例）
+#   note                标注理由/口径说明（可选）
+#
+# 标注口径：
+#   - gold_experts 以 data/ai/agent_ability.yaml 各 agent 的 summary/detail 契约为准绳
+#     （适用场景命中 → 应派；not_suitable_for 命中 → 不应派）。
+#   - "最小专家集合"原则：只列完成任务必需的专家，可选增强（如顺手美化）不计入。
+#   - 领域词命中但信息不足（缺输入文件/分组/模态）时 needs_clarification=true。
+version: 1
+annotated_by: 人工标注（2026-08-21，依据 agent_ability.yaml 能力契约）
+samples:
+  - id: S01
+    text: 我有6个样本的小鼠单细胞数据，分为两个group 3v3，想要找到不同 group 间的细胞类型差异和差异基因
+    gold_experts: [agent-scrna]
+    needs_clarification: true
+    source: docs/update_info/26.8.19/协作室任务执行流程评估与优化文档_v1.md（同见 evidence/agentteams-case-forensics-20260819/report.md）
+    note: 单细胞差异分析属 agent-scrna 全流程；输入对象/分组细节未给，应先澄清。
+
+  - id: S02
+    text: 小鼠肺部 6 个 scRNA-seq 样本（3 tp53 mutation vs 3 WT）标准流程全套
+    gold_experts: [agent-scrna, agent-scrna-upstream, agent-scrna-integration, agent-scrna-advanced]
+    needs_clarification: false
+    source: evidence/e2e-2026-08-21/E2E-1/result.md（E2E-1 实测需求文本）
+    note: 「标准流程全套」覆盖 scrna 流程 upstream/integrate/advanced 三阶段助手 + lead。
+
+  - id: S03
+    text: 帮我分析 16S 微生物组测序数据
+    gold_experts: [agent-code]
+    needs_clarification: false
+    source: report/12_多智能体协作室根因调查报告_2026-08-19.md（E2E-3 实测同文本）
+    note: 16S 无注册领域流程，E2E-3 实测期望显式 fallback 到通用代码助手（agent-code）。
+
+  - id: S04
+    text: hi
+    gold_experts: []
+    needs_clarification: false
+    source: evidence/e2e-2026-08-21/E2E-7/result.md（E2E-7 实测：不建 Case、不派专家）
+    note: 纯寒暄，任何专家派出都计误派。
+
+  - id: S05
+    text: 我想分析小鼠脑损伤的 RNA-seq 数据
+    gold_experts: [agent-rnaseq]
+    needs_clarification: true
+    source: flows/rna_seq.yaml example_dialogue
+    note: 缺样本分组与原始数据目录，应先澄清（官方示例即如此回应）。
+
+  - id: S06
+    text: 我想分析小鼠 ATAC-seq 数据
+    gold_experts: [agent-atacseq]
+    needs_clarification: true
+    source: flows/atac_seq.yaml example_dialogue
+    note: 同上，官方示例要求先补样本信息/分组/数据路径。
+
+  - id: S07
+    text: 帮我做 KEGG 富集分析
+    gold_experts: [agent-rnaseq]
+    needs_clarification: true
+    source: docs/update_info/26.7.25/星尘AI对话页前端美化实现计划.md
+    note: 富集分析在 agent-rnaseq 能力契约内；缺基因列表/差异结果输入，应先澄清。
+
+  - id: S08
+    text: 帮我做一个UMAP可视化
+    gold_experts: [agent-viz]
+    needs_clarification: true
+    source: docs/modules/09_sandbox_architecture.md
+    note: 专项绘图属 agent-viz；缺数据输入，应先澄清。
+
+  - id: S09
+    text: 帮我做单细胞质控，然后做差异表达和富集分析
+    gold_experts: [agent-scrna]
+    needs_clarification: true
+    source: docs/update_info/26.7.26/ai_agent/CygnusX平台Agent能力优化方案-记忆与多Agent协作.md
+    note: 单细胞质控→差异→富集为 agent-scrna 全流程范围；输入未明，应先澄清。
+
+  - id: S10
+    text: 帮我写一个 VCF 过滤脚本
+    gold_experts: [agent-code]
+    needs_clarification: false
+    source: docs/update_info/26.7.29/studio/AI工作台分屏面板自动关闭排查与布局优化实现计划.md（同见 data/ai/mcp/workspace_files_prompt.md）
+    note: 纯代码工程任务，agent-code 独立可交付。
+
+  - id: S11
+    text: 帮我建一棵进化树
+    gold_experts: [agent-viz]
+    needs_clarification: true
+    source: docs/update_info/26.8.18/agent双架构汇总.md
+    note: treeplot 流程 actor=agent-viz；缺序列/树文件输入，应先澄清。
+
+  - id: S12
+    text: 帮我找一下cluster 5的marker基因
+    gold_experts: [agent-scrna-advanced]
+    needs_clarification: false
+    source: docs/modules/10_workflow_example.md
+    note: 已聚类对象上的 marker 鉴定属 scrna-advanced（细胞注释/marker）契约。
+
+  - id: S13
+    text: 帮我画个火山图
+    gold_experts: [agent-viz]
+    needs_clarification: true
+    source: docs/update_info/26.8.18/CygnusX记忆系统优化实施计划.md（同见 docs/update_info/26.7.21/mcp_ai_assistant_integration.md）
+    note: 专项绘图；缺差异结果表输入，应先澄清。
+
+  - id: S14
+    text: 帮我看看这批样本的聚类情况，顺便找找离群样本
+    gold_experts: [agent-code, agent-viz]
+    needs_clarification: true
+    source: docs/update_info/26.7.17/CygnusX_AI分析工作台_架构设计.md
+    note: 通用 PCA/层次聚类分析（agent-code）+ 出图（agent-viz）；数据输入未指明。
+
+  - id: S15
+    text: 帮我设计一个 TP53 突变 vs 野生型的 RNA-seq 实验
+    gold_experts: [agent-rnaseq]
+    needs_clarification: false
+    source: docs/update_info/26.8.7/prompt/01_提示词框架现状与DomainPack设计.md
+    note: 方案设计/咨询，agent-rnaseq 可直接应答，无需澄清即可组队。
+
+  - id: S16
+    text: 帮我调试这段 python 报错
+    gold_experts: [agent-code]
+    needs_clarification: false
+    source: docs/update_info/26.7.27/星尘AI统一入口_agent路由测试报告.md
+    note: 代码调试，agent-code 契约核心场景。
+
+  - id: S17
+    text: 帮我跑 fastq QC
+    gold_experts: [agent-code]
+    needs_clarification: false
+    source: docs/update_info/26.7.21/ai_driven_transformation_report.md
+    note: 单点执行类任务；agent-qc 只做 QC 判读不执行，agent-data 不跑分析，落通用执行。
+
+  - id: S18
+    text: 帮我进行系统发育树和解读
+    gold_experts: [agent-viz]
+    needs_clarification: true
+    source: docs/update_info/26.8.18/协作室任务执行流程详解.md
+    note: 系统发育树绘制属 treeplot 流程（actor=agent-viz）；缺输入文件。
+
+  - id: S19
+    text: 我需要一个能查询 PubMed 的 MCP，输入关键词返回标题和摘要
+    gold_experts: [agent-mcp-builder]
+    needs_clarification: false
+    source: docs/update_info/26.7.30/mcp_builder_framework.md
+    note: MCP 构建任务，agent-mcp-builder 契约直接命中。
+
+  - id: S20
+    text: 我有 ATAC-seq 数据，想做差异 peak 分析
+    gold_experts: [agent-atacseq]
+    needs_clarification: true
+    source: docs/info/26.8.19/协作室平台异常排查代码审查报告_2026-08-19.md（同见 report/12_多智能体协作室根因调查报告_2026-08-19.md）
+    note: 差异可及性属 agent-atacseq；分组/数据路径未给，应先澄清。
+
+  - id: S21
+    text: 我想把之前的单核数据重新聚类一下，分辨率用1.2，然后画个UMAP图，把cluster 5的颜色改成蓝色
+    gold_experts: [agent-scrna-integration]
+    needs_clarification: false
+    source: docs/modules/10_workflow_example.md
+    note: 重聚类/分辨率调整属 scrna-integration（降维聚类与稳定性复核）；对象引用明确。
+
+  - id: S22
+    text: 帮我分析这个 PBMC 数据集
+    gold_experts: [agent-scrna]
+    needs_clarification: true
+    source: docs/update_info/26.7.23/ai_multi_agent_tools_memory.md
+    note: PBMC 典型 scRNA 场景；"这个数据集"指向未明，应先澄清输入。
+
+  - id: S23
+    text: 帮我处理这个 xlsx，对其中描述的基因做文献搜索，整理成文档并输出网页报告
+    gold_experts: [agent-code, agent-delivery]
+    needs_clarification: false
+    source: docs/update_info/26.8.18/协作室任务执行流程评估与优化文档.md（同见 _v1 版）
+    note: 文件处理+检索（agent-code）+ 正式报告交付（agent-delivery）的真实上下游组队。
+
+  - id: S24
+    text: 请帮我看一下我上传的这几个文件，先做一份基础的汇总说明，不着急跑正式分析
+    gold_experts: [agent-data]
+    needs_clarification: false
+    source: evidence/e2e-2026-08-21/E2E-2/fix_verify_limit_101.json（E2E 实测房间消息）
+    note: 数据预检/汇总说明属 agent-data 契约；用户明确不要正式分析。
+
+  - id: S25
+    text: 帮我汇总一下当前平台的功能呀
+    gold_experts: [agent-general]
+    needs_clarification: false
+    source: docs/update_info/26.8.7/goal.md
+    note: 平台咨询属通用入口 agent-general。
+
+  - id: S26
+    text: 我有一个 .treefile 文件，想画进化树
+    gold_experts: [agent-viz]
+    needs_clarification: false
+    source: docs/update_info/26.8.7/prompt/01_提示词框架现状与DomainPack设计.md
+    note: 输入明确（treefile），treeplot 流程可直接组队。
+
+  - id: S27
+    text: 帮我提交一个 RNA-seq 任务，对比 WT 和 KO 组
+    gold_experts: [agent-rnaseq]
+    needs_clarification: false
+    source: docs/modules/07_milestones.md
+    note: 分组已明确（WT vs KO），提任务意图明确，可直接组队进入 intake/提交。
+
+  - id: S28
+    text: 帮我看看工作区里有哪些数据文件
+    gold_experts: [agent-general]
+    needs_clarification: false
+    source: docs/update_info/26.7.25/工作区文件原生能力.md
+    note: 文件定位/浏览属通用入口职责（agent-general 契约含文件定位）。
+
+  - id: S29
+    text: 帮我分析任务日志中的错误
+    gold_experts: [agent-code]
+    needs_clarification: false
+    source: docs/modules/05_frontend_architecture.md
+    note: 日志排错属代码工程（agent-code 环境排错契约）。
+
+  - id: S30
+    text: 我有哪些正在跑的任务？
+    gold_experts: [agent-general]
+    needs_clarification: false
+    source: docs/update_info/26.7.22/ai_assistant_single_entry_architecture.md（同见 docs/update_info/26.7.21/mcp_ai_assistant_integration.md）
+    note: 平台状态查询，通用入口直答，无需领域专家。

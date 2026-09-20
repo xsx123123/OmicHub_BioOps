@@ -179,7 +179,7 @@ export interface DatabaseSummary {
   totalFiles: number
 }
 
-const DATA_ROOT = '/data/omichub/omichub_data/db'
+const DATA_ROOT = '/data/cygnusx/cygnusx_data/db'
 
 function dataFile(
   type: DataFileType,

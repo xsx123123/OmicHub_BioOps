@@ -3,12 +3,12 @@
 from sqlalchemy import select
 from sqlalchemy.dialects import postgresql
 
-from omichub.application.services.vector_retrieval_service import (
+from cygnusx.application.services.vector_retrieval_service import (
     KnowledgeCitation,
     VectorRetrievalService,
 )
-from omichub.infrastructure.database.models.knowledge_chunk import KbChunkModel
-from omichub.infrastructure.database.models.knowledge_document import KbDocumentModel
+from cygnusx.infrastructure.database.models.knowledge_chunk import KbChunkModel
+from cygnusx.infrastructure.database.models.knowledge_document import KbDocumentModel
 
 
 def test_project_visibility_allows_global_and_matching_project_only() -> None:

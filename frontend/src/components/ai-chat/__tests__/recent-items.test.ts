@@ -17,7 +17,7 @@ function installLocalStorageStub() {
 describe('recentItems（@ 与 / 面板最近使用）', () => {
   beforeEach(() => {
     installLocalStorageStub()
-    localStorage.removeItem('omichub.panel.recent.v1')
+    localStorage.removeItem('cygnusx.panel.recent.v1')
   })
 
   it('新插入项置顶', () => {
@@ -57,7 +57,7 @@ describe('recentItems（@ 与 / 面板最近使用）', () => {
   })
 
   it('存储损坏时静默降级为空列表', () => {
-    localStorage.setItem('omichub.panel.recent.v1', '{not-json')
+    localStorage.setItem('cygnusx.panel.recent.v1', '{not-json')
     expect(getRecent('mention')).toEqual([])
     pushRecent('mention', 'file-1')
     expect(getRecent('mention')).toEqual(['file-1'])

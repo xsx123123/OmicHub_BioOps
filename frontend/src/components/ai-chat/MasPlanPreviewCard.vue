@@ -69,6 +69,8 @@ async function approvePlan(): Promise<void> {
 
 <style scoped>
 .mas-plan-preview-card { margin-top: 12px; padding: 14px; border: 1px solid #d8c8ff; border-radius: 10px; background: #faf8ff; }
+/* 深色模式：紫色调浅底，跟随 stardust 紫变量 */
+:root[data-theme="dark"] .mas-plan-preview-card { border-color: color-mix(in srgb, var(--stardust-purple, #9a7bff) 32%, transparent); background: color-mix(in srgb, var(--stardust-purple, #9a7bff) 12%, transparent); }
 header, footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 header p { margin: 4px 0 0; color: var(--chat-text-secondary, #666); font-size: 13px; }
 .notice { margin: 12px 0; color: var(--chat-text-secondary, #666); font-size: 12px; }

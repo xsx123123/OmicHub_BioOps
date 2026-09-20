@@ -1,7 +1,7 @@
-# OmicsHub 系统架构总览与核心架构重点
+# CygnusX 系统架构总览与核心架构重点
 
 > **文档版本**：v1.0  
-> **项目**：OmicsHub — 私有化多组学分析平台  
+> **项目**：CygnusX — 私有化多组学分析平台  
 > **目标读者**：系统架构师、全栈开发工程师、生信维护人员  
 > **技术约束**：Vue 3 + FastAPI + PostgreSQL 14+ + Redis 7+ + Celery + Snakemake + Docker Compose + MCP SDK
 
@@ -9,7 +9,7 @@
 
 ## 1. 系统全景架构图
 
-以下架构图展示了 OmicsHub 的完整数据流，覆盖从用户浏览器请求到后端各子系统、数据持久化、异步任务队列、AI对话通道、MCP服务连接及Snakemake流程执行的全链路。
+以下架构图展示了 CygnusX 的完整数据流，覆盖从用户浏览器请求到后端各子系统、数据持久化、异步任务队列、AI对话通道、MCP服务连接及Snakemake流程执行的全链路。
 
 ```mermaid
 flowchart TB
@@ -175,11 +175,11 @@ flowchart TB
 
 ## 2. DDD 模块划分
 
-OmicsHub 采用领域驱动设计（DDD）的模块化架构，将业务领域划分为六个核心域，每个域内含独立的聚合根、实体、值对象和领域服务。
+CygnusX 采用领域驱动设计（DDD）的模块化架构，将业务领域划分为六个核心域，每个域内含独立的聚合根、实体、值对象和领域服务。
 
 ```mermaid
 flowchart TB
-    subgraph BoundedContexts["🧩 OmicsHub 限界上下文 (Bounded Contexts)"]
+    subgraph BoundedContexts["🧩 CygnusX 限界上下文 (Bounded Contexts)"]
         subgraph UserCtx["👤 用户域 (User Domain)"]
             User["👤 User\n[Aggregate Root]\n- id: UUID\n- username: str\n- email: str\n- role: Role\n- created_at: datetime"]
             Role["🔖 Role\n[Value Object]\n- ADMIN / USER"]
@@ -270,7 +270,7 @@ flowchart TB
 
 ## 3. 分层架构说明
 
-OmicsHub 严格遵循分层架构模式，自上而下划分为四层，每层具有明确的职责边界和依赖方向（上层依赖下层，禁止跨层调用）。
+CygnusX 严格遵循分层架构模式，自上而下划分为四层，每层具有明确的职责边界和依赖方向（上层依赖下层，禁止跨层调用）。
 
 ```mermaid
 flowchart TB
@@ -486,7 +486,7 @@ flowchart TB
 
 ### 4.1 YAML配置中心与动态表单架构要点
 
-OmicsHub 的核心设计理念之一是**"配置即代码"**——所有生信分析流程通过外置YAML文件进行声明式定义，无需修改前端代码即可新增或调整分析流程。这一架构的要点包括：
+CygnusX 的核心设计理念之一是**"配置即代码"**——所有生信分析流程通过外置YAML文件进行声明式定义，无需修改前端代码即可新增或调整分析流程。这一架构的要点包括：
 
 **YAML配置结构规范**：每个流程由一个独立的YAML文件定义，包含四大核心区块：`metadata`（流程元信息，如名称、描述、类别、版本）、`parameters`（参数定义，每个参数声明名称、类型、默认值、是否必填、UI控件类型如select/slider/file等）、`steps`（分析步骤的Snakemake规则引用与输入输出映射）以及`ui_schema`（前端表单布局描述，支持分组、条件显示、级联依赖）。
 
@@ -500,7 +500,7 @@ OmicsHub 的核心设计理念之一是**"配置即代码"**——所有生信�
 
 ### 4.2 AI对话窗口与业务系统融合架构要点
 
-AI对话助手是 OmicsHub 的**常驻功能模块**，以浮动窗口形式嵌入所有页面，实现AI能力与平台业务功能的无缝融合：
+AI对话助手是 CygnusX 的**常驻功能模块**，以浮动窗口形式嵌入所有页面，实现AI能力与平台业务功能的无缝融合：
 
 **WebSocket全双工通信**：AI对话采用WebSocket协议（`/api/v1/ai/ws`）实现真正的全双工通信，相比SSE具有更低的延迟和更好的实时性。对话消息通过WebSocket双向传输：用户发送消息 → 后端组装上下文 → 调用AI API → 流式响应通过WebSocket实时推送至前端。连接管理采用心跳保活机制，断线后支持自动重连与消息补发。
 
@@ -514,7 +514,7 @@ AI对话助手是 OmicsHub 的**常驻功能模块**，以浮动窗口形式嵌�
 
 ### 4.3 MCP集成架构要点
 
-MCP（Model Context Protocol）集成使OmicsHub的AI助手能够安全、标准化地连接多个外部智能服务，极大扩展了平台的数据访问和计算能力：
+MCP（Model Context Protocol）集成使CygnusX的AI助手能够安全、标准化地连接多个外部智能服务，极大扩展了平台的数据访问和计算能力：
 
 **MCP Client架构**：后端 `MCPAppService` 基于Python MCP SDK实现MCP Client，负责与多个MCP Server的Lifecycle管理（启动、连接、心跳检测、异常重启）、工具发现（动态拉取各Server的工具列表与Schema）、调用路由（根据工具名路由到对应Server）以及错误隔离（单个Server故障不影响其他Server和主系统）。MCP Client支持两种传输模式：stdio（本地子进程模式，适用于部署在同一服务器的MCP服务）和SSE（Server-Sent Events模式，适用于远程MCP服务）。
 
@@ -535,7 +535,7 @@ MCP（Model Context Protocol）集成使OmicsHub的AI助手能够安全、标准
 
 ### 4.4 工作流执行引擎（WMS）混合模式要点
 
-OmicsHub的工作流执行引擎支持**本地/远程混合模式**，灵活适配不同计算场景——从单台服务器的小规模分析到高性能计算集群的大规模任务：
+CygnusX的工作流执行引擎支持**本地/远程混合模式**，灵活适配不同计算场景——从单台服务器的小规模分析到高性能计算集群的大规模任务：
 
 **统一任务模型**：`Task` 聚合根抽象了统一的任务模型，与执行位置解耦。每个Task记录：关联的流程定义ID、参数快照（JSONB，锁定提交时的参数值）、执行模式（`LOCAL` 或 `REMOTE`）、工作目录路径、目标状态机。任务状态采用严格的状态机设计：`PENDING` → `QUEUED` → `RUNNING` → (`SUCCESS` | `FAILED` | `CANCELLED`)，状态转换由 `TaskDomainService` 统一管理，确保一致性。
 
@@ -543,7 +543,7 @@ OmicsHub的工作流执行引擎支持**本地/远程混合模式**，灵活适�
 
 **本地执行模式（Local Mode）**：适用于组内服务器直接运行。Celery Worker通过 `subprocess` 模块调用Snakemake CLI命令，直接在Worker所在服务器执行分析流程。本地模式配置简单，无需额外基础设施，适合快速验证和小规模分析。Snakemake运行在独立的Conda环境中，通过 `--use-conda` 或 `--use-singularity` 实现环境隔离。执行日志通过Redis Pub/Sub实时推送到前端WebSocket。
 
-**远程执行模式（Remote Mode）**：适用于高性能计算集群（Slurm/SGE）。Celery Worker通过HTTP调用远程的Snakemake Executor服务（一个轻量级的FastAPI副进程），该服务部署在集群头节点上，负责将Snakemake作业翻译为集群调度命令（`sbatch`/`qsub`）并监控执行状态。远程模式的优势在于：充分利用集群的并行计算能力；OmicsHub主服务与计算集群解耦；支持大规模样本的并行处理。执行完成后，结果文件通过rsync/HTTP回传到OmicsHub的共享存储中。
+**远程执行模式（Remote Mode）**：适用于高性能计算集群（Slurm/SGE）。Celery Worker通过HTTP调用远程的Snakemake Executor服务（一个轻量级的FastAPI副进程），该服务部署在集群头节点上，负责将Snakemake作业翻译为集群调度命令（`sbatch`/`qsub`）并监控执行状态。远程模式的优势在于：充分利用集群的并行计算能力；CygnusX主服务与计算集群解耦；支持大规模样本的并行处理。执行完成后，结果文件通过rsync/HTTP回传到CygnusX的共享存储中。
 
 **实时监控与日志流**：无论本地或远程模式，任务执行过程中的状态变更和日志输出均通过 **Redis Pub/Sub → WebSocket → 前端** 的链路实时推送。用户在任务详情页可以：查看实时更新的执行日志（WebSocket流式推送）、监控Snakemake的DAG可视化进度、下载中间结果和最终报告、在任务失败时获取错误诊断与AI辅助排查建议。
 
@@ -551,7 +551,7 @@ OmicsHub的工作流执行引擎支持**本地/远程混合模式**，灵活适�
 
 ### 4.5 安全与数据隔离要点
 
-安全设计贯穿OmicsHub的所有层次，特别针对**私有化部署**和**课题组数据敏感性**的需求：
+安全设计贯穿CygnusX的所有层次，特别针对**私有化部署**和**课题组数据敏感性**的需求：
 
 **身份认证与授权**：系统采用JWT（JSON Web Token）认证机制。用户注册/登录后获得Access Token（短有效期，默认30分钟）和Refresh Token（长有效期，默认7天），通过HttpOnly Cookie存储增强安全性。角色系统分为 `ADMIN`（管理员，可管理用户、配置流程、管理系统设置）和 `USER`（普通用户，仅能操作自己的数据和任务）。RBAC中间件在应用层进行细粒度权限控制，每个API端点通过装饰器声明所需角色。工作空间（Workspace）机制实现数据硬隔离——每个用户的数据（样本、任务、结果）完全隔离，数据库查询自动附加 `user_id` / `workspace_id` 过滤条件。
 
@@ -572,13 +572,13 @@ flowchart LR
     subgraph Host["🖥️ 宿主机 (组内服务器)"]
         Nginx["nginx\n(:80/:443)"]
 
-        subgraph AppNetwork["Docker Network: omicshub_app"]
+        subgraph AppNetwork["Docker Network: cygnusx_app"]
             Web["web\n(FastAPI + Celery Beat)"]
             Worker["worker\n(Celery Workers)"]
             FlowerUI["flower\n(:5555)"]
         end
 
-        subgraph DataNetwork["Docker Network: omicshub_data"]
+        subgraph DataNetwork["Docker Network: cygnusx_data"]
             DB["db\n(PostgreSQL 14 :5432)"]
             Cache["cache\n(Redis 7 :6379)"]
         end
@@ -649,4 +649,4 @@ flowchart LR
 ---
 
 > **文档结束**  
-> 本文档为OmicsHub系统架构的顶层设计蓝图，后续模块文档将基于本架构展开各子系统的详细设计。
+> 本文档为CygnusX系统架构的顶层设计蓝图，后续模块文档将基于本架构展开各子系统的详细设计。

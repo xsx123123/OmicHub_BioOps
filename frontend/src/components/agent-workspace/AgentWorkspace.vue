@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import AgentSidebar from './AgentSidebar.vue'
 import AgentHub from './AgentHub.vue'
 import AgentSandbox from './AgentSandbox.vue'
@@ -8,9 +8,11 @@ import SessionHistoryDrawer from './SessionHistoryDrawer.vue'
 import AppLoading from '@/components/AppLoading.vue'
 import { useAgentHubStore, type AgentSession } from '@/stores/agentHub'
 import { ArrowForwardOutline, CompassOutline } from '@vicons/ionicons5'
-import { NButton, NIcon, NModal } from 'naive-ui'
+import { NButton, NIcon, NModal, useMessage } from 'naive-ui'
 
 const store = useAgentHubStore()
+const message = useMessage()
+const route = useRoute()
 const router = useRouter()
 const loading = ref(false)
 const error = ref('')
@@ -62,7 +64,13 @@ async function initAssets() {
   error.value = ''
   try {
     await store.initAssets()
-    ensureDefaultSession()
+    // 路由携带 sessionId 时（如从项目详情页「打开」会话）优先恢复该会话
+    const targetId = String(route.params.sessionId || '')
+    if (targetId && store.sessions.some((s) => s.id === targetId)) {
+      void store.selectSession(targetId)
+    } else {
+      ensureDefaultSession()
+    }
   } catch (e: any) {
     error.value = e?.message || '加载 Agent 数据失败'
   } finally {
@@ -98,11 +106,29 @@ function handleAgentPickerAfterLeave() {
 
 function handleHistorySelect(session: AgentSession, messageId?: string) {
   if (session.mode === 'studio' || store.studioSessionIds.has(session.id)) {
+    // 已归档休眠的工作区先恢复，再进入工作台加载
+    if (session.workspace_archive) {
+      store.restoreArchivedSession(session.id)
+        .then(() => {
+          router.push({ name: 'studio', params: { sessionId: session.id }, query: messageId ? { message: messageId } : {} })
+        })
+        .catch((e) => {
+          message.error(e instanceof Error ? e.message : '恢复会话工作区失败，请稍后重试')
+        })
+      return
+    }
     router.push({ name: 'studio', params: { sessionId: session.id }, query: messageId ? { message: messageId } : {} })
     return
   }
   if (!store.sessions.some((item) => item.id === session.id)) store.sessions.unshift(session)
   targetMessageId.value = messageId || ''
+  if (session.workspace_archive) {
+    // 走恢复流程，成功后继续正常打开流程
+    store.openSessionWithRestore(session.id).catch((e) => {
+      message.error(e instanceof Error ? e.message : '恢复会话工作区失败，请稍后重试')
+    })
+    return
+  }
   store.selectSession(session.id)
 }
 </script>

@@ -2,13 +2,13 @@ from pathlib import Path
 
 import pytest
 
-from omichub.tools.fastq_qc.config import (
+from cygnusx.tools.fastq_qc.config import (
     FastpConfig,
     FastpParameters,
     FastqQcConfigManager,
     MultiqcConfig,
 )
-from omichub.tools.fastq_qc.runner import (
+from cygnusx.tools.fastq_qc.runner import (
     FastpSamplePaths,
     build_fastp_command,
     build_multiqc_command,

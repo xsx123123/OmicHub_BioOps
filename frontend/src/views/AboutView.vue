@@ -36,7 +36,7 @@ function summonCat() {
   siteConfig.fetchSiteConfig()
   playing.value = true
   message.success(siteConfig.easterEggToast, { duration: 3500 })
-  window.dispatchEvent(new CustomEvent('omicHub:triggerCatPaws'))
+  window.dispatchEvent(new CustomEvent('cygnusX:triggerCatPaws'))
   if (pawTimer) clearTimeout(pawTimer)
   pawTimer = setTimeout(() => {
     playing.value = false
@@ -108,7 +108,7 @@ const nebulaLayers = Array.from({ length: 4 }, (_, i) => {
 </script>
 
 <template>
-  <div class="about-page" role="main" aria-label="关于 OmicHub">
+  <div class="about-page" role="main" aria-label="关于 CygnusX">
     <!-- 深空背景 -->
     <div class="space-bg" />
 
@@ -182,8 +182,8 @@ const nebulaLayers = Array.from({ length: 4 }, (_, i) => {
         <div class="planet-orbit" aria-hidden="true"><span class="planet-moon" /></div>
       </div>
 
-      <h1 class="about-title">OmicHub</h1>
-      <p class="about-subtitle">多组学数据分析平台<span class="subtitle-llm">· LLM 深度赋能</span></p>
+      <h1 class="about-title">CygnusX</h1>
+      <p class="about-subtitle">天鹅座智能科研平台<span class="subtitle-llm">· LLM 深度赋能</span></p>
 
       <div class="about-quote-box">
         <p class="about-quote-title">We are made of star-stuff</p>
@@ -267,7 +267,7 @@ const nebulaLayers = Array.from({ length: 4 }, (_, i) => {
 
       <!-- 底部 -->
       <div class="about-footer">
-        <span class="about-brand">OmicHub</span>
+        <span class="about-brand">CygnusX</span>
         <span class="about-divider">·</span>
         <span>华中农业大学园艺林学学院 · 多组学分析平台</span>
         <div v-if="siteConfig.platformAuthor" class="about-credit">

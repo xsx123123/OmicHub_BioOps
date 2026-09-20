@@ -1,14 +1,14 @@
-# OmicHub BioOps 参赛材料包
+# CygnusX BioOps 参赛材料包
 
-> **作品名称：** OmicHub BioOps —— 面向生命科学研发的可审计多 Agent 协同基础设施  
+> **作品名称：** CygnusX BioOps —— 面向生命科学研发的可审计多 Agent 协同基础设施  
 > **赛道定位：** 企业级复杂任务下的多 Agent 基础设施与协同系统  
 > **材料版本：** 初赛版 v1.0（2026-08-08）
 
 ## 一句话简介
 
-OmicHub BioOps 面向药企、育种企业、医学检验与科研服务机构的组学数据分析交付场景，将“数据是否可用、流程如何运行、结果是否可信、交付是否完整”这一长链路任务，组织为可审批、可恢复、可验证、可审计的多 Agent 闭环。
+CygnusX BioOps 面向药企、育种企业、医学检验与科研服务机构的组学数据分析交付场景，将“数据是否可用、流程如何运行、结果是否可信、交付是否完整”这一长链路任务，组织为可审批、可恢复、可验证、可审计的多 Agent 闭环。
 
-项目以 **AgentTeams** 为协同设计基点：复用 OmicHub 已实现的通用协调与领域分析 Agent，并新增数据、质控、交付三个专职 Agent 组成 BioOps 工作组；OmicHub 负责受控工作流、Artifact Registry、共享工作区、质量门、证据归档与面向研究人员的工作台体验。
+项目以 **AgentTeams** 为协同设计基点：复用 CygnusX 已实现的通用协调与领域分析 Agent，并新增数据、质控、交付三个专职 Agent 组成 BioOps 工作组；CygnusX 负责受控工作流、Artifact Registry、共享工作区、质量门、证据归档与面向研究人员的工作台体验。
 
 ## 材料目录
 
@@ -26,9 +26,9 @@ OmicHub BioOps 面向药企、育种企业、医学检验与科研服务机构�
 
 本材料以仓库当前实现为依据，刻意区分“**已实现/可验证**”与“**比赛期间拟完成**”，避免把设计稿写成上线事实。
 
-- **已实现或已有可验证工程基础：** OmicHub MAS 的受控 DAG、计划确认门、Artifact Registry、Outbox + Redis Stream、有限重试、质量门、HITL 审批、受控 Worker；以及 AgentTeams Bridge、Case/Work Item、角色身份、短期审批令牌、幂等提交、质量决策、证据事件与交付 manifest 的集成边界。
+- **已实现或已有可验证工程基础：** CygnusX MAS 的受控 DAG、计划确认门、Artifact Registry、Outbox + Redis Stream、有限重试、质量门、HITL 审批、受控 Worker；以及 AgentTeams Bridge、Case/Work Item、角色身份、短期审批令牌、幂等提交、质量决策、证据事件与交付 manifest 的集成边界。
 - **默认关闭或待部署验收：** `MAS_ENABLED`、AgentTeams Gateway/Matrix 互通、真实 RNAFlow/Apptainer 环境下的端到端生产演练。Demo 采用独立 staging Bridge 及预检/受阻场景作为可重复验证路径。
-- **比赛增量重点：** 复用 `agent-general` 与 `agent-rnaseq`/`agent-atacseq`/`agent-scrna` 等已实现 Agent；新增 `agent-data`、`agent-qc`、`agent-delivery` 三个专职角色，并将它们与 AgentTeams Case、OmicHub 受控工作流和证据投影串成可路演的“研究项目交付闭环”。
+- **比赛增量重点：** 复用 `agent-general` 与 `agent-rnaseq`/`agent-atacseq`/`agent-scrna` 等已实现 Agent；新增 `agent-data`、`agent-qc`、`agent-delivery` 三个专职角色，并将它们与 AgentTeams Case、CygnusX 受控工作流和证据投影串成可路演的“研究项目交付闭环”。
 
 ## 仓库证据索引
 

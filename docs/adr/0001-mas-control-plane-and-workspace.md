@@ -5,7 +5,7 @@
 ## Decision
 
 - Keep Redis and Celery as the initial MAS transport and task substrate; durable delivery will use a PostgreSQL transactional Outbox before Redis Stream publishing.
-- Treat `/data/omichub/runs/<run_id>` as the sole server-side run workspace and expose it to execution containers only as `/workspace`.
+- Treat `/data/cygnusx/runs/<run_id>` as the sole server-side run workspace and expose it to execution containers only as `/workspace`.
 - Store large inputs and outputs as files plus artifact metadata; A2A events may contain only bounded summaries and artifact pointers.
 - Keep raw-data cache entries content-addressed by verified SHA-256 and make run references read-only.
 - Route all execution through allowlisted images, write roots and resource policy. MAS tools never receive a Docker socket or privileged container access.

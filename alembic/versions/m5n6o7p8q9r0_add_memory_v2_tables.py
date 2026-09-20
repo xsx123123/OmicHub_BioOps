@@ -6,7 +6,7 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
-from omichub.infrastructure.database.vector import Vector
+from cygnusx.infrastructure.database.vector import Vector
 
 revision: str = "m5n6o7p8q9r0"
 down_revision: str | Sequence[str] | None = "eb57036c9eec"

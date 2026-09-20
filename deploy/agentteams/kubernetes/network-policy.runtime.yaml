@@ -10,7 +10,7 @@ spec:
   egress:
     - to:
         - podSelector:
-            matchLabels: {app.kubernetes.io/name: omichub-agentteams-bridge}
+            matchLabels: {app.kubernetes.io/name: cygnusx-agentteams-bridge}
       ports: [{protocol: TCP, port: 8080}]
     - to:
         - namespaceSelector:
@@ -24,7 +24,7 @@ metadata:
   namespace: agentteams-system
 spec:
   podSelector:
-    matchLabels: {app.kubernetes.io/name: omichub-agentteams-bridge}
+    matchLabels: {app.kubernetes.io/name: cygnusx-agentteams-bridge}
   policyTypes: [Ingress, Egress]
   ingress:
     - from:
@@ -35,13 +35,13 @@ spec:
     # Bridge → Gateway 房间镜像
     - to:
         - podSelector:
-            matchLabels: {app.kubernetes.io/name: omichub-agent-gateway}
+            matchLabels: {app.kubernetes.io/name: cygnusx-agent-gateway}
       ports: [{protocol: TCP, port: 8081}]
     - to:
         - namespaceSelector:
             matchLabels: {kubernetes.io/metadata.name: kube-system}
       ports: [{protocol: UDP, port: 53}, {protocol: TCP, port: 53}]
-    # Add explicit selectors for the managed Redis and OmicHub API endpoints in values.
+    # Add explicit selectors for the managed Redis and CygnusX API endpoints in values.
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -50,30 +50,30 @@ metadata:
   namespace: agentteams-system
 spec:
   podSelector:
-    matchLabels: {app.kubernetes.io/name: omichub-agent-gateway}
+    matchLabels: {app.kubernetes.io/name: cygnusx-agent-gateway}
   policyTypes: [Ingress, Egress]
   ingress:
-    # Bridge 的房间镜像与 OmicHub 主后端的建房/发言/反同步调用。
+    # Bridge 的房间镜像与 CygnusX 主后端的建房/发言/反同步调用。
     - from:
         - podSelector:
-            matchLabels: {app.kubernetes.io/name: omichub-agentteams-bridge}
+            matchLabels: {app.kubernetes.io/name: cygnusx-agentteams-bridge}
         - namespaceSelector:
-            matchLabels: {kubernetes.io/metadata.name: omichub-system}
+            matchLabels: {kubernetes.io/metadata.name: cygnusx-system}
       ports: [{protocol: TCP, port: 8081}]
   egress:
     # Matrix homeserver（Tuwunel）
     - to:
         - podSelector:
-            matchLabels: {app.kubernetes.io/name: omichub-tuwunel}
+            matchLabels: {app.kubernetes.io/name: cygnusx-tuwunel}
       ports: [{protocol: TCP, port: 6167}]
-    # 共享 Redis 计数器/状态存储与 OmicHub 主后端会诊回源
+    # 共享 Redis 计数器/状态存储与 CygnusX 主后端会诊回源
     - to:
         - podSelector:
-            matchLabels: {app.kubernetes.io/name: omichub-agentteams-state}
+            matchLabels: {app.kubernetes.io/name: cygnusx-agentteams-state}
       ports: [{protocol: TCP, port: 6379}]
     - to:
         - namespaceSelector:
-            matchLabels: {kubernetes.io/metadata.name: omichub-system}
+            matchLabels: {kubernetes.io/metadata.name: cygnusx-system}
       ports: [{protocol: TCP, port: 8000}]
     - to:
         - namespaceSelector:
@@ -87,13 +87,13 @@ metadata:
   namespace: agentteams-system
 spec:
   podSelector:
-    matchLabels: {app.kubernetes.io/name: omichub-tuwunel}
+    matchLabels: {app.kubernetes.io/name: cygnusx-tuwunel}
   policyTypes: [Ingress, Egress]
   ingress:
     # 仅 Gateway（AppService）与集群 Ingress 中的 Element Web 客户端可触达。
     - from:
         - podSelector:
-            matchLabels: {app.kubernetes.io/name: omichub-agent-gateway}
+            matchLabels: {app.kubernetes.io/name: cygnusx-agent-gateway}
       ports: [{protocol: TCP, port: 6167}]
     # 浏览器经 Ingress 访问 Client-Server API 时，按实际 Ingress Controller
     # 所在 namespace/labels 补一条 from 规则（默认模板不含，按需开启）。

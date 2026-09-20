@@ -111,7 +111,7 @@ export function exportTasksToExcel(
 
   const stamp = new Date()
   const datePart = `${stamp.getFullYear()}${String(stamp.getMonth() + 1).padStart(2, '0')}${String(stamp.getDate()).padStart(2, '0')}`
-  const fileName = options.fileName || `omichub-tasks-${datePart}`
+  const fileName = options.fileName || `cygnusx-tasks-${datePart}`
 
   XLSX.writeFile(workbook, `${fileName}.xlsx`)
 }

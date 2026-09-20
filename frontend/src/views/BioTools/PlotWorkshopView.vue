@@ -117,7 +117,7 @@ const chartGuides: Record<ChartKind, { purpose: string; why: string; suitableFor
   histogram: { purpose: '展示连续变量在不同数值区间中的频数或概率密度。', why: '在统计检验或建模前，可用于判断偏态、长尾、多峰和异常范围。', suitableFor: '测序深度、表达量、质量分数、片段长度和连续表型。', reading: '观察峰的位置、宽度、尾部和组间重叠；分箱数量会影响外观，应结合密度曲线判断。' },
   'mean-error': { purpose: '直接绘制已经汇总好的均值及 SD、SEM 或其他误差范围。', why: '当只有摘要统计或需要清晰比较效应量时，比重复构造原始数据更合适。', suitableFor: '文献汇总、平台输出的均值误差表、时间点或处理组摘要数据。', reading: '比较均值点及误差棒重叠情况，同时明确误差列代表 SD、SEM 还是置信区间。' },
   pca: { purpose: '把高维组学矩阵压缩到主要变异方向，用二维图展示样本整体关系。', why: '常用于质量控制、发现批次效应、检查组间分离和异常样本。', suitableFor: '转录组、蛋白组、代谢组等经过适当标准化的特征 × 样本矩阵。', reading: '坐标轴百分比表示解释方差；样本越近整体谱越相似，分离并不自动等同于统计显著。' },
-  enrichment: { purpose: '使用 GO/KEGG 富集结果重新绘制可投稿的气泡图，并自由选择关注的 pathway 或 term。', why: '默认 Top 20 不一定覆盖研究重点，手动筛选可突出与课题相关的生物过程和通路。', suitableFor: 'clusterProfiler 或 OmicHub 富集工具导出的标准 CSV，包含 GeneRatio、p.adjust 和 Count。', reading: 'X 轴表示 GeneRatio，气泡大小表示 Count，颜色表示 -log10(p.adjust)；颜色值越高通常越显著。' },
+  enrichment: { purpose: '使用 GO/KEGG 富集结果重新绘制可投稿的气泡图，并自由选择关注的 pathway 或 term。', why: '默认 Top 20 不一定覆盖研究重点，手动筛选可突出与课题相关的生物过程和通路。', suitableFor: 'clusterProfiler 或 CygnusX 富集工具导出的标准 CSV，包含 GeneRatio、p.adjust 和 Count。', reading: 'X 轴表示 GeneRatio，气泡大小表示 Count，颜色表示 -log10(p.adjust)；颜色值越高通常越显著。' },
   line: { purpose: '展示指标随时间、剂量或有序条件变化的趋势。', why: '能够突出变化方向、拐点、响应速度以及不同系列之间的动态差异。', suitableFor: '时间序列、剂量梯度、生长曲线和连续采样实验。', reading: '关注整体趋势和系列间距离；若存在重复测量，应结合误差带判断波动是否稳定。' },
   survival: { purpose: '用 Kaplan–Meier 曲线比较不同分组（或表达高低组）的生存概率随时间的变化。', why: '生存数据含删失，直接比较生存时间会失真；KM 估计与 log-rank 检验是队列预后分析的标准方法。', suitableFor: '临床随访队列（time + status）、按分组或基因表达高低划分的预后比较。', reading: '曲线下降越快表示事件累积越快；结合中位生存期、删失刻度、风险人数表和 log-rank p 值判断组间差异。' },
 }

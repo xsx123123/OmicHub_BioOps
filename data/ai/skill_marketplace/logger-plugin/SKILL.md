@@ -1,6 +1,6 @@
 ---
 name: Snakemake Rich Loguru 日志插件
-description: 当输入 Snakemake 工作流文件且用户要求以已安装的 rich-loguru logger 执行并保留本地运行日志时触发。不用于创建远端 Loki、OmicHub 凭据或修改工作流规则。
+description: 当输入 Snakemake 工作流文件且用户要求以已安装的 rich-loguru logger 执行并保留本地运行日志时触发。不用于创建远端 Loki、CygnusX 凭据或修改工作流规则。
 skill_id: logger-plugin
 version: 0.9.0
 category: analysis
@@ -10,7 +10,7 @@ category: analysis
 
 ## 何时使用（Trigger）
 - 对现有 `Snakefile` 使用安装态 `snakemake --logger rich-loguru` 执行或 dry-run，并产出一次运行摘要时使用。
-- 不配置远端 Loki/OmicHub sink，不接收或保存 token、密码及加密密钥。
+- 不配置远端 Loki/CygnusX sink，不接收或保存 token、密码及加密密钥。
 
 ## 输入契约（Input）
 | 参数 | 必填 | 说明 |

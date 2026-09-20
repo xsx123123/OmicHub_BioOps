@@ -1,12 +1,12 @@
-# OmicHub 技能设计与接入规范（Skill Design Protocol）v1.3
+# CygnusX 技能设计与接入规范（Skill Design Protocol）v1.3
 
-> **规范名称**: OmicHub Skill Design Protocol（OSDP）
+> **规范名称**: CygnusX Skill Design Protocol（OSDP）
 > **版本**: 1.3（2026-08-04 修订：新增运行时环境与网络可达性约束——针对全量沙箱冒烟发现的"技能声明的依赖装不上、业务外网连不通、21/32 脚本型技能开箱不可运行"问题）
 > **状态**: RFC — 征求实现反馈
 > **日期**: 2026-08-04
-> **适用对象**: 所有接入 OmicHub 平台、挂载到 AI Agent 的技能（Skill）的作者与评审者；包括但不限于单细胞（scRNA）、转录组（RNA-seq）、ATAC、变异分析等生信分析技能的创建者
+> **适用对象**: 所有接入 CygnusX 平台、挂载到 AI Agent 的技能（Skill）的作者与评审者；包括但不限于单细胞（scRNA）、转录组（RNA-seq）、ATAC、变异分析等生信分析技能的创建者
 > **关联文档**:
-> - `docs/26.7.27/OmicHub技能加载方案与助手管理页美化实现计划.md`（平台 Skill 三层加载机制设计，本规范的上游架构依据）
+> - `docs/26.7.27/CygnusX技能加载方案与助手管理页美化实现计划.md`（平台 Skill 三层加载机制设计，本规范的上游架构依据）
 > - `docs/26.8.1/阿里云Skills接入与Skill治理实现计划.md`（外部技能源接入与治理）
 > - `docs/26.8.3/单细胞脚本Skill化改造与整合规范.md`（scRNA 技能集参考实现方案）
 > - `Protocol/分析流程结果交付协议_v1.md`（ARDP，分析产物交付契约，可执行技能的输出契约需与对齐）
@@ -40,7 +40,7 @@
 
 ### 1.1 问题陈述
 
-OmicHub 的 AI Agent（如 `agent-scrna` 单细胞分析师）通过 Skill 获得领域知识与执行能力。但当前技能创建**没有正式规范**，导致：
+CygnusX 的 AI Agent（如 `agent-scrna` 单细胞分析师）通过 Skill 获得领域知识与执行能力。但当前技能创建**没有正式规范**，导致：
 
 1. **知识型与可执行型不分**：现有市场技能（`human-mouse-cell-annotation` 等 4 个）全部是纯指令文本，Agent 只会"给建议"不会"跑分析"；把脚本转成技能时不知道脚本放哪、如何被调用；
 2. **格式凭模仿**：frontmatter 字段、正文结构靠抄现有技能，缺了 `description` 才会在运行时报错才发现；
@@ -87,7 +87,7 @@ OmicHub 的 AI Agent（如 `agent-scrna` 单细胞分析师）通过 Skill 获�
 | **物化（materialize）** | 平台在技能被加载时，把技能包 `scripts/` 复制进沙盒工作区固定位置，使脚本在沙盒内真实可执行 |
 | **供给（provisioning）** | 安装技能时，管理员按技能的供给清单把外部参考数据预置到共享数据卷的过程 |
 
-平台遵循 Anthropic Agent Skills 渐进式披露模型（实现见 `src/omichub/infrastructure/skills/skillmd.py`、`src/omichub/domain/skill/services.py`）：
+平台遵循 Anthropic Agent Skills 渐进式披露模型（实现见 `src/cygnusx/infrastructure/skills/skillmd.py`、`src/cygnusx/domain/skill/services.py`）：
 
 - **L1 索引层**：启动时仅将每个技能的 `name + skill_id + description` 注入 system prompt（约 100 tokens/技能）。**`description` 是唯一的路由依据**，决定模型何时想到这个技能；
 - **L2 正文层**：模型判断任务匹配后，通过内置工具 `use_skill` 加载 SKILL.md 全文。正文必须是"自包含的工作手册"——模型读完就能干活；
@@ -128,8 +128,8 @@ OmicHub 的 AI Agent（如 `agent-scrna` 单细胞分析师）通过 Skill 获�
 
 | 沙盒 | 镜像 | 网络 | 包管理 |
 |---|---|---|---|
-| **Studio 会话沙盒** | `omichub-analysis:core/plot/scrna-2026.07`（micromamba，uid 10001） | **白名单代理**（internal 网络 + egress proxy）：仅放行包源域名 | micromamba/uv/pip 可现场装包，但仅限白名单源 |
-| **聊天沙箱池** | `omichub/sandbox-base:latest`（conda env `omichub`） | 直连外网 | conda/pip 可装，外网可达（含 CRAN/GitHub/业务 API） |
+| **Studio 会话沙盒** | `cygnusx-analysis:core/plot/scrna-2026.07`（micromamba，uid 10001） | **白名单代理**（internal 网络 + egress proxy）：仅放行包源域名 | micromamba/uv/pip 可现场装包，但仅限白名单源 |
+| **聊天沙箱池** | `cygnusx-sandbox-copilot:v0.0.2dev`（conda env `cygnusx`） | 直连外网 | conda/pip 可装，外网可达（含 CRAN/GitHub/业务 API） |
 
 Studio 出站白名单（`data/ai/studio.yaml` → `studio.sandbox.network.allow`，由 egress proxy 强制）：
 
@@ -174,7 +174,7 @@ pypi.org / files.pythonhosted.org / conda.anaconda.org / mirrors.aliyun.com / mi
 | 位置 | 用途 | 生效方式 |
 |---|---|---|
 | `data/ai/skill_marketplace/<skill-id>/` | **内置市场技能（默认选择）** | 服务启动时 `agent_service._ensure_configured_marketplace_skills()` 自动安装并挂载到声明了它的 agent |
-| `data/ai/skills/<skill-id>/` | 运行时安装产物 | 由管理 API（`src/omichub/api/v1/admin/skills.py`）导入 zip/JSON 时落盘，**不要手工写入** |
+| `data/ai/skills/<skill-id>/` | 运行时安装产物 | 由管理 API（`src/cygnusx/api/v1/admin/skills.py`）导入 zip/JSON 时落盘，**不要手工写入** |
 
 个人/第三方开发的技能先放自建 git 仓库，经 §13 评审后合入 `skill_marketplace/`。源仓库（如 `pipelines/scrna/skills/`）中的技能是**开发副本**，合入平台时复制实体，平台侧与源仓库各自演进、靠版本号同步。
 
@@ -622,14 +622,14 @@ SKILL.md 正文应写明何时调用哪个 MCP/沙盒工具，禁止在 skill �
 - **技能/MCP 沙箱冒烟验收工具（v1.3）**：`scripts/skill_mcp_smoke.py`（多线程：技能物化执行 + MCP 调用 + 镜像清单 × 需求缺口矩阵）、`scripts/studio_install_path_smoke.py`（复刻 Studio 白名单网络的装包路径实测）；报告落 `logs/skill_mcp_smoke/<时间戳>/`
 - Studio 出站白名单代理：`deploy/studio/egress_proxy.py`（白名单来源 `data/ai/studio.yaml` → `studio.sandbox.network.allow`）
 - 运行时镜像定义与声明软件清单：`deploy/runtime-images/{core,plot,scrna}.Dockerfile`、`data/ai/runtime_images.yaml`
-- Skill 解析与限制：`src/omichub/infrastructure/skills/skillmd.py`
-- 磁盘存储与 L3 读取：`src/omichub/infrastructure/skills/skill_store.py`
-- 运行时注入（L1 索引 / `use_skill` / `skill_resource`）：`src/omichub/domain/skill/services.py`
-- Studio 能力加载（`studio_capability_load`）：`src/omichub/application/services/studio_capabilities.py`
-- 沙盒工作区挂载（scripts 物化的落点）：`src/omichub/infrastructure/studio/manager.py`
-- Agent 声明式定义与 skill 合并：`src/omichub/infrastructure/config/agent_loader.py`、`data/ai/*.yaml`
+- Skill 解析与限制：`src/cygnusx/infrastructure/skills/skillmd.py`
+- 磁盘存储与 L3 读取：`src/cygnusx/infrastructure/skills/skill_store.py`
+- 运行时注入（L1 索引 / `use_skill` / `skill_resource`）：`src/cygnusx/domain/skill/services.py`
+- Studio 能力加载（`studio_capability_load`）：`src/cygnusx/application/services/studio_capabilities.py`
+- 沙盒工作区挂载（scripts 物化的落点）：`src/cygnusx/infrastructure/studio/manager.py`
+- Agent 声明式定义与 skill 合并：`src/cygnusx/infrastructure/config/agent_loader.py`、`data/ai/*.yaml`
 - 市场自动安装：`agent_service._ensure_configured_marketplace_skills()`
-- 版本/回滚/统计管理：`src/omichub/application/services/skill_service.py`
-- 导入链路：`src/omichub/application/services/skill_import_service.py`
-- 管理 API：`src/omichub/api/v1/admin/skills.py`
-- 配置项（skills_dir、marketplace 目录）：`src/omichub/core/config.py:167-181`
+- 版本/回滚/统计管理：`src/cygnusx/application/services/skill_service.py`
+- 导入链路：`src/cygnusx/application/services/skill_import_service.py`
+- 管理 API：`src/cygnusx/api/v1/admin/skills.py`
+- 配置项（skills_dir、marketplace 目录）：`src/cygnusx/core/config.py:167-181`

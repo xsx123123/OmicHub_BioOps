@@ -85,7 +85,7 @@ function connect() {
 
 function runCommand(command: string): string {
   const commandId = `run-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`
-  send(`${command}; __omichub_exit=$?; printf '\\033]633;OmicHubExit;${commandId};%s\\007' "$__omichub_exit"\r`)
+  send(`${command}; __cygnusx_exit=$?; printf '\\033]633;CygnusXExit;${commandId};%s\\007' "$__cygnusx_exit"\r`)
   terminal?.focus()
   return commandId
 }
@@ -128,7 +128,7 @@ onMounted(async () => {
   terminal.loadAddon(fitAddon)
   terminal.loadAddon(new WebLinksAddon())
   terminal.parser.registerOscHandler(633, (data) => {
-    const match = /^OmicHubExit;([^;]+);(-?\d+)$/.exec(data)
+    const match = /^CygnusXExit;([^;]+);(-?\d+)$/.exec(data)
     if (!match) return false
     emit('commandExit', match[1], Number(match[2]))
     return true

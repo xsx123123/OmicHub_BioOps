@@ -1,4 +1,4 @@
-/** Shared color systems for OmicHub visualisation tools. */
+/** Shared color systems for CygnusX visualisation tools. */
 export const DISCRETE_PALETTES = {
   Friendly: ['#0072B2', '#56B4E9', '#009E73', '#F5C710', '#E69F00', '#D55E00'],
   Seaside: ['#8ecae6', '#219ebc', '#023047', '#ffb703', '#fb8500'],

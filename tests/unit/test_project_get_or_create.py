@@ -14,7 +14,7 @@ from uuid import uuid4
 
 import pytest
 
-from omichub.application.services.project_service import ProjectService
+from cygnusx.application.services.project_service import ProjectService
 
 
 class _FakeResult:
@@ -33,6 +33,7 @@ def _existing_project(user_id):  # noqa: ANN001, ANN202
         name="我想进行小鼠肺部6个样本 3v3 TP53mutation ",
         slug="我想进行小鼠肺部6个样本_3v3_tp53mutation",
         description=None,
+        customer="",
         created_at=now,
         updated_at=now,
     )

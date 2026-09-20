@@ -56,7 +56,7 @@ function handleSelectSession(id: string) {
 }
 
 const DEFAULT_CODE = [
-  '# OmicHub 交互式生信沙盒',
+  '# CygnusX 交互式生信沙盒',
   '# 预装：scanpy(sc) / numpy(np) / pandas(pd) / seaborn(sns)',
   '# 回传图表：show_echarts(option)  回传图片：show_image(path)',
   '',

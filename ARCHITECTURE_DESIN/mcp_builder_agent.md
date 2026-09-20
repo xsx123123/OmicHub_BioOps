@@ -26,7 +26,7 @@
 用户（Studio 会话）
     │ 自然语言需求
     ▼
-agent-mcp-builder（qwen3.7-plus, temperature=0.2）
+agent-mcp-builder（qdoubao-seed-evolving, temperature=0.2）
     │ 六阶段工作流（Prompt 驱动）
     │ ① 规划 → ② 搜索 → ③ 编码 → ④ 测试 → ⑤ 文档 → ⑥ 注册
     │
@@ -69,9 +69,9 @@ Celery beat（每 5 分钟）
 
 | 文件 | 内容 |
 |------|------|
-| `data/ai/mcp_builder.yaml` | Agent 配置：`agent-mcp-builder`，model `qwen3.7-plus`，temperature 0.2，max_tokens 8000，`tool_packs: [workspace, memory]`，studio.enabled + default_mode=studio + runtime_profile=analysis-core，`features.mcp_builder`（配额/TTL/产物目录元数据） |
+| `data/ai/mcp_builder.yaml` | Agent 配置：`agent-mcp-builder`，model `qdoubao-seed-evolving`，temperature 0.2，max_tokens 8000，`tool_packs: [workspace, memory]`，studio.enabled + default_mode=studio + runtime_profile=analysis-core，`features.mcp_builder`（配额/TTL/产物目录元数据） |
 | `data/ai/prompts/mcp_builder.md` | 六阶段系统提示词（约 14k 字符）：规划/搜索/编码/测试/文档/注册；含两份代码模板（本地 pandas 版 + NCBI httpx 版）、安全红线、"绝不代为提交"约束（注册须用户/前端触发 API） |
-| `data/OmicHub.yaml` | `agents.enabled` 追加 `mcp_builder`（加载白名单） |
+| `data/CygnusX.yaml` | `agents.enabled` 追加 `mcp_builder`（加载白名单） |
 | `data/ai/prompts/router.md` | 路由候选表追加构建师条目（"创建/生成 MCP Server、给 AI 加新工具"类请求分派给它） |
 
 **加载链路**：`agent_loader.load_agent_configs()` → 幂等落库 `agent_templates` → 会话时 `assemble_context()` 组装模型/Prompt/工具。Agent 是纯 YAML+Markdown 配置，非 Python 包。
@@ -182,7 +182,7 @@ Celery beat（每 5 分钟）
 | 审计 | 关键操作写 `mcp_logs`（source=builder，含 actor） |
 
 **部署注意**（本仓库既有约束）：
-- 改后端代码/YAML 后 `docker restart omichub-web`（不热重载）；改 Celery 任务同步重启 `omichub-worker` + `omichub-beat`
+- 改后端代码/YAML 后 `docker restart cygnusx-web`（不热重载）；改 Celery 任务同步重启 `cygnusx-worker` + `cygnusx-beat`
 - 迁移用容器内 `/app/.venv/bin/alembic upgrade head`
 - 沙箱镜像改了 `requirements-agent.txt` 后需 `deploy/studio/build.sh` 重建
 
@@ -193,26 +193,26 @@ Celery beat（每 5 分钟）
 ```text
 data/ai/mcp_builder.yaml                          # Agent 配置
 data/ai/prompts/mcp_builder.md                    # 六阶段 Prompt + 代码模板
-data/OmicHub.yaml                                 # agents.enabled 注册
+data/CygnusX.yaml                                 # agents.enabled 注册
 data/ai/prompts/router.md                         # 路由候选表
 
-src/omichub/infrastructure/mcp/builder/
+src/cygnusx/infrastructure/mcp/builder/
 ├── safety.py                                     # AST 安全检查器
 ├── versioning.py                                 # SemVer 推导
 ├── generator.py                                  # LLM 代码生成（ProviderManager 封装）
 └── doc_generator.py                              # build.md / architecture.md 模板
 
-src/omichub/application/services/mcp_builder_service.py   # 编排中枢
-src/omichub/application/schemas/mcp_builder.py            # DTO
-src/omichub/api/v1/mcp_builder.py                         # 12 条路由
-src/omichub/infrastructure/celery_app/tasks/mcp_builder.py # 过期清理
+src/cygnusx/application/services/mcp_builder_service.py   # 编排中枢
+src/cygnusx/application/schemas/mcp_builder.py            # DTO
+src/cygnusx/api/v1/mcp_builder.py                         # 12 条路由
+src/cygnusx/infrastructure/celery_app/tasks/mcp_builder.py # 过期清理
 
-src/omichub/infrastructure/database/models/mcp_builder.py  # 4 个 ORM 模型
+src/cygnusx/infrastructure/database/models/mcp_builder.py  # 4 个 ORM 模型
 alembic/versions/h6i7j8k9l1m3_add_mcp_builder_tables.py    # 迁移
 
 deploy/studio/sandbox_agent.py                    # /mcp/* 容器端点
 deploy/studio/requirements-agent.txt              # mcp>=1.2.0
-src/omichub/infrastructure/studio/manager.py      # host 侧 UDS 封装
+src/cygnusx/infrastructure/studio/manager.py      # host 侧 UDS 封装
 
 tests/unit/mcp/                                   # 62 个 builder 单测
 tests/unit/test_agent_loader_studio.py            # agent 加载回归测试

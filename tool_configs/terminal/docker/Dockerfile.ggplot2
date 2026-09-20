@@ -1,6 +1,6 @@
-# OmicHub 科研绘图 ggplot2 沙盒镜像
-# 构建: docker build -t omichub/sandbox-ggplot2:latest -f tool_configs/terminal/docker/Dockerfile.ggplot2 tool_configs/terminal/docker/
-FROM omichub/sandbox-terminal:latest
+# CygnusX 科研绘图 ggplot2 沙盒镜像
+# 构建: docker build -t cygnusx-sandbox-ggplot2:v0.0.2dev -f tool_configs/terminal/docker/Dockerfile.ggplot2 tool_configs/terminal/docker/
+FROM cygnusx-sandbox-terminal:v0.0.2dev
 
 USER root
 
@@ -10,9 +10,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       r-cran-ggplot2 r-cran-dplyr r-cran-tidyr r-cran-readr \
       r-cran-stringr r-cran-forcats r-cran-tibble r-cran-purrr \
       r-cran-ggrepel r-cran-cowplot r-cran-rcolorbrewer r-cran-viridis \
+      r-cran-ggpubr \
       fonts-noto-cjk fontconfig \
     && rm -rf /var/lib/apt/lists/* \
-    && fc-cache -f
+    && fc-cache -f \
+    && R -q -e 'required <- c("ggplot2","ggrepel","ggpubr","cowplot","scales"); \
+        for (p in required) { \
+          ok <- tryCatch({ suppressPackageStartupMessages(library(p, character.only=TRUE)); TRUE }, error=function(e) FALSE); \
+          if (!ok) stop("ggplot2 sandbox missing required R package: ", p); \
+        }; cat("ggplot2 sandbox OK: all", length(required), "packages loadable,", R.version.string, "\n")'
 
 RUN pip3 install --no-cache-dir -i https://pypi.mirrors.ustc.edu.cn/simple \
       plotnine matplotlib seaborn

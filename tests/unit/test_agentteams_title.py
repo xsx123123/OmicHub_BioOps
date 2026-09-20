@@ -1,4 +1,4 @@
-from omichub.application.services.agentteams_title import derive_agentteams_case_title
+from cygnusx.application.services.agentteams_title import derive_agentteams_case_title
 
 
 def test_title_removes_request_wrapper() -> None:

@@ -15,17 +15,17 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from omichub.application.schemas.mcp_builder import SubmitBuildRequest
-from omichub.application.services.mcp_builder_service import MCPBuilderService
-from omichub.core.exceptions import NotFoundError, ValidationError
-from omichub.domain.mcp.entities import MCPServer, MCPToolRegistry
-from omichub.domain.mcp.value_objects import (
+from cygnusx.application.schemas.mcp_builder import SubmitBuildRequest
+from cygnusx.application.services.mcp_builder_service import MCPBuilderService
+from cygnusx.core.exceptions import NotFoundError, ValidationError
+from cygnusx.domain.mcp.entities import MCPServer, MCPToolRegistry
+from cygnusx.domain.mcp.value_objects import (
     ReviewStatus,
     ServerPool,
     ServerStatus,
     Transport,
 )
-from omichub.infrastructure.database.models.mcp_builder import (
+from cygnusx.infrastructure.database.models.mcp_builder import (
     MCPBuildModel,
     MCPVersionModel,
 )
@@ -310,7 +310,7 @@ async def test_rollback_requires_owner_or_admin():
     service, _db, _ = _make_service()
     service._repo.get_by_id.return_value = server
 
-    from omichub.core.exceptions import AuthorizationError
+    from cygnusx.core.exceptions import AuthorizationError
 
     with pytest.raises(AuthorizationError):
         await service.rollback(str(server.id), "1.0.0", str(uuid4()))
@@ -339,7 +339,7 @@ async def test_call_experimental_tool_writes_current_version_code(monkeypatch):
         mcp_call_tool=AsyncMock(return_value={"content": [{"text": "ok"}], "is_error": False}),
         stop_mcp_server=AsyncMock(),
     )
-    monkeypatch.setattr("omichub.infrastructure.studio.manager.studio_sandbox_manager", fake)
+    monkeypatch.setattr("cygnusx.infrastructure.studio.manager.studio_sandbox_manager", fake)
 
     result = await service.call_experimental_tool(
         str(server.id), "echo", {"text": "hi"}, "sess-1", str(owner)
@@ -372,7 +372,7 @@ async def test_call_experimental_tool_falls_back_to_build_record(monkeypatch):
         mcp_call_tool=AsyncMock(return_value={"content": [], "is_error": False}),
         stop_mcp_server=AsyncMock(),
     )
-    monkeypatch.setattr("omichub.infrastructure.studio.manager.studio_sandbox_manager", fake)
+    monkeypatch.setattr("cygnusx.infrastructure.studio.manager.studio_sandbox_manager", fake)
 
     await service.call_experimental_tool(str(server.id), "echo", {}, "sess-1", str(owner))
 

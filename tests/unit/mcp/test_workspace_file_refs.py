@@ -5,10 +5,10 @@ from uuid import uuid4
 
 import pytest
 
-from omichub.domain.mcp.entities import MCPServer, MCPToolRegistry
-from omichub.domain.mcp.value_objects import Transport
-from omichub.infrastructure.mcp.client import MCPClient
-from omichub.infrastructure.mcp.reliability import MCPHealthRegistry
+from cygnusx.domain.mcp.entities import MCPServer, MCPToolRegistry
+from cygnusx.domain.mcp.value_objects import Transport
+from cygnusx.infrastructure.mcp.client import MCPClient
+from cygnusx.infrastructure.mcp.reliability import MCPHealthRegistry
 
 
 @pytest.mark.asyncio
@@ -28,11 +28,11 @@ async def test_builtin_mcp_resolves_workspace_file_refs_before_handler(
         return {"success": True, "received": arguments}
 
     resolver = AsyncMock(return_value={"data_text": "ENSEMBL,log2FoldChange,padj\nTP53,2,0.01"})
-    monkeypatch.setattr("omichub.infrastructure.mcp.client.get_preset_by_name", lambda _: {
+    monkeypatch.setattr("cygnusx.infrastructure.mcp.client.get_preset_by_name", lambda _: {
         "handlers": {"plot": handler},
     })
     monkeypatch.setattr(
-        "omichub.infrastructure.mcp.client.resolve_workspace_file_refs", resolver
+        "cygnusx.infrastructure.mcp.client.resolve_workspace_file_refs", resolver
     )
 
     client = MCPClient(MCPHealthRegistry())
@@ -62,7 +62,7 @@ async def test_external_mcp_receives_resolved_workspace_file_refs_without_contex
     )
     resolver = AsyncMock(return_value={"data_text": "ENSEMBL,log2FoldChange,padj\nTP53,2,0.01"})
     monkeypatch.setattr(
-        "omichub.infrastructure.mcp.client.resolve_workspace_file_refs", resolver
+        "cygnusx.infrastructure.mcp.client.resolve_workspace_file_refs", resolver
     )
     client = MCPClient(MCPHealthRegistry())
     async def call_external(

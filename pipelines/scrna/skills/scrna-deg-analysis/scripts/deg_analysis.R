@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
 # author : zhang jian
 # date : 2026-08-03
-# skill : scrna-deg-analysis (OmicHub OSDP v1.0)
+# skill : scrna-deg-analysis (CygnusX OSDP v1.0)
 # description : CLI wrapper for FindMarkers_Celltype_group.r
 #   按 "细胞类型 x 分组" 批量差异表达分析 (FindMarkers) + 基因注释 + 火山图,
 #   并在 <output>/summary.json 写出结构化摘要 (OSDP 6.3)。

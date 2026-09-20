@@ -5,16 +5,16 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from omichub.application.schemas.download import DownloadRequest
-from omichub.application.services.file_service import FileService
-from omichub.application.services.terminal_service import _generate_session_id
-from omichub.core.exceptions import AuthorizationError
-from omichub.infrastructure.config.storage_config import StorageConfig
-from omichub.infrastructure.mcp.client import (
+from cygnusx.application.schemas.download import DownloadRequest
+from cygnusx.application.services.file_service import FileService
+from cygnusx.application.services.terminal_service import _generate_session_id
+from cygnusx.core.exceptions import AuthorizationError
+from cygnusx.infrastructure.config.storage_config import StorageConfig
+from cygnusx.infrastructure.mcp.client import (
     validate_sse_url,
     validate_stdio_command,
 )
-from omichub.infrastructure.storage.path_factory import StoragePathFactory
+from cygnusx.infrastructure.storage.path_factory import StoragePathFactory
 
 
 class TestFileServiceResolveAbs:

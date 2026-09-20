@@ -1,0 +1,9 @@
+# 代码库侦察 Agent 专用只读工具包；不授予写入、执行或删除能力。
+id: workspace_readonly
+description: 只读列出、搜索和读取当前会话工作区文件。
+platform_tools:
+  - list_workspace_files
+  - search_workspace_files
+  - workspace_read_file
+  - workspace_get_file_info
+  - find_session_uploads

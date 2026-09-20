@@ -10,7 +10,7 @@ from urllib.parse import quote
 
 import pytest
 
-from omichub.application.services.overdrive_execution_service import (
+from cygnusx.application.services.overdrive_execution_service import (
     DeliveryAssembler,
     ManagerReviewService,
     OverdrivePreflightService,
@@ -21,9 +21,9 @@ from omichub.application.services.overdrive_execution_service import (
     ready_tasks,
     requeue_repair_instances,
 )
-from omichub.application.services.overdrive_run_service import OverdriveRunService
-from omichub.core.exceptions import ValidationError
-from omichub.infrastructure.celery_app.tasks.overdrive import _overdrive_workspace_context
+from cygnusx.application.services.overdrive_run_service import OverdriveRunService
+from cygnusx.core.exceptions import ValidationError
+from cygnusx.infrastructure.celery_app.tasks.overdrive import _overdrive_workspace_context
 
 
 def make_run(tasks):
@@ -263,10 +263,10 @@ def test_termination_preserves_prior_files_as_process_artifacts() -> None:
 
 
 def test_preflight_verifies_explicit_workspace_inputs_before_recruitment(monkeypatch, tmp_path) -> None:
-    from omichub.application.services import overdrive_execution_service as module
-    from omichub.infrastructure.config.storage_config import StorageConfig
-    from omichub.infrastructure.storage import LocalStorageBackend, reset_storage_backend
-    from omichub.infrastructure.storage.path_factory import StoragePathFactory
+    from cygnusx.application.services import overdrive_execution_service as module
+    from cygnusx.infrastructure.config.storage_config import StorageConfig
+    from cygnusx.infrastructure.storage import LocalStorageBackend, reset_storage_backend
+    from cygnusx.infrastructure.storage.path_factory import StoragePathFactory
 
     run_root = tmp_path / "workspace" / "output" / "overdrive" / "session-1" / "run-1"
     (tmp_path / "workspace" / "input").mkdir(parents=True)
@@ -534,10 +534,10 @@ def test_preflight_termination_finishes_synchronously_before_workers_start() -> 
 
 
 def test_approving_plan_only_run_completes_without_worker_preflight(monkeypatch, tmp_path) -> None:
-    from omichub.application.services import overdrive_run_service as module
-    from omichub.infrastructure.config.storage_config import StorageConfig
-    from omichub.infrastructure.storage import LocalStorageBackend, reset_storage_backend
-    from omichub.infrastructure.storage.path_factory import StoragePathFactory
+    from cygnusx.application.services import overdrive_run_service as module
+    from cygnusx.infrastructure.config.storage_config import StorageConfig
+    from cygnusx.infrastructure.storage import LocalStorageBackend, reset_storage_backend
+    from cygnusx.infrastructure.storage.path_factory import StoragePathFactory
 
     command_rows = []
     db = SimpleNamespace(get=AsyncMock(return_value=None), add=command_rows.append)
@@ -577,7 +577,7 @@ def test_approving_plan_only_run_completes_without_worker_preflight(monkeypatch,
     reset_storage_backend()
 
     with patch.multiple(
-        "omichub.application.services.overdrive_run_service",
+        "cygnusx.application.services.overdrive_run_service",
         overdrive_run_root=fake_root,
         relative_overdrive_run_root=lambda session_id, run_id: f"output/overdrive/{session_id}/{run_id}",
     ):
@@ -754,10 +754,10 @@ def test_latest_run_lookup_includes_terminal_runs_for_history_recovery() -> None
 
 
 def test_write_readme_covers_delivery_downloads_and_manager_summary(monkeypatch, tmp_path) -> None:
-    from omichub.application.services import overdrive_execution_service as module
-    from omichub.infrastructure.config.storage_config import StorageConfig
-    from omichub.infrastructure.storage import LocalStorageBackend, reset_storage_backend
-    from omichub.infrastructure.storage.path_factory import StoragePathFactory
+    from cygnusx.application.services import overdrive_execution_service as module
+    from cygnusx.infrastructure.config.storage_config import StorageConfig
+    from cygnusx.infrastructure.storage import LocalStorageBackend, reset_storage_backend
+    from cygnusx.infrastructure.storage.path_factory import StoragePathFactory
 
     run = make_run(
         [
@@ -787,7 +787,7 @@ def test_write_readme_covers_delivery_downloads_and_manager_summary(monkeypatch,
     reset_storage_backend()
 
     with patch.multiple(
-        "omichub.application.services.overdrive_execution_service",
+        "cygnusx.application.services.overdrive_execution_service",
         overdrive_run_root=fake_root,
         relative_overdrive_run_root=lambda session_id, run_id: f"output/overdrive/{session_id}/{run_id}",
     ):
@@ -812,10 +812,56 @@ def test_write_readme_covers_delivery_downloads_and_manager_summary(monkeypatch,
     assert "task-b: 超时" in content
 
 
+def test_write_readme_includes_software_and_environment_sections(monkeypatch, tmp_path) -> None:
+    from cygnusx.application.services import overdrive_execution_service as module
+    from cygnusx.application.services.project_archive_service import collect_environment
+    from cygnusx.infrastructure.config.storage_config import StorageConfig
+    from cygnusx.infrastructure.storage import LocalStorageBackend, reset_storage_backend
+    from cygnusx.infrastructure.storage.path_factory import StoragePathFactory
+
+    run = make_run([{"task_id": "task-a", "status": "succeeded"}])
+    run.finished_at = None
+    run.plan = {"version": 1, "hash": "sha256:abc", "summary": {"title": "T"}}
+
+    def fake_root(session_id: str, run_id: str) -> Path:
+        return tmp_path / session_id / run_id
+
+    factory = StoragePathFactory(StorageConfig(data_root=str(tmp_path), users_subdir="users"))
+    monkeypatch.setattr(module, "get_path_factory", lambda: factory)
+    monkeypatch.setattr(
+        module, "get_storage_backend", lambda: LocalStorageBackend(path_factory=factory)
+    )
+    reset_storage_backend()
+
+    environment = collect_environment(
+        image=None, flow_id="overdrive", flow_name="超频协作", flow_version="v1"
+    )
+    with patch.multiple(
+        "cygnusx.application.services.overdrive_execution_service",
+        overdrive_run_root=fake_root,
+        relative_overdrive_run_root=lambda session_id, run_id: f"output/overdrive/{session_id}/{run_id}",
+    ):
+        asyncio.run(
+            DeliveryAssembler().write_readme(
+                run,
+                {"path": "output/overdrive/session-1/overdrive:test/delivery/final-report.md"},
+                environment=environment,
+            )
+        )
+
+    content = (fake_root(run.session_id, run.run_id) / "delivery" / "README.md").read_text(
+        encoding="utf-8"
+    )
+    assert "## 软件与版本" in content
+    assert "## 分析环境" in content
+    assert "流程版本: v1" in content
+    assert "environment.json" in content
+
+
 def test_delivery_write_creates_downloadable_artifact_bundle(monkeypatch, tmp_path) -> None:
-    from omichub.application.services import overdrive_execution_service as module
-    from omichub.infrastructure.config.storage_config import StorageConfig
-    from omichub.infrastructure.storage.path_factory import StoragePathFactory
+    from cygnusx.application.services import overdrive_execution_service as module
+    from cygnusx.infrastructure.config.storage_config import StorageConfig
+    from cygnusx.infrastructure.storage.path_factory import StoragePathFactory
 
     run = make_run([{"task_id": "task-a", "status": "succeeded"}])
     run.artifact_index = [

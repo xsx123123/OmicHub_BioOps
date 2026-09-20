@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import pytest
 
-from omichub.infrastructure.mcp.builder.doc_generator import (
+from cygnusx.infrastructure.mcp.builder.doc_generator import (
     generate_architecture_doc,
     generate_build_doc,
 )
-from omichub.infrastructure.mcp.builder.generator import extract_python_code
+from cygnusx.infrastructure.mcp.builder.generator import extract_python_code
 
 pytestmark = pytest.mark.unit
 
@@ -79,7 +79,7 @@ def test_extract_code_plain_text_fallback():
 
 
 def test_slugify():
-    from omichub.application.services.mcp_builder_service import _slugify
+    from cygnusx.application.services.mcp_builder_service import _slugify
 
     assert _slugify("PubMed Query Tool!") == "pubmed-query-tool"
     assert _slugify("纯中文需求") == "tool"  # 无 ASCII → fallback

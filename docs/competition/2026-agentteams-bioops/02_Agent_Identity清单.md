@@ -50,7 +50,7 @@
 
 - 每个 AgentTeams 角色使用独立的 Bridge identity environment token，不共享 Worker 身份。
 - 高风险操作不依赖“角色已登录”这一条件；还必须携带人工网关签发的、作用域受限且短时有效的 `approval_token`。
-- OmicHub 通过服务端 Manager 身份代理 Bridge 调用；浏览器只访问 OmicHub API，不获得 Bridge secret 或 Worker 操作权限。
+- CygnusX 通过服务端 Manager 身份代理 Bridge 调用；浏览器只访问 CygnusX API，不获得 Bridge secret 或 Worker 操作权限。
 
 ### 4.2 最小权限原则
 
@@ -81,6 +81,6 @@
 | --- | --- |
 | `integrations/agentteams/teams/bioops-delivery.yaml` | AgentTeams Team 的角色身份、Skill 和禁止能力。 |
 | `integrations/agentteams/skills/contracts.yaml` | Skill actor、调用入口、审批要求、失败语义与边界。 |
-| `data/ai/mas/agent_capabilities.yaml` | OmicHub MAS 的可分派 Agent 与能力校验表。 |
+| `data/ai/mas/agent_capabilities.yaml` | CygnusX MAS 的可分派 Agent 与能力校验表。 |
 | `data/ai/orchestrator.yaml` | 受控 DAG 计划草案生成、确认门和工具包声明。 |
 | `ARCHITECTURE_DESIN/plan_ai.md` | Run/Node/Artifact/Approval/Event、状态机、Outbox、HITL 和质量门设计。 |

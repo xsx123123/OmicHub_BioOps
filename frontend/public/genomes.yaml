@@ -1,15 +1,15 @@
 # ============================================
-# OmicHub 前端驱动的 JBrowse 2 基因组清单
+# CygnusX 前端驱动的 JBrowse 2 基因组清单
 # ============================================
 # 用途：供 YamlGenomeBrowser.vue 在前端直接解析，构建 JBrowse 2 配置并渲染。
 # 与后端 tool_configs/jbrowse/jbrowse_config.yaml 的区别：
-#   - 后端那份用【文件系统绝对路径】(/data/omichub/...)，由后端做归属校验 + URI 换算；
+#   - 后端那份用【文件系统绝对路径】(/data/cygnusx/...)，由后端做归属校验 + URI 换算；
 #   - 本份用【可直接 fetch 的 URI】，因为前端不经过后端，JBrowse iframe 需要能直接流式读取。
 #
 # 路径约定（重要）：
-#   fasta_uri / fai_uri 用 /tracks/... 形式 —— nginx 把 /tracks/ alias 到 /data/omichub/，
+#   fasta_uri / fai_uri 用 /tracks/... 形式 —— nginx 把 /tracks/ alias 到 /data/cygnusx/，
 #   原生支持 HTTP Range Request，JBrowse 2 才能流式读取大 FASTA。
-#   即 /tracks/ref/human/hg38.fa 对应磁盘 /data/omichub/ref/human/hg38.fa。
+#   即 /tracks/ref/human/hg38.fa 对应磁盘 /data/cygnusx/ref/human/hg38.fa。
 #
 # 增删物种：仅需在本文件增删条目，下拉框自动联动，无需改代码、无需重启后端。
 # 修改后刷新浏览器即可生效（Vite dev 与生产 nginx 都会把本文件作为静态资源输出）。

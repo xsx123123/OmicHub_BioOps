@@ -22,12 +22,12 @@ from types import SimpleNamespace
 
 import yaml
 
-from omichub.application.services.agent_service import (
+from cygnusx.application.services.agent_service import (
     AgentService,
     render_persona_system_prompt,
 )
-from omichub.application.services.studio_tools import STUDIO_SYSTEM_PROMPT_SUFFIX
-from omichub.infrastructure.config.agent_loader import load_agent_configs
+from cygnusx.application.services.studio_tools import STUDIO_SYSTEM_PROMPT_SUFFIX
+from cygnusx.infrastructure.config.agent_loader import load_agent_configs
 
 AI_DIR = Path("data/ai")
 GENERAL_YAML = AI_DIR / "general.yaml"

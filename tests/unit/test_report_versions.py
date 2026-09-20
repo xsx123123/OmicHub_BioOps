@@ -4,9 +4,9 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from omichub.application.services.report_service import ReportService
-from omichub.core.exceptions import NotFoundError
-from omichub.infrastructure.database.models.report import ReportModel
+from cygnusx.application.services.report_service import ReportService
+from cygnusx.core.exceptions import NotFoundError
+from cygnusx.infrastructure.database.models.report import ReportModel
 
 
 def _report(user_id: UUID, *, version: int, parent_id: UUID | None = None) -> ReportModel:

@@ -9,7 +9,7 @@ meta:
   category: epigenomics
   version: "0.1.0"
   description: "基于已搭建好的 ATACFlow 流程（Bowtie2/Chromap + MACS2 + TOBIAS）的标准 ATAC-seq 分析。提交后自动生成 ATACFlow 所需 analysis yaml、samples.csv、contrasts.csv。"
-  author: "OmicsHub Team"
+  author: "CygnusX Team"
   tags: ["atacseq", "chromatin-accessibility", "Bowtie2", "Chromap", "MACS2", "TOBIAS", "ATACFlow"]
   icon: "🧪"
   color: "chart-3"
@@ -74,7 +74,7 @@ parameters:
     label: "项目名称"
     type: string
     required: true
-    default: "OmicsHub_ATAC_seq"
+    default: "CygnusX_ATAC_seq"
     help_text: "为该 ATAC-seq 项目命名"
     placeholder: "PRJNA427322"
     order: 1

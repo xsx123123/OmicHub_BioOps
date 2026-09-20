@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from omichub.infrastructure.config.agent_ability_catalog import AgentAbilityCatalog
+from cygnusx.infrastructure.config.agent_ability_catalog import AgentAbilityCatalog
 
 
 def test_ability_catalog_normalizes_and_reloads(tmp_path: Path) -> None:
@@ -31,5 +31,11 @@ def test_ability_catalog_normalizes_and_reloads(tmp_path: Path) -> None:
         "    preferred_inputs: [FASTQ]\n",
         encoding="utf-8",
     )
+    # 本机文件系统 mtime 粒度较粗，连续两次写入可能拿到相同 st_mtime_ns，
+    # 导致热重载判定偶发不触发（flaky）；显式推进 mtime 使测试确定。
+    import os
+
+    bumped = path.stat().st_mtime_ns + 1_000_000
+    os.utime(path, ns=(bumped, bumped))
     assert catalog.get("agent-a")["summary"] == "新摘要"
     assert catalog.get("agent-a")["chat_entry"] is False

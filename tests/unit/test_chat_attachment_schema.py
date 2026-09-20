@@ -1,4 +1,4 @@
-from omichub.application.schemas.chat import ChatAttachment
+from cygnusx.application.schemas.chat import ChatAttachment
 
 
 def test_workspace_attachment_preserves_file_reference() -> None:

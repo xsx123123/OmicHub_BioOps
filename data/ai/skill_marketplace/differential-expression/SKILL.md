@@ -2,7 +2,7 @@
 name: 差异表达分析
 description: 当用户提供 RNA-seq 表达矩阵（counts/TPM）与分组信息，要求做差异表达分析、筛选差异基因（DEG）、绘制火山图/热图时触发。
 version: 1.0.0
-author: OmicHub
+author: CygnusX
 icon: 🧬
 category: analysis
 ---

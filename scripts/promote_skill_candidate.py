@@ -24,7 +24,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from omichub.infrastructure.skills.skillmd import (
+from cygnusx.infrastructure.skills.skillmd import (
     SkillParseError,
     parse_skill_folder,
 )

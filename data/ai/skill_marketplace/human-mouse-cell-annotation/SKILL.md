@@ -2,7 +2,7 @@
 name: 人/小鼠单细胞注释
 description: 当用户提供人类或小鼠 scRNA-seq Cluster 的 FindMarkers 差异基因、marker 参考表和样本背景，要求进行细胞类型注释时触发。
 version: 1.0.0
-author: OmicHub
+author: CygnusX
 icon: 🔬
 category: analysis
 ---

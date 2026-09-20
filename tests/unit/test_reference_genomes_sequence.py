@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from omichub.reference_genomes.sequence import (
+from cygnusx.reference_genomes.sequence import (
     build_fai,
     fetch_kv,
     fetch_region,

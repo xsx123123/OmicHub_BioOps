@@ -1,4 +1,4 @@
-# OmicHub 🥫 饼干积分系统 — 主框架融合方案
+# CygnusX 🥫 饼干积分系统 — 主框架融合方案
 
 > **版本**: v1.0
 > **作者**: 系统集成架构师
@@ -29,7 +29,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                              OmicHub Platform                                │
+│                              CygnusX Platform                                │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────────┐    │
@@ -75,7 +75,7 @@
 ### 1.2 饼干模块在代码库中的位置
 
 ```
-omic-hub/
+cygnus-x/
 ├── app/
 │   ├── api/
 │   │   ├── v1/
@@ -492,7 +492,7 @@ from decimal import Decimal
 import logging
 
 logger = logging.getLogger(__name__)
-app = Celery("omichub")
+app = Celery("cygnusx")
 
 
 @app.task(bind=True, max_retries=3)
@@ -717,7 +717,7 @@ class SandboxOrchestrator:
         self,
         user_id: int,
         project_id: str,
-        image: str = "omichub/sandbox:latest",
+        image: str = "cygnusx/sandbox:latest",
         resources: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
@@ -1247,7 +1247,7 @@ class CookieAgentTools:
 # ═══════════════════════════════════════════════════════════
 
 AGENT_COOKIE_PROMPT = """
-你在协助用户使用 OmicHub 平台时，需要遵循以下饼干积分规则：
+你在协助用户使用 CygnusX 平台时，需要遵循以下饼干积分规则：
 
 1. 当用户要求提交任务或启动沙盒时，必须先检查余额是否充足
 2. 使用 check_cookie_balance 工具获取当前余额
@@ -1909,7 +1909,7 @@ services:
 
 set -e
 
-echo "🚀 OmicHub 初始化开始..."
+echo "🚀 CygnusX 初始化开始..."
 
 # ─── 1. 等待数据库就绪 ───
 echo "⏳ 等待数据库就绪..."
@@ -1967,7 +1967,7 @@ async def create_admin():
         user = await auth_service.create_user(
             UserCreate(
                 username='$ADMIN_USERNAME',
-                email='${ADMIN_USERNAME}@omichub.local',
+                email='${ADMIN_USERNAME}@cygnusx.local',
                 password='$ADMIN_PASSWORD',
                 role='admin'
             )
@@ -2005,7 +2005,7 @@ asyncio.run(verify())
 
 echo ""
 echo "═══════════════════════════════════════════════════"
-echo "  ✅ OmicHub 初始化完成！"
+echo "  ✅ CygnusX 初始化完成！"
 echo "  🥫 饼干积分系统已就绪"
 echo "═══════════════════════════════════════════════════"
 ```
@@ -2580,7 +2580,7 @@ class CopilotAgent:
 # ═══════════════════════════════════════════════════════════
 
 system_prompt: |
-  你是 OmicHub 平台的 AI 助手，帮助用户进行生物信息学分析。
+  你是 CygnusX 平台的 AI 助手，帮助用户进行生物信息学分析。
   
   ## 饼干积分规则
   
@@ -3047,7 +3047,7 @@ groups:
 
 | 术语 | 说明 |
 |------|------|
-| 🥫 饼干 | OmicHub 平台积分货币单位 |
+| 🥫 饼干 | CygnusX 平台积分货币单位 |
 | 预扣 (Hold) | 在操作前冻结一部分余额，操作完成后结算 |
 | 结算 (Settle) | 根据实际消耗，将预扣金额转为正式消费或退还差额 |
 | 多退少补 | 实际费用 < 预扣 → 退还差额；实际费用 > 预扣 → 补扣差额 |
@@ -3056,4 +3056,4 @@ groups:
 
 ---
 
-> **文档结束** — 本方案覆盖 OmicHub 饼干积分系统与主框架的全部集成点，确保最小侵入、向后兼容、可开关控制。
+> **文档结束** — 本方案覆盖 CygnusX 饼干积分系统与主框架的全部集成点，确保最小侵入、向后兼容、可开关控制。

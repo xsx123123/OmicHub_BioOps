@@ -2,7 +2,7 @@
 name: 数据清洗
 description: 当用户上传表格数据（CSV/Excel）并要求清洗、去重、缺失值处理、格式标准化或质量体检时触发。
 version: 1.0.0
-author: OmicHub
+author: CygnusX
 icon: 🧹
 category: general
 ---

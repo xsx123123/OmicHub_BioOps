@@ -1,12 +1,12 @@
 # 实验室知识库实现方式与架构汇总
 
-本文汇总 OmicHub「实验室知识库」模块当前的实现方式与系统架构，方便团队成员快速理解其工作原理、扩展方式与注意事项。
+本文汇总 CygnusX「实验室知识库」模块当前的实现方式与系统架构，方便团队成员快速理解其工作原理、扩展方式与注意事项。
 
 ---
 
 ## 1. 功能定位
 
-知识库是 OmicHub 内置的生信文档管理系统，目前命名为「实验室知识库」，核心能力包括：
+知识库是 CygnusX 内置的生信文档管理系统，目前命名为「实验室知识库」，核心能力包括：
 
 - **文档浏览**：左侧树形目录 + 右侧 Markdown 渲染阅读
 - **在线编辑**：管理员可直接在浏览器内编辑、保存 Markdown 文档
@@ -85,7 +85,7 @@ Markdown 文件中图片使用相对路径引用，例如：
 
 ### 3.3 运行时副本
 
-知识库还有一个运行时副本位于 `/data/omichub/omichub_data/knowledge/`，方便整库 `rsync` 备份和迁移；但在线编辑和读取仍以仓库内 `docs/knowledge/` 为准。
+知识库还有一个运行时副本位于 `/data/cygnusx/cygnusx_data/knowledge/`，方便整库 `rsync` 备份和迁移；但在线编辑和读取仍以仓库内 `docs/knowledge/` 为准。
 
 ---
 
@@ -95,10 +95,10 @@ Markdown 文件中图片使用相对路径引用，例如：
 
 | 文件 | 职责 |
 |------|------|
-| `src/omichub/application/services/docs_service.py` | 业务逻辑：读写 YAML/Markdown |
-| `src/omichub/api/v1/docs.py` | 4 个知识库接口 + 文档中心接口 |
-| `src/omichub/main.py` | 挂载 `/docs-static` 静态资源 |
-| `src/omichub/infrastructure/mcp/presets.py` | MCP 知识库检索工具 |
+| `src/cygnusx/application/services/docs_service.py` | 业务逻辑：读写 YAML/Markdown |
+| `src/cygnusx/api/v1/docs.py` | 4 个知识库接口 + 文档中心接口 |
+| `src/cygnusx/main.py` | 挂载 `/docs-static` 静态资源 |
+| `src/cygnusx/infrastructure/mcp/presets.py` | MCP 知识库检索工具 |
 
 ### 4.2 API 接口
 
@@ -174,7 +174,7 @@ AI 助手通过 `knowledge_search` 工具进入 `studio_tools.py`，再由
 ### 6.1 FastAPI 挂载
 
 ```python
-# src/omichub/main.py
+# src/cygnusx/main.py
 docs_static_path = Path("docs")
 if docs_static_path.is_dir():
     app.mount("/docs-static", StaticFiles(directory=docs_static_path), name="docs-static")
@@ -188,7 +188,7 @@ if docs_static_path.is_dir():
 
 ```nginx
 location ^~ /docs-static/ {
-    proxy_pass http://omichub_backend;
+    proxy_pass http://cygnusx_backend;
 }
 ```
 
@@ -202,7 +202,7 @@ location ^~ /docs-static/ {
 | **原子写入** | `.tmp` → `replace`，防止写入中断导致文件损坏 |
 | **路径遍历防护** | `_resolve_doc_path()` 限制只能访问 `meta.yaml` 已注册的文件 |
 | **fullscreen 路由** | 使用原生滚动条 + flex 约束，实现局部滚动，避免全局滚动 |
-| **运行时副本** | `/data/omichub/omichub_data/knowledge/` 用于备份迁移，在线服务仍以仓库为准 |
+| **运行时副本** | `/data/cygnusx/cygnusx_data/knowledge/` 用于备份迁移，在线服务仍以仓库为准 |
 
 ---
 

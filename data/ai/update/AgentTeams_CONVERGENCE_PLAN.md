@@ -38,8 +38,8 @@
 
 | 改动项 | 具体位置 | 操作 |
 | --- | --- | --- |
-| 默认启用开关 | `src/omichub/core/config.py`：`settings.mas_enabled` | 默认值保持 `False`，并在文档中标记为“deprecated，不再作为用户入口” |
-| 动态追加 orchestrator | `src/omichub/infrastructure/config/agent_loader.py` | 删除 `mas_enabled` 打开时自动追加 `orchestrator` 的逻辑 |
+| 默认启用开关 | `src/cygnusx/core/config.py`：`settings.mas_enabled` | 默认值保持 `False`，并在文档中标记为“deprecated，不再作为用户入口” |
+| 动态追加 orchestrator | `src/cygnusx/infrastructure/config/agent_loader.py` | 删除 `mas_enabled` 打开时自动追加 `orchestrator` 的逻辑 |
 | 计划工具挂载 | `data/ai/tools/*.yaml` 中 `mas_plan_preview` 等 | 从所有 Agent 的 Tool Pack 中移除 |
 | 前端入口 | 管理台 MAS 开关、聊天中 MAS 计划卡 | 移除 UI 入口，保留后端 API 只读兼容 |
 | 文档 | `data/ai/README.md` §11.4 / §12.1 / §13.1 | 改写为“历史路径，已收敛到 AgentTeams” |
@@ -53,7 +53,7 @@
 | 改动项 | 具体位置 | 操作 |
 | --- | --- | --- |
 | AgentTeams 工具包 | `data/ai/tools/agentteams_case.yaml` | 确保 **不挂载** `subagents` 工具；AgentTeams 内部不通过 fan-out 派生子 Agent |
-| AgentTeams 场景下的 chat 循环 | `src/omichub/application/services/chat_service.py` | 当当前会话已绑定 AgentTeams Case 时，不走 `parallel_subagents` 分支；改由 Bridge 派 Work Item |
+| AgentTeams 场景下的 chat 循环 | `src/cygnusx/application/services/chat_service.py` | 当当前会话已绑定 AgentTeams Case 时，不走 `parallel_subagents` 分支；改由 Bridge 派 Work Item |
 | 常规 AI 助手页面 | `SettingsView.vue` / `chat_service.py` | **保留** `subagent_fanout_enabled` 开关和 `parallel_subagents` 工具调用能力 |
 | 前端事件处理 | `frontend/src/composables/useAgentChatStream.ts` | 保留 `case 'subagents'`，但仅用于常规 AI 助手页面的轻量并行展示；AgentTeams Case 事件走 `room_speech` |
 | 管理端开关 | 管理端 `subagent_fanout_enabled` | **保留**，文案明确为“常规助手页面启用轻量并行子 Agent” |
@@ -94,25 +94,25 @@
 
 | 组件 | 位置 | 复用方式 |
 | --- | --- | --- |
-| Bridge 状态机 | `integrations/agentteams/bridge/omichub_agentteams_bridge/case_store.py` | 完整保留，作为 Case/Work Item 权威状态；核对 15 态清单与 VISION v1.1 §6.1 一致 |
-| Gateway | `integrations/agentteams/gateway/` | 完整保留，作为 Bridge → OmicHub 的受控通道 |
+| Bridge 状态机 | `integrations/agentteams/bridge/cygnusx_agentteams_bridge/case_store.py` | 完整保留，作为 Case/Work Item 权威状态；核对 15 态清单与 VISION v1.1 §6.1 一致 |
+| Gateway | `integrations/agentteams/gateway/` | 完整保留，作为 Bridge → CygnusX 的受控通道 |
 | Worker 集群 | `integrations/agentteams/worker/` | 完整保留，负责认领和转发；改造为按 capability 认领的资源池（见 §4.2） |
-| 审批签名 | `integrations/agentteams/bridge/omichub_agentteams_bridge/security.py` | 完整保留 |
-| 审计事件 | `integrations/agentteams/bridge/omichub_agentteams_bridge/audit.py` | 完整保留，append-only |
-| MinIO 共享存储 | `src/omichub/infrastructure/storage/minio_store.py` | 完整保留，作为 agent 间产物传递 |
-| 生命周期清理 | `src/omichub/infrastructure/celery_app/tasks/agentteams.py` | 完整保留 |
+| 审批签名 | `integrations/agentteams/bridge/cygnusx_agentteams_bridge/security.py` | 完整保留 |
+| 审计事件 | `integrations/agentteams/bridge/cygnusx_agentteams_bridge/audit.py` | 完整保留，append-only |
+| MinIO 共享存储 | `src/cygnusx/infrastructure/storage/minio_store.py` | 完整保留，作为 agent 间产物传递 |
+| 生命周期清理 | `src/cygnusx/infrastructure/celery_app/tasks/agentteams.py` | 完整保留 |
 
-### 3.2 OmicHub 平台 Agent
+### 3.2 CygnusX 平台 Agent
 
 | 组件 | 位置 | 复用方式 |
 | --- | --- | --- |
 | Agent YAML | `data/ai/*.yaml` | 全部保留，每个 Agent 都可以被招募 |
-| Agent 装载 | `src/omichub/application/services/agent_service.py` | `assemble_context(agent_id, user_id=...)` 作为 consultation 执行基础 |
-| consultation 端点 | `src/omichub/api/v1/agentteams.py` | 保留并扩展为所有专家角色的统一执行入口 |
-| 只读执行内核 | `src/omichub/application/services/agent_consultation_service.py` + `ParallelSubAgentService` | 保留，`safe_only=True` 用于只读专家，`workspace_access=True` 用于执行型专家 |
+| Agent 装载 | `src/cygnusx/application/services/agent_service.py` | `assemble_context(agent_id, user_id=...)` 作为 consultation 执行基础 |
+| consultation 端点 | `src/cygnusx/api/v1/agentteams.py` | 保留并扩展为所有专家角色的统一执行入口 |
+| 只读执行内核 | `src/cygnusx/application/services/agent_consultation_service.py` + `ParallelSubAgentService` | 保留，`safe_only=True` 用于只读专家，`workspace_access=True` 用于执行型专家 |
 | 只读数据工具 | `tool_configs/tools_schema.yaml` 中 read-only 工具 | 保留，供专家读取真实数据 |
-| 硬规则 QC 门 | `src/omichub/application/services/agentteams_quality_gate_service.py` | 保留 |
-| 能力注册表 | `src/omichub/application/services/agentteams_capability_registry.py` | **升级为角色映射单一来源** |
+| 硬规则 QC 门 | `src/cygnusx/application/services/agentteams_quality_gate_service.py` | 保留 |
+| 能力注册表 | `src/cygnusx/application/services/agentteams_capability_registry.py` | **升级为角色映射单一来源** |
 
 ### 3.3 超频模式前端组件
 
@@ -129,9 +129,9 @@
 
 | 组件 | 位置 | 复用方式 |
 | --- | --- | --- |
-| 事件投影器 | `src/omichub/application/services/case_room_projector.py` | 保留并扩展 speech 模板，覆盖全部 14 个专家的发言场景 |
-| watch 服务 | `src/omichub/application/services/agentteams_case_watch_service.py` | 保留；interval 从 60s 降至 10-15s，**且降级为非事件驱动来源的兜底**（主链路走事件推送，见 §4.7） |
-| 事件消费者 | `src/omichub/application/services/agentteams_case_event_consumer_service.py` | 保留 |
+| 事件投影器 | `src/cygnusx/application/services/case_room_projector.py` | 保留并扩展 speech 模板，覆盖全部 14 个专家的发言场景 |
+| watch 服务 | `src/cygnusx/application/services/agentteams_case_watch_service.py` | 保留；interval 从 60s 降至 10-15s，**且降级为非事件驱动来源的兜底**（主链路走事件推送，见 §4.7） |
+| 事件消费者 | `src/cygnusx/application/services/agentteams_case_event_consumer_service.py` | 保留 |
 
 ---
 
@@ -143,11 +143,11 @@
 
 | 改动 | 位置 | 要点 |
 | --- | --- | --- |
-| registry 自动聚合 | `src/omichub/application/services/agentteams_capability_registry.py` | registry 改为**从各 Agent YAML 自动聚合生成**（`internal_case_role` + `features.agentteams` + `capability_*` 字段），提供 `role_agent_map()`、`role_labels()`、`agent_capabilities()`；覆盖 14 个专家 + shania/router 的类别标记；旧身份名（如 `data-steward`）作为别名映射保留；加载时校验 status_lines 七键齐备、execution_modes 已声明，缺失即报错 |
+| registry 自动聚合 | `src/cygnusx/application/services/agentteams_capability_registry.py` | registry 改为**从各 Agent YAML 自动聚合生成**（`internal_case_role` + `features.agentteams` + `capability_*` 字段），提供 `role_agent_map()`、`role_labels()`、`agent_capabilities()`；覆盖 14 个专家 + shania/router 的类别标记；旧身份名（如 `data-steward`）作为别名映射保留；加载时校验 status_lines 七键齐备、execution_modes 已声明，缺失即报错 |
 | Agent YAML 声明块 | `data/ai/*.yaml` | 每个 Agent 增加 `features.agentteams` 块：recruitable / planner_eligible / execution_modes / max_parallel_work_items / case_mode_excluded_tool_packs / handoff_in_case_mode / work_item_timeout_sec；模板以 `data/ai/atacseq.yaml` 为准 |
-| Bridge 消费 registry | `integrations/agentteams/bridge/omichub_agentteams_bridge/service.py` | 创建 Work Item 时调用 registry 解析 `target → agent_id`；删除本地硬编码映射 |
+| Bridge 消费 registry | `integrations/agentteams/bridge/cygnusx_agentteams_bridge/service.py` | 创建 Work Item 时调用 registry 解析 `target → agent_id`；删除本地硬编码映射 |
 | Gateway 消费 registry | `integrations/agentteams/gateway/service.py` | `agent_policies` 从 registry 动态加载 |
-| 投影器消费 registry | `src/omichub/application/services/case_room_projector.py` | 已接入，扩展即可 |
+| 投影器消费 registry | `src/cygnusx/application/services/case_room_projector.py` | 已接入，扩展即可 |
 | 测试 | `tests/unit/test_agentteams_capability_registry.py` | 确保映射覆盖全部 16 个 Agent（含类别标记），且三处一致 |
 
 ### 4.2 全部专家 Agent 接入 AgentTeams
@@ -172,7 +172,7 @@
 | 结构化建单弹窗 | `frontend/src/components/ai-chat/KimiChatInput.vue` | 增加“创建协作 Case”按钮，弹窗收集目标/输入/领域，调 `POST /api/v1/agent-teams/cases` |
 | 消息内建单 | `StudioView.vue` / 路由相关 | 同样接入 createCase |
 | Case 卡片内审批 | `frontend/src/components/agentteams/AgentTeamsCaseCard.vue` | 增加“批准 / 拒绝”按钮，直接调 submit API；结果经 SSE 刷新 |
-| Manager 自动建单 | `src/omichub/application/services/chat_service.py` | Manager 判断需要多专家协作时自动创建 Case 并绑定 session；**必须携带幂等键（`session_id + 意图哈希`）防重复建单**；创建后在群里说明触发理由；计划确认前用户可一键取消 |
+| Manager 自动建单 | `src/cygnusx/application/services/chat_service.py` | Manager 判断需要多专家协作时自动创建 Case 并绑定 session；**必须携带幂等键（`session_id + 意图哈希`）防重复建单**；创建后在群里说明触发理由；计划确认前用户可一键取消 |
 | 创建工具 | `data/ai/tools/agentteams_case.yaml` | 保留 `create_agentteams_case`，但降低使用门槛（默认参数由 Manager 自动填充） |
 | 三类审批边界落地 | 前端 + 后端 | 按 VISION v1.1 §5.4 的适用边界实现：计划确认走 `ask_request(kind=plan_confirmation)`，高风险操作走 `overdrive_approval_request`，Case 提交走卡片按钮；各自超时策略一并实现 |
 
@@ -182,7 +182,7 @@
 
 | 改动 | 位置 | 要点 |
 | --- | --- | --- |
-| 扩展 speech 模板 | `src/omichub/application/services/case_room_projector.py` | 为每个专家类型定制发言文案；规划、结果回流、点评、QC、交付都有独立模板 |
+| 扩展 speech 模板 | `src/cygnusx/application/services/case_room_projector.py` | 为每个专家类型定制发言文案；规划、结果回流、点评、QC、交付都有独立模板 |
 | Manager 自动点评 | `case_room_projector.py` + Bridge | 每条专家结果回流后自动创建 manager review 隐式工单，`manager_review_ready` 事件投影为 Manager 的 `room_speech`（接受 / 返工 / 触发下游） |
 | 进度卡增强 | `OverdriveProgressCard.vue` | 显示“谁在做什么”而不是抽象的 task ID |
 | 产物卡片 | 复用 `overdrive_progress` artifacts | 在群里显示最近 3 个产物缩略 + 下载 |
@@ -195,8 +195,8 @@
 
 | 改动 | 位置 | 要点 |
 | --- | --- | --- |
-| planning_running 状态 | `integrations/agentteams/bridge/omichub_agentteams_bridge/case_store.py` | 确保未经过 planning 且无 plan_hash 不得进入 approval_pending / executing |
-| lead planner 选择 | `src/omichub/application/services/chat_service.py` 或新服务 | Manager 按任务方向 + `capability_scope` 选 lead planner；选择理由落审计 |
+| planning_running 状态 | `integrations/agentteams/bridge/cygnusx_agentteams_bridge/case_store.py` | 确保未经过 planning 且无 plan_hash 不得进入 approval_pending / executing |
+| lead planner 选择 | `src/cygnusx/application/services/chat_service.py` 或新服务 | Manager 按任务方向 + `capability_scope` 选 lead planner；选择理由落审计 |
 | plan-01 Work Item | Bridge `service.py` | 自动创建 planning 工单，target 为 lead planner |
 | 计划确认卡 | 前端 + 后端 | `ask_request(kind=plan_confirmation)`，展示 `plan_version` + `plan_hash` 前 8 位 + 摘要 + 参数 |
 | 计划版本化 | Bridge `models.py` + `service.py` | `proposed_submission` + `plan_hash` + `plan_version`；用户修改生成新版本并重新确认，旧 hash 立即失效，未开始工单重绑新 hash（规则见 VISION §8.3） |
@@ -210,7 +210,7 @@
 | 改动 | 位置 | 要点 |
 | --- | --- | --- |
 | execution_mode 分发 | Bridge `service.py` | `workspace_execution` 工单允许非只读，但必须绑定已确认 plan_hash |
-| 产物登记 | `src/omichub/application/services/agentteams_data_tool_service.py` | 确保 `_register_workspace_artifacts` 写 `file_records`（source="agentteams"） |
+| 产物登记 | `src/cygnusx/application/services/agentteams_data_tool_service.py` | 确保 `_register_workspace_artifacts` 写 `file_records`（source="agentteams"） |
 | artifact_fetch 工具 | `tool_configs/tools_schema.yaml` | 保留并加入所有相关 Tool Pack |
 | 输入文件只读保护 | Studio 沙箱 (`manager.py:382-391`) / `data/ai/prompts/shared/agentteams_workspace_execution.md` | 用户真实数据目录以 `mode: "ro"` bind mount 到沙箱 `/data/platform`；只读保证来自挂载层而非软链（软链可被删除替换，不能作为只读手段） |
 | 示例 flow | `data/ai/flows/treeplot.yaml` | 保留作为通用分析型标本 |
@@ -219,7 +219,7 @@
 
 | 改动 | 位置 | 要点 |
 | --- | --- | --- |
-| 事件驱动推送 | Bridge → OmicHub → SSE | 状态变化优先走事件推送，目标 P95 ≤ 3s 前端可见；watch 轮询（10–15s）仅兜底 |
+| 事件驱动推送 | Bridge → CygnusX → SSE | 状态变化优先走事件推送，目标 P95 ≤ 3s 前端可见；watch 轮询（10–15s）仅兜底 |
 | 游标表迁移（四步） | alembic + `agentteams_case_watch_service.py` | ① 建表 `agentteams_case_cursors`；② **双写**：新旧存储同时写；③ **对账**：后台任务比对双写一致性，连续 3 天零差异后 ④ **切读**新表并停止写旧字段；全程可回退到读 `sandbox_meta` |
 | 可观测性接入 | 全链路 | 日志/指标携带 `case_id`/`work_item_id`/`event_id`；上线 Case 时长、失败率、审批等待、自动建单取消率看板（指标清单见 VISION §9.3） |
 | 并发配额 | Bridge `service.py` + config | 单 Case 并行工单上限（默认 8）、单用户活跃 Case 上限（默认 3），超出排队并在群里提示 |
@@ -314,19 +314,19 @@
 
 | 文件 | 操作 | 说明 |
 | --- | --- | --- |
-| `src/omichub/core/config.py` | 修改 | `mas_enabled` 默认 False，标记 deprecated；新增并发配额配置 |
-| `src/omichub/infrastructure/config/agent_loader.py` | 修改 | 移除 mas_enabled 追加 orchestrator 逻辑 |
-| `src/omichub/application/services/agentteams_capability_registry.py` | 扩展 | 覆盖 16 个 Agent 的角色映射、标签与类别标记；旧身份别名兼容 |
-| `src/omichub/application/services/case_room_projector.py` | 扩展 | 增加 Manager 点评和全部专家发言模板 |
-| `src/omichub/application/services/agentteams_case_watch_service.py` | 修改 | 降为兜底轮询（10-15s）；游标双写/切读 |
-| `src/omichub/application/services/chat_service.py` | 修改 | Manager 自动建 Case（幂等键 + 触发理由 + 可取消）；已绑定 Case 的会话不走 `parallel_subagents` |
-| `src/omichub/api/v1/agentteams.py` | 修改 | 保留并扩展 consultation 端点 |
+| `src/cygnusx/core/config.py` | 修改 | `mas_enabled` 默认 False，标记 deprecated；新增并发配额配置 |
+| `src/cygnusx/infrastructure/config/agent_loader.py` | 修改 | 移除 mas_enabled 追加 orchestrator 逻辑 |
+| `src/cygnusx/application/services/agentteams_capability_registry.py` | 扩展 | 覆盖 16 个 Agent 的角色映射、标签与类别标记；旧身份别名兼容 |
+| `src/cygnusx/application/services/case_room_projector.py` | 扩展 | 增加 Manager 点评和全部专家发言模板 |
+| `src/cygnusx/application/services/agentteams_case_watch_service.py` | 修改 | 降为兜底轮询（10-15s）；游标双写/切读 |
+| `src/cygnusx/application/services/chat_service.py` | 修改 | Manager 自动建 Case（幂等键 + 触发理由 + 可取消）；已绑定 Case 的会话不走 `parallel_subagents` |
+| `src/cygnusx/api/v1/agentteams.py` | 修改 | 保留并扩展 consultation 端点 |
 | `tool_configs/tools_schema.yaml` | 修改 | 移除 mas 工具；保留 read_only / artifact_fetch |
 | `data/ai/tools/agentteams_case.yaml` | 修改 | 确保不挂载 `subagents`；保留 `create_agentteams_case` 等 |
 | `data/ai/tools/*.yaml` | 修改 | 移除 `mas_plan_preview` 等包；常规 Agent 的 `subagents` 包保留 |
 | `data/ai/*.yaml` | 修改 | 增加 persona 和 internal_case_role |
 | `data/ai/data.yaml`、`delivery.yaml` | 修改 | 补齐 skill_ids 和提示词 |
-| `data/OmicHub.yaml` | 修改 | 移除 orchestrator 自动启用描述（如存在） |
+| `data/CygnusX.yaml` | 修改 | 移除 orchestrator 自动启用描述（如存在） |
 | alembic 迁移 | 新增 | `agentteams_case_cursors` 表；Case/WorkItem 增加 `plan_version` 字段（如模型层尚未有） |
 
 ### 6.2 AgentTeams Bridge/Gateway/Worker
@@ -334,9 +334,9 @@
 | 文件 | 操作 | 说明 |
 | --- | --- | --- |
 | `integrations/agentteams/teams/bioops-delivery.yaml` | 扩展 | 补全 14 个专家角色；shania 标记不接工单 |
-| `integrations/agentteams/bridge/omichub_agentteams_bridge/service.py` | 修改 | 消费 registry；删除本地硬编码映射；计划版本化；修订上限升级；并发配额 |
-| `integrations/agentteams/bridge/omichub_agentteams_bridge/models.py` | 修改 | `proposed_submission` + `plan_hash` + `plan_version` |
-| `integrations/agentteams/bridge/omichub_agentteams_bridge/config.py` | 修改 | 角色默认配置与 registry 对齐 |
+| `integrations/agentteams/bridge/cygnusx_agentteams_bridge/service.py` | 修改 | 消费 registry；删除本地硬编码映射；计划版本化；修订上限升级；并发配额 |
+| `integrations/agentteams/bridge/cygnusx_agentteams_bridge/models.py` | 修改 | `proposed_submission` + `plan_hash` + `plan_version` |
+| `integrations/agentteams/bridge/cygnusx_agentteams_bridge/config.py` | 修改 | 角色默认配置与 registry 对齐 |
 | `deploy/agentteams/bridge.env.example` | 修改 | 补全 **14 个身份令牌占位符**（修正 v1.0 的“11+”），注明真实令牌走密钥管理 |
 | `deploy/agentteams/docker-compose.agentteams.yml` | 修改 | Worker 改为资源池副本形态，按容量而非角色数扩展 |
 | `integrations/agentteams/worker/production_runner.py` / `worker_runner.py` | 扩展 | `_AGENT_PROFILES` 覆盖全部角色；按 capabilities 认领 |

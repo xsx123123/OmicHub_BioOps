@@ -4,7 +4,7 @@
 
 ## 1. 模块定位
 
-PrimerForge 是 OmicHub 生信工具箱中的引物设计模块，入口为：
+PrimerForge 是 CygnusX 生信工具箱中的引物设计模块，入口为：
 
 - 工具箱卡片：`/tools`
 - 工具页面：`/tools/primer-forge`
@@ -161,7 +161,7 @@ config_dir: "tool_configs/primer"
 后续若要落地 Primer3 后端，建议新增：
 
 ```text
-src/omichub/tools/primer/
+src/cygnusx/tools/primer/
 ├── __init__.py
 ├── api.py                         # prefix = "/primer"
 ├── schema.py                      # Pydantic DTO
@@ -184,7 +184,7 @@ GET  /api/v1/primer/history        # 历史记录
 POST /api/v1/primer/history        # 保存历史
 ```
 
-后端工具路由会被 `omichub.tools.register_tool_routers` 自动发现，只要 `src/omichub/tools/primer/api.py` 暴露 `router`、`prefix`、`tags` 即可，无需修改 `src/omichub/api/v1/router.py`。
+后端工具路由会被 `cygnusx.tools.register_tool_routers` 自动发现，只要 `src/cygnusx/tools/primer/api.py` 暴露 `router`、`prefix`、`tags` 即可，无需修改 `src/cygnusx/api/v1/router.py`。
 
 ## 9. 建议分阶段路线
 

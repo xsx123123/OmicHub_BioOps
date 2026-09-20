@@ -1,0 +1,2020 @@
+{
+  "llm_mode": "stub",
+  "reps": 3,
+  "samples": [
+    {
+      "id": "S01",
+      "text": "我有6个样本的小鼠单细胞数据，分为两个group 3v3，想要找到不同 group 间的细胞类型差异和差异基因",
+      "gold_experts": [
+        "agent-scrna"
+      ],
+      "needs_clarification": true,
+      "source": "docs/update_info/26.8.19/协作室任务执行流程评估与优化文档_v1.md（同见 evidence/agentteams-case-forensics-20260819/report.md）",
+      "arm_a": {
+        "predicted": [
+          "agent-scrna",
+          "agent-scrna-advanced",
+          "agent-scrna-integration",
+          "agent-scrna-upstream"
+        ],
+        "needs_clarification": false,
+        "latency_ms": 607.456010999158,
+        "detail": {
+          "path": "bridge_workflow",
+          "flow_id": "scrna",
+          "confidence": "high",
+          "fallback": false
+        }
+      },
+      "arm_b_runs": [
+        {
+          "predicted": [
+            "agent-rnaseq",
+            "agent-scrna",
+            "agent-scrna-advanced"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4832,
+          "completion_tokens": 64,
+          "latency_ms": 0.4864470101892948,
+          "detail": {
+            "collaboration_intent": "consult",
+            "confidence": 0.9
+          }
+        },
+        {
+          "predicted": [
+            "agent-rnaseq",
+            "agent-scrna",
+            "agent-scrna-advanced"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4832,
+          "completion_tokens": 64,
+          "latency_ms": 0.26462296955287457,
+          "detail": {
+            "collaboration_intent": "consult",
+            "confidence": 0.9
+          }
+        },
+        {
+          "predicted": [
+            "agent-rnaseq",
+            "agent-scrna",
+            "agent-scrna-advanced"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4832,
+          "completion_tokens": 64,
+          "latency_ms": 0.25941303465515375,
+          "detail": {
+            "collaboration_intent": "consult",
+            "confidence": 0.9
+          }
+        }
+      ]
+    },
+    {
+      "id": "S02",
+      "text": "小鼠肺部 6 个 scRNA-seq 样本（3 tp53 mutation vs 3 WT）标准流程全套",
+      "gold_experts": [
+        "agent-scrna",
+        "agent-scrna-advanced",
+        "agent-scrna-integration",
+        "agent-scrna-upstream"
+      ],
+      "needs_clarification": false,
+      "source": "evidence/e2e-2026-08-21/E2E-1/result.md（E2E-1 实测需求文本）",
+      "arm_a": {
+        "predicted": [
+          "agent-scrna",
+          "agent-scrna-advanced",
+          "agent-scrna-integration",
+          "agent-scrna-upstream"
+        ],
+        "needs_clarification": false,
+        "latency_ms": 584.2315419577062,
+        "detail": {
+          "path": "bridge_workflow",
+          "flow_id": "scrna",
+          "confidence": "high",
+          "fallback": false
+        }
+      },
+      "arm_b_runs": [
+        {
+          "predicted": [
+            "agent-rnaseq",
+            "agent-scrna",
+            "agent-scrna-upstream"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4815,
+          "completion_tokens": 64,
+          "latency_ms": 0.30742300441488624,
+          "detail": {
+            "collaboration_intent": "consult",
+            "confidence": 0.9
+          }
+        },
+        {
+          "predicted": [
+            "agent-rnaseq",
+            "agent-scrna",
+            "agent-scrna-upstream"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4815,
+          "completion_tokens": 64,
+          "latency_ms": 0.277436978649348,
+          "detail": {
+            "collaboration_intent": "consult",
+            "confidence": 0.9
+          }
+        },
+        {
+          "predicted": [
+            "agent-rnaseq",
+            "agent-scrna",
+            "agent-scrna-upstream"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4815,
+          "completion_tokens": 64,
+          "latency_ms": 0.2580509753897786,
+          "detail": {
+            "collaboration_intent": "consult",
+            "confidence": 0.9
+          }
+        }
+      ]
+    },
+    {
+      "id": "S03",
+      "text": "帮我分析 16S 微生物组测序数据",
+      "gold_experts": [
+        "agent-code"
+      ],
+      "needs_clarification": false,
+      "source": "report/12_多智能体协作室根因调查报告_2026-08-19.md（E2E-3 实测同文本）",
+      "arm_a": {
+        "predicted": [
+          "agent-code"
+        ],
+        "needs_clarification": true,
+        "latency_ms": 457.4884049943648,
+        "detail": {
+          "path": "overdrive",
+          "flow_id": null,
+          "confidence": "ambiguous",
+          "fallback": true
+        }
+      },
+      "arm_b_runs": [
+        {
+          "predicted": [
+            "agent-rnaseq"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4798,
+          "completion_tokens": 51,
+          "latency_ms": 0.30140200396999717,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.9
+          }
+        },
+        {
+          "predicted": [
+            "agent-rnaseq"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4798,
+          "completion_tokens": 51,
+          "latency_ms": 0.2693220158107579,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.9
+          }
+        },
+        {
+          "predicted": [
+            "agent-rnaseq"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4798,
+          "completion_tokens": 51,
+          "latency_ms": 0.2726480015553534,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.9
+          }
+        }
+      ]
+    },
+    {
+      "id": "S04",
+      "text": "hi",
+      "gold_experts": [],
+      "needs_clarification": false,
+      "source": "evidence/e2e-2026-08-21/E2E-7/result.md（E2E-7 实测：不建 Case、不派专家）",
+      "arm_a": {
+        "predicted": [
+          "agent-code"
+        ],
+        "needs_clarification": true,
+        "latency_ms": 589.6742650074884,
+        "detail": {
+          "path": "overdrive",
+          "flow_id": null,
+          "confidence": "ambiguous",
+          "fallback": true
+        }
+      },
+      "arm_b_runs": [
+        {
+          "predicted": [
+            "agent-general"
+          ],
+          "needs_clarification": true,
+          "prompt_tokens": 4782,
+          "completion_tokens": 54,
+          "latency_ms": 0.30167202930897474,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.4
+          }
+        },
+        {
+          "predicted": [
+            "agent-general"
+          ],
+          "needs_clarification": true,
+          "prompt_tokens": 4782,
+          "completion_tokens": 54,
+          "latency_ms": 0.26609597261995077,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.4
+          }
+        },
+        {
+          "predicted": [
+            "agent-general"
+          ],
+          "needs_clarification": true,
+          "prompt_tokens": 4782,
+          "completion_tokens": 54,
+          "latency_ms": 0.2583019668236375,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.4
+          }
+        }
+      ]
+    },
+    {
+      "id": "S05",
+      "text": "我想分析小鼠脑损伤的 RNA-seq 数据",
+      "gold_experts": [
+        "agent-rnaseq"
+      ],
+      "needs_clarification": true,
+      "source": "flows/rna_seq.yaml example_dialogue",
+      "arm_a": {
+        "predicted": [
+          "agent-rnaseq"
+        ],
+        "needs_clarification": false,
+        "latency_ms": 137.4460619990714,
+        "detail": {
+          "path": "bridge_workflow",
+          "flow_id": "rnaseq",
+          "confidence": "high",
+          "fallback": false
+        }
+      },
+      "arm_b_runs": [
+        {
+          "predicted": [
+            "agent-rnaseq",
+            "agent-scrna-integration",
+            "agent-scrna-upstream"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4801,
+          "completion_tokens": 66,
+          "latency_ms": 0.30494900420308113,
+          "detail": {
+            "collaboration_intent": "consult",
+            "confidence": 0.9
+          }
+        },
+        {
+          "predicted": [
+            "agent-rnaseq",
+            "agent-scrna-integration",
+            "agent-scrna-upstream"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4801,
+          "completion_tokens": 66,
+          "latency_ms": 0.27019402477890253,
+          "detail": {
+            "collaboration_intent": "consult",
+            "confidence": 0.9
+          }
+        },
+        {
+          "predicted": [
+            "agent-rnaseq",
+            "agent-scrna-integration",
+            "agent-scrna-upstream"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4801,
+          "completion_tokens": 66,
+          "latency_ms": 0.2620580489747226,
+          "detail": {
+            "collaboration_intent": "consult",
+            "confidence": 0.9
+          }
+        }
+      ]
+    },
+    {
+      "id": "S06",
+      "text": "我想分析小鼠 ATAC-seq 数据",
+      "gold_experts": [
+        "agent-atacseq"
+      ],
+      "needs_clarification": true,
+      "source": "flows/atac_seq.yaml example_dialogue",
+      "arm_a": {
+        "predicted": [
+          "agent-atacseq"
+        ],
+        "needs_clarification": false,
+        "latency_ms": 135.2598980301991,
+        "detail": {
+          "path": "bridge_workflow",
+          "flow_id": "atacseq",
+          "confidence": "high",
+          "fallback": false
+        }
+      },
+      "arm_b_runs": [
+        {
+          "predicted": [
+            "agent-atacseq",
+            "agent-rnaseq"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4794,
+          "completion_tokens": 57,
+          "latency_ms": 0.30076998518779874,
+          "detail": {
+            "collaboration_intent": "consult",
+            "confidence": 0.9
+          }
+        },
+        {
+          "predicted": [
+            "agent-atacseq",
+            "agent-rnaseq"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4794,
+          "completion_tokens": 57,
+          "latency_ms": 0.2781979856081307,
+          "detail": {
+            "collaboration_intent": "consult",
+            "confidence": 0.9
+          }
+        },
+        {
+          "predicted": [
+            "agent-atacseq",
+            "agent-rnaseq"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4794,
+          "completion_tokens": 57,
+          "latency_ms": 0.26883097598329186,
+          "detail": {
+            "collaboration_intent": "consult",
+            "confidence": 0.9
+          }
+        }
+      ]
+    },
+    {
+      "id": "S07",
+      "text": "帮我做 KEGG 富集分析",
+      "gold_experts": [
+        "agent-rnaseq"
+      ],
+      "needs_clarification": true,
+      "source": "docs/update_info/26.7.25/星尘AI对话页前端美化实现计划.md",
+      "arm_a": {
+        "predicted": [
+          "agent-code"
+        ],
+        "needs_clarification": true,
+        "latency_ms": 472.82907203771174,
+        "detail": {
+          "path": "overdrive",
+          "flow_id": null,
+          "confidence": "ambiguous",
+          "fallback": true
+        }
+      },
+      "arm_b_runs": [
+        {
+          "predicted": [
+            "agent-general"
+          ],
+          "needs_clarification": true,
+          "prompt_tokens": 4794,
+          "completion_tokens": 54,
+          "latency_ms": 0.3018429852090776,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.4
+          }
+        },
+        {
+          "predicted": [
+            "agent-general"
+          ],
+          "needs_clarification": true,
+          "prompt_tokens": 4794,
+          "completion_tokens": 54,
+          "latency_ms": 0.26482297107577324,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.4
+          }
+        },
+        {
+          "predicted": [
+            "agent-general"
+          ],
+          "needs_clarification": true,
+          "prompt_tokens": 4794,
+          "completion_tokens": 54,
+          "latency_ms": 0.2646839711815119,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.4
+          }
+        }
+      ]
+    },
+    {
+      "id": "S08",
+      "text": "帮我做一个UMAP可视化",
+      "gold_experts": [
+        "agent-viz"
+      ],
+      "needs_clarification": true,
+      "source": "docs/modules/09_sandbox_architecture.md",
+      "arm_a": {
+        "predicted": [
+          "agent-code"
+        ],
+        "needs_clarification": false,
+        "latency_ms": 198.07803101139143,
+        "detail": {
+          "path": "overdrive",
+          "flow_id": null,
+          "confidence": "high",
+          "fallback": true
+        }
+      },
+      "arm_b_runs": [
+        {
+          "predicted": [
+            "agent-scrna-advanced",
+            "agent-scrna-integration"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4792,
+          "completion_tokens": 59,
+          "latency_ms": 0.2850620076060295,
+          "detail": {
+            "collaboration_intent": "consult",
+            "confidence": 0.9
+          }
+        },
+        {
+          "predicted": [
+            "agent-scrna-advanced",
+            "agent-scrna-integration"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4792,
+          "completion_tokens": 59,
+          "latency_ms": 0.2628000220283866,
+          "detail": {
+            "collaboration_intent": "consult",
+            "confidence": 0.9
+          }
+        },
+        {
+          "predicted": [
+            "agent-scrna-advanced",
+            "agent-scrna-integration"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4792,
+          "completion_tokens": 59,
+          "latency_ms": 0.26112596970051527,
+          "detail": {
+            "collaboration_intent": "consult",
+            "confidence": 0.9
+          }
+        }
+      ]
+    },
+    {
+      "id": "S09",
+      "text": "帮我做单细胞质控，然后做差异表达和富集分析",
+      "gold_experts": [
+        "agent-scrna"
+      ],
+      "needs_clarification": true,
+      "source": "docs/update_info/26.7.26/ai_agent/OmicHub平台Agent能力优化方案-记忆与多Agent协作.md",
+      "arm_a": {
+        "predicted": [
+          "agent-rnaseq"
+        ],
+        "needs_clarification": false,
+        "latency_ms": 195.76077203964815,
+        "detail": {
+          "path": "bridge_workflow",
+          "flow_id": "rnaseq",
+          "confidence": "high",
+          "fallback": false
+        }
+      },
+      "arm_b_runs": [
+        {
+          "predicted": [
+            "agent-rnaseq",
+            "agent-scrna",
+            "agent-scrna-advanced"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4810,
+          "completion_tokens": 64,
+          "latency_ms": 0.2857020008377731,
+          "detail": {
+            "collaboration_intent": "consult",
+            "confidence": 0.9
+          }
+        },
+        {
+          "predicted": [
+            "agent-rnaseq",
+            "agent-scrna",
+            "agent-scrna-advanced"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4810,
+          "completion_tokens": 64,
+          "latency_ms": 0.25932397693395615,
+          "detail": {
+            "collaboration_intent": "consult",
+            "confidence": 0.9
+          }
+        },
+        {
+          "predicted": [
+            "agent-rnaseq",
+            "agent-scrna",
+            "agent-scrna-advanced"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4810,
+          "completion_tokens": 64,
+          "latency_ms": 0.25386299239471555,
+          "detail": {
+            "collaboration_intent": "consult",
+            "confidence": 0.9
+          }
+        }
+      ]
+    },
+    {
+      "id": "S10",
+      "text": "帮我写一个 VCF 过滤脚本",
+      "gold_experts": [
+        "agent-code"
+      ],
+      "needs_clarification": false,
+      "source": "docs/update_info/26.7.29/studio/AI工作台分屏面板自动关闭排查与布局优化实现计划.md（同见 data/ai/mcp/workspace_files_prompt.md）",
+      "arm_a": {
+        "predicted": [
+          "agent-code"
+        ],
+        "needs_clarification": true,
+        "latency_ms": 453.16702203126624,
+        "detail": {
+          "path": "overdrive",
+          "flow_id": null,
+          "confidence": "ambiguous",
+          "fallback": true
+        }
+      },
+      "arm_b_runs": [
+        {
+          "predicted": [
+            "agent-general"
+          ],
+          "needs_clarification": true,
+          "prompt_tokens": 4796,
+          "completion_tokens": 54,
+          "latency_ms": 0.2829580334946513,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.4
+          }
+        },
+        {
+          "predicted": [
+            "agent-general"
+          ],
+          "needs_clarification": true,
+          "prompt_tokens": 4796,
+          "completion_tokens": 54,
+          "latency_ms": 0.26404199888929725,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.4
+          }
+        },
+        {
+          "predicted": [
+            "agent-general"
+          ],
+          "needs_clarification": true,
+          "prompt_tokens": 4796,
+          "completion_tokens": 54,
+          "latency_ms": 0.25427399668842554,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.4
+          }
+        }
+      ]
+    },
+    {
+      "id": "S11",
+      "text": "帮我建一棵进化树",
+      "gold_experts": [
+        "agent-viz"
+      ],
+      "needs_clarification": true,
+      "source": "docs/update_info/26.8.18/agent双架构汇总.md",
+      "arm_a": {
+        "predicted": [
+          "agent-code"
+        ],
+        "needs_clarification": true,
+        "latency_ms": 457.0894599892199,
+        "detail": {
+          "path": "overdrive",
+          "flow_id": null,
+          "confidence": "ambiguous",
+          "fallback": true
+        }
+      },
+      "arm_b_runs": [
+        {
+          "predicted": [
+            "agent-general"
+          ],
+          "needs_clarification": true,
+          "prompt_tokens": 4792,
+          "completion_tokens": 54,
+          "latency_ms": 0.293287041131407,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.4
+          }
+        },
+        {
+          "predicted": [
+            "agent-general"
+          ],
+          "needs_clarification": true,
+          "prompt_tokens": 4792,
+          "completion_tokens": 54,
+          "latency_ms": 0.2636319841258228,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.4
+          }
+        },
+        {
+          "predicted": [
+            "agent-general"
+          ],
+          "needs_clarification": true,
+          "prompt_tokens": 4792,
+          "completion_tokens": 54,
+          "latency_ms": 0.2635309938341379,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.4
+          }
+        }
+      ]
+    },
+    {
+      "id": "S12",
+      "text": "帮我找一下cluster 5的marker基因",
+      "gold_experts": [
+        "agent-scrna-advanced"
+      ],
+      "needs_clarification": false,
+      "source": "docs/modules/10_workflow_example.md",
+      "arm_a": {
+        "predicted": [
+          "agent-code"
+        ],
+        "needs_clarification": true,
+        "latency_ms": 454.38364904839545,
+        "detail": {
+          "path": "overdrive",
+          "flow_id": null,
+          "confidence": "ambiguous",
+          "fallback": true
+        }
+      },
+      "arm_b_runs": [
+        {
+          "predicted": [
+            "agent-scrna-advanced"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4794,
+          "completion_tokens": 52,
+          "latency_ms": 0.3095169668085873,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.9
+          }
+        },
+        {
+          "predicted": [
+            "agent-scrna-advanced"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4794,
+          "completion_tokens": 52,
+          "latency_ms": 0.27121498715132475,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.9
+          }
+        },
+        {
+          "predicted": [
+            "agent-scrna-advanced"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4794,
+          "completion_tokens": 52,
+          "latency_ms": 0.2526810276322067,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.9
+          }
+        }
+      ]
+    },
+    {
+      "id": "S13",
+      "text": "帮我画个火山图",
+      "gold_experts": [
+        "agent-viz"
+      ],
+      "needs_clarification": true,
+      "source": "docs/update_info/26.8.18/OmicHub记忆系统优化实施计划.md（同见 docs/update_info/26.7.21/mcp_ai_assistant_integration.md）",
+      "arm_a": {
+        "predicted": [
+          "agent-code"
+        ],
+        "needs_clarification": true,
+        "latency_ms": 457.38506194902584,
+        "detail": {
+          "path": "overdrive",
+          "flow_id": null,
+          "confidence": "ambiguous",
+          "fallback": true
+        }
+      },
+      "arm_b_runs": [
+        {
+          "predicted": [
+            "agent-general"
+          ],
+          "needs_clarification": true,
+          "prompt_tokens": 4789,
+          "completion_tokens": 54,
+          "latency_ms": 0.2893490018323064,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.4
+          }
+        },
+        {
+          "predicted": [
+            "agent-general"
+          ],
+          "needs_clarification": true,
+          "prompt_tokens": 4789,
+          "completion_tokens": 54,
+          "latency_ms": 0.2722369972616434,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.4
+          }
+        },
+        {
+          "predicted": [
+            "agent-general"
+          ],
+          "needs_clarification": true,
+          "prompt_tokens": 4789,
+          "completion_tokens": 54,
+          "latency_ms": 0.2579509746283293,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.4
+          }
+        }
+      ]
+    },
+    {
+      "id": "S14",
+      "text": "帮我看看这批样本的聚类情况，顺便找找离群样本",
+      "gold_experts": [
+        "agent-code",
+        "agent-viz"
+      ],
+      "needs_clarification": true,
+      "source": "docs/update_info/26.7.17/OmicHub_AI分析工作台_架构设计.md",
+      "arm_a": {
+        "predicted": [
+          "agent-code"
+        ],
+        "needs_clarification": true,
+        "latency_ms": 453.8626180146821,
+        "detail": {
+          "path": "overdrive",
+          "flow_id": null,
+          "confidence": "ambiguous",
+          "fallback": true
+        }
+      },
+      "arm_b_runs": [
+        {
+          "predicted": [
+            "agent-scrna-integration"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4811,
+          "completion_tokens": 52,
+          "latency_ms": 0.2902299747802317,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.9
+          }
+        },
+        {
+          "predicted": [
+            "agent-scrna-integration"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4811,
+          "completion_tokens": 52,
+          "latency_ms": 0.26003498351201415,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.9
+          }
+        },
+        {
+          "predicted": [
+            "agent-scrna-integration"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4811,
+          "completion_tokens": 52,
+          "latency_ms": 0.2542940201237798,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.9
+          }
+        }
+      ]
+    },
+    {
+      "id": "S15",
+      "text": "帮我设计一个 TP53 突变 vs 野生型的 RNA-seq 实验",
+      "gold_experts": [
+        "agent-rnaseq"
+      ],
+      "needs_clarification": false,
+      "source": "docs/update_info/26.8.7/prompt/01_提示词框架现状与DomainPack设计.md",
+      "arm_a": {
+        "predicted": [
+          "agent-rnaseq"
+        ],
+        "needs_clarification": false,
+        "latency_ms": 130.38377097109333,
+        "detail": {
+          "path": "bridge_workflow",
+          "flow_id": "rnaseq",
+          "confidence": "high",
+          "fallback": false
+        }
+      },
+      "arm_b_runs": [
+        {
+          "predicted": [
+            "agent-rnaseq",
+            "agent-scrna-integration",
+            "agent-scrna-upstream"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4803,
+          "completion_tokens": 66,
+          "latency_ms": 0.3022130113095045,
+          "detail": {
+            "collaboration_intent": "consult",
+            "confidence": 0.9
+          }
+        },
+        {
+          "predicted": [
+            "agent-rnaseq",
+            "agent-scrna-integration",
+            "agent-scrna-upstream"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4803,
+          "completion_tokens": 66,
+          "latency_ms": 0.26209797943010926,
+          "detail": {
+            "collaboration_intent": "consult",
+            "confidence": 0.9
+          }
+        },
+        {
+          "predicted": [
+            "agent-rnaseq",
+            "agent-scrna-integration",
+            "agent-scrna-upstream"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4803,
+          "completion_tokens": 66,
+          "latency_ms": 0.25490502594038844,
+          "detail": {
+            "collaboration_intent": "consult",
+            "confidence": 0.9
+          }
+        }
+      ]
+    },
+    {
+      "id": "S16",
+      "text": "帮我调试这段 python 报错",
+      "gold_experts": [
+        "agent-code"
+      ],
+      "needs_clarification": false,
+      "source": "docs/update_info/26.7.27/星尘AI统一入口_agent路由测试报告.md",
+      "arm_a": {
+        "predicted": [
+          "agent-code"
+        ],
+        "needs_clarification": true,
+        "latency_ms": 461.03413199307397,
+        "detail": {
+          "path": "overdrive",
+          "flow_id": null,
+          "confidence": "ambiguous",
+          "fallback": true
+        }
+      },
+      "arm_b_runs": [
+        {
+          "predicted": [
+            "agent-code"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4792,
+          "completion_tokens": 48,
+          "latency_ms": 0.3007309860549867,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.9
+          }
+        },
+        {
+          "predicted": [
+            "agent-code"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4792,
+          "completion_tokens": 48,
+          "latency_ms": 0.2614869736135006,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.9
+          }
+        },
+        {
+          "predicted": [
+            "agent-code"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4792,
+          "completion_tokens": 48,
+          "latency_ms": 0.25338202249258757,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.9
+          }
+        }
+      ]
+    },
+    {
+      "id": "S17",
+      "text": "帮我跑 fastq QC",
+      "gold_experts": [
+        "agent-code"
+      ],
+      "needs_clarification": false,
+      "source": "docs/update_info/26.7.21/ai_driven_transformation_report.md",
+      "arm_a": {
+        "predicted": [
+          "agent-code"
+        ],
+        "needs_clarification": true,
+        "latency_ms": 455.3392789675854,
+        "detail": {
+          "path": "overdrive",
+          "flow_id": null,
+          "confidence": "ambiguous",
+          "fallback": true
+        }
+      },
+      "arm_b_runs": [
+        {
+          "predicted": [
+            "agent-rnaseq",
+            "agent-scrna-integration",
+            "agent-scrna-upstream"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4789,
+          "completion_tokens": 66,
+          "latency_ms": 0.28587301494553685,
+          "detail": {
+            "collaboration_intent": "consult",
+            "confidence": 0.9
+          }
+        },
+        {
+          "predicted": [
+            "agent-rnaseq",
+            "agent-scrna-integration",
+            "agent-scrna-upstream"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4789,
+          "completion_tokens": 66,
+          "latency_ms": 0.25856198044493794,
+          "detail": {
+            "collaboration_intent": "consult",
+            "confidence": 0.9
+          }
+        },
+        {
+          "predicted": [
+            "agent-rnaseq",
+            "agent-scrna-integration",
+            "agent-scrna-upstream"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4789,
+          "completion_tokens": 66,
+          "latency_ms": 0.2525800373405218,
+          "detail": {
+            "collaboration_intent": "consult",
+            "confidence": 0.9
+          }
+        }
+      ]
+    },
+    {
+      "id": "S18",
+      "text": "帮我进行系统发育树和解读",
+      "gold_experts": [
+        "agent-viz"
+      ],
+      "needs_clarification": true,
+      "source": "docs/update_info/26.8.18/协作室任务执行流程详解.md",
+      "arm_a": {
+        "predicted": [
+          "agent-viz"
+        ],
+        "needs_clarification": false,
+        "latency_ms": 130.45659702038392,
+        "detail": {
+          "path": "bridge_workflow",
+          "flow_id": "treeplot",
+          "confidence": "high",
+          "fallback": false
+        }
+      },
+      "arm_b_runs": [
+        {
+          "predicted": [
+            "agent-general"
+          ],
+          "needs_clarification": true,
+          "prompt_tokens": 4792,
+          "completion_tokens": 54,
+          "latency_ms": 0.2798109780997038,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.4
+          }
+        },
+        {
+          "predicted": [
+            "agent-general"
+          ],
+          "needs_clarification": true,
+          "prompt_tokens": 4792,
+          "completion_tokens": 54,
+          "latency_ms": 0.26088597951456904,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.4
+          }
+        },
+        {
+          "predicted": [
+            "agent-general"
+          ],
+          "needs_clarification": true,
+          "prompt_tokens": 4792,
+          "completion_tokens": 54,
+          "latency_ms": 0.2578809508122504,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.4
+          }
+        }
+      ]
+    },
+    {
+      "id": "S19",
+      "text": "我需要一个能查询 PubMed 的 MCP，输入关键词返回标题和摘要",
+      "gold_experts": [
+        "agent-mcp-builder"
+      ],
+      "needs_clarification": false,
+      "source": "docs/update_info/26.7.30/mcp_builder_framework.md",
+      "arm_a": {
+        "predicted": [
+          "agent-code"
+        ],
+        "needs_clarification": true,
+        "latency_ms": 470.297755964566,
+        "detail": {
+          "path": "overdrive",
+          "flow_id": null,
+          "confidence": "ambiguous",
+          "fallback": true
+        }
+      },
+      "arm_b_runs": [
+        {
+          "predicted": [
+            "agent-mcp-builder"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4801,
+          "completion_tokens": 50,
+          "latency_ms": 0.39851298788562417,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.9
+          }
+        },
+        {
+          "predicted": [
+            "agent-mcp-builder"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4801,
+          "completion_tokens": 50,
+          "latency_ms": 0.34052401315420866,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.9
+          }
+        },
+        {
+          "predicted": [
+            "agent-mcp-builder"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4801,
+          "completion_tokens": 50,
+          "latency_ms": 0.3289729938842356,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.9
+          }
+        }
+      ]
+    },
+    {
+      "id": "S20",
+      "text": "我有 ATAC-seq 数据，想做差异 peak 分析",
+      "gold_experts": [
+        "agent-atacseq"
+      ],
+      "needs_clarification": true,
+      "source": "docs/info/26.8.19/协作室平台异常排查代码审查报告_2026-08-19.md（同见 report/12_多智能体协作室根因调查报告_2026-08-19.md）",
+      "arm_a": {
+        "predicted": [
+          "agent-atacseq"
+        ],
+        "needs_clarification": false,
+        "latency_ms": 136.40114502049983,
+        "detail": {
+          "path": "bridge_workflow",
+          "flow_id": "atacseq",
+          "confidence": "high",
+          "fallback": false
+        }
+      },
+      "arm_b_runs": [
+        {
+          "predicted": [
+            "agent-atacseq",
+            "agent-rnaseq",
+            "agent-scrna-advanced"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4798,
+          "completion_tokens": 65,
+          "latency_ms": 0.2986270119436085,
+          "detail": {
+            "collaboration_intent": "consult",
+            "confidence": 0.9
+          }
+        },
+        {
+          "predicted": [
+            "agent-atacseq",
+            "agent-rnaseq",
+            "agent-scrna-advanced"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4798,
+          "completion_tokens": 65,
+          "latency_ms": 0.27584400959312916,
+          "detail": {
+            "collaboration_intent": "consult",
+            "confidence": 0.9
+          }
+        },
+        {
+          "predicted": [
+            "agent-atacseq",
+            "agent-rnaseq",
+            "agent-scrna-advanced"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4798,
+          "completion_tokens": 65,
+          "latency_ms": 0.255025050137192,
+          "detail": {
+            "collaboration_intent": "consult",
+            "confidence": 0.9
+          }
+        }
+      ]
+    },
+    {
+      "id": "S21",
+      "text": "我想把之前的单核数据重新聚类一下，分辨率用1.2，然后画个UMAP图，把cluster 5的颜色改成蓝色",
+      "gold_experts": [
+        "agent-scrna-integration"
+      ],
+      "needs_clarification": false,
+      "source": "docs/modules/10_workflow_example.md",
+      "arm_a": {
+        "predicted": [
+          "agent-code"
+        ],
+        "needs_clarification": true,
+        "latency_ms": 460.1312500308268,
+        "detail": {
+          "path": "overdrive",
+          "flow_id": null,
+          "confidence": "ambiguous",
+          "fallback": true
+        }
+      },
+      "arm_b_runs": [
+        {
+          "predicted": [
+            "agent-rnaseq",
+            "agent-scrna-integration"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4831,
+          "completion_tokens": 58,
+          "latency_ms": 0.3153479774482548,
+          "detail": {
+            "collaboration_intent": "consult",
+            "confidence": 0.9
+          }
+        },
+        {
+          "predicted": [
+            "agent-rnaseq",
+            "agent-scrna-integration"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4831,
+          "completion_tokens": 58,
+          "latency_ms": 0.2800719812512398,
+          "detail": {
+            "collaboration_intent": "consult",
+            "confidence": 0.9
+          }
+        },
+        {
+          "predicted": [
+            "agent-rnaseq",
+            "agent-scrna-integration"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4831,
+          "completion_tokens": 58,
+          "latency_ms": 0.2719369949772954,
+          "detail": {
+            "collaboration_intent": "consult",
+            "confidence": 0.9
+          }
+        }
+      ]
+    },
+    {
+      "id": "S22",
+      "text": "帮我分析这个 PBMC 数据集",
+      "gold_experts": [
+        "agent-scrna"
+      ],
+      "needs_clarification": true,
+      "source": "docs/update_info/26.7.23/ai_multi_agent_tools_memory.md",
+      "arm_a": {
+        "predicted": [
+          "agent-code"
+        ],
+        "needs_clarification": true,
+        "latency_ms": 455.19924903055653,
+        "detail": {
+          "path": "overdrive",
+          "flow_id": null,
+          "confidence": "ambiguous",
+          "fallback": true
+        }
+      },
+      "arm_b_runs": [
+        {
+          "predicted": [
+            "agent-rnaseq"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4792,
+          "completion_tokens": 51,
+          "latency_ms": 0.2844299888238311,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.9
+          }
+        },
+        {
+          "predicted": [
+            "agent-rnaseq"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4792,
+          "completion_tokens": 51,
+          "latency_ms": 0.26209797943010926,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.9
+          }
+        },
+        {
+          "predicted": [
+            "agent-rnaseq"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4792,
+          "completion_tokens": 51,
+          "latency_ms": 0.2516290405765176,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.9
+          }
+        }
+      ]
+    },
+    {
+      "id": "S23",
+      "text": "帮我处理这个 xlsx，对其中描述的基因做文献搜索，整理成文档并输出网页报告",
+      "gold_experts": [
+        "agent-code",
+        "agent-delivery"
+      ],
+      "needs_clarification": false,
+      "source": "docs/update_info/26.8.18/协作室任务执行流程评估与优化文档.md（同见 _v1 版）",
+      "arm_a": {
+        "predicted": [
+          "agent-code"
+        ],
+        "needs_clarification": true,
+        "latency_ms": 465.9547220217064,
+        "detail": {
+          "path": "overdrive",
+          "flow_id": null,
+          "confidence": "ambiguous",
+          "fallback": true
+        }
+      },
+      "arm_b_runs": [
+        {
+          "predicted": [
+            "agent-scrna-upstream"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4816,
+          "completion_tokens": 52,
+          "latency_ms": 0.2961720456369221,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.9
+          }
+        },
+        {
+          "predicted": [
+            "agent-scrna-upstream"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4816,
+          "completion_tokens": 52,
+          "latency_ms": 0.2633010153658688,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.9
+          }
+        },
+        {
+          "predicted": [
+            "agent-scrna-upstream"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4816,
+          "completion_tokens": 52,
+          "latency_ms": 0.2562080044299364,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.9
+          }
+        }
+      ]
+    },
+    {
+      "id": "S24",
+      "text": "请帮我看一下我上传的这几个文件，先做一份基础的汇总说明，不着急跑正式分析",
+      "gold_experts": [
+        "agent-data"
+      ],
+      "needs_clarification": false,
+      "source": "evidence/e2e-2026-08-21/E2E-2/fix_verify_limit_101.json（E2E 实测房间消息）",
+      "arm_a": {
+        "predicted": [
+          "agent-code"
+        ],
+        "needs_clarification": true,
+        "latency_ms": 477.7195060160011,
+        "detail": {
+          "path": "overdrive",
+          "flow_id": null,
+          "confidence": "ambiguous",
+          "fallback": true
+        }
+      },
+      "arm_b_runs": [
+        {
+          "predicted": [
+            "agent-general"
+          ],
+          "needs_clarification": true,
+          "prompt_tokens": 4822,
+          "completion_tokens": 54,
+          "latency_ms": 0.2954700030386448,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.4
+          }
+        },
+        {
+          "predicted": [
+            "agent-general"
+          ],
+          "needs_clarification": true,
+          "prompt_tokens": 4822,
+          "completion_tokens": 54,
+          "latency_ms": 0.26236800476908684,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.4
+          }
+        },
+        {
+          "predicted": [
+            "agent-general"
+          ],
+          "needs_clarification": true,
+          "prompt_tokens": 4822,
+          "completion_tokens": 54,
+          "latency_ms": 0.25012705009430647,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.4
+          }
+        }
+      ]
+    },
+    {
+      "id": "S25",
+      "text": "帮我汇总一下当前平台的功能呀",
+      "gold_experts": [
+        "agent-general"
+      ],
+      "needs_clarification": false,
+      "source": "docs/update_info/26.8.7/goal.md",
+      "arm_a": {
+        "predicted": [
+          "agent-code"
+        ],
+        "needs_clarification": true,
+        "latency_ms": 456.36084396392107,
+        "detail": {
+          "path": "overdrive",
+          "flow_id": null,
+          "confidence": "ambiguous",
+          "fallback": true
+        }
+      },
+      "arm_b_runs": [
+        {
+          "predicted": [
+            "agent-general"
+          ],
+          "needs_clarification": true,
+          "prompt_tokens": 4796,
+          "completion_tokens": 54,
+          "latency_ms": 0.2970229834318161,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.4
+          }
+        },
+        {
+          "predicted": [
+            "agent-general"
+          ],
+          "needs_clarification": true,
+          "prompt_tokens": 4796,
+          "completion_tokens": 54,
+          "latency_ms": 0.2668169909156859,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.4
+          }
+        },
+        {
+          "predicted": [
+            "agent-general"
+          ],
+          "needs_clarification": true,
+          "prompt_tokens": 4796,
+          "completion_tokens": 54,
+          "latency_ms": 0.2595430123619735,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.4
+          }
+        }
+      ]
+    },
+    {
+      "id": "S26",
+      "text": "我有一个 .treefile 文件，想画进化树",
+      "gold_experts": [
+        "agent-viz"
+      ],
+      "needs_clarification": false,
+      "source": "docs/update_info/26.8.7/prompt/01_提示词框架现状与DomainPack设计.md",
+      "arm_a": {
+        "predicted": [
+          "agent-code"
+        ],
+        "needs_clarification": true,
+        "latency_ms": 457.111352996435,
+        "detail": {
+          "path": "overdrive",
+          "flow_id": null,
+          "confidence": "ambiguous",
+          "fallback": true
+        }
+      },
+      "arm_b_runs": [
+        {
+          "predicted": [
+            "agent-general"
+          ],
+          "needs_clarification": true,
+          "prompt_tokens": 4796,
+          "completion_tokens": 54,
+          "latency_ms": 0.26733899721875787,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.4
+          }
+        },
+        {
+          "predicted": [
+            "agent-general"
+          ],
+          "needs_clarification": true,
+          "prompt_tokens": 4796,
+          "completion_tokens": 54,
+          "latency_ms": 0.2472309861332178,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.4
+          }
+        },
+        {
+          "predicted": [
+            "agent-general"
+          ],
+          "needs_clarification": true,
+          "prompt_tokens": 4796,
+          "completion_tokens": 54,
+          "latency_ms": 0.2500360133126378,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.4
+          }
+        }
+      ]
+    },
+    {
+      "id": "S27",
+      "text": "帮我提交一个 RNA-seq 任务，对比 WT 和 KO 组",
+      "gold_experts": [
+        "agent-rnaseq"
+      ],
+      "needs_clarification": false,
+      "source": "docs/modules/07_milestones.md",
+      "arm_a": {
+        "predicted": [
+          "agent-rnaseq"
+        ],
+        "needs_clarification": false,
+        "latency_ms": 130.59505604906008,
+        "detail": {
+          "path": "bridge_workflow",
+          "flow_id": "rnaseq",
+          "confidence": "high",
+          "fallback": false
+        }
+      },
+      "arm_b_runs": [
+        {
+          "predicted": [
+            "agent-rnaseq",
+            "agent-scrna-integration",
+            "agent-scrna-upstream"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4798,
+          "completion_tokens": 66,
+          "latency_ms": 0.2874659840017557,
+          "detail": {
+            "collaboration_intent": "consult",
+            "confidence": 0.9
+          }
+        },
+        {
+          "predicted": [
+            "agent-rnaseq",
+            "agent-scrna-integration",
+            "agent-scrna-upstream"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4798,
+          "completion_tokens": 66,
+          "latency_ms": 0.2665369538590312,
+          "detail": {
+            "collaboration_intent": "consult",
+            "confidence": 0.9
+          }
+        },
+        {
+          "predicted": [
+            "agent-rnaseq",
+            "agent-scrna-integration",
+            "agent-scrna-upstream"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4798,
+          "completion_tokens": 66,
+          "latency_ms": 0.2637319848872721,
+          "detail": {
+            "collaboration_intent": "consult",
+            "confidence": 0.9
+          }
+        }
+      ]
+    },
+    {
+      "id": "S28",
+      "text": "帮我看看工作区里有哪些数据文件",
+      "gold_experts": [
+        "agent-general"
+      ],
+      "needs_clarification": false,
+      "source": "docs/update_info/26.7.25/工作区文件原生能力.md",
+      "arm_a": {
+        "predicted": [
+          "agent-code"
+        ],
+        "needs_clarification": true,
+        "latency_ms": 456.42599498387426,
+        "detail": {
+          "path": "overdrive",
+          "flow_id": null,
+          "confidence": "ambiguous",
+          "fallback": true
+        }
+      },
+      "arm_b_runs": [
+        {
+          "predicted": [
+            "agent-rnaseq"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4796,
+          "completion_tokens": 51,
+          "latency_ms": 0.29112299671396613,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.9
+          }
+        },
+        {
+          "predicted": [
+            "agent-rnaseq"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4796,
+          "completion_tokens": 51,
+          "latency_ms": 0.2628100337460637,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.9
+          }
+        },
+        {
+          "predicted": [
+            "agent-rnaseq"
+          ],
+          "needs_clarification": false,
+          "prompt_tokens": 4796,
+          "completion_tokens": 51,
+          "latency_ms": 0.2525700256228447,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.9
+          }
+        }
+      ]
+    },
+    {
+      "id": "S29",
+      "text": "帮我分析任务日志中的错误",
+      "gold_experts": [
+        "agent-code"
+      ],
+      "needs_clarification": false,
+      "source": "docs/modules/05_frontend_architecture.md",
+      "arm_a": {
+        "predicted": [
+          "agent-code"
+        ],
+        "needs_clarification": true,
+        "latency_ms": 459.3302879948169,
+        "detail": {
+          "path": "overdrive",
+          "flow_id": null,
+          "confidence": "ambiguous",
+          "fallback": true
+        }
+      },
+      "arm_b_runs": [
+        {
+          "predicted": [
+            "agent-general"
+          ],
+          "needs_clarification": true,
+          "prompt_tokens": 4792,
+          "completion_tokens": 54,
+          "latency_ms": 0.28109404956921935,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.4
+          }
+        },
+        {
+          "predicted": [
+            "agent-general"
+          ],
+          "needs_clarification": true,
+          "prompt_tokens": 4792,
+          "completion_tokens": 54,
+          "latency_ms": 0.25664904387667775,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.4
+          }
+        },
+        {
+          "predicted": [
+            "agent-general"
+          ],
+          "needs_clarification": true,
+          "prompt_tokens": 4792,
+          "completion_tokens": 54,
+          "latency_ms": 0.24811300681903958,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.4
+          }
+        }
+      ]
+    },
+    {
+      "id": "S30",
+      "text": "我有哪些正在跑的任务？",
+      "gold_experts": [
+        "agent-general"
+      ],
+      "needs_clarification": false,
+      "source": "docs/update_info/26.7.22/ai_assistant_single_entry_architecture.md（同见 docs/update_info/26.7.21/mcp_ai_assistant_integration.md）",
+      "arm_a": {
+        "predicted": [
+          "agent-code"
+        ],
+        "needs_clarification": true,
+        "latency_ms": 455.01005597179756,
+        "detail": {
+          "path": "overdrive",
+          "flow_id": null,
+          "confidence": "ambiguous",
+          "fallback": true
+        }
+      },
+      "arm_b_runs": [
+        {
+          "predicted": [
+            "agent-general"
+          ],
+          "needs_clarification": true,
+          "prompt_tokens": 4791,
+          "completion_tokens": 54,
+          "latency_ms": 0.28790702344849706,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.4
+          }
+        },
+        {
+          "predicted": [
+            "agent-general"
+          ],
+          "needs_clarification": true,
+          "prompt_tokens": 4791,
+          "completion_tokens": 54,
+          "latency_ms": 0.25855196872726083,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.4
+          }
+        },
+        {
+          "predicted": [
+            "agent-general"
+          ],
+          "needs_clarification": true,
+          "prompt_tokens": 4791,
+          "completion_tokens": 54,
+          "latency_ms": 0.2609760267660022,
+          "detail": {
+            "collaboration_intent": "chat",
+            "confidence": 0.4
+          }
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "arm_a": {
+      "n": 30,
+      "precision": {
+        "mean": 0.475,
+        "std": 0.5015063515945288
+      },
+      "recall": {
+        "mean": 0.4666666666666667,
+        "std": 0.490132517853561
+      },
+      "f1": {
+        "mean": 0.4577777777777778,
+        "std": 0.48288194009666563
+      },
+      "clarify_accuracy": 0.26666666666666666,
+      "prompt_tokens": {
+        "mean": 0.0,
+        "std": 0.0
+      },
+      "completion_tokens": {
+        "mean": 0.0,
+        "std": 0.0
+      },
+      "latency_ms": {
+        "mean": 390.3954289368509,
+        "std": 154.01563306104993
+      }
+    },
+    "arm_b": {
+      "n": 90,
+      "precision": {
+        "mean": 0.28888888888888886,
+        "std": 0.3720912993892071
+      },
+      "recall": {
+        "mean": 0.45,
+        "std": 0.4917864705177133
+      },
+      "f1": {
+        "mean": 0.33015873015873015,
+        "std": 0.387092702429466
+      },
+      "clarify_accuracy": 0.5,
+      "prompt_tokens": {
+        "mean": 4800.166666666667,
+        "std": 12.173142291882854
+      },
+      "completion_tokens": {
+        "mean": 56.53333333333333,
+        "std": 5.645322215901261
+      },
+      "latency_ms": {
+        "mean": 0.2772098782265352,
+        "std": 0.032384668983546534
+      }
+    }
+  }
+}

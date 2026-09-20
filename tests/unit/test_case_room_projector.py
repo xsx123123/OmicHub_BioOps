@@ -1,5 +1,5 @@
-from omichub.application.services.case_room_projector import CaseRoomProjector
-from omichub.application.services.chat_service import _fanout_ask_request
+from cygnusx.application.services.case_room_projector import CaseRoomProjector
+from cygnusx.application.services.chat_service import _fanout_ask_request
 
 
 def test_fanout_awaiting_input_becomes_ask_request() -> None:

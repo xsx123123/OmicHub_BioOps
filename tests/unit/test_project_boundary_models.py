@@ -1,11 +1,11 @@
 """ORM contracts for project-scoped agent resources."""
 
-from omichub.infrastructure.database.models.agent import AgentTemplateModel
-from omichub.infrastructure.database.models.agent_memory import AgentMemoryModel
-from omichub.infrastructure.database.models.chat import ChatSessionModel
-from omichub.infrastructure.database.models.knowledge_base import KnowledgeBaseModel
-from omichub.infrastructure.database.models.knowledge_document import KbDocumentModel
-from omichub.infrastructure.database.models.mas import MASArtifactModel
+from cygnusx.infrastructure.database.models.agent import AgentTemplateModel
+from cygnusx.infrastructure.database.models.agent_memory import AgentMemoryModel
+from cygnusx.infrastructure.database.models.chat import ChatSessionModel
+from cygnusx.infrastructure.database.models.knowledge_base import KnowledgeBaseModel
+from cygnusx.infrastructure.database.models.knowledge_document import KbDocumentModel
+from cygnusx.infrastructure.database.models.mas import MASArtifactModel
 
 
 def test_requested_models_expose_nullable_project_id() -> None:

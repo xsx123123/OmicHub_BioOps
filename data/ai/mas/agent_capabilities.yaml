@@ -12,7 +12,7 @@
 # executor 能力由 flow_registry.agent_capabilities() 在加载时自动并入，本表只需
 # 补充非 executor 的通用能力（如 quality-gate、artifact-validate、上游下载）。
 #
-# 覆盖原则：data/OmicHub.yaml 中 agents.enabled 的每个“专家”都必须在此登记
+# 覆盖原则：data/CygnusX.yaml 中 agents.enabled 的每个“专家”都必须在此登记
 # （router 是纯分派入口、orchestrator 是编排器本身，二者不作为可分派节点，故不登记）。
 # 新增专家时同步在此追加，否则 MAS 模式下该专家会被编排器视为不存在。
 schema_version: "1.0"
@@ -124,6 +124,14 @@ agents:
     - r
     - bash
     - reproducible-code
+    - artifact-validate
+
+  # --- 代码库只读侦察 ---
+  agent-explorer:
+    - workspace-inspect
+    - codebase-analysis
+    - file-investigation
+    - dependency-map
     - artifact-validate
 
   # --- 可视化交付 ---

@@ -5,10 +5,10 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi import HTTPException
-from omichub_agentteams_bridge.audit import AuditStore
-from omichub_agentteams_bridge.case_store import CaseStore
-from omichub_agentteams_bridge.config import BridgeSettings
-from omichub_agentteams_bridge.models import (
+from cygnusx_agentteams_bridge.audit import AuditStore
+from cygnusx_agentteams_bridge.case_store import CaseStore
+from cygnusx_agentteams_bridge.config import BridgeSettings
+from cygnusx_agentteams_bridge.models import (
     ApprovalRequest,
     ApprovedSubmission,
     CaseCancelRequest,
@@ -25,10 +25,10 @@ from omichub_agentteams_bridge.models import (
     WorkItemRecord,
     WorkItemUpdateRequest,
 )
-from omichub_agentteams_bridge.service import BridgeService
+from cygnusx_agentteams_bridge.service import BridgeService
 
 
-class FakeOmicHubClient:
+class FakeCygnusXClient:
     async def aclose(self) -> None:
         return None
 
@@ -176,7 +176,7 @@ class TreeplotPlanningGateway:
 
 def make_service(tmp_path, gateway: ConcurrentGateway) -> BridgeService:
     settings = BridgeSettings(
-        omichub_service_token="service-token",
+        cygnusx_service_token="service-token",
         approval_signing_secret="test-signing-secret",
         identities=(
             "approval-authority:approval,bioops-manager:manager,data-steward:steward,"
@@ -194,7 +194,7 @@ def make_service(tmp_path, gateway: ConcurrentGateway) -> BridgeService:
     )
     return BridgeService(
         settings,
-        FakeOmicHubClient(),
+        FakeCygnusXClient(),
         AuditStore(settings.audit_log_path),
         CaseStore(settings.case_store_path),
         gateway,
@@ -650,7 +650,7 @@ async def test_cancel_case_reclaims_running_work_and_retains_artifacts(tmp_path)
 
 
 @pytest.mark.asyncio
-async def test_bridge_records_omichub_hard_gate_audit_event(tmp_path) -> None:
+async def test_bridge_records_cygnusx_hard_gate_audit_event(tmp_path) -> None:
     service = make_service(tmp_path, HardGateGateway())
     await create_case(service)
     await service.assign_work_item(
@@ -734,7 +734,7 @@ async def _make_executing_case_service(
     tmp_path, responses, *, quality_gate_required: bool | None = None
 ) -> BridgeService:
     settings = BridgeSettings(
-        omichub_service_token="service-token",
+        cygnusx_service_token="service-token",
         approval_signing_secret="test-signing-secret",
         omic_task_stall_timeout_seconds=30,
         audit_log_path=str(tmp_path / "audit.jsonl"),

@@ -1,4 +1,4 @@
-# OmicHub 分析中心与 AI 助手整合设计（细化版）
+# CygnusX 分析中心与 AI 助手整合设计（细化版）
 
 > **版本**：v1.1（细化可落地版）  
 > **目的**：在 v1.0 架构基础上，补充各核心组件的详细设计、数据模型、接口契约、状态机与实施路线图，使其可直接进入开发排期。  
@@ -12,12 +12,12 @@
 当前项目已经具备让 AI 调用工具箱所需的主干能力：
 
 1. `tools_schema.yaml` 以 JSON Schema 描述 AI 可调用工具；
-2. `omichub-tools` 是一个动态的 builtin MCP，能把这些 Schema 暴露给 Agent；
+2. `cygnusx-tools` 是一个动态的 builtin MCP，能把这些 Schema 暴露给 Agent；
 3. `ToolBridgeService` 负责参数校验、用户文件解析、进程内分发和双通道结果打包；
 4. `ChatService.stream_agent_chat()` 已能执行 MCP tool call，并通过 SSE 把结果回灌模型和前端；
 5. 分析中心已有成熟的 `TaskService.submit()`：它会生成流程输入、创建标准任务、投递 Celery/Snakemake、写监控配置并处理任务计费。
 
-**推荐方案**：在现有 builtin MCP `omichub-tools` 中新增"分析中心工具族"，由一个 `AnalysisFlowToolService` 在用户确认后调用 `TaskService.submit()`；AI 只做流程发现、参数收集、预检和确认前说明，Celery/Snakemake 继续负责实际计算。
+**推荐方案**：在现有 builtin MCP `cygnusx-tools` 中新增"分析中心工具族"，由一个 `AnalysisFlowToolService` 在用户确认后调用 `TaskService.submit()`；AI 只做流程发现、参数收集、预检和确认前说明，Celery/Snakemake 继续负责实际计算。
 
 ---
 
@@ -28,15 +28,15 @@
 | 工具箱 AI 设计 | `tool_configs/tools_update.md` | 工具 Schema、ToolBridge、builtin MCP、双通道结果和异步策略的总体设计 |
 | 工具箱页面规范 | `tool_configs/tools_design.md` | 工具注册、路由、参数表单、数据处理与结果展示规范 |
 | 工具 Schema | `tool_configs/tools_schema.yaml` | 已登记 KEGG、火山图、系统发育树、曼哈顿图等 AI 工具契约 |
-| Schema 加载器 | `src/omichub/tools/schema_loader.py` | YAML 热加载、工具名索引、OpenAI function schema 转换 |
-| 工具执行桥 | `src/omichub/application/services/tool_bridge_service.py` | 参数校验、`upload://` 解析、执行分发、确认占位、`llm_payload` / `ui_payload` |
-| builtin MCP | `src/omichub/infrastructure/mcp/presets.py` | `omichub-tools` 动态注册与 handler 路由 |
-| MCP 客户端 | `src/omichub/infrastructure/mcp/client.py` | builtin / stdio / SSE 三种 MCP transport 的调用与 `user_id` 注入 |
-| Agent 与聊天 | `src/omichub/application/services/agent_service.py`、`chat_service.py` | Agent MCP 装配、模型工具调用闭环、SSE 事件输出 |
+| Schema 加载器 | `src/cygnusx/tools/schema_loader.py` | YAML 热加载、工具名索引、OpenAI function schema 转换 |
+| 工具执行桥 | `src/cygnusx/application/services/tool_bridge_service.py` | 参数校验、`upload://` 解析、执行分发、确认占位、`llm_payload` / `ui_payload` |
+| builtin MCP | `src/cygnusx/infrastructure/mcp/presets.py` | `cygnusx-tools` 动态注册与 handler 路由 |
+| MCP 客户端 | `src/cygnusx/infrastructure/mcp/client.py` | builtin / stdio / SSE 三种 MCP transport 的调用与 `user_id` 注入 |
+| Agent 与聊天 | `src/cygnusx/application/services/agent_service.py`、`chat_service.py` | Agent MCP 装配、模型工具调用闭环、SSE 事件输出 |
 | Flow 定义 | `flows/rna_seq.yaml`、`flows/atac_seq.yaml` | 分析中心流程元数据、参数、样本表和 Snakemake 映射 |
-| Flow 服务 | `src/omichub/application/services/flow_service.py` | Flow 发现、详情、参数、YAML 热加载 |
-| 标准任务提交 | `src/omichub/application/services/task_service.py` | 构建流程文件、创建任务、投递 Celery、监控与计费 |
-| 任务 API | `src/omichub/api/v1/tasks.py` | 当前用户任务提交、查询、日志/进度访问 |
+| Flow 服务 | `src/cygnusx/application/services/flow_service.py` | Flow 发现、详情、参数、YAML 热加载 |
+| 标准任务提交 | `src/cygnusx/application/services/task_service.py` | 构建流程文件、创建任务、投递 Celery、监控与计费 |
+| 任务 API | `src/cygnusx/api/v1/tasks.py` | 当前用户任务提交、查询、日志/进度访问 |
 
 ---
 
@@ -63,7 +63,7 @@
 | 聊天上传解析只读小文本 | `upload://` 会读取文本内容，且限 5MB | 不适用于 FASTQ、BAM、参考目录等大文件 | `ManagedFileResolver` 区分内容引用（`upload://`）与元数据引用（`file://`）；对大文件返回元数据/内部路径而非正文 |
 | Flow JSON schema 不够精确 | `FlowService.get_flow_json_schema()` 参数类型当前为 `any` | LLM 难以得到严谨参数 contract | 编译器从 `Parameter`、`sample_sheet`、`comparisons` 递归生成精确 JSON Schema，含枚举、范围、默认值、条件可见性提示 |
 | 条件参数未被 AI 执行 | Flow 有 `condition` / group / section | 可能提交互相矛盾的参数 | 预检服务必须复用/扩展 Flow 条件校验；对隐藏参数执行"丢弃或拒绝"策略 |
-| 状态查询分散 | 旧 `AIToolExecutor` 有直连 task status | 与 MCP 新主链可能双轨 | 统一为 `omichub_get_analysis_task_status` / `omichub_get_analysis_task_summary` 只读工具；旧入口标记 deprecated |
+| 状态查询分散 | 旧 `AIToolExecutor` 有直连 task status | 与 MCP 新主链可能双轨 | 统一为 `cygnusx_get_analysis_task_status` / `cygnusx_get_analysis_task_summary` 只读工具；旧入口标记 deprecated |
 | 样本表体积问题 | 无 | 大样本集（>50 样本）作为 tool call 参数会超限或使模型出错 | 支持 `sample_sheet_ref` 模式：引用已保存的样本表，AI 只负责验证和比较组定义 |
 
 ---
@@ -75,7 +75,7 @@
 ```mermaid
 flowchart TB
     UI[AI Chat / 分析中心「问问 AI」] --> Chat[ChatService]
-    Chat -->|ToolInvocationContext| MCP[omichub-tools builtin MCP]
+    Chat -->|ToolInvocationContext| MCP[cygnusx-tools builtin MCP]
     MCP --> Bridge[ToolBridgeService]
 
     Bridge --> Static[现有工具: KEGG / plot / phylo]
@@ -99,14 +99,14 @@ flowchart TB
 
 | 组件 | 建议位置 | 职责 | 新增/修改 |
 |---|---|---|---|
-| `FlowToolSchemaCompiler` | `src/omichub/tools/flow_schema_compiler.py` | 从 `FlowConfig` 递归生成 LLM 可用 JSON Schema、枚举、条件提示、默认值；处理 `group`/`section` 嵌套；对大样本表生成 `sample_sheet_ref` 模式 | 新增 |
-| `AnalysisFlowToolService` | `src/omichub/application/services/analysis_flow_tool_service.py` | 流程发现、详情、预检、确认预览、调用 `TaskService.submit()`、查询任务摘要与状态 | 新增 |
-| `FlowSubmissionValidator` | `src/omichub/domain/flow/submission_validator.py` | 验证参数白名单、条件可见性、样本表必填/类型/唯一性、比较组有效性、资源/执行模式策略、互斥参数检查 | 新增 |
-| `ManagedFileResolver` | `src/omichub/application/services/managed_file_resolver.py` | 解析 `upload://`/`file://`/`sample_sheet_ref://` 引用；校验用户归属；对大文件返回元数据（大小、类型、内部路径）而非正文；拒绝绝对路径和 `..` | 新增 |
-| `ToolConfirmationService` | `src/omichub/application/services/tool_confirmation_service.py` | 创建/查询/消费一次性确认记录；校验归属、过期、参数哈希；幂等消费；记录审计日志 | 新增 |
-| `ToolInvocationContext` | `src/omichub/application/schemas/tool_invocation.py` | 仅供 builtin 调用的上下文：user_id、agent_id、session_id、db session、request_id、timestamp；不可序列化 | 新增 |
-| `AnalysisTaskCard` | `src/omichub/application/schemas/analysis_tool.py` | 标准化 UI 任务卡/确认卡 payload，避免前端猜字段 | 新增 |
-| `FlowAIConfig` | `src/omichub/domain/flow/entities.py` | 新增 Pydantic 模型，声明 `ai.enabled`、`tool_slug`、`allowed_parameters`、`requires_confirmation` 等 | 修改 |
+| `FlowToolSchemaCompiler` | `src/cygnusx/tools/flow_schema_compiler.py` | 从 `FlowConfig` 递归生成 LLM 可用 JSON Schema、枚举、条件提示、默认值；处理 `group`/`section` 嵌套；对大样本表生成 `sample_sheet_ref` 模式 | 新增 |
+| `AnalysisFlowToolService` | `src/cygnusx/application/services/analysis_flow_tool_service.py` | 流程发现、详情、预检、确认预览、调用 `TaskService.submit()`、查询任务摘要与状态 | 新增 |
+| `FlowSubmissionValidator` | `src/cygnusx/domain/flow/submission_validator.py` | 验证参数白名单、条件可见性、样本表必填/类型/唯一性、比较组有效性、资源/执行模式策略、互斥参数检查 | 新增 |
+| `ManagedFileResolver` | `src/cygnusx/application/services/managed_file_resolver.py` | 解析 `upload://`/`file://`/`sample_sheet_ref://` 引用；校验用户归属；对大文件返回元数据（大小、类型、内部路径）而非正文；拒绝绝对路径和 `..` | 新增 |
+| `ToolConfirmationService` | `src/cygnusx/application/services/tool_confirmation_service.py` | 创建/查询/消费一次性确认记录；校验归属、过期、参数哈希；幂等消费；记录审计日志 | 新增 |
+| `ToolInvocationContext` | `src/cygnusx/application/schemas/tool_invocation.py` | 仅供 builtin 调用的上下文：user_id、agent_id、session_id、db session、request_id、timestamp；不可序列化 | 新增 |
+| `AnalysisTaskCard` | `src/cygnusx/application/schemas/analysis_tool.py` | 标准化 UI 任务卡/确认卡 payload，避免前端猜字段 | 新增 |
+| `FlowAIConfig` | `src/cygnusx/domain/flow/entities.py` | 新增 Pydantic 模型，声明 `ai.enabled`、`tool_slug`、`allowed_parameters`、`requires_confirmation` 等 | 修改 |
 
 ---
 
@@ -143,7 +143,7 @@ class ToolInvocationContext(BaseModel):
 ChatService.stream_agent_chat()
   └─ 创建 ToolInvocationContext(user_id=..., session_id=..., db=db_session, request_id=...)
   └─ MCPClient.call_tool(tool_name, arguments, context=ToolInvocationContext)
-     └─ transport == "builtin": 直接调用 _omichub_tools_handler(tool_name, arguments, **context.dict(exclude={'db'}), db=context.db)
+     └─ transport == "builtin": 直接调用 _cygnusx_tools_handler(tool_name, arguments, **context.dict(exclude={'db'}), db=context.db)
      └─ transport == "stdio" | "sse": 忽略 context 参数；只传递 arguments
 ```
 
@@ -173,10 +173,10 @@ async def call_tool(
         return await self._call_external_tool(transport, tool_name, arguments)
 ```
 
-### 7.4 `_omichub_tools_handler` 修改点
+### 7.4 `_cygnusx_tools_handler` 修改点
 
 ```python
-async def _omichub_tools_handler(
+async def _cygnusx_tools_handler(
     tool_name: str, 
     arguments: dict,
     *,
@@ -567,11 +567,11 @@ def compile_comparisons_schema(self, flow_config: FlowConfig) -> dict:
 
 ### 10.4 完整工具编译示例
 
-以 `omichub_prepare_rna_seq_submission` 为例：
+以 `cygnusx_prepare_rna_seq_submission` 为例：
 
 ```json
 {
-  "name": "omichub_prepare_rna_seq_submission",
+  "name": "cygnusx_prepare_rna_seq_submission",
   "description": "预检并准备 RNA-seq 差异表达分析任务提交。验证参数、样本表、比较组，返回确认预览。不实际提交任务。",
   "parameters": {
     "type": "object",
@@ -1118,7 +1118,7 @@ execution:
 
 ## 15A. Flow YAML 的 UI Schema 扩展（前端表单渲染，细化）
 
-> 详见 `docs/26.7.27/OmicHub分析中心前端优化方案-YAML驱动表单.md`
+> 详见 `docs/26.7.27/CygnusX分析中心前端优化方案-YAML驱动表单.md`
 
 ### 15A.1 设计目标
 
@@ -1301,8 +1301,8 @@ sample_sheet:
 
 | 里程碑 | 任务 | 验收标准 |
 |---|---|---|
-| 2.1 | 生成 `omichub_prepare_atac_seq_submission` | ATAC-seq 闭环测试通过 |
-| 2.2 | `omichub_get_analysis_task_status` / `omichub_get_analysis_task_summary` 只读工具 | 查询只返回当前用户任务；返回数据不包含原始日志或大文件 |
+| 2.1 | 生成 `cygnusx_prepare_atac_seq_submission` | ATAC-seq 闭环测试通过 |
+| 2.2 | `cygnusx_get_analysis_task_status` / `cygnusx_get_analysis_task_summary` 只读工具 | 查询只返回当前用户任务；返回数据不包含原始日志或大文件 |
 | 2.3 | 分析中心页增加"问问 AI"按钮，传递 Flow/表单上下文到聊天 | 端到端：用户点击按钮后，聊天预加载当前 Flow 和已填参数 |
 | 2.4 | 配额与限流：每用户并发 Flow、每日提交数、每会话确认次数、资源上限 | 压测：超限返回明确错误，不触发实际提交 |
 | 2.5 | 计费预览：prepare 时返回预估费用 | 与现有计费系统一致性校验通过 |
@@ -1323,7 +1323,7 @@ sample_sheet:
 
 ### 17.1 功能验收
 
-- [ ] Agent 绑定 `omichub-tools` 后能发现 `ai.enabled=true` 的 Flow；
+- [ ] Agent 绑定 `cygnusx-tools` 后能发现 `ai.enabled=true` 的 Flow；
 - [ ] AI 能说明 RNA-seq / ATAC-seq 输入要求，并调用对应 prepare tool；
 - [ ] Prepare 能指出缺失文件、错误样本列、无效比较组和互斥参数（返回明确错误码和修正建议）；
 - [ ] 用户点击确认前，数据库不存在新 Task，Celery 不收到 Snakemake 作业；
@@ -1352,7 +1352,7 @@ sample_sheet:
 
 ## 18. 最终推荐（无变化）
 
-1. **统一入口**：继续使用 builtin MCP `omichub-tools`，不要新建与工具箱并行的 AI Flow 服务器。
+1. **统一入口**：继续使用 builtin MCP `cygnusx-tools`，不要新建与工具箱并行的 AI Flow 服务器。
 2. **统一执行**：Flow 的最终提交只能走 `TaskService.submit()`，禁止直接启动 Snakemake 或走通用 ARQ `backend_async`。
 3. **两阶段动作**：AI 先 prepare / validate，用户在前端确认卡批准后再 submit。
 4. **精确 schema**：由 Flow YAML 动态生成每个 Flow 的 prepare tool，避免让模型猜复杂参数；支持 `sample_sheet_ref` 处理大样本集。

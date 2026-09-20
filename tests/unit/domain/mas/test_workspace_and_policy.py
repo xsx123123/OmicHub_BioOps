@@ -3,13 +3,13 @@ from uuid import uuid4
 
 import pytest
 
-from omichub.domain.mas.models import MASDomainError
-from omichub.domain.mas.tool_policy import (
+from cygnusx.domain.mas.models import MASDomainError
+from cygnusx.domain.mas.tool_policy import (
     ExecutionPolicy,
     ToolPreflightRequest,
     preflight_execution,
 )
-from omichub.domain.mas.workspace import WorkspaceLayout
+from cygnusx.domain.mas.workspace import WorkspaceLayout
 
 
 def test_workspace_maps_container_path_without_escape(tmp_path: Path) -> None:
@@ -34,14 +34,14 @@ def test_workspace_maps_container_path_without_escape(tmp_path: Path) -> None:
 def test_preflight_rejects_docker_socket_privileged_and_unsafe_writes() -> None:
     policy = ExecutionPolicy(
         tool_key="rnaflow.run",
-        allowed_images=("omichub/rnaflow:latest",),
+        allowed_images=("cygnusx/rnaflow:latest",),
         allowed_write_roots=("/workspace/results",),
     )
     result = preflight_execution(
         policy,
         ToolPreflightRequest(
             tool_key="rnaflow.run",
-            image="omichub/rnaflow:latest",
+            image="cygnusx/rnaflow:latest",
             write_paths=("/workspace/results/counts.csv", "/workspace/input/overwrite.fastq.gz"),
             privileged=True,
             docker_socket_mounted=True,

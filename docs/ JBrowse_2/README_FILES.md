@@ -1,5 +1,5 @@
 # ============================================================
-# OmicHub JBrowse 2 集成 — 文件清单
+# CygnusX JBrowse 2 集成 — 文件清单
 # ============================================================
 
 ## 📁 生成的文件列表
@@ -7,7 +7,7 @@
 | 文件名 | 说明 | 目标路径 |
 |--------|------|----------|
 | `implementation_guide.md` | 完整实现指南文档 | 项目根目录 |
-| `jbrowse_config.yaml` | 外置 YAML 配置文件模板 | `/data/omichub/config/` |
+| `jbrowse_config.yaml` | 外置 YAML 配置文件模板 | `/data/cygnusx/config/` |
 | `download_jbrowse2.sh` | JBrowse 2 一键下载脚本 | `scripts/` |
 | `jbrowse_config.py` | 配置加载器（Pydantic 模型 + 热重载） | `src/backend/core/` |
 | `jbrowse_service.py` | 业务服务层（配置生成 + 文件扫描 + 索引检查） | `src/backend/services/` |
@@ -26,7 +26,7 @@ chmod +x scripts/download_jbrowse2.sh
 ```
 
 ### 第二步：配置文件
-1. 将 `jbrowse_config.yaml` 复制到 `/data/omichub/config/jbrowse_config.yaml`
+1. 将 `jbrowse_config.yaml` 复制到 `/data/cygnusx/config/jbrowse_config.yaml`
 2. 根据实际数据修改参考基因组路径和预设轨道
 3. 确保参考基因组 FASTA 已索引：`samtools faidx genome.fasta`
 
@@ -71,7 +71,7 @@ chmod +x scripts/download_jbrowse2.sh
 
 ## 📝 注意事项
 
-1. **路径映射**：容器内路径和宿主机路径可能不同，确保 `/data/omichub` 在容器内可访问
+1. **路径映射**：容器内路径和宿主机路径可能不同，确保 `/data/cygnusx` 在容器内可访问
 2. **索引文件**：BAM 需要 `.bai`，VCF.gz 需要 `.tbi`，FASTA 需要 `.fai`，上传后会自动触发索引
 3. **Nginx 配置**：`/tracks/` 路径暴露数据文件，建议加 IP 限制或认证
 4. **Range Request**：`Accept-Ranges bytes` 对大文件浏览至关重要，Nginx 配置中必须保留

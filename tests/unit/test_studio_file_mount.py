@@ -10,7 +10,7 @@ from typing import Any
 
 import pytest
 
-from omichub.application.services.chat_service import ChatService
+from cygnusx.application.services.chat_service import ChatService
 
 
 @pytest.fixture
@@ -85,3 +85,69 @@ async def test_multimodal_bare_file_id_normalized_for_mapping_lookup(no_attachme
     result = await ChatService._build_multimodal_messages(messages, attachments, sandbox_paths)
     content = result[-1]["content"]
     assert "/workspace/input/y.tsv" in content
+
+
+# ===== 历史文件回退措辞按模式分叉（修复 2） =====
+
+
+def _fake_db_with_history_upload() -> Any:
+    """构造只含一条带附件历史用户消息的伪 db。"""
+    from datetime import UTC, datetime
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock, MagicMock
+
+    message = SimpleNamespace(
+        role="user",
+        metadata_json={"attachments": [{"file_id": "abc123", "name": "x.csv"}]},
+        created_at=datetime(2026, 9, 3, tzinfo=UTC),
+        message_id="m1",
+    )
+    result = MagicMock()
+    result.scalars.return_value.all.return_value = [message]
+    db = MagicMock()
+    db.execute = AsyncMock(return_value=result)
+    return db
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_history_file_context_studio_wording_no_chat_sandbox():
+    """Studio 模式未挂载文件的回退措辞不得再提 chat_sandbox_execute（该工具不挂载），
+    应引导 datahub_import 引入沙盒。"""
+    service = ChatService(_fake_db_with_history_upload())
+
+    text = await service._collect_session_file_context(
+        "session-1", user_id=None, studio_sandbox_paths=None, studio_mode=True
+    )
+    assert "upload://abc123" in text
+    assert "chat_sandbox_execute" not in text
+    assert "datahub_import" in text
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_history_file_context_chat_wording_kept():
+    """普通聊天保持原有措辞：chat_sandbox_execute 执行时自动注入。"""
+    service = ChatService(_fake_db_with_history_upload())
+
+    text = await service._collect_session_file_context(
+        "session-1", user_id=None, studio_sandbox_paths=None, studio_mode=False
+    )
+    assert "chat_sandbox_execute" in text
+    assert "datahub_import" not in text
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_history_file_context_studio_mounted_uses_sandbox_path():
+    """Studio 模式已挂载的历史文件仍按沙盒路径描述（不受分叉影响）。"""
+    service = ChatService(_fake_db_with_history_upload())
+
+    text = await service._collect_session_file_context(
+        "session-1",
+        user_id=None,
+        studio_sandbox_paths={"upload://abc123": "/workspace/input/x.csv"},
+        studio_mode=True,
+    )
+    assert "/workspace/input/x.csv" in text
+    assert "workspace_read_file" not in text

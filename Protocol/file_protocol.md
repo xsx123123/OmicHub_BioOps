@@ -1,4 +1,4 @@
-# OmicHub 用户文件与分析项目目录协议
+# CygnusX 用户文件与分析项目目录协议
 
 > **状态**：生效中  
 > **版本**：v1.3（2026-08-19 L4 协作室融合修订）
@@ -12,7 +12,7 @@
    - 后端请求 Schema 必须校验项目名称非空、去除首尾空白，并设置合理长度限制。
    - 不允许以“未命名项目”、任务 UUID 或上传文件 UUID 作为新分析的用户可见目录名称。
 2. **所有新分析运行目录必须由统一路径工厂创建。**
-   - 使用 `omichub.infrastructure.storage.get_path_factory()`。
+   - 使用 `cygnusx.infrastructure.storage.get_path_factory()`。
    - 使用 `StoragePathFactory.create_project_run_dir(user_id, project_name, analysis_name)`。
    - 禁止在 Service、Task、Runner 或 API 中直接拼接 `storage_path / "results"`、`/tasks/<uuid>`、`/raw` 等用户可见路径。
 3. **UUID 不得出现在用户可见的新目录名称中。**
@@ -55,7 +55,7 @@
 users/<user_id>/projects/TnpD_建树项目/runs/phylogenetic-tree-20260803-163000/
 ```
 
-目录名由 `omichub.infrastructure.storage.path_factory` 中的模块级函数 `project_slug()` 规范化：压缩连续空白、非法字符替换为 `_`、保留中文/字母/数字/`._-`、截断 80 字符，空名回退为 `untitled-project`。该规范仅用于路径安全，页面、任务历史和报告仍应保存并展示原始项目名称。
+目录名由 `cygnusx.infrastructure.storage.path_factory` 中的模块级函数 `project_slug()` 规范化：压缩连续空白、非法字符替换为 `_`、保留中文/字母/数字/`._-`、截断 80 字符，空名回退为 `untitled-project`。该规范仅用于路径安全，页面、任务历史和报告仍应保存并展示原始项目名称。
 
 运行目录名中的时间戳为 UTC 秒级（`%Y%m%d-%H%M%S`）；同秒并发提交由工厂以原子创建 + 序号（`-2`…`-9999`）自动避让，模块无需自行处理冲突。
 
@@ -67,8 +67,8 @@ users/<user_id>/projects/TnpD_建树项目/runs/phylogenetic-tree-20260803-16300
 from pathlib import Path
 from uuid import UUID
 
-from omichub.application.services.file_service import ensure_directory_chain
-from omichub.infrastructure.storage import get_path_factory
+from cygnusx.application.services.file_service import ensure_directory_chain
+from cygnusx.infrastructure.storage import get_path_factory
 
 path_factory = get_path_factory()
 run_dir = path_factory.create_project_run_dir(
@@ -134,7 +134,7 @@ Studio/MAS 的会话容器目录属于内部沙箱运行空间，可使用内部
 ## 9. L4 协作室融合架构（v1.3）
 
 L4/AgentTeams Case 不再是游离的房间对象，而是一个绑定用户项目和一次分析运行的
-“协作运行”。Bridge 继续负责 Case 状态机、租约、审计和 Worker 编排；OmicHub
+“协作运行”。Bridge 继续负责 Case 状态机、租约、审计和 Worker 编排；CygnusX
 平台负责项目归属、用户文件目录、运行目录和交付文件登记。Matrix 只是协作消息
 传输层，不拥有用户文件路径。
 
@@ -142,7 +142,7 @@ L4/AgentTeams Case 不再是游离的房间对象，而是一个绑定用户项�
 用户/协作室首条需求
         │ project_id 或 project_name
         ▼
-OmicHub AgentTeams API
+CygnusX AgentTeams API
   ├─ 校验/创建用户 Project
   ├─ create_project_run_dir(user_id, project_name, "agentteams-case")
   ├─ ensure_directory_chain(user_id, projects/<slug>/runs/<run>/...)

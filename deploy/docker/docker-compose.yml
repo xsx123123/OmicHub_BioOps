@@ -1,5 +1,5 @@
 # ============================================
-# OmicHub Docker Compose - 开发环境
+# CygnusX Docker Compose - 开发环境
 # 用法: docker compose -f deploy/docker/docker-compose.yml up -d
 # ============================================
 
@@ -13,11 +13,11 @@ services:
   # ===== 反向代理 =====
   nginx:
     image: nginx:alpine
-    container_name: omichub-nginx
+    container_name: cygnusx-nginx
     restart: unless-stopped
     logging: *default-logging
     ports:
-      - "${OMICHUB_HTTP_BIND_HOST:-0.0.0.0}:${OMICHUB_HTTP_PORT:-8888}:80"
+      - "${CYGNUSX_HTTP_BIND_HOST:-0.0.0.0}:${CYGNUSX_HTTP_PORT:-8888}:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ../../frontend/dist:/usr/share/nginx/html:ro
@@ -25,9 +25,9 @@ services:
       # 挂到独立路径 /var/www/jbrowse2，避免与只读的 dist(/usr/share/nginx/html) 子挂载冲突
       - ../../pipelines/jbrowse2:/var/www/jbrowse2:ro
       # 数据文件：经 /tracks/ 路径供 JBrowse 2 流式读取（只读）
-      - ${OMICHUB_DATA_ROOT:-/data/omichub}:/data/omichub:ro
+      - ${CYGNUSX_DATA_ROOT:-/data/cygnusx}:${STORAGE_PATH:-/data/cygnusx}:ro
       # Nginx 访问/错误日志持久化到宿主机，避免容器重建丢失
-      - ${OMICHUB_DATA_ROOT:-/data/omichub}/logs/nginx:/var/log/nginx
+      - ${CYGNUSX_DATA_ROOT:-/data/cygnusx}/logs/nginx:/var/log/nginx
     depends_on:
       - web
     networks:
@@ -41,9 +41,10 @@ services:
       args:
         SNAKEMAKE_LOGGER_PLUGIN_REF: ${SNAKEMAKE_LOGGER_PLUGIN_REF:-main}
         # 由 Makefile 部署 target 导出（git rev-parse --short HEAD / UTC 构建时间），缺省 unknown。
-        OMICHUB_BUILD_SHA: ${OMICHUB_BUILD_SHA:-unknown}
-        OMICHUB_BUILD_TIME: ${OMICHUB_BUILD_TIME:-unknown}
-    container_name: omichub-web
+        CYGNUSX_BUILD_SHA: ${CYGNUSX_BUILD_SHA:-unknown}
+        CYGNUSX_BUILD_TIME: ${CYGNUSX_BUILD_TIME:-unknown}
+    image: ${CYGNUSX_WEB_IMAGE:-cygnusx-web:v0.0.2dev}
+    container_name: cygnusx-web
     restart: unless-stopped
     logging: *default-logging
     user: "${PUID:-1000}:${PGID:-1000}"   # 以宿主用户运行，避免 root；写入挂载卷文件归宿主所有
@@ -60,9 +61,12 @@ services:
       - AL_API_KEY=${AL_API_KEY}
       - ARK_API_KEY=${ARK_API_KEY}
       - HOME=/tmp                          # uid 1000 无 passwd 条目，显式 HOME 防 expanduser 失败
+      - SANDBOX_POOL_HOST_DIR=${SANDBOX_POOL_HOST_DIR:-${STORAGE_PATH:-/data/cygnusx}/.sandbox-pool}  # 必须与 Docker daemon 共享，禁止使用 Web 私有 /tmp
       - RUN_MIGRATIONS=1                   # 容器启动时由 entrypoint 自动跑 alembic upgrade head
-      - OMICHUB_LOG_DIR=/app/logs          # 挂载到宿主机 /data/omichub/logs/app，保证容器重建后不丢失
-      - SKILLS_DIR=/data/omichub/skills    # SKILL.md 技能库落可写共享卷（/app/data 只读；Settings 无 env_prefix）
+      - CYGNUSX_LOG_DIR=/app/logs          # 挂载到宿主机共享数据目录的 logs/app，保证容器重建后不丢失
+      - SKILLS_DIR=${STORAGE_PATH:-/data/cygnusx}/skills  # SKILL.md 技能库落可写共享卷（/app/data 只读；Settings 无 env_prefix）
+      - PDF_INSPECTOR_ENABLED=${PDF_INSPECTOR_ENABLED:-true}   # 启用 pdf-inspector 主路径解析 PDF；可在 .env 中覆盖
+      - PDF_INSPECTOR_ROLLOUT=${PDF_INSPECTOR_ROLLOUT:-100}    # 灰度比例；生产环境建议在 .env 中先设 10/50
     depends_on:
       db:
         condition: service_healthy
@@ -78,22 +82,22 @@ services:
       - ../../alembic:/app/alembic:ro  # 迁移脚本热同步（容器内可见，免重建镜像）
       - ../../scripts:/app/scripts:ro  # 运维/初始化/同步脚本（热重载）
       - ./entrypoint.sh:/app/entrypoint.sh:ro  # 启动入口：先迁移后启动
-      - ${OMICHUB_DATA_ROOT:-/data/omichub}:/data/omichub  # 任务数据（与独立 worker 栈共享同一宿主目录）
-      - ${OMICHUB_DATA_ROOT:-/data/omichub}/logs/app:/app/logs  # 应用日志持久化到宿主机
+      - ${CYGNUSX_DATA_ROOT:-/data/cygnusx}:${STORAGE_PATH:-/data/cygnusx}  # 任务数据（与独立 worker 栈共享同一宿主目录）
+      - ${CYGNUSX_DATA_ROOT:-/data/cygnusx}/logs/app:/app/logs  # 应用日志持久化到宿主机
       - /var/run/docker.sock:/var/run/docker.sock  # Docker socket（沙盒/终端容器管理）
     networks:
       - app_net
       - data_net
-      - omichub_net        # 跨栈外部网络：与独立 worker 栈（docker-compose.worker.yml）互通
-      - omichub-sandbox-net # 终端沙盒网络：WebSocket 代理经容器 DNS 直连 ttyd（端口 7681）
+      - cygnusx_net        # 跨栈外部网络：与独立 worker 栈（docker-compose.worker.yml）互通
+      - cygnusx-sandbox-net # 终端沙盒网络：WebSocket 代理经容器 DNS 直连 ttyd（端口 7681）
     # 启动入口：先跑 alembic upgrade head（保证 schema 与代码同步），再启动 uvicorn。
     # 历史教训：曾因迁移未进容器 + create_all 不补字段，导致 users.storage_quota 缺列引发 500。
     entrypoint: ["/bin/sh", "/app/entrypoint.sh"]
     # 生产模式启动：多 worker + 关闭热重载（避免 watchdog 扫描 src 的首次加载开销）
-    command: ["uvicorn", "omichub.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+    command: ["uvicorn", "cygnusx.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
     ports:
       # 仅供跨机器 Worker 上报流程监控；单机时默认仅本机可访问。
-      - "${OMICHUB_WEB_BIND_HOST:-127.0.0.1}:${OMICHUB_WEB_PORT:-8000}:8000"
+      - "${CYGNUSX_WEB_BIND_HOST:-127.0.0.1}:${CYGNUSX_WEB_PORT:-8000}:8000"
 
   # ===== OmicStudio 域名白名单出站代理 =====
   # 仅加入独立公网 bridge；Manager 会按会话把它动态接入临时 internal 网络。
@@ -101,7 +105,8 @@ services:
     build:
       context: ../studio
       dockerfile: proxy.Dockerfile
-    container_name: omichub-studio-egress-proxy
+    image: ${CYGNUSX_STUDIO_EGRESS_PROXY_IMAGE:-cygnusx-studio-egress-proxy:v0.0.2dev}
+    container_name: cygnusx-studio-egress-proxy
     restart: unless-stopped
     logging: *default-logging
     user: "10002:10002"
@@ -128,6 +133,27 @@ services:
       timeout: 3s
       retries: 5
 
+  # ===== OnlyOffice Document Server（仅供 Studio 会话按需接入，不发布宿主端口） =====
+  onlyoffice-documentserver:
+    image: ${ONLYOFFICE_DOCUMENTSERVER_IMAGE:-onlyoffice/documentserver:latest}
+    container_name: onlyoffice-documentserver
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      JWT_ENABLED: "false"
+      WOPI_ENABLED: "false"
+    shm_size: 512m
+    volumes:
+      - ${CYGNUSX_ONLYOFFICE_DATA_DIR:-${CYGNUSX_DATA_ROOT:-/data/cygnusx}/onlyoffice-data}:/var/www/onlyoffice/Data
+      - ${CYGNUSX_ONLYOFFICE_LOG_DIR:-${CYGNUSX_DATA_ROOT:-/data/cygnusx}/onlyoffice-logs}:/var/log/onlyoffice
+    networks:
+      - studio_proxy_egress
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1/healthcheck || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+
   # ===== Celery Beat 定时器（留在主栈，单实例） =====
   # 注：计算型 worker 已拆分至独立编排栈 deploy/docker/docker-compose.worker.yml，
   beat:
@@ -137,9 +163,10 @@ services:
       args:
         SNAKEMAKE_LOGGER_PLUGIN_REF: ${SNAKEMAKE_LOGGER_PLUGIN_REF:-main}
         # 由 Makefile 部署 target 导出（git rev-parse --short HEAD / UTC 构建时间），缺省 unknown。
-        OMICHUB_BUILD_SHA: ${OMICHUB_BUILD_SHA:-unknown}
-        OMICHUB_BUILD_TIME: ${OMICHUB_BUILD_TIME:-unknown}
-    container_name: omichub-beat
+        CYGNUSX_BUILD_SHA: ${CYGNUSX_BUILD_SHA:-unknown}
+        CYGNUSX_BUILD_TIME: ${CYGNUSX_BUILD_TIME:-unknown}
+    image: ${CYGNUSX_BEAT_IMAGE:-cygnusx-beat:v0.0.2dev}
+    container_name: cygnusx-beat
     restart: unless-stopped
     logging: *default-logging
     user: "${PUID:-1000}:${PGID:-1000}"   # 以宿主用户运行，避免 root
@@ -154,19 +181,19 @@ services:
       - AL_API_KEY=${AL_API_KEY}
       - ARK_API_KEY=${ARK_API_KEY}
       - HOME=/tmp                          # uid 1000 无 passwd 条目，显式 HOME 防 expanduser 失败
-      - OMICHUB_LOG_DIR=/app/logs
+      - CYGNUSX_LOG_DIR=/app/logs
     depends_on:
       - web                  # worker 已迁独立栈，beat 仅需主栈启动顺序保证
     volumes:
       - ../../src:/app/src:ro  # 开发环境热重载
       - ../../alembic:/app/alembic:ro  # 迁移脚本（与 web 一致，便于排障时 exec alembic）
-      - ${OMICHUB_DATA_ROOT:-/data/omichub}/logs/app:/app/logs  # 应用日志持久化到宿主机
+      - ${CYGNUSX_DATA_ROOT:-/data/cygnusx}/logs/app:/app/logs  # 应用日志持久化到宿主机
     networks:
       - app_net
       - data_net
-      - omichub_net          # beat 须经服务名 cache 连 Redis
+      - cygnusx_net          # beat 须经服务名 cache 连 Redis
     working_dir: /tmp        # celerybeat-schedule 默认写 CWD；/app 不可写，改 /tmp（1777 可写）
-    command: celery -A omichub.infrastructure.celery_app.celery beat --loglevel=info
+    command: celery -A cygnusx.infrastructure.celery_app.celery beat --loglevel=info
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import os; os.kill(1, 0)\" || exit 1"]
       interval: 30s
@@ -182,9 +209,10 @@ services:
       args:
         SNAKEMAKE_LOGGER_PLUGIN_REF: ${SNAKEMAKE_LOGGER_PLUGIN_REF:-main}
         # 由 Makefile 部署 target 导出（git rev-parse --short HEAD / UTC 构建时间），缺省 unknown。
-        OMICHUB_BUILD_SHA: ${OMICHUB_BUILD_SHA:-unknown}
-        OMICHUB_BUILD_TIME: ${OMICHUB_BUILD_TIME:-unknown}
-    container_name: omichub-flower
+        CYGNUSX_BUILD_SHA: ${CYGNUSX_BUILD_SHA:-unknown}
+        CYGNUSX_BUILD_TIME: ${CYGNUSX_BUILD_TIME:-unknown}
+    image: ${CYGNUSX_FLOWER_IMAGE:-cygnusx-flower:v0.0.2dev}
+    container_name: cygnusx-flower
     restart: unless-stopped
     logging: *default-logging
     user: "${PUID:-1000}:${PGID:-1000}"   # 以宿主用户运行，避免 root
@@ -196,14 +224,14 @@ services:
       - REDIS_HOST=cache
       - HOME=/tmp                          # uid 1000 无 passwd 条目，显式 HOME 防 expanduser 失败
     ports:
-      - "${OMICHUB_FLOWER_BIND_HOST:-127.0.0.1}:${OMICHUB_FLOWER_PORT:-5555}:5555"
+      - "${CYGNUSX_FLOWER_BIND_HOST:-127.0.0.1}:${CYGNUSX_FLOWER_PORT:-5555}:5555"
     depends_on:
       - web                  # 监控独立 worker 栈，同网络可连
     networks:
       - app_net
       - data_net
-      - omichub_net          # flower 经网络发现跨栈 worker
-    command: celery -A omichub.infrastructure.celery_app.celery flower --port=5555 --basic_auth=${FLOWER_BASIC_AUTH:-admin:flower}
+      - cygnusx_net          # flower 经网络发现跨栈 worker
+    command: celery -A cygnusx.infrastructure.celery_app.celery flower --port=5555 --basic_auth=${FLOWER_BASIC_AUTH:-admin:flower}
     healthcheck:
       # flower 启用了 basic_auth，健康检查必须带凭据，否则恒 401 → unhealthy
       test: ["CMD", "curl", "-f", "-u", "${FLOWER_BASIC_AUTH:-admin:flower}", "http://localhost:5555/"]
@@ -218,23 +246,23 @@ services:
     # 用回 postgres:14-alpine 会因缺 $libdir/vector 使所有向量列操作报错（26.8.4 教训）。
     # pgvector/pgvector:pg14 与 postgres:14 数据格式兼容；pgvector overlay 文件保留兼容旧用法。
     image: pgvector/pgvector:pg14
-    container_name: omichub-db
+    container_name: cygnusx-db
     restart: unless-stopped
     logging: *default-logging
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-omichub}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-omichub_dev_password}
-      POSTGRES_DB: ${POSTGRES_DB:-omichub}
+      POSTGRES_USER: ${POSTGRES_USER:-cygnusx}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cygnusx_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-cygnusx}
     ports:
-      - "${OMICHUB_POSTGRES_BIND_HOST:-127.0.0.1}:${OMICHUB_POSTGRES_PORT:-5432}:5432"
+      - "${CYGNUSX_POSTGRES_BIND_HOST:-127.0.0.1}:${CYGNUSX_POSTGRES_PORT:-5432}:5432"
     volumes:
-      # bind mount：数据固化到 /data/omichub/omichub_data/_pgdata，便于跨平台迁移（rsync omichub_data 即可带走）
-      - ${OMICHUB_DATA_ROOT:-/data/omichub}/omichub_data/_pgdata:/var/lib/postgresql/data
+      # 用完整目录变量，重命名既有部署可继续挂载历史 PostgreSQL 数据目录。
+      - ${CYGNUSX_POSTGRES_DATA_DIR:-/data/cygnusx/cygnusx_data/_pgdata}:/var/lib/postgresql/data
     networks:
       - data_net
-      - omichub_net        # 跨栈：独立 worker 经服务名 db 连库（与 cache 同款跨栈互通）
+      - cygnusx_net        # 跨栈：独立 worker 经服务名 db 连库（与 cache 同款跨栈互通）
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-omichub}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cygnusx}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -242,18 +270,18 @@ services:
   # ===== Redis =====
   cache:
     image: redis:7-alpine
-    container_name: omichub-cache
+    container_name: cygnusx-cache
     restart: unless-stopped
     logging: *default-logging
     command: redis-server --requirepass ${REDIS_PASSWORD}
     ports:
-      - "${OMICHUB_REDIS_BIND_HOST:-127.0.0.1}:${OMICHUB_REDIS_PORT:-6379}:6379"
+      - "${CYGNUSX_REDIS_BIND_HOST:-127.0.0.1}:${CYGNUSX_REDIS_PORT:-6379}:6379"
     volumes:
-      # bind mount：数据固化到 /data/omichub/omichub_data/_redis，便于跨平台迁移
-      - ${OMICHUB_DATA_ROOT:-/data/omichub}/omichub_data/_redis:/data
+      # 用完整目录变量，重命名既有部署可继续挂载历史 Redis 数据目录。
+      - ${CYGNUSX_REDIS_DATA_DIR:-/data/cygnusx/cygnusx_data/_redis}:/data
     networks:
       - data_net
-      - omichub_net          # 关键：独立 worker 栈经服务名 cache 连 Redis
+      - cygnusx_net          # 关键：独立 worker 栈经服务名 cache 连 Redis
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -261,10 +289,10 @@ services:
       retries: 5
 
   # ===== MinIO 对象存储（AgentTeams agent 间共享产物 / case 级数据区） =====
-  # web 经 data_net 访问；omichub_net 供跨栈（agentteams bridge/worker）经服务名 minio 直连
+  # web 经 data_net 访问；cygnusx_net 供跨栈（agentteams bridge/worker）经服务名 minio 直连
   minio:
     image: minio/minio:latest
-    container_name: omichub-minio
+    container_name: cygnusx-minio
     restart: unless-stopped
     logging: *default-logging
     command: server /data --console-address ":9001"
@@ -272,14 +300,14 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:?missing MINIO_ROOT_USER in .env}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?missing MINIO_ROOT_PASSWORD in .env}
     ports:
-      - "${OMICHUB_MINIO_BIND_HOST:-127.0.0.1}:${OMICHUB_MINIO_PORT:-9000}:9000"
-      - "${OMICHUB_MINIO_BIND_HOST:-127.0.0.1}:${OMICHUB_MINIO_CONSOLE_PORT:-9001}:9001"
+      - "${CYGNUSX_MINIO_BIND_HOST:-127.0.0.1}:${CYGNUSX_MINIO_PORT:-9000}:9000"
+      - "${CYGNUSX_MINIO_BIND_HOST:-127.0.0.1}:${CYGNUSX_MINIO_CONSOLE_PORT:-9001}:9001"
     volumes:
-      # bind mount：数据固化到 /data/omichub/omichub_data/_minio，便于跨平台迁移（与 _redis 同款）
-      - ${OMICHUB_DATA_ROOT:-/data/omichub}/omichub_data/_minio:/data
+      # 用完整目录变量，重命名既有部署可继续挂载历史 MinIO 数据目录。
+      - ${CYGNUSX_MINIO_DATA_DIR:-/data/cygnusx/cygnusx_data/_minio}:/data
     networks:
       - data_net
-      - omichub_net          # 跨栈：agentteams 栈加入 omichub_net 后经 http://minio:9000 访问
+      - cygnusx_net          # 跨栈：agentteams 栈加入 cygnusx_net 后经 http://minio:9000 访问
     healthcheck:
       test: ["CMD-SHELL", "mc alias set local http://127.0.0.1:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD >/dev/null 2>&1 && mc ready local"]
       interval: 10s
@@ -291,16 +319,16 @@ services:
   # Bridge 持久层（cases/{case_id}/events + snapshot，Part 1 MinIO 化改造）。
   minio-init:
     image: minio/mc:latest
-    container_name: omichub-minio-init
+    container_name: cygnusx-minio-init
     logging: *default-logging
     entrypoint: ["/bin/sh", "-c"]
     command:
       - >
-        mc alias set omichub http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}"
-        && mc mb --ignore-existing "omichub/$${MINIO_AGENTTEAMS_BUCKET}"
-        && mc anonymous set none "omichub/$${MINIO_AGENTTEAMS_BUCKET}"
-        && mc mb --ignore-existing "omichub/$${MINIO_AGENTTEAMS_BRIDGE_BUCKET}"
-        && mc anonymous set none "omichub/$${MINIO_AGENTTEAMS_BRIDGE_BUCKET}"
+        mc alias set cygnusx http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}"
+        && mc mb --ignore-existing "cygnusx/$${MINIO_AGENTTEAMS_BUCKET}"
+        && mc anonymous set none "cygnusx/$${MINIO_AGENTTEAMS_BUCKET}"
+        && mc mb --ignore-existing "cygnusx/$${MINIO_AGENTTEAMS_BRIDGE_BUCKET}"
+        && mc anonymous set none "cygnusx/$${MINIO_AGENTTEAMS_BRIDGE_BUCKET}"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
@@ -318,7 +346,7 @@ services:
   # ROCKETMQ_TASK_ROUTES 逐项迁移任务，不要把同一任务路由到两边。
   rocketmq-namesrv:
     image: ${ROCKETMQ_IMAGE:-apache/rocketmq:5.3.2}
-    container_name: omichub-rocketmq-namesrv
+    container_name: cygnusx-rocketmq-namesrv
     profiles: ["rocketmq"]
     restart: unless-stopped
     logging: *default-logging
@@ -326,13 +354,13 @@ services:
       JAVA_OPT_EXT: "-Xms256m -Xmx256m -Xmn128m"
     command: sh mqnamesrv
     ports:
-      - "${OMICHUB_ROCKETMQ_NAMESRV_BIND_HOST:-127.0.0.1}:${OMICHUB_ROCKETMQ_NAMESRV_PORT:-9876}:9876"
+      - "${CYGNUSX_ROCKETMQ_NAMESRV_BIND_HOST:-127.0.0.1}:${CYGNUSX_ROCKETMQ_NAMESRV_PORT:-9876}:9876"
     networks:
-      - omichub_net
+      - cygnusx_net
 
   rocketmq-broker:
     image: ${ROCKETMQ_IMAGE:-apache/rocketmq:5.3.2}
-    container_name: omichub-rocketmq-broker
+    container_name: cygnusx-rocketmq-broker
     profiles: ["rocketmq"]
     restart: unless-stopped
     logging: *default-logging
@@ -343,23 +371,23 @@ services:
     depends_on:
       - rocketmq-namesrv
     ports:
-      - "${OMICHUB_ROCKETMQ_BROKER_BIND_HOST:-127.0.0.1}:${OMICHUB_ROCKETMQ_BROKER_VIP_PORT:-10909}:10909"
-      - "${OMICHUB_ROCKETMQ_BROKER_BIND_HOST:-127.0.0.1}:${OMICHUB_ROCKETMQ_BROKER_PORT:-10911}:10911"
-      - "${OMICHUB_ROCKETMQ_BROKER_BIND_HOST:-127.0.0.1}:${OMICHUB_ROCKETMQ_BROKER_FAST_PORT:-10912}:10912"
+      - "${CYGNUSX_ROCKETMQ_BROKER_BIND_HOST:-127.0.0.1}:${CYGNUSX_ROCKETMQ_BROKER_VIP_PORT:-10909}:10909"
+      - "${CYGNUSX_ROCKETMQ_BROKER_BIND_HOST:-127.0.0.1}:${CYGNUSX_ROCKETMQ_BROKER_PORT:-10911}:10911"
+      - "${CYGNUSX_ROCKETMQ_BROKER_BIND_HOST:-127.0.0.1}:${CYGNUSX_ROCKETMQ_BROKER_FAST_PORT:-10912}:10912"
     volumes:
       - ./rocketmq/broker.conf:/home/rocketmq/rocketmq-5.3.2/conf/broker.conf:ro
     networks:
-      - omichub_net
+      - cygnusx_net
 
   # ===== 可选 embedding 服务：独立 ollama 容器，仅 app_net 内可达 =====
   ollama-embed:
     profiles: ["embed-ollama"]
     image: ollama/ollama:latest
-    container_name: omichub-embed
+    container_name: cygnusx-embed
     restart: unless-stopped
     logging: *default-logging
     volumes:
-      - omichub_embed:/root/.ollama
+      - cygnusx_embed:/root/.ollama
     networks:
       - app_net
     healthcheck:
@@ -369,7 +397,7 @@ services:
       retries: 5
 
 volumes:
-  omichub_embed:
+  cygnusx_embed:
     external: true
 
 networks:
@@ -377,14 +405,14 @@ networks:
     driver: bridge
   data_net:
     driver: bridge
-  omichub_net:               # 跨栈外部网络：供独立计算栈 docker-compose.worker.yml 加入
-    name: ${OMICHUB_NETWORK_NAME:-omichub_net}
-    external: true           # 需先 `docker network create omichub_net` 创建
-  omichub-sandbox-net:       # 终端沙盒网络：由 Makefile docker-network 创建
-    name: ${OMICHUB_SANDBOX_NETWORK_NAME:-omichub-sandbox-net}
+  cygnusx_net:               # 跨栈外部网络：供独立计算栈 docker-compose.worker.yml 加入
+    name: ${CYGNUSX_NETWORK_NAME:-cygnusx_net}
+    external: true           # 需先 `docker network create cygnusx_net` 创建
+  cygnusx-sandbox-net:       # 终端沙盒网络：由 Makefile docker-network 创建
+    name: ${CYGNUSX_SANDBOX_NETWORK_NAME:-cygnusx-sandbox-net}
     external: true
   studio_proxy_egress:       # 仅代理容器加入；不连接 Web/DB/Redis 等平台网络
     driver: bridge
 
-# 注：pg_data / redis_data 已改为 bind mount（/data/omichub/omichub_data/_pgdata、_redis），
-#     不再需要命名卷声明。旧卷 docker_pg_data / docker_redis_data 可在验证无误后删除。
+# 注：pg_data / redis_data 已改为 bind mount；新部署默认使用 /data/cygnusx/cygnusx_data。
+#     重命名既有部署可通过 .env 的 CYGNUSX_*_DATA_DIR 继续使用旧目录。

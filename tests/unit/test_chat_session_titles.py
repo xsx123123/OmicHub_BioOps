@@ -1,4 +1,4 @@
-from omichub.application.services.chat_service import ChatService
+from cygnusx.application.services.chat_service import ChatService
 
 
 def test_clean_session_title_removes_wrappers_and_limits_length():

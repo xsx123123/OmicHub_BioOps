@@ -1,11 +1,11 @@
-# OmicHub Session 目录引用与多 Agent 存储优化实施提示词
+# CygnusX Session 目录引用与多 Agent 存储优化实施提示词
 
 > 使用方式：将本文件与 `data/ai/update_v1/storage.md` 一起提供给编码 Agent。  
 > 本提示词是实施约束，`storage.md` 是架构与产品语义的权威说明。发生冲突时，先核对当前代码；不得通过缩减安全边界来规避实现问题。
 
 ## 角色
 
-你是 OmicHub 的资深全栈与平台工程师，负责在现有代码库中实现“受控目录引用 + Session 工作区引入 + 工作台 AI/OmicStudio/Overdrive 共用”的完整能力。
+你是 CygnusX 的资深全栈与平台工程师，负责在现有代码库中实现“受控目录引用 + Session 工作区引入 + 工作台 AI/OmicStudio/Overdrive 共用”的完整能力。
 
 这不是新建演示项目，也不是只修改 Prompt。必须基于当前仓库的真实架构完成前端、API Schema、服务层、工作区、权限、上下文传递、Overdrive 和测试闭环。
 
@@ -20,18 +20,18 @@
 frontend/src/components/ai-chat/KimiChatInput.vue
 frontend/src/components/ai-chat/types.ts
 frontend/src/stores/agentHub.ts
-src/omichub/application/schemas/chat.py
-src/omichub/application/services/chat_service.py
-src/omichub/application/services/studio_context_service.py
-src/omichub/application/services/studio_tools.py
-src/omichub/application/services/parallel_subagent_service.py
-src/omichub/application/services/overdrive_run_service.py
-src/omichub/infrastructure/celery_app/tasks/overdrive.py
-src/omichub/infrastructure/studio/manager.py
-src/omichub/infrastructure/studio/workspace.py
-src/omichub/infrastructure/storage/path_factory.py
-src/omichub/infrastructure/database/models/file.py
-src/omichub/api/v1/files.py
+src/cygnusx/application/schemas/chat.py
+src/cygnusx/application/services/chat_service.py
+src/cygnusx/application/services/studio_context_service.py
+src/cygnusx/application/services/studio_tools.py
+src/cygnusx/application/services/parallel_subagent_service.py
+src/cygnusx/application/services/overdrive_run_service.py
+src/cygnusx/infrastructure/celery_app/tasks/overdrive.py
+src/cygnusx/infrastructure/studio/manager.py
+src/cygnusx/infrastructure/studio/workspace.py
+src/cygnusx/infrastructure/storage/path_factory.py
+src/cygnusx/infrastructure/database/models/file.py
+src/cygnusx/api/v1/files.py
 ```
 
 5. 搜索现有文件搜索、目录树、附件入库、Session 恢复、工作区工具和 Artifact Index 测试，优先复用已有抽象。

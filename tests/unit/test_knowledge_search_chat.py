@@ -7,13 +7,13 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from omichub.application.services.chat_service import (
+from cygnusx.application.services.chat_service import (
     KNOWLEDGE_SEARCH_SYSTEM_PROMPT_SUFFIX,
     KNOWLEDGE_SEARCH_TOOL,
     ChatService,
 )
-from omichub.application.services.studio_tools import _knowledge_search
-from omichub.application.services.vector_retrieval_service import KnowledgeCitation, VectorRetrievalService
+from cygnusx.application.services.studio_tools import _knowledge_search
+from cygnusx.application.services.vector_retrieval_service import KnowledgeCitation, VectorRetrievalService
 
 
 @pytest.mark.unit
@@ -80,7 +80,7 @@ async def test_knowledge_search_chat_delegates_to_studio_impl(monkeypatch):
         return {"success": True, "result": {"results": []}}
 
     monkeypatch.setattr(
-        "omichub.application.services.studio_tools._knowledge_search", fake_search
+        "cygnusx.application.services.studio_tools._knowledge_search", fake_search
     )
     service = ChatService(db=AsyncMock())
     result = await service._knowledge_search_chat({"query": "双细胞", "limit": 3})
@@ -101,7 +101,7 @@ async def test_knowledge_search_chat_failure_returns_error_envelope(monkeypatch)
         raise RuntimeError("db down")
 
     monkeypatch.setattr(
-        "omichub.application.services.studio_tools._knowledge_search", boom
+        "cygnusx.application.services.studio_tools._knowledge_search", boom
     )
     service = ChatService(db=AsyncMock())
     result = await service._knowledge_search_chat({"query": "x"})

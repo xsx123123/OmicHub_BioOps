@@ -77,6 +77,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '任务管理', requiresAuth: true }
       },
       {
+        path: 'schedules',
+        name: 'schedules',
+        component: () => import('@/views/SchedulesView.vue'),
+        meta: { title: '日程与提醒', requiresAuth: true }
+      },
+      {
         path: 'workflow-monitor',
         name: 'workflow-monitor',
         component: () => import('@/views/WorkflowMonitorView.vue'),
@@ -95,6 +101,18 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '结果报告中心', requiresAuth: true }
       },
       {
+        path: 'projects',
+        name: 'projects',
+        component: () => import('@/views/ProjectsView.vue'),
+        meta: { title: '项目管理', requiresAuth: true }
+      },
+      {
+        path: 'projects/:projectId',
+        name: 'project-detail',
+        component: () => import('@/views/ProjectDetailView.vue'),
+        meta: { title: '项目详情', requiresAuth: true }
+      },
+      {
         path: 'files',
         name: 'files',
         component: () => import('@/views/FilesView.vue'),
@@ -107,7 +125,7 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '数据下载', requiresAuth: true }
       },
       {
-        path: 'ai',
+        path: 'ai/:sessionId?',
         name: 'ai',
         component: () => import('@/views/AIChatView.vue'),
         meta: { title: 'AI 助手', requiresAuth: true, fullscreen: true }
@@ -367,6 +385,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '会话日志排查', requiresAuth: true }
       },
       {
+        path: 'admin/database-health',
+        name: 'admin-database-health',
+        component: () => import('@/views/AdminDatabaseHealthView.vue'),
+        meta: { title: '数据库健康', requiresAuth: true }
+      },
+      {
         path: 'admin/ai-metrics',
         name: 'admin-ai-metrics',
         component: () => import('@/views/AdminAiMetricsView.vue'),
@@ -430,6 +454,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/AdminBlastDatabasesView.vue'),
         meta: { title: 'BLAST 数据库管理', requiresAuth: true }
       },
+      {
+        path: 'admin/workspace-archive',
+        name: 'admin-workspace-archive',
+        component: () => import('@/views/AdminWorkspaceArchiveView.vue'),
+        meta: { title: '工作区归档管理', requiresAuth: true }
+      },
     ],
   },
   {
@@ -490,9 +520,9 @@ router.beforeEach(async (to, from, next) => {
     }
     // 设置页面标题
     if (to.meta.title) {
-      document.title = `${to.meta.title} - OmicHub`
+      document.title = `${to.meta.title} - CygnusX`
     } else {
-      document.title = 'OmicHub'
+      document.title = 'CygnusX'
     }
     next()
   }

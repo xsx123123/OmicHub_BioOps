@@ -4,7 +4,7 @@ from uuid import uuid4
 
 import pytest
 
-from omichub.application.services.mas_task_projection import MASTaskProjection
+from cygnusx.application.services.mas_task_projection import MASTaskProjection
 
 
 class _ProjectionRepository:

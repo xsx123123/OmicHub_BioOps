@@ -8,7 +8,7 @@ from uuid import uuid4
 
 import pytest
 
-from omichub.infrastructure.celery_app.tasks.goals import _recover_expired_goal_leases
+from cygnusx.infrastructure.celery_app.tasks.goals import _recover_expired_goal_leases
 
 
 @pytest.mark.asyncio
@@ -22,7 +22,7 @@ async def test_recovery_requeues_each_expired_goal(monkeypatch: pytest.MonkeyPat
     engine.recover_expired_leases = recover_expired_leases
     enqueue = Mock()
     monkeypatch.setattr(
-        "omichub.infrastructure.celery_app.tasks.goals.get_settings",
+        "cygnusx.infrastructure.celery_app.tasks.goals.get_settings",
         lambda: SimpleNamespace(goal_runtime_enabled=True),
     )
 

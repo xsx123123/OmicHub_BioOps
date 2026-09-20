@@ -2,13 +2,20 @@
 
 from fastmcp import FastMCP
 
-from client.api_client import OmicHubAPIClient, OmicHubAPIError
+from client.api_client import CygnusXAPIClient, CygnusXAPIError
 
 
-def register(mcp: FastMCP, api: OmicHubAPIClient) -> None:
+def register(mcp: FastMCP, api: CygnusXAPIClient) -> None:
 
     @mcp.tool()
-    async def omichub_submit_analysis(
+    async def cygnusx_submit_analysis(
+        flow_id: str,
+        name: str = "",
+        parameters: dict | None = None,
+        sample_sheet: list[dict] | None = None,
+        comparisons: list[dict] | None = None,
+        user_confirmed: bool = False,
+    ) -> dict:async def cygnusx_submit_analysis(
         flow_id: str,
         name: str = "",
         parameters: dict | None = None,
@@ -16,16 +23,20 @@ def register(mcp: FastMCP, api: OmicHubAPIClient) -> None:
         comparisons: list[dict] | None = None,
         user_confirmed: bool = False,
     ) -> dict:
-        """提交分析任务到平台。需要 user_confirmed=True 确认执行。
+"""提交分析任务到平台。需要 user_confirmed=True 确认执行。
 
-        Args:
-            flow_id: 流程 ID (如 rna_seq, atac_seq)
-            name: 任务名称
-            parameters: 流程参数字典
-            sample_sheet: 样本表 (list of dicts, 每个 dict 对应一个样本)
-            comparisons: 比较组 (如 [{"name": "vs", "control": "ctrl", "treatment": "treat"}])
-            user_confirmed: 设为 True 确认提交
-        """
+:param flow_id: Flow ID
+:param name: Task name
+:param parameters: Params
+:param sample_sheet: Sample sheet
+:param comparisons: Comparisons
+:param user_confirmed: Confirmed
+:return: JSON format result
+
+示例:
+    await cygnusx_submit_analysis("flow", "task", {}, [], [], True)
+    # Submit analysis
+"""
         if not user_confirmed:
             return {
                 "success": True,
@@ -65,24 +76,38 @@ def register(mcp: FastMCP, api: OmicHubAPIClient) -> None:
                     f"分析任务已提交!\n"
                     f"  任务 ID: {task_id}\n"
                     f"  状态: {result.get('status', 'queued')}\n"
-                    f"使用 omichub_get_task_progress 监控进度。"
+                    f"使用 cygnusx_get_task_progress 监控进度。"
                 ),
                 "data": result,
                 "next_steps": [
-                    f"调用 omichub_get_task_progress(task_id='{task_id}') 监控进度",
-                    "任务完成后调用 omichub_get_task_outputs 查看结果",
+                    f"调用 cygnusx_get_task_progress(task_id='{task_id}') 监控进度",
+                    "任务完成后调用 cygnusx_get_task_outputs 查看结果",
                 ],
             }
-        except OmicHubAPIError as e:
+        except CygnusXAPIError as e:
             return {"success": False, "summary": f"提交失败: {e.detail}"}
 
     @mcp.tool()
-    async def omichub_preview_analysis(
+    async def cygnusx_preview_analysis(
+        flow_id: str,
+        parameters: dict | None = None,
+        sample_sheet: list[dict] | None = None,
+    ) -> dict:async def cygnusx_preview_analysis(
         flow_id: str,
         parameters: dict | None = None,
         sample_sheet: list[dict] | None = None,
     ) -> dict:
-        """预览/验证分析参数（dry-run）：检查参数是否合法，不实际提交。"""
+"""预览/验证分析参数（dry-run）：检查参数是否合法，不实际提交。"""
+
+:param flow_id: Flow ID
+:param parameters: Params
+:param sample_sheet: Sample sheet
+:return: JSON format result
+
+示例:
+    await cygnusx_preview_analysis("flow", {}, [])
+    # Validate params
+"""
         try:
             flow = await api.get_flow(flow_id)
             flow_params = flow.get("parameters", [])
@@ -111,5 +136,5 @@ def register(mcp: FastMCP, api: OmicHubAPIClient) -> None:
                 "summary": f"参数验证通过，可以提交 {flow_id} 分析。",
                 "data": {"flow_id": flow_id, "valid": True},
             }
-        except OmicHubAPIError as e:
+        except CygnusXAPIError as e:
             return {"success": False, "summary": f"验证失败: {e.detail}"}

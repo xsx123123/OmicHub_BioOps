@@ -1,6 +1,6 @@
 # 安全
 
-本章节汇总 OmicHub 的安全加固措施、生产环境检查项与密钥管理要求。
+本章节汇总 CygnusX 的安全加固措施、生产环境检查项与密钥管理要求。
 
 ## 内容导航
 
@@ -21,6 +21,7 @@ JWT_SECRET_KEY=your-random-secret-here
 APP_SECRET_KEY=your-random-secret-here
 REDIS_PASSWORD=your-redis-password-here
 AI_PROVIDER_KEY_ENCRYPTION_KEY=your-fernet-key-here
+FLOWER_BASIC_AUTH=user:password
 OMICHBUB_INIT_ADMIN_PASSWORD=your-strong-password
 ```
 

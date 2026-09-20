@@ -202,7 +202,7 @@ const stats = computed(() => {
     </div>
 
     <!-- 表格卡片 -->
-    <div class="task-table-card omichub-card">
+    <div class="task-table-card cygnusx-card">
       <!-- 空状态 -->
       <div v-if="!loading && tasks.length === 0" class="flex flex-col items-center py-16 px-6">
         <svg class="w-16 h-16 text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">

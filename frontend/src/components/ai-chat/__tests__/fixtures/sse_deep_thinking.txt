@@ -6,7 +6,7 @@ data: {"type": "text", "content": "打了个招呼 \"hi", "is_reasoning": true}
 
 data: {"type": "text", "content": "\"。\n", "is_reasoning": true}
 
-data: {"type": "text", "content": "作为 OmicHub", "is_reasoning": true}
+data: {"type": "text", "content": "作为 CygnusX", "is_reasoning": true}
 
 data: {"type": "text", "content": " 生信平台的", "is_reasoning": true}
 
@@ -92,7 +92,7 @@ data: {"type": "text", "content": "你好！", "model": "qwen3.7-max", "session_
 
 data: {"type": "text", "content": "👋 ", "model": "qwen3.7-max"}
 
-data: {"type": "text", "content": "我是 OmicHub", "model": "qwen3.7-max"}
+data: {"type": "text", "content": "我是 CygnusX", "model": "qwen3.7-max"}
 
 data: {"type": "text", "content": " 生信平台的", "model": "qwen3.7-max"}
 

@@ -3,7 +3,7 @@
 
 完全复刻真实 Studio 会话的网络形态：
 - Docker internal bridge 网络（无直接外网）
-- omichub-studio-egress-proxy 以别名 studio-egress-proxy 接入
+- cygnusx-studio-egress-proxy 以别名 studio-egress-proxy 接入
 - 容器注入 HTTP_PROXY/HTTPS_PROXY=http://studio-egress-proxy:3128
   （与 infrastructure/studio/manager.py 的 ensure_running 一致）
 
@@ -22,10 +22,10 @@ from datetime import datetime
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
-SKILLS_DIR = Path("/data/omichub/skills")
-CORE_IMAGE = "omichub-analysis:core-2026.07"
-SCRNA_IMAGE = "omichub-analysis:scrna-2026.07"
-PROXY_CONTAINER = "omichub-studio-egress-proxy"
+SKILLS_DIR = Path("/data/cygnusx/skills")
+CORE_IMAGE = "cygnusx-analysis:core-v0.0.2dev"
+SCRNA_IMAGE = "cygnusx-analysis:scrna-v0.0.3dev"
+PROXY_CONTAINER = "cygnusx-studio-egress-proxy"
 PROXY_ALIAS = "studio-egress-proxy"
 
 NET_NAME = f"smoke-egress-{datetime.now().strftime('%H%M%S')}"
@@ -75,7 +75,7 @@ def record(probe: str, container: str, expect: str, rc: int, out: str,
 
 def setup_network_and_containers() -> bool:
     ok, out = run(["docker", "network", "create", "--internal",
-                   "--label", "omichub.studio.egress=smoke", NET_NAME], 60)
+                   "--label", "cygnusx.studio.egress=smoke", NET_NAME], 60)
     if ok != 0:
         print(f"创建 internal 网络失败: {out}")
         return False

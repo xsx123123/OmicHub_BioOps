@@ -1,9 +1,18 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { NModal } from 'naive-ui'
+import { NIcon, NModal } from 'naive-ui'
+import {
+  AddOutline,
+  DownloadOutline,
+  OpenOutline,
+  PrintOutline,
+  RefreshOutline,
+  RemoveOutline,
+} from '@vicons/ionicons5'
 import hljs from 'highlight.js'
 import apiClient from '@/api/client'
 import { studioApi } from '@/api/studio'
+import { printBlobUrl } from '@/utils/blobPrint'
 import type { ToolCall } from './types'
 
 interface ArtifactItem {
@@ -49,16 +58,31 @@ interface SheetPreview {
 }
 
 const previewUrls = ref<Record<string, string>>({})
+/** 每个预览 blob 对应的加载来源('' = studio 会话接口,其余 = 直连下载地址),来源变化时需重拉 */
+const loadedUrlByPath = ref<Record<string, string>>({})
 const unavailablePreviews = ref(new Set<string>())
 const downloadingPaths = ref(new Set<string>())
 const failedDownloadPaths = ref(new Set<string>())
 const previewModalVisible = ref(false)
+// 产物窗口:完整画廊(大图/PDF/文件列表)所在的大弹窗。内联只保留紧凑卡片,
+// 避免长产物列表把 AI 正文顶出可视区,用户第一时间看不到最新回复
+const galleryVisible = ref(false)
 const previewLoading = ref(false)
 const previewError = ref('')
 const previewTitle = ref('')
 const previewCodeHtml = ref('')
 const previewCodeTruncated = ref(false)
 const previewSheets = ref<SheetPreview[]>([])
+
+// 图片/PDF 放大预览弹窗
+const mediaPreviewVisible = ref(false)
+const mediaPreviewKind = ref<'image' | 'pdf'>('image')
+const mediaPreviewPath = ref('')
+const mediaPreviewTitle = ref('')
+const mediaZoom = ref(1)
+const ZOOM_MIN = 0.25
+const ZOOM_MAX = 5
+const ZOOM_STEP = 0.25
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {
   return value && typeof value === 'object' && !Array.isArray(value)
@@ -159,8 +183,22 @@ const otherArtifacts = computed(() =>
   artifactItems.value.filter((artifact) => !previewArtifacts.value.some((preview) => preview.path === artifact.path)),
 )
 
+/** 内联缩略图条最多展示的图片数;其余预览(含 PDF)等产物窗口打开后再加载 */
+const INLINE_THUMB_MAX = 4
+
+// 内联只急切加载前几张可加载的图片;不可加载(无 url 且无会话)的不占缩略图位
+const inlineThumbArtifacts = computed(() =>
+  previewArtifacts.value
+    .filter((artifact) => isImageArtifact(artifact.path) && (artifact.url || props.sessionId))
+    .slice(0, INLINE_THUMB_MAX),
+)
+
 function isImageArtifact(path: string): boolean {
   return IMAGE_EXTENSIONS.has(path.split('.').pop()?.toLowerCase() || '')
+}
+
+function isPdfArtifact(path: string): boolean {
+  return extensionOf(path) === 'pdf'
 }
 
 function fileName(path: string): string {
@@ -179,6 +217,7 @@ function canPreviewOnDemand(path: string): boolean {
 function clearPreviews() {
   for (const url of Object.values(previewUrls.value)) URL.revokeObjectURL(url)
   previewUrls.value = {}
+  loadedUrlByPath.value = {}
   unavailablePreviews.value = new Set()
 }
 
@@ -251,17 +290,77 @@ async function openPreview(artifact: ArtifactItem) {
   }
 }
 
-async function loadPreviews() {
-  clearPreviews()
-  const targets = previewArtifacts.value.filter((artifact) => artifact.url || props.sessionId)
+const mediaPreviewSrc = computed(() => {
+  const url = previewUrls.value[mediaPreviewPath.value]
+  if (!url) return ''
+  // 隐藏浏览器 PDF 查看器自带的深色工具栏，由弹窗内的语义令牌工具条接管下载/打印
+  return mediaPreviewKind.value === 'pdf' ? `${url}#toolbar=0&navpanes=0` : url
+})
+
+// 卡片内嵌 PDF 预览：同样隐藏浏览器自带工具栏，仅保留首页视图
+function pdfInlineSrc(url: string): string {
+  return `${url}#toolbar=0&navpanes=0&view=FitH&page=1`
+}
+
+function openMediaPreview(artifact: ArtifactItem) {
+  if (!previewUrls.value[artifact.path]) return
+  mediaPreviewKind.value = isImageArtifact(artifact.path) ? 'image' : 'pdf'
+  mediaPreviewPath.value = artifact.path
+  mediaPreviewTitle.value = fileName(artifact.path)
+  mediaZoom.value = 1
+  mediaPreviewVisible.value = true
+}
+
+function zoomBy(delta: number) {
+  mediaZoom.value = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round((mediaZoom.value + delta) * 100) / 100))
+}
+
+function onMediaWheel(event: WheelEvent) {
+  if (mediaPreviewKind.value !== 'image') return
+  event.preventDefault()
+  zoomBy(event.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP)
+}
+
+function printMediaPreview() {
+  const url = previewUrls.value[mediaPreviewPath.value]
+  if (url) printBlobUrl(url)
+}
+
+async function loadPreviewUrls(items: ArtifactItem[]) {
+  const targets = items.filter((artifact) => artifact.url || props.sessionId)
   await Promise.all(targets.map(async (artifact) => {
+    const sourceKey = artifact.url || ''
+    // 同一产物按相同来源加载过则跳过;URL 从空补齐为直连地址时来源变化,需重拉
+    if (previewUrls.value[artifact.path] && loadedUrlByPath.value[artifact.path] === sourceKey) return
     try {
-      previewUrls.value[artifact.path] = await fetchArtifactObjectUrl(artifact)
+      const objectUrl = await fetchArtifactObjectUrl(artifact)
+      const stale = previewUrls.value[artifact.path]
+      if (stale) URL.revokeObjectURL(stale)
+      previewUrls.value[artifact.path] = objectUrl
+      loadedUrlByPath.value[artifact.path] = sourceKey
     } catch {
       unavailablePreviews.value = new Set([...unavailablePreviews.value, artifact.path])
     }
   }))
 }
+
+function openGalleryWindow() {
+  galleryVisible.value = true
+  void loadPreviewUrls(previewArtifacts.value)
+}
+
+// 窗口关闭后释放非缩略图预览占用的 object URL,重新打开时再按需加载
+watch(galleryVisible, (visible) => {
+  if (visible) return
+  const keep = new Set(inlineThumbArtifacts.value.map((artifact) => artifact.path))
+  for (const [path, url] of Object.entries(previewUrls.value)) {
+    if (!keep.has(path)) {
+      URL.revokeObjectURL(url)
+      delete previewUrls.value[path]
+      delete loadedUrlByPath.value[path]
+    }
+  }
+})
 
 async function downloadArtifact(path: string) {
   const artifact = artifactItems.value.find((item) => item.path === path)
@@ -292,7 +391,21 @@ watch(
     props.sessionId,
     previewArtifacts.value.map((artifact) => `${artifact.path}:${artifact.url || ''}`).join('|'),
   ],
-  () => { void loadPreviews() },
+  () => {
+    // 产物被移除时释放对应 object URL
+    const keep = new Set(previewArtifacts.value.map((artifact) => artifact.path))
+    for (const [path, url] of Object.entries(previewUrls.value)) {
+      if (!keep.has(path)) {
+        URL.revokeObjectURL(url)
+        delete previewUrls.value[path]
+        delete loadedUrlByPath.value[path]
+      }
+    }
+    const nextUnavailable = new Set([...unavailablePreviews.value].filter((path) => keep.has(path)))
+    if (nextUnavailable.size !== unavailablePreviews.value.size) unavailablePreviews.value = nextUnavailable
+    // 内联只急切加载缩略图;产物窗口打开期间补全其余预览
+    void loadPreviewUrls(galleryVisible.value ? previewArtifacts.value : inlineThumbArtifacts.value)
+  },
   { immediate: true },
 )
 
@@ -306,70 +419,139 @@ onBeforeUnmount(clearPreviews)
         <span class="message-artifacts__eyebrow">分析产物</span>
         <strong>已生成 {{ artifactItems.length }} 个文件</strong>
       </div>
-      <span class="message-artifacts__hint">预览与下载</span>
+      <button
+        type="button"
+        class="message-artifacts__open-window"
+        @click="openGalleryWindow"
+      >
+        <NIcon :size="14" aria-hidden="true"><OpenOutline /></NIcon>
+        打开产物窗口
+      </button>
     </div>
 
-    <div v-if="previewArtifacts.length" class="message-artifacts__images">
-      <figure v-for="artifact in previewArtifacts" :key="artifact.path" class="message-artifacts__image-card">
-        <div class="message-artifacts__preview">
-          <img
-            v-if="isImageArtifact(artifact.path) && previewUrls[artifact.path]"
-            :src="previewUrls[artifact.path]"
-            :alt="`${fileName(artifact.path)} 预览`"
-          />
-          <iframe
-            v-else-if="previewUrls[artifact.path]"
-            :src="previewUrls[artifact.path]"
-            :title="`${fileName(artifact.path)} PDF 预览`"
-            class="message-artifacts__pdf"
-          />
-          <span v-else class="message-artifacts__fallback" aria-live="polite">
-            {{ unavailablePreviews.has(artifact.path) ? '暂时无法预览，可直接下载文件' : '正在加载预览…' }}
-          </span>
-        </div>
-        <figcaption>
-          <span class="message-artifacts__file-name" :title="artifact.path">{{ fileName(artifact.path) }}</span>
-          <button
-            type="button"
-            class="message-artifacts__download"
-            :disabled="downloadingPaths.has(artifact.path)"
-            @click="downloadArtifact(artifact.path)"
-          >
-            {{ downloadingPaths.has(artifact.path) ? '下载中…' : failedDownloadPaths.has(artifact.path) ? '重试下载' : '下载图片' }}
-          </button>
-          <span v-if="failedDownloadPaths.has(artifact.path)" class="message-artifacts__download-error" role="status">
-            下载失败，请重试
-          </span>
-        </figcaption>
-      </figure>
+    <!-- 内联只留缩略图条:大图/PDF/文件列表收进产物窗口,不再挤占对话正文,
+         用户打开对话即可先看到 AI 的最新回复 -->
+    <div v-if="inlineThumbArtifacts.length" class="message-artifacts__thumbs">
+      <button
+        v-for="artifact in inlineThumbArtifacts"
+        :key="artifact.path"
+        type="button"
+        class="message-artifacts__thumb"
+        :aria-label="`放大查看 ${fileName(artifact.path)}`"
+        @click="openMediaPreview(artifact)"
+      >
+        <img
+          v-if="previewUrls[artifact.path]"
+          :src="previewUrls[artifact.path]"
+          :alt="`${fileName(artifact.path)} 预览`"
+        />
+        <span v-else class="message-artifacts__thumb-loading" aria-live="polite">
+          {{ unavailablePreviews.has(artifact.path) ? '不可预览' : '加载中…' }}
+        </span>
+      </button>
+      <button
+        v-if="previewArtifacts.length > inlineThumbArtifacts.length"
+        type="button"
+        class="message-artifacts__thumb is-more"
+        :aria-label="`还有 ${previewArtifacts.length - inlineThumbArtifacts.length} 个可预览文件`"
+        @click="openGalleryWindow"
+      >
+        +{{ previewArtifacts.length - inlineThumbArtifacts.length }}
+      </button>
     </div>
+    <p class="message-artifacts__hint">大图与文件的完整预览、下载已移至产物窗口</p>
 
-    <ul v-if="otherArtifacts.length" class="message-artifacts__files">
-      <li v-for="artifact in otherArtifacts" :key="artifact.path">
-        <span class="message-artifacts__file-name" :title="artifact.path">{{ fileName(artifact.path) }}</span>
-        <div class="message-artifacts__actions">
-          <button
-            v-if="canPreviewOnDemand(artifact.path) && (artifact.url || sessionId)"
-            type="button"
-            class="message-artifacts__download"
-            @click="openPreview(artifact)"
-          >
-            预览
-          </button>
-          <button
-            type="button"
-            class="message-artifacts__download"
-            :disabled="downloadingPaths.has(artifact.path)"
-            @click="downloadArtifact(artifact.path)"
-          >
-            {{ downloadingPaths.has(artifact.path) ? '下载中…' : failedDownloadPaths.has(artifact.path) ? '重试下载' : '下载' }}
-          </button>
-          <span v-if="failedDownloadPaths.has(artifact.path)" class="message-artifacts__download-error" role="status">
-            下载失败，请重试
-          </span>
+    <NModal
+      v-model:show="galleryVisible"
+      preset="card"
+      :title="`分析产物 · 已生成 ${artifactItems.length} 个文件`"
+      style="width: min(92vw, 1200px)"
+      :bordered="false"
+      segmented
+    >
+      <div class="artifact-gallery-window__body">
+        <div v-if="previewArtifacts.length" class="message-artifacts__images">
+          <figure v-for="artifact in previewArtifacts" :key="artifact.path" class="message-artifacts__image-card">
+            <div class="message-artifacts__preview">
+              <button
+                v-if="isImageArtifact(artifact.path) && previewUrls[artifact.path]"
+                type="button"
+                class="message-artifacts__zoom-trigger"
+                :aria-label="`放大查看 ${fileName(artifact.path)}`"
+                @click="openMediaPreview(artifact)"
+              >
+                <img
+                  :src="previewUrls[artifact.path]"
+                  :alt="`${fileName(artifact.path)} 预览`"
+                />
+                <span class="message-artifacts__zoom-hint" aria-hidden="true">点击放大</span>
+              </button>
+              <!-- PDF：卡片内直接内嵌预览（blob URL 走浏览器原生 PDF 查看器），点击放大仍可用 -->
+              <button
+                v-else-if="isPdfArtifact(artifact.path) && previewUrls[artifact.path]"
+                type="button"
+                class="message-artifacts__pdf-trigger"
+                :aria-label="`放大预览 ${fileName(artifact.path)}`"
+                @click="openMediaPreview(artifact)"
+              >
+                <iframe
+                  class="message-artifacts__pdf-inline"
+                  :src="pdfInlineSrc(previewUrls[artifact.path])"
+                  :title="`${fileName(artifact.path)} PDF 预览`"
+                  tabindex="-1"
+                  aria-hidden="true"
+                />
+                <span class="message-artifacts__zoom-hint" aria-hidden="true">点击放大</span>
+              </button>
+              <span v-else class="message-artifacts__fallback" aria-live="polite">
+                {{ unavailablePreviews.has(artifact.path) ? '暂时无法预览，可直接下载文件' : '正在加载预览…' }}
+              </span>
+            </div>
+            <figcaption>
+              <span class="message-artifacts__file-name" :title="artifact.path">{{ fileName(artifact.path) }}</span>
+              <button
+                type="button"
+                class="message-artifacts__download"
+                :disabled="downloadingPaths.has(artifact.path)"
+                @click="downloadArtifact(artifact.path)"
+              >
+                {{ downloadingPaths.has(artifact.path) ? '下载中…' : failedDownloadPaths.has(artifact.path) ? '重试下载' : isImageArtifact(artifact.path) ? '下载图片' : '下载' }}
+              </button>
+              <span v-if="failedDownloadPaths.has(artifact.path)" class="message-artifacts__download-error" role="status">
+                下载失败，请重试
+              </span>
+            </figcaption>
+          </figure>
         </div>
-      </li>
-    </ul>
+
+        <ul v-if="otherArtifacts.length" class="message-artifacts__files">
+          <li v-for="artifact in otherArtifacts" :key="artifact.path">
+            <span class="message-artifacts__file-name" :title="artifact.path">{{ fileName(artifact.path) }}</span>
+            <div class="message-artifacts__actions">
+              <button
+                v-if="canPreviewOnDemand(artifact.path) && (artifact.url || sessionId)"
+                type="button"
+                class="message-artifacts__download"
+                @click="openPreview(artifact)"
+              >
+                预览
+              </button>
+              <button
+                type="button"
+                class="message-artifacts__download"
+                :disabled="downloadingPaths.has(artifact.path)"
+                @click="downloadArtifact(artifact.path)"
+              >
+                {{ downloadingPaths.has(artifact.path) ? '下载中…' : failedDownloadPaths.has(artifact.path) ? '重试下载' : '下载' }}
+              </button>
+              <span v-if="failedDownloadPaths.has(artifact.path)" class="message-artifacts__download-error" role="status">
+                下载失败，请重试
+              </span>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </NModal>
 
     <NModal
       v-model:show="previewModalVisible"
@@ -403,6 +585,76 @@ onBeforeUnmount(clearPreviews)
         <pre class="artifact-code-preview hljs"><code v-html="previewCodeHtml"></code></pre>
         <p v-if="previewCodeTruncated" class="artifact-preview__hint">内容过长，仅展示前面部分，完整内容请下载查看</p>
       </template>
+    </NModal>
+
+    <NModal
+      v-model:show="mediaPreviewVisible"
+      preset="card"
+      :title="mediaPreviewTitle"
+      style="width: min(92vw, 1200px)"
+      :bordered="false"
+      segmented
+    >
+      <div class="artifact-media__toolbar">
+        <template v-if="mediaPreviewKind === 'image'">
+          <button
+            type="button"
+            class="artifact-media__tool"
+            aria-label="缩小"
+            :disabled="mediaZoom <= ZOOM_MIN"
+            @click="zoomBy(-ZOOM_STEP)"
+          >
+            <NIcon :size="16" aria-hidden="true"><RemoveOutline /></NIcon>
+          </button>
+          <span class="artifact-media__zoom-value" aria-live="polite">{{ Math.round(mediaZoom * 100) }}%</span>
+          <button
+            type="button"
+            class="artifact-media__tool"
+            aria-label="放大"
+            :disabled="mediaZoom >= ZOOM_MAX"
+            @click="zoomBy(ZOOM_STEP)"
+          >
+            <NIcon :size="16" aria-hidden="true"><AddOutline /></NIcon>
+          </button>
+          <button
+            type="button"
+            class="artifact-media__tool"
+            aria-label="重置缩放"
+            @click="mediaZoom = 1"
+          >
+            <NIcon :size="16" aria-hidden="true"><RefreshOutline /></NIcon>
+          </button>
+        </template>
+        <span class="artifact-media__spacer" />
+        <button type="button" class="artifact-media__action" @click="printMediaPreview">
+          <NIcon :size="14" aria-hidden="true"><PrintOutline /></NIcon>
+          打印
+        </button>
+        <button
+          type="button"
+          class="artifact-media__action"
+          :disabled="downloadingPaths.has(mediaPreviewPath)"
+          @click="downloadArtifact(mediaPreviewPath)"
+        >
+          <NIcon :size="14" aria-hidden="true"><DownloadOutline /></NIcon>
+          {{ downloadingPaths.has(mediaPreviewPath) ? '下载中…' : '下载' }}
+        </button>
+      </div>
+      <div class="artifact-media__stage" @wheel="onMediaWheel">
+        <img
+          v-if="mediaPreviewKind === 'image' && mediaPreviewSrc"
+          :src="mediaPreviewSrc"
+          :alt="`${mediaPreviewTitle} 放大预览`"
+          class="artifact-media__image"
+          :style="{ transform: `scale(${mediaZoom})` }"
+        />
+        <iframe
+          v-else-if="mediaPreviewKind === 'pdf' && mediaPreviewSrc"
+          :src="mediaPreviewSrc"
+          :title="`${mediaPreviewTitle} PDF 预览`"
+          class="artifact-media__pdf"
+        />
+      </div>
     </NModal>
   </section>
 </template>
@@ -440,6 +692,99 @@ onBeforeUnmount(clearPreviews)
   font-size: 12px;
 }
 
+.message-artifacts__header .message-artifacts__hint {
+  flex: 0 0 auto;
+}
+
+p.message-artifacts__hint {
+  margin: 0;
+}
+
+.message-artifacts__open-window {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  color: var(--brand-primary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--brand-primary-light);
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.message-artifacts__open-window:hover {
+  background: color-mix(in srgb, var(--brand-primary-light) 72%, var(--brand-primary));
+}
+
+.message-artifacts__open-window:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 2px;
+}
+
+.message-artifacts__thumbs {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm, 8px);
+  margin-bottom: var(--space-sm, 8px);
+  overflow-x: auto;
+}
+
+.message-artifacts__thumb {
+  flex: 0 0 auto;
+  width: 64px;
+  height: 64px;
+  padding: 0;
+  overflow: hidden;
+  background: var(--bg-secondary, var(--bg-card));
+  border: 1px solid var(--stardust-border-soft);
+  border-radius: 8px;
+  cursor: zoom-in;
+}
+
+.message-artifacts__thumb:hover {
+  border-color: var(--brand-primary);
+}
+
+.message-artifacts__thumb:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 2px;
+}
+
+.message-artifacts__thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.message-artifacts__thumb.is-more {
+  display: grid;
+  place-items: center;
+  color: var(--brand-primary);
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--brand-primary-light);
+  cursor: pointer;
+}
+
+.message-artifacts__thumb-loading {
+  padding: 4px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 1.3;
+  text-align: center;
+}
+
+.artifact-gallery-window__body {
+  max-height: 70vh;
+  overflow: auto;
+  padding-right: 2px;
+}
+
 .message-artifacts__header strong {
   color: var(--text-primary);
   font-size: 14px;
@@ -457,7 +802,7 @@ onBeforeUnmount(clearPreviews)
   overflow: hidden;
   border: 1px solid var(--stardust-border-soft);
   border-radius: calc(var(--radius-card, 12px) - 2px);
-  background: var(--bg-secondary);
+  background: var(--bg-secondary, var(--bg-card));
 }
 
 .message-artifacts__preview {
@@ -475,12 +820,172 @@ onBeforeUnmount(clearPreviews)
   object-fit: contain;
 }
 
-.message-artifacts__pdf {
+.message-artifacts__zoom-trigger {
+  position: relative;
   display: block;
   width: 100%;
-  height: 360px;
+  padding: 0;
+  background: transparent;
   border: 0;
-  background: #fff;
+  cursor: zoom-in;
+}
+
+.message-artifacts__zoom-hint {
+  position: absolute;
+  right: var(--space-sm, 8px);
+  bottom: var(--space-sm, 8px);
+  padding: 2px 8px;
+  color: var(--text-primary);
+  font-size: 11px;
+  background: color-mix(in srgb, var(--bg-card) 82%, transparent);
+  border: 1px solid var(--stardust-border-soft);
+  border-radius: 999px;
+  opacity: 0;
+  transition: opacity 140ms ease-out;
+  pointer-events: none;
+}
+
+.message-artifacts__zoom-trigger:hover .message-artifacts__zoom-hint,
+.message-artifacts__zoom-trigger:focus-visible .message-artifacts__zoom-hint,
+.message-artifacts__pdf-trigger:hover .message-artifacts__zoom-hint,
+.message-artifacts__pdf-trigger:focus-visible .message-artifacts__zoom-hint {
+  opacity: 1;
+}
+
+.message-artifacts__pdf-trigger {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-height: 180px;
+  padding: 0;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 13px;
+  background: transparent;
+  border: 0;
+  overflow: hidden;
+  cursor: zoom-in;
+}
+
+/* 卡片内嵌 PDF 预览：绝对定位撑满卡片，pointer-events 关闭让点击穿透到放大按钮 */
+.message-artifacts__pdf-inline {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: var(--bg-secondary, var(--bg-card));
+  pointer-events: none;
+}
+
+.message-artifacts__pdf-trigger:hover {
+  color: var(--brand-primary);
+}
+
+.message-artifacts__zoom-trigger:focus-visible,
+.message-artifacts__pdf-trigger:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: -2px;
+}
+
+.artifact-media__toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm, 8px);
+  margin-bottom: var(--space-md, 12px);
+  padding: 6px var(--space-sm, 8px);
+  background: var(--bg-secondary, var(--bg-card));
+  border: 1px solid var(--stardust-border-soft);
+  border-radius: 8px;
+}
+
+.artifact-media__tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.artifact-media__tool:hover:not(:disabled) {
+  color: var(--text-primary);
+  background: var(--stardust-border-soft);
+}
+
+.artifact-media__tool:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.artifact-media__zoom-value {
+  min-width: 44px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-align: center;
+}
+
+.artifact-media__spacer {
+  flex: 1;
+}
+
+.artifact-media__action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  color: var(--brand-primary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--brand-primary-light);
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.artifact-media__action:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--brand-primary-light) 72%, var(--brand-primary));
+}
+
+.artifact-media__action:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.artifact-media__tool:focus-visible,
+.artifact-media__action:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 2px;
+}
+
+.artifact-media__stage {
+  display: grid;
+  place-items: center;
+  max-height: 72vh;
+  overflow: auto;
+  background: color-mix(in srgb, var(--bg-card) 86%, var(--brand-primary-light));
+  border-radius: 8px;
+}
+
+.artifact-media__image {
+  display: block;
+  max-width: 100%;
+  transform-origin: top center;
+  transition: transform 140ms ease-out;
+}
+
+.artifact-media__pdf {
+  display: block;
+  width: 100%;
+  height: 72vh;
+  border: 0;
+  background: var(--bg-card, #fff);
 }
 
 .message-artifacts__fallback {
@@ -583,6 +1088,51 @@ onBeforeUnmount(clearPreviews)
   background: var(--chat-bg-code, #f5f6f8);
 }
 
+/* 预览弹层经 NModal teleport 到 body，吃不到聊天流内的 hljs 暗色覆盖，
+   这里补齐 github-dark 系 token 颜色，避免亮色主题 token 落在深底上不可读 */
+:root[data-theme="dark"] .artifact-code-preview.hljs {
+  color: #c9d1d9;
+}
+:root[data-theme="dark"] .artifact-code-preview.hljs :deep(.hljs-comment),
+:root[data-theme="dark"] .artifact-code-preview.hljs :deep(.hljs-quote),
+:root[data-theme="dark"] .artifact-code-preview.hljs :deep(.hljs-meta) {
+  color: #8b949e;
+}
+:root[data-theme="dark"] .artifact-code-preview.hljs :deep(.hljs-keyword),
+:root[data-theme="dark"] .artifact-code-preview.hljs :deep(.hljs-selector-tag),
+:root[data-theme="dark"] .artifact-code-preview.hljs :deep(.hljs-deletion) {
+  color: #ff7b72;
+}
+:root[data-theme="dark"] .artifact-code-preview.hljs :deep(.hljs-string),
+:root[data-theme="dark"] .artifact-code-preview.hljs :deep(.hljs-regexp),
+:root[data-theme="dark"] .artifact-code-preview.hljs :deep(.hljs-addition) {
+  color: #a5d6ff;
+}
+:root[data-theme="dark"] .artifact-code-preview.hljs :deep(.hljs-number),
+:root[data-theme="dark"] .artifact-code-preview.hljs :deep(.hljs-literal),
+:root[data-theme="dark"] .artifact-code-preview.hljs :deep(.hljs-attr),
+:root[data-theme="dark"] .artifact-code-preview.hljs :deep(.hljs-attribute),
+:root[data-theme="dark"] .artifact-code-preview.hljs :deep(.hljs-variable),
+:root[data-theme="dark"] .artifact-code-preview.hljs :deep(.hljs-template-variable),
+:root[data-theme="dark"] .artifact-code-preview.hljs :deep(.hljs-type),
+:root[data-theme="dark"] .artifact-code-preview.hljs :deep(.hljs-selector-class),
+:root[data-theme="dark"] .artifact-code-preview.hljs :deep(.hljs-selector-id) {
+  color: #79c0ff;
+}
+:root[data-theme="dark"] .artifact-code-preview.hljs :deep(.hljs-title),
+:root[data-theme="dark"] .artifact-code-preview.hljs :deep(.hljs-section),
+:root[data-theme="dark"] .artifact-code-preview.hljs :deep(.hljs-function) {
+  color: #d2a8ff;
+}
+:root[data-theme="dark"] .artifact-code-preview.hljs :deep(.hljs-built_in) {
+  color: #ffa657;
+}
+:root[data-theme="dark"] .artifact-code-preview.hljs :deep(.hljs-name),
+:root[data-theme="dark"] .artifact-code-preview.hljs :deep(.hljs-selector-attr),
+:root[data-theme="dark"] .artifact-code-preview.hljs :deep(.hljs-selector-pseudo) {
+  color: #7ee787;
+}
+
 .artifact-sheet-preview + .artifact-sheet-preview {
   margin-top: var(--space-lg, 16px);
 }
@@ -616,7 +1166,8 @@ onBeforeUnmount(clearPreviews)
 .artifact-sheet-preview__scroll th {
   position: sticky;
   top: 0;
-  background: var(--bg-secondary);
+  /* --bg-secondary 未在全局令牌中定义，兜底到卡片底色（亮色同为白，暗色为深色卡片面） */
+  background: var(--bg-secondary, var(--bg-card));
 }
 
 .message-artifacts__download:hover {
@@ -637,9 +1188,16 @@ onBeforeUnmount(clearPreviews)
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .message-artifacts__zoom-hint,
+  .artifact-media__image {
+    transition: none;
+  }
+}
+
 @media (prefers-reduced-transparency: reduce) {
   .message-artifacts__preview {
-    background: var(--bg-secondary);
+    background: var(--bg-secondary, var(--bg-card));
   }
 }
 </style>

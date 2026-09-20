@@ -7,14 +7,14 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from omichub.application.services.overdrive_planning_service import (
+from cygnusx.application.services.overdrive_planning_service import (
     OverdrivePlanningService,
     ResearchBundleService,
     build_plan_markdown,
     build_research_queries,
 )
-from omichub.application.services.overdrive_run_service import PLAN_SECTIONS, validate_plan
-from omichub.core.exceptions import ValidationError
+from cygnusx.application.services.overdrive_run_service import PLAN_SECTIONS, validate_plan
+from cygnusx.core.exceptions import ValidationError
 
 
 def _task(task_id: str = "analysis", **overrides: object) -> dict[str, object]:
@@ -667,21 +667,21 @@ async def test_plan_only_prepare_flow_freezes_readonly_dag_without_qc() -> None:
 
 @pytest.mark.asyncio
 async def test_save_research_keeps_failure_details_in_evidence_ledger(monkeypatch, tmp_path) -> None:
-    from omichub.application.services.overdrive_run_service import OverdriveRunService
-    from omichub.infrastructure.config.storage_config import StorageConfig
-    from omichub.infrastructure.storage import LocalStorageBackend, reset_storage_backend
-    from omichub.infrastructure.storage.path_factory import StoragePathFactory
+    from cygnusx.application.services.overdrive_run_service import OverdriveRunService
+    from cygnusx.infrastructure.config.storage_config import StorageConfig
+    from cygnusx.infrastructure.storage import LocalStorageBackend, reset_storage_backend
+    from cygnusx.infrastructure.storage.path_factory import StoragePathFactory
 
     monkeypatch.setattr(
-        "omichub.application.services.overdrive_run_service.overdrive_run_root",
+        "cygnusx.application.services.overdrive_run_service.overdrive_run_root",
         lambda _session_id, _run_id: tmp_path,
     )
     factory = StoragePathFactory(StorageConfig(data_root=str(tmp_path), users_subdir="users"))
     monkeypatch.setattr(
-        "omichub.application.services.overdrive_run_service.get_path_factory", lambda: factory
+        "cygnusx.application.services.overdrive_run_service.get_path_factory", lambda: factory
     )
     monkeypatch.setattr(
-        "omichub.application.services.overdrive_run_service.get_storage_backend",
+        "cygnusx.application.services.overdrive_run_service.get_storage_backend",
         lambda: LocalStorageBackend(path_factory=factory),
     )
     reset_storage_backend()
@@ -710,10 +710,10 @@ async def test_save_research_keeps_failure_details_in_evidence_ledger(monkeypatc
 
 @pytest.mark.asyncio
 async def test_write_plan_draft_makes_plan_ready_path_real(monkeypatch, tmp_path) -> None:
-    from omichub.application.services.overdrive_run_service import OverdriveRunService
+    from cygnusx.application.services.overdrive_run_service import OverdriveRunService
 
     monkeypatch.setattr(
-        "omichub.application.services.overdrive_run_service.overdrive_run_root",
+        "cygnusx.application.services.overdrive_run_service.overdrive_run_root",
         lambda _session_id, _run_id: tmp_path,
     )
     service = OverdriveRunService(AsyncMock())

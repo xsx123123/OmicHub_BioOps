@@ -1,7 +1,7 @@
-# OmicHub 🥫 饼干积分系统 — 前端完整设计文档
+# CygnusX 🥫 饼干积分系统 — 前端完整设计文档
 
 > 技术栈：Vue 3 + TypeScript + Vite + Naive UI + Pinia + ECharts  
-> 版本：v1.0  |  作者：OmicHub Frontend Team
+> 版本：v1.0  |  作者：CygnusX Frontend Team
 
 ---
 
@@ -3623,4 +3623,4 @@ src/
 
 ---
 
-*文档生成完毕 — OmicHub 🥫 Cookie System Frontend v1.0*
+*文档生成完毕 — CygnusX 🥫 Cookie System Frontend v1.0*

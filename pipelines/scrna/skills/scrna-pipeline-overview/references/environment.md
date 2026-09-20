@@ -1,11 +1,11 @@
 # scRNAseqMulticommand 环境依赖清单
 
-主流程为 R 脚本（`Rscript` 执行，当前版本 v4.1.1-alpha）。完整环境定义见仓库 `build_analysis_env/scRNAseqMulticommand_environment.yml`（conda env）与 `build_analysis_env/scRNAseqMulticommand.Dockerfile` / `multiStage.Dockerfile`（容器）。
+主流程为 R 脚本（`Rscript` 执行，当前版本 v4.1.2-alpha）。完整环境定义见仓库 `build_analysis_env/scRNAseqMulticommand_environment.yml`（conda env）与 `build_analysis_env/scRNAseqMulticommand.Dockerfile` / `multiStage.Dockerfile`（容器）。
 
 ## 运行时
 
 - R 4.3.3
-- 推荐运行方式：Docker 镜像 `scrna-seq-multicommand:v4.1.1-alpha`（规避脚本 shebang `#!/opt/conda/envs/scrna/bin/Rscript` 与宿主机环境名不一致的问题）
+- 推荐运行方式：Docker 镜像 `scrna-seq-multicommand:v4.1.2-alpha`（规避脚本 shebang `#!/opt/conda/envs/scrna/bin/Rscript` 与宿主机环境名不一致的问题）
 
 ## 关键 R 包（conda env 中）
 

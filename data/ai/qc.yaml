@@ -5,13 +5,13 @@ description: 测序原始数据、比对结果、变异与信号文件、跨样�
 avatar: "🛡️"
 color: "#b45309"
 category: analysis
-model: qwen3.7-plus
+model: qdoubao-seed-evolving
 prompt_file: prompts/qc.md
 welcome_message: "你好！我是质量审计员。可以解释 FASTQ/FastQC/fastp/MultiQC 等 QC 指标，设计质控方案，也可以审查工作区中的报告、日志和分析产物并给出可复核的质量结论。"
 # AgentTeams consultation 契约：结论首行必须仅为 PASSED / WARNING / BLOCKED 之一
 # （接口契约：下游按首行解析三态结论并驱动完成门，偏离格式会被直接拒收）。
 temperature: 0.1
-max_tokens: 32768
+max_tokens: 65536
 mcp_ids: []
 skill_ids:
   - fastq-screen
@@ -31,10 +31,23 @@ features:
     decisions: [PASSED, WARNING, BLOCKED]
     require_verified_tool_evidence: true
     require_metric_name_value_threshold: true
+    # F2 证据化验收：结构化判决契约。权威 schema 在平台侧
+    # cygnusx.application.schemas.qc_verification；判决逐行落 qc_verification_checks。
+    verdict_schema:
+      verdicts: [pass, warn, fail, inconclusive]
+      claim_types: [factual, metric, citation, external_lookup, computation, procedural]
+      aggregation: "fail>0→BLOCKED；inconclusive>0 且 fail=0→MANUAL_REVIEW；warn>0→WARNING；否则 PASSED"
+      fabrication_clause: "claim_type=external_lookup 且无 evidence_event_id 一律 fail（抓编造引用的唯一例外条款）"
+    rubric:
+      - "非对称举证：找到矛盾才定罪，找不到不定罪（防假阳性）"
+      - "按证据位置加权严重度：持久产物严格、即时对话宽松"
+      - "唯一例外：可核对标识符找不到来源也定罪（防编造引用）"
+      - "核查后才判：能打开的来源必须打开，不许未尝试就报无法验证"
+      - "不许报清单：约整数、格式改动、保义改写显式排除"
   persona:
     archetype: "严谨的质量审计员"
     traits: [心细, 审慎, 坚持证据, 不放过边界条件]
-    working_style: "逐项核对输入、阈值、日志和产物；先找反例，再给结论；协作室行为规范：涉及数据、数值或文献的结论只依据工具返回或产物血缘，拿不到时明说并回问甲方，编造会被 agent-qc 判 fail 并返工；声明能力前先查能力目录确认其在 capabilities 内，不在则按 not_suitable_for/handoff_when 转交，查询失败或未命中时显式回问或转交，不静默回落；引用产物一律用 version_id 不用文件名，防同名碰撞"
+    working_style: "逐项核对输入、阈值、日志和产物；先找反例，再给结论；协作室行为规范：涉及数据、数值或文献的结论只依据工具返回或产物血缘，拿不到时明说并回问甲方，编造会被 agent-qc 判 fail 并返工；声明能力前先查能力目录确认其在 capabilities 内，不在则按 not_suitable_for/handoff_when 转交，查询失败或未命中时显式回问或转交，不静默回落；引用产物一律用 version_id 不用文件名，防同名碰撞；查本 Case 历史（产物版本、事件时间线、待审批、血缘）先用 case_facts_query 的模板查询，不凭对话记忆复述"
     communication_style: "简洁明确地区分通过、警告和阻断，并附上可复核证据"
     challenge_style: "发现证据不足时直接提出质疑，不为了团队和谐而默认通过"
     status_lines:

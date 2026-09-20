@@ -70,9 +70,9 @@
 │                   沙盒集群 (Docker)                                │
 │  ┌──────────────────────┐  ┌──────────────────────────────────┐  │
 │  │   Sandbox Pool       │  │   Image Registry                 │  │
-│  │  ┌────────────────┐  │  │  ├─ omicshub/sandbox-base        │  │
-│  │  │ sandbox-{sid}  │  │  │  ├─ omicshub/sandbox-{user}     │  │
-│  │  │ ┌────────────┐ │  │  │  └─ omicshub/snf-worker         │  │
+│  │  ┌────────────────┐  │  │  ├─ cygnusx/sandbox-base        │  │
+│  │  │ sandbox-{sid}  │  │  │  ├─ cygnusx/sandbox-{user}     │  │
+│  │  │ ┌────────────┐ │  │  │  └─ cygnusx/snf-worker         │  │
 │  │  │ │Jupyter     │ │  │  └──────────────────────────────────┘  │
 │  │  │ │Kernel      │ │  │                                        │
 │  │  │ └────────────┘ │  │  ┌──────────────────────────────────┐  │
@@ -155,8 +155,8 @@ graph TB
     subgraph "沙盒集群 Docker"
         direction TB
         E0["镜像仓库"]
-        E0 --> E1["omicshub/sandbox-base:latest<br/>基础生信镜像"]
-        E0 --> E2["omicshub/sandbox-{user}:latest<br/>用户自定义镜像"]
+        E0 --> E1["cygnusx/sandbox-base:latest<br/>基础生信镜像"]
+        E0 --> E2["cygnusx/sandbox-{user}:latest<br/>用户自定义镜像"]
 
         E3["sandbox-{session_id}<br/>用户会话容器"]
         E4["sandbox-{session_id2}<br/>用户会话容器"]
@@ -836,7 +836,7 @@ class SessionManager:
         
         session = SandboxSession(
             user_id=user_id,
-            container_name=f"omicshub-sandbox-{user_id}-{uuid.uuid4().hex[:8]}",
+            container_name=f"cygnusx-sandbox-{user_id}-{uuid.uuid4().hex[:8]}",
             language=language,
             resource_limits={
                 "cpu": "4.0",
@@ -1112,8 +1112,8 @@ class SandboxPool:
         self,
         docker_client: docker.DockerClient,
         redis: Any,
-        image_registry: str = "omicshub",
-        base_image: str = "omicshub/sandbox-base:latest",
+        image_registry: str = "cygnusx",
+        base_image: str = "cygnusx/sandbox-base:latest",
     ):
         self.docker = docker_client
         self.redis = redis
@@ -1242,8 +1242,8 @@ class SandboxPool:
                 detach=True,
                 mem_limit="512m",
                 cpu_shares=512,
-                network="omicshub-sandbox",
-                labels={"omicshub.pool": "warm", "omicshub.version": "1.0"},
+                network="cygnusx-sandbox",
+                labels={"cygnusx.pool": "warm", "cygnusx.version": "1.0"},
                 healthcheck={
                     "test": ["CMD", "curl", "-f", "http://localhost:8888/api"],
                     "interval": 5000000000,  # 5s
@@ -1286,7 +1286,7 @@ class SandboxPool:
             cpu_count=int(float(session.resource_limits.get("cpu", "4.0"))),
             shm_size=session.resource_limits.get("shm_size", "2g"),
             storage_opt={"size": session.resource_limits.get("disk", "20g")},
-            network="omicshub-sandbox",
+            network="cygnusx-sandbox",
             volumes=volumes,
             security_opt=["no-new-privileges:true"],
             cap_drop=["ALL"],
@@ -1294,9 +1294,9 @@ class SandboxPool:
             read_only=True,  # 根文件系统只读
             tmpfs={"/tmp": "rw,noexec,nosuid,size=2g"},
             labels={
-                "omicshub.session_id": session.id,
-                "omicshub.user_id": session.user_id,
-                "omicshub.version": "1.0",
+                "cygnusx.session_id": session.id,
+                "cygnusx.user_id": session.user_id,
+                "cygnusx.version": "1.0",
             },
         )
         
@@ -1444,7 +1444,7 @@ class KernelClient:
         execute_msg = {
             "header": {
                 "msg_id": msg_id,
-                "username": "omicshub",
+                "username": "cygnusx",
                 "session": session_id,
                 "msg_type": "execute_request",
                 "version": "5.3",
@@ -1981,7 +1981,7 @@ class ResultCollector:
     ) -> str:
         """上传数据到对象存储"""
         # MinIO/S3 上传
-        bucket = "omicshub-executions"
+        bucket = "cygnusx-executions"
         await self.store.put_object(
             bucket_name=bucket,
             object_name=key,
@@ -2616,7 +2616,7 @@ COMMIT;
 # Copilot Service REST API
 openapi: 3.0.3
 info:
-  title: OmicHub Copilot API
+  title: CygnusX Copilot API
   version: 1.0.0
   description: AI Copilot 与沙盒管理接口
 
@@ -3475,7 +3475,7 @@ services:
     sysctls:
       - net.ipv4.ip_forward=0     # 禁止 IP 转发
       - net.ipv4.conf.all.send_redirects=0
-    network_mode: "omicshub-sandbox"  # 隔离网络（桥接，无外网）
+    network_mode: "cygnusx-sandbox"  # 隔离网络（桥接，无外网）
     ulimits:
       nproc: 1024                  # 最大进程数
       nofile:
@@ -3498,7 +3498,7 @@ services:
 
 SANDBOX_NETWORK_POLICY = {
     # 容器网络配置
-    "network_name": "omicshub-sandbox",
+    "network_name": "cygnusx-sandbox",
     "driver": "bridge",
     "internal": True,  # 禁止外部访问
     
@@ -3506,19 +3506,19 @@ SANDBOX_NETWORK_POLICY = {
     "egress_rules": [
         {
             "description": "允许访问内部 API 服务",
-            "destinations": ["omicshub-api", "omicshub-redis", "omicshub-postgres"],
+            "destinations": ["cygnusx-api", "cygnusx-redis", "cygnusx-postgres"],
             "ports": [8000, 6379, 5432],
             "action": "ALLOW",
         },
         {
             "description": "允许访问对象存储",
-            "destinations": ["omicshub-minio"],
+            "destinations": ["cygnusx-minio"],
             "ports": [9000],
             "action": "ALLOW",
         },
         {
             "description": "允许访问内部镜像仓库",
-            "destinations": ["omicshub-registry"],
+            "destinations": ["cygnusx-registry"],
             "ports": [5000],
             "action": "ALLOW",
         },
@@ -3540,7 +3540,7 @@ SANDBOX_NETWORK_POLICY = {
     "ingress_rules": [
         {
             "description": "仅允许 API 服务访问 Kernel Gateway",
-            "sources": ["omicshub-api"],
+            "sources": ["cygnusx-api"],
             "ports": [8888],
             "action": "ALLOW",
         },
@@ -3814,8 +3814,8 @@ class PythonCodeAnalyzer:
 version: "3.8"
 
 networks:
-  omicshub-sandbox:
-    name: omicshub-sandbox
+  cygnusx-sandbox:
+    name: cygnusx-sandbox
     driver: bridge
     internal: true  # 无外网访问
     ipam:
@@ -3836,15 +3836,15 @@ services:
     build:
       context: .
       dockerfile: docker/copilot/Dockerfile
-    container_name: omicshub-copilot
+    container_name: cygnusx-copilot
     restart: unless-stopped
     environment:
-      - DATABASE_URL=postgresql://user:pass@postgres:5432/omicshub
+      - DATABASE_URL=postgresql://user:pass@postgres:5432/cygnusx
       - REDIS_URL=redis://redis:6379/0
       - KIMI_API_KEY=${KIMI_API_KEY}
       - KIMI_API_BASE=${KIMI_API_BASE}
-      - SANDBOX_NETWORK=omicshub-sandbox
-      - SANDBOX_BASE_IMAGE=omicshub/sandbox-base:latest
+      - SANDBOX_NETWORK=cygnusx-sandbox
+      - SANDBOX_BASE_IMAGE=cygnusx/sandbox-base:latest
       - WARM_POOL_SIZE=5
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro  # Docker API 访问
@@ -3854,7 +3854,7 @@ services:
       - redis
     networks:
       - default
-      - omicshub-sandbox
+      - cygnusx-sandbox
     deploy:
       resources:
         limits:
@@ -3868,11 +3868,11 @@ services:
     build:
       context: .
       dockerfile: docker/sandbox/Dockerfile.manager
-    container_name: omicshub-sandbox-manager
+    container_name: cygnusx-sandbox-manager
     restart: unless-stopped
     environment:
       - REDIS_URL=redis://redis:6379/1
-      - DOCKER_NETWORK=omicshub-sandbox
+      - DOCKER_NETWORK=cygnusx-sandbox
       - WARM_POOL_SIZE=5
       - MAX_POOL_SIZE=20
       - IDLE_TIMEOUT=600
@@ -3885,13 +3885,13 @@ services:
       - redis
     networks:
       - default
-      - omicshub-sandbox
+      - cygnusx-sandbox
 
   # ──────────────────────────────
   # Sandbox Base Image（构建目标）
   # ──────────────────────────────
   # 注：这不是运行时服务，而是构建目标
-  # docker build -t omicshub/sandbox-base:latest -f docker/sandbox/Dockerfile.base .
+  # docker build -t cygnusx/sandbox-base:latest -f docker/sandbox/Dockerfile.base .
 
 # 核心服务已经在主 docker-compose.yml 中定义
 # - postgres, redis, nginx, main-api, celery, etc.
@@ -4242,4 +4242,4 @@ class SandboxScheduler:
 ---
 
 > **文档结束**  
-> OmicHub 架构设计文档 — 模块 09：AI Copilot 与交互式代码执行沙盒
+> CygnusX 架构设计文档 — 模块 09：AI Copilot 与交互式代码执行沙盒

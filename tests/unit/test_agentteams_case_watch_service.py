@@ -7,12 +7,12 @@ from types import SimpleNamespace
 import pytest
 from sqlalchemy.dialects import postgresql
 
-import omichub.application.services.agentteams_case_watch_service as watch_module
-from omichub.application.services.agentteams_case_watch_service import (
+import cygnusx.application.services.agentteams_case_watch_service as watch_module
+from cygnusx.application.services.agentteams_case_watch_service import (
     AgentTeamsCaseWatchService,
     _watchable_sessions_query,
 )
-from omichub.infrastructure.database.models.chat import (
+from cygnusx.infrastructure.database.models.chat import (
     AgentTeamsCaseCursorModel,
     ChatMessageModel,
     ChatSessionModel,
@@ -54,7 +54,7 @@ def test_watch_query_filters_sessions_without_case_bindings() -> None:
 
 
 class FakeAgentTeams:
-    async def get_case(self, case_id: str, requester_ref: str):
+    async def refresh_case(self, case_id: str, requester_ref: str):
         assert case_id == "case-1"
         assert requester_ref == "user-1"
         return {"case_id": case_id, "intent": "RNA-seq 全流程交付", "status": "approval_pending"}
@@ -127,7 +127,7 @@ async def test_watch_notifies_closed_flow_case_as_analysis_completion(monkeypatc
     )
 
     class ClosedFlowAgentTeams:
-        async def get_case(self, case_id: str, requester_ref: str):
+        async def refresh_case(self, case_id: str, requester_ref: str):
             assert (case_id, requester_ref) == ("case-1", "user-1")
             return {
                 "case_id": case_id,
@@ -192,7 +192,7 @@ async def test_watch_continues_when_one_case_read_fails() -> None:
     )
 
     class BrokenAgentTeams:
-        async def get_case(self, *_args, **_kwargs):
+        async def refresh_case(self, *_args, **_kwargs):
             raise RuntimeError("bridge unavailable")
 
     result = await service._scan_session(session, BrokenAgentTeams())
@@ -226,7 +226,7 @@ async def test_watch_projects_sync_warning_after_three_consecutive_failures(monk
     )
 
     class BrokenAgentTeams:
-        async def get_case(self, *_args, **_kwargs):
+        async def refresh_case(self, *_args, **_kwargs):
             raise RuntimeError("bridge unavailable")
 
     results = [await service._scan_session(session, BrokenAgentTeams()) for _ in range(4)]
@@ -236,3 +236,125 @@ async def test_watch_projects_sync_warning_after_three_consecutive_failures(monk
     assert len(published) == 1
     assert published[0]["type"] == "room_speech"
     assert "连续 3 次同步失败" in str(published[0]["content"])
+
+
+class _DeliveryGateAgentTeams:
+    """delivery_ready 场景的最小 AgentTeams 替身：可物化交付产物并接收审计事件。"""
+
+    def __init__(self, files: list[str], *, materialize_error: Exception | None = None) -> None:
+        self._files = files
+        self._materialize_error = materialize_error
+        self.materialize_calls = 0
+        self.evidence_events: list[dict] = []
+
+    async def refresh_case(self, case_id: str, requester_ref: str):
+        assert (case_id, requester_ref) == ("case-1", "user-1")
+        return {"case_id": case_id, "intent": "RNA-seq 交付", "status": "delivery_ready"}
+
+    async def get_case_events(self, *_args, **_kwargs):
+        return {"events": [], "next_cursor": None}
+
+    async def materialize_case_delivery(self, case_id: str, requester_ref: str, db):
+        self.materialize_calls += 1
+        if self._materialize_error is not None:
+            raise self._materialize_error
+        return {"output_dir": "", "files": list(self._files), "checksum_verification": []}
+
+    async def post_case_evidence(self, case_id: str, **kwargs):
+        self.evidence_events.append(kwargs)
+        return {"event_id": "evt-gate"}
+
+
+def _watch_session() -> SimpleNamespace:
+    return SimpleNamespace(
+        session_id="session-1",
+        user_id="user-1",
+        sandbox_meta={
+            "agentteams_case_ids": ["case-1"],
+            "agentteams_case_status": {"case-1": "executing"},
+        },
+        updated_at=None,
+        message_count=0,
+        last_message_at=None,
+    )
+
+
+@pytest.mark.asyncio
+async def test_delivery_gate_blocks_and_reroutes_to_quality_blocked(tmp_path, monkeypatch) -> None:
+    """delivery_ready 时交付门判定 BLOCKED → 转既有 quality_blocked 路径并带结构化原因。"""
+    db = FakeDb()
+    service = AgentTeamsCaseWatchService(db)
+    published: list[dict] = []
+
+    async def publish(_session_id: str, event: dict) -> None:
+        published.append(event)
+
+    monkeypatch.setattr(watch_module, "publish_chat_case_event", publish)
+    good = tmp_path / "report.html"
+    good.write_text("<html>ok</html>", encoding="utf-8")
+    empty = tmp_path / "empty.html"
+    empty.write_text("", encoding="utf-8")
+    agentteams = _DeliveryGateAgentTeams([str(good), str(empty)])
+    session = _watch_session()
+
+    first = await service._scan_session(session, agentteams)
+
+    assert first == {"scanned": 1, "notified": 1, "failed": 0}
+    assert published[0]["status"] == "quality_blocked"
+    notification = next(item for item in db.added if isinstance(item, ChatMessageModel))
+    assert "quality_blocked" in notification.content
+    assert "原因：" in notification.content
+    assert notification.metadata_json["status_reason"]
+    # 门判定投影为 quality.light_gate 审计事件（结构化留痕）
+    assert agentteams.evidence_events[0]["event_type"] == "quality.light_gate"
+    assert agentteams.evidence_events[0]["payload"]["decision"] == "BLOCKED"
+
+    # 第二个 tick：Bridge 状态未变，命中缓存——不重复物化、不重复投影、不重复通知
+    second = await service._scan_session(session, agentteams)
+    assert second == {"scanned": 1, "notified": 0, "failed": 0}
+    assert agentteams.materialize_calls == 1
+    assert len(agentteams.evidence_events) == 1
+    cached = session.sandbox_meta["agentteams_case_delivery_gate"]["case-1"]
+    assert cached["gate"]["decision"] == "BLOCKED"
+    assert session.sandbox_meta["agentteams_case_status"]["case-1"] == "quality_blocked"
+
+
+@pytest.mark.asyncio
+async def test_delivery_gate_passes_and_notifies_delivery_ready(tmp_path, monkeypatch) -> None:
+    db = FakeDb()
+    service = AgentTeamsCaseWatchService(db)
+    published: list[dict] = []
+
+    async def publish(_session_id: str, event: dict) -> None:
+        published.append(event)
+
+    monkeypatch.setattr(watch_module, "publish_chat_case_event", publish)
+    good = tmp_path / "report.html"
+    good.write_text("<html>ok</html>", encoding="utf-8")
+    agentteams = _DeliveryGateAgentTeams([str(good)])
+
+    result = await service._scan_session(_watch_session(), agentteams)
+
+    assert result["notified"] == 1
+    assert published[0]["status"] == "delivery_ready"
+    assert agentteams.evidence_events[0]["payload"]["decision"] == "PASSED"
+
+
+@pytest.mark.asyncio
+async def test_delivery_gate_materialize_failure_falls_back(monkeypatch) -> None:
+    """物化失败不阻断 watch 主流程：按既有路径放行 delivery_ready 通知。"""
+    db = FakeDb()
+    service = AgentTeamsCaseWatchService(db)
+    published: list[dict] = []
+
+    async def publish(_session_id: str, event: dict) -> None:
+        published.append(event)
+
+    monkeypatch.setattr(watch_module, "publish_chat_case_event", publish)
+    agentteams = _DeliveryGateAgentTeams([], materialize_error=RuntimeError("bridge down"))
+
+    result = await service._scan_session(_watch_session(), agentteams)
+
+    assert result["notified"] == 1
+    assert published[0]["status"] == "delivery_ready"
+    assert agentteams.evidence_events == []

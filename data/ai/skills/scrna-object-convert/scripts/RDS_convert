@@ -1,0 +1,446 @@
+#!/usr/bin/env Rscript
+rm(list = ls())
+
+# RDS Conversion Tool - Comprehensive format converter for single-cell data
+# Supports conversion between Seurat RDS, AnnData H5AD, Loom, and SCE formats
+
+#---------------------------------------------------#
+# Load required libraries
+suppressMessages(library("yaml"))
+suppressMessages(library("log4r"))
+suppressMessages(library("getopt"))
+suppressMessages(library("stringr"))
+suppressMessages(library("crayon"))
+suppressMessages(library("praise"))
+suppressMessages(library("Seurat"))
+#---------------------------------------------------#
+
+# Setup logging
+logger <- logger()
+file_output <- file_appender(paste0('RDS_convert', '-', format(Sys.time()), '-', Sys.info()[["user"]], ".log"))
+
+my_layout <- function(level, ...) {
+  require(crayon)
+  if (level == 'INFO') {
+    paste0(bold(cyan(format(Sys.time()), " [", level, " ] ➡️ ")), ..., '\n', collapse = "\n")
+  } else if (level == 'WARN') {
+    paste0(bold(yellow(format(Sys.time()), " [", level, " ] ❓ ")), ..., '\n', collapse = "\n")
+  } else if (level == 'ERROR') {
+    paste0(bold(red(format(Sys.time()), " [", level, "] 🧨 ")), ..., '\n', collapse = "\n")
+  } else if (level == 'FATAL') {
+    paste0(bold(bgRed(format(Sys.time()), " [", level, "] 💣 ")), ..., '\n', collapse = "")
+  } else if (level == 'DEBUG') {
+    paste0(bold(blue(format(Sys.time()), " [", level, "] 🔧 ")), ..., '\n', collapse = "\n")
+  }
+}
+
+logger <- logger(threshold = "INFO", appenders = list(console_appender(my_layout), file_output))
+
+# Define command line options
+scRNAseq_multiSampleCommand <- function() {
+  spec <- matrix(
+    c(
+      "input",      "i", 2, "character", "Input file path (RDS, H5AD, LOOM, SCE, etc.)",
+      "output",     "o", 2, "character", "Output file path with desired extension",
+      "format",     "f", 2, "character", "Specify output format if auto-detection fails (rds, h5ad, loom, sce)",
+      "conda-env",  "c", 2, "character", "Conda environment path for python dependencies (default: /usr/local/bin)",
+      "seurat-version", "s", 2, "character", "Seurat object version (4.0, 5.0; default: 5.0)",
+      "help",       "h", 0, "logical", "Show help message",
+      "version",    "v", 0, "logical", "Show script version"
+    ),
+    byrow = TRUE, ncol = 5
+  )
+  
+  # Input run parameter
+  opt <- getopt(spec = spec)
+  
+  # Automatically show help if no parameters are provided
+  if (length(opt) == 0) {
+    cat("\033[1;34mThis is the RDS Format Conversion Tool for single-cell data!\033[0m\n")
+    cat("\033[1;32mUsage: RDS_convert -i input.rds -o output.h5ad\033[0m\n")
+    cat("   -i, --input           | Input file path (supports: .rds, .h5ad, .loom, .rds, .h5, .hdf5)\n")
+    cat("   -o, --output          | Output file path (with appropriate extension)\n")
+    cat("   -f, --format          | \033[1;33m[Option]\033[0m Specify output format (rds, h5ad, loom, sce, mtx) if auto-detection fails\n")
+    cat("   -c, --conda-env       | \033[1;33m[Option]\033[0m Conda environment path (default: auto-detect)\n")
+    cat("   -s, --seurat-version  | \033[1;33m[Option]\033[0m Seurat version (4.0, 5.0; default: 5.0)\n")
+    cat("   -h, --help            | Show help message\n")
+    cat("   -v, --version         | Show script version\n")
+    cat("\n\033[1;33mSupported conversions:\033[0m\n")
+    cat("   • Seurat RDS ↔ AnnData H5AD\n")
+    cat("   • Seurat RDS ↔ Loom\n")
+    cat("   • Seurat RDS ↔ SingleCellExperiment (SCE)\n")
+    cat("   • Seurat RDS → MTX + Barcodes + Features\n")
+    cat("   • AnnData H5AD → Seurat RDS\n")
+    cat("   • Loom → Seurat RDS\n")
+    quit(status = 0)
+  }
+  
+  # Custom help message
+  if (!is.null(opt$help)) {
+    cat("\033[1;34mThis is the RDS Format Conversion Tool for single-cell data!\033[0m\n")
+    cat("\033[1;32mUsage: RDS_convert -i input.rds -o output.h5ad\033[0m\n")
+    cat("   -i, --input           | Input file path (supports: .rds, .h5ad, .loom, .rds, .h5, .hdf5)\n")
+    cat("   -o, --output          | Output file path (with appropriate extension)\n")
+    cat("   -f, --format          | \033[1;33m[Option]\033[0m Specify output format (rds, h5ad, loom, sce, mtx) if auto-detection fails\n")
+    cat("   -c, --conda-env       | \033[1;33m[Option]\033[0m Conda environment path (default: auto-detect)\n")
+    cat("   -s, --seurat-version  | \033[1;33m[Option]\033[0m Seurat version (4.0, 5.0; default: 5.0)\n")
+    cat("   -h, --help            | Show help message\n")
+    cat("   -v, --version         | Show script version\n")
+    cat("\n\033[1;33mSupported conversions:\033[0m\n")
+    cat("   • Seurat RDS ↔ AnnData H5AD\n")
+    cat("   • Seurat RDS ↔ Loom\n")
+    cat("   • Seurat RDS ↔ SingleCellExperiment (SCE)\n")
+    cat("   • Seurat RDS → MTX + Barcodes + Features\n")
+    cat("   • AnnData H5AD → Seurat RDS\n")
+    cat("   • Loom → Seurat RDS\n")
+    quit(status = 0)
+  }
+
+  # Version information
+  if (!is.null(opt$version)) {
+    cat("\033[1;34m RDS_convert : RDS Format Conversion Tool version: 1.0v\033[0m\n")
+    quit(status = 0)
+  }
+  
+  # Ensure mandatory parameters are provided
+  if (is.null(opt$input) || is.null(opt$output)) {
+    cat("\033[1;31mError:\033[0m Missing required parameters (-i input file and -o output file)!\n")
+    cat("Use '--help' for usage information.\n")
+    quit(status = 1)
+  }
+  
+  # Set defaults
+  if (is.null(opt$`seurat-version`)) {
+    opt$`seurat-version` <- '5.0'
+  }
+  
+  if (is.null(opt$`conda-env`)) {
+    opt$`conda-env` <- NULL  # Will auto-detect
+  }
+  
+  if (is.null(opt$format)) {
+    opt$format <- NULL
+  }
+  
+  return(opt)
+}
+
+# Function to detect input file format
+detect_format <- function(filepath) {
+  ext <- tolower(tools::file_ext(filepath))
+  
+  if (ext %in% c("rds")) {
+    return("rds")
+  } else if (ext %in% c("h5ad", "h5", "hdf5")) {
+    return("h5ad")
+  } else if (ext %in% c("loom")) {
+    return("loom")
+  } else if (ext %in% c("rds", "sce", "rda")) {
+    return("sce")
+  } else {
+    return("unknown")
+  }
+}
+
+# Function to validate input file
+validate_input <- function(filepath) {
+  if (!file.exists(filepath)) {
+    stop(paste0("Input file does not exist: ", filepath))
+  }
+  
+  format_detected <- detect_format(filepath)
+  if (format_detected == "unknown") {
+    warning(paste0("Unknown input file format for: ", filepath, ". Attempting to load anyway."))
+  }
+  
+  info(logger, paste0("Detected input format: ", format_detected))
+  return(format_detected)
+}
+
+# Function to detect output format from file extension
+detect_output_format <- function(output_path, format_override = NULL) {
+  if (!is.null(format_override)) {
+    return(tolower(format_override))
+  }
+  
+  ext <- tolower(tools::file_ext(output_path))
+  
+  if (ext %in% c("rds")) {
+    return("rds")
+  } else if (ext %in% c("h5ad", "h5", "hdf5")) {
+    return("h5ad")
+  } else if (ext %in% c("loom")) {
+    return("loom")
+  } else if (ext %in% c("sce", "rda")) {
+    return("sce")
+  } else if (ext %in% c("mtx", "txt", "csv")) {
+    return("mtx")
+  } else {
+    stop(paste0("Unsupported output format: ", ext, ". Supported: .rds, .h5ad, .loom, .sce, .mtx"))
+  }
+}
+
+# Function to load Seurat object with version handling
+load_seurat <- function(filepath, seurat_version = "5.0") {
+  info(logger, paste0("Loading Seurat object from: ", filepath))
+  
+  obj <- readRDS(filepath)
+  
+  # Handle Seurat v5 to v4 compatibility if needed
+  if (class(obj)[1] == "Seurat" && seurat_version == "4.0") {
+    # Ensure compatibility with Seurat v4
+    if (inherits(obj[['RNA']], "Assay5")) {
+      obj[['RNA']] <- as(obj[['RNA']], "Assay")
+      info(logger, "Converted Seurat v5 RNA assay to v4 compatible format")
+    }
+  }
+  
+  info(logger, paste0("Successfully loaded Seurat object with ", ncol(obj), " cells and ", nrow(obj), " genes"))
+  return(obj)
+}
+
+# Function to load AnnData object via reticulate
+load_anndata <- function(filepath, conda_env = NULL) {
+  info(logger, paste0("Loading AnnData object from: ", filepath))
+  
+  # Setup Python environment
+  if (!is.null(conda_env)) {
+    reticulate::use_condaenv(condaenv = conda_env, required = TRUE)
+  } else {
+    # Try to find a suitable conda environment
+    if (reticulate::py_module_available("scanpy")) {
+      info(logger, "Using available Python environment with scanpy")
+    } else {
+      stop("Python environment with scanpy is required to load AnnData files")
+    }
+  }
+  
+  # Import Python modules
+  anndata_py <- reticulate::import("anndata")
+  scanpy_py <- reticulate::import("scanpy")
+  
+  # Read the AnnData file
+  adata <- anndata_py$read_h5ad(filepath)
+  
+  # Convert to Seurat using sceasy
+  if (!requireNamespace("sceasy", quietly = TRUE)) {
+    stop("sceasy package is required for AnnData conversion")
+  }
+  
+  seurat_obj <- sceasy::convertFormat(adata, from = "anndata", to = "seurat")
+  info(logger, paste0("Successfully converted AnnData to Seurat object"))
+  
+  return(seurat_obj)
+}
+
+# Function to load Loom file
+load_loom <- function(filepath) {
+  info(logger, paste0("Loading Loom object from: ", filepath))
+  
+  if (!requireNamespace("loomR", quietly = TRUE)) {
+    stop("loomR package is required for Loom file conversion")
+  }
+  
+  # Open loom file connection
+  loom_conn <- loomR::connect(filename = filepath, mode = "r")
+  
+  # Extract expression matrix
+  expr_matrix <- loom_conn[["matrix"]][,]
+  
+  # Get gene names and cell IDs
+  gene_names <- loom_conn[["row_attrs"]][["Accession"]]
+  if (is.null(gene_names)) gene_names <- loom_conn[["row_attrs"]][["Gene"]]
+  if (is.null(gene_names)) gene_names <- rownames(expr_matrix)
+  
+  cell_ids <- loom_conn[["col_attrs"]][["CellID"]]
+  if (is.null(cell_ids)) cell_ids <- loom_conn[["col_attrs"]][["Cell_Name"]]
+  if (is.null(cell_ids)) cell_ids <- colnames(expr_matrix)
+  
+  # Close connection
+  loom_conn$close_all()
+  
+  # Create Seurat object
+  seurat_obj <- CreateSeuratObject(counts = expr_matrix)
+  colnames(seurat_obj) <- cell_ids
+  rownames(seurat_obj) <- gene_names
+  
+  info(logger, paste0("Successfully loaded Loom file to Seurat object"))
+  
+  return(seurat_obj)
+}
+
+# Function to save to AnnData format
+save_to_anndata <- function(obj, output_path, conda_env = NULL) {
+  info(logger, paste0("Saving Seurat object to AnnData format at: ", output_path))
+  
+  # Setup Python environment
+  if (!is.null(conda_env)) {
+    reticulate::use_condaenv(condaenv = conda_env, required = TRUE)
+  } else {
+    # Try to find a suitable conda environment
+    if (reticulate::py_module_available("anndata")) {
+      info(logger, "Using available Python environment with anndata")
+    } else {
+      stop("Python environment with anndata is required to save AnnData files")
+    }
+  }
+  
+  # Convert using sceasy
+  if (!requireNamespace("sceasy", quietly = TRUE)) {
+    stop("sceasy package is required for AnnData conversion")
+  }
+  
+  # Convert and save
+  anndata_obj <- sceasy::convertFormat(obj, from = "seurat", to = "anndata")
+  anndata_obj$write_h5ad(output_path)
+  
+  info(logger, paste0("Successfully saved Seurat object to AnnData format at: ", output_path))
+}
+
+# Function to save to Loom format
+save_to_loom <- function(obj, output_path) {
+  info(logger, paste0("Saving Seurat object to Loom format at: ", output_path))
+  
+  if (!requireNamespace("loomR", quietly = TRUE)) {
+    stop("loomR package is required for Loom file conversion")
+  }
+  
+  # Prepare data for loom format
+  counts_matrix <- GetAssayData(obj, assay = "RNA", slot = "counts")
+  if (ncol(counts_matrix) == 0) {
+    counts_matrix <- GetAssayData(obj, assay = "RNA", slot = "data")
+  }
+  
+  # Create loom file
+  loomR::create(filename = output_path,
+                data = as.matrix(counts_matrix),
+                cell.attrs = list(CellID = colnames(obj)),
+                gene.attrs = list(Gene = rownames(obj)))
+  
+  info(logger, paste0("Successfully saved Seurat object to Loom format at: ", output_path))
+}
+
+# Function to save to SingleCellExperiment format
+save_to_sce <- function(obj, output_path) {
+  info(logger, paste0("Saving Seurat object to SingleCellExperiment format at: ", output_path))
+  
+  if (!requireNamespace("sceasy", quietly = TRUE)) {
+    stop("sceasy package is required for SingleCellExperiment conversion")
+  }
+  
+  # Convert Seurat to SCE
+  sce_obj <- sceasy::convertFormat(obj, from = "seurat", to = "sce")
+  
+  # Save to RDS
+  saveRDS(sce_obj, output_path)
+  
+  info(logger, paste0("Successfully saved Seurat object to SingleCellExperiment format at: ", output_path))
+}
+
+# Function to save to MTX format
+save_to_mtx <- function(obj, output_path) {
+  info(logger, paste0("Saving Seurat object to MTX format at: ", output_path))
+  
+  # Extract the directory from the output path
+  out_dir <- dirname(output_path)
+  prefix <- tools::file_path_sans_ext(basename(output_path))
+  
+  # Get the counts matrix
+  counts_matrix <- GetAssayData(obj, assay = "RNA", slot = "counts")
+  if (ncol(counts_matrix) == 0) {
+    counts_matrix <- GetAssayData(obj, assay = "RNA", slot = "data")
+  }
+  
+  # Write MTX format using SeuratDisk
+  if (!requireNamespace("SeuratDisk", quietly = TRUE)) {
+    stop("SeuratDisk package is required for MTX conversion")
+  }
+  
+  # Create temporary seurat object for conversion
+  temp_seurat <- obj
+  temp_path <- tempfile(fileext = ".rds")
+  saveRDS(temp_seurat, temp_path)
+  
+  # Convert to h5Seurat first, then to mtx
+  h5_path <- tempfile(fileext = ".h5Seurat")
+  SeuratDisk::SaveH5Seurat(temp_seurat, filename = h5_path, overwrite = TRUE)
+  SeuratDisk::Convert(h5_path, dest = out_dir, assay = "RNA")
+  
+  # Clean up
+  file.remove(temp_path)
+  file.remove(h5_path)
+  
+  info(logger, paste0("Successfully saved Seurat object to MTX format in directory: ", out_dir))
+}
+
+# Main conversion function
+perform_conversion <- function(input_path, output_path, input_format, output_format, seurat_version, conda_env) {
+  info(logger, paste0("Starting conversion: ", input_format, " → ", output_format))
+  
+  # Load the input object based on format
+  input_obj <- NULL
+  
+  if (input_format == "rds") {
+    input_obj <- load_seurat(input_path, seurat_version)
+  } else if (input_format == "h5ad") {
+    input_obj <- load_anndata(input_path, conda_env)
+  } else if (input_format == "loom") {
+    input_obj <- load_loom(input_path)
+  } else {
+    stop(paste0("Unsupported input format: ", input_format))
+  }
+  
+  # Perform output conversion based on target format
+  if (output_format == "rds") {
+    saveRDS(input_obj, output_path)
+    info(logger, paste0("Successfully saved Seurat object to RDS format at: ", output_path))
+  } else if (output_format == "h5ad") {
+    save_to_anndata(input_obj, output_path, conda_env)
+  } else if (output_format == "loom") {
+    save_to_loom(input_obj, output_path)
+  } else if (output_format == "sce") {
+    save_to_sce(input_obj, output_path)
+  } else if (output_format == "mtx") {
+    save_to_mtx(input_obj, output_path)
+  } else {
+    stop(paste0("Unsupported output format: ", output_format))
+  }
+  
+  info(logger, "Conversion completed successfully!")
+}
+
+#---------------------------------------------------#
+# Main execution
+opt <- scRNAseq_multiSampleCommand()
+
+info(logger, 'Loading required packages')
+suppressMessages(library("Seurat"))
+
+# Check for optional packages
+has_sceasy <- requireNamespace("sceasy", quietly = TRUE)
+has_loomR <- requireNamespace("loomR", quietly = TRUE)
+has_reticulate <- requireNamespace("reticulate", quietly = TRUE)
+has_seuratdisk <- requireNamespace("SeuratDisk", quietly = TRUE)
+
+info(logger, paste0('sceasy available: ', has_sceasy))
+info(logger, paste0('loomR available: ', has_loomR))
+info(logger, paste0('reticulate available: ', has_reticulate))
+info(logger, paste0('SeuratDisk available: ', has_seuratdisk))
+
+input_path <- opt$input
+output_path <- opt$output
+seurat_version <- opt$`seurat-version`
+conda_env <- opt$`conda-env`
+
+info(logger, paste0('Input file: ', input_path))
+info(logger, paste0('Output file: ', output_path))
+
+# Validate input and detect formats
+input_format <- validate_input(input_path)
+output_format <- detect_output_format(output_path, opt$format)
+
+# Perform the conversion
+perform_conversion(input_path, output_path, input_format, output_format, seurat_version, conda_env)
+
+info(logger, 'RDS conversion process completed successfully!')
+#---------------------------------------------------#

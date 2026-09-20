@@ -1,4 +1,4 @@
-# OmicHub BioOps 复赛 Backlog
+# CygnusX BioOps 复赛 Backlog
 
 > 以下条目在初赛提交阶段明确不实施，仅作为后续迭代规划记录，避免与初赛已完成代码混淆。
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from omichub.infrastructure.mcp.presets import PLATFORM_HANDLERS, PLATFORM_PRESET_TOOLS
+from cygnusx.infrastructure.mcp.presets import PLATFORM_HANDLERS, PLATFORM_PRESET_TOOLS
 
 
 def test_europe_pmc_tool_is_registered_as_read_only_platform_tool() -> None:
@@ -30,7 +30,7 @@ async def test_europe_pmc_handler_normalizes_and_reranks(monkeypatch: pytest.Mon
         ]
 
     monkeypatch.setattr(
-        "omichub.application.services.biomedical_literature_service.BiomedicalLiteratureService.search",
+        "cygnusx.application.services.biomedical_literature_service.BiomedicalLiteratureService.search",
         fake_search,
     )
     result = await PLATFORM_HANDLERS["europe_pmc_search"](

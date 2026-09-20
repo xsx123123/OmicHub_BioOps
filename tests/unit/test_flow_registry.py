@@ -7,14 +7,14 @@ from pathlib import Path
 import pytest
 import yaml
 
-from omichub.application.services.flow_registry import FlowRegistry
-from omichub.application.services.mas_plan_validator import MASPlanValidator
-from omichub.core.exceptions import BusinessError, ValidationError
-from omichub.domain.mas.models import ExecutionPlan
+from cygnusx.application.services.flow_registry import FlowRegistry
+from cygnusx.application.services.mas_plan_validator import MASPlanValidator
+from cygnusx.core.exceptions import BusinessError, ValidationError
+from cygnusx.domain.mas.models import ExecutionPlan
 
 ROOT = Path(__file__).parents[2]
 FLOWS_DIR = ROOT / "data" / "ai" / "flows"
-SITE_CONFIG = ROOT / "data" / "OmicHub.yaml"
+SITE_CONFIG = ROOT / "data" / "CygnusX.yaml"
 
 
 def _scrna_payload() -> dict:
@@ -57,6 +57,9 @@ def test_registry_loads_builtin_flows_and_derives_contracts() -> None:
         "test_general",
         "treeplot",
     }
+    assert registry.resolve_bridge_workflow("rnaseq") == "rna_seq"
+    assert registry.resolve_bridge_workflow("rna_seq") == "rna_seq"
+    assert registry.resolve_bridge_workflow("unknown_flow") is None
     treeplot = registry.get("treeplot").definition
     assert treeplot.stages[0].executors[0].execution_mode == "workspace_execution"
     assert registry.get("sales_report").definition.stages[0].executors[0].execution_mode == "workspace_execution"

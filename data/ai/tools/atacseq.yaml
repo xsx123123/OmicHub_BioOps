@@ -1,7 +1,7 @@
 id: atacseq
 description: ATAC-seq 专项流程预检提交、结果读取和功能解释能力。
 builtin_tools:
-  - omichub_plot_volcano
+  - cygnusx_plot_volcano
 platform_tools:
   - platform_list_flows
   - platform_list_tasks

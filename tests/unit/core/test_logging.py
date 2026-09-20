@@ -5,8 +5,8 @@ from pathlib import Path
 import pytest
 from loguru import logger
 
-from omichub.core import logging as logging_module
-from omichub.core.logging import _resolve_log_dir, setup_logging
+from cygnusx.core import logging as logging_module
+from cygnusx.core.logging import _resolve_log_dir, setup_logging
 
 
 @pytest.fixture(autouse=True)
@@ -20,12 +20,12 @@ class TestResolveLogDir:
     """测试日志目录解析。"""
 
     def test_honors_env_var(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("OMICHUB_LOG_DIR", str(tmp_path))
+        monkeypatch.setenv("CYGNUSX_LOG_DIR", str(tmp_path))
         assert _resolve_log_dir() == tmp_path
 
     def test_creates_missing_dir(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         log_dir = tmp_path / "new_logs"
-        monkeypatch.setenv("OMICHUB_LOG_DIR", str(log_dir))
+        monkeypatch.setenv("CYGNUSX_LOG_DIR", str(log_dir))
         assert _resolve_log_dir() == log_dir
         assert log_dir.exists()
 
@@ -36,19 +36,19 @@ class TestSetupLogging:
     def test_creates_expected_log_files(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setenv("OMICHUB_LOG_DIR", str(tmp_path))
+        monkeypatch.setenv("CYGNUSX_LOG_DIR", str(tmp_path))
         monkeypatch.setenv("SERVICE_NAME", "test-web")
-        monkeypatch.setenv("OMICHUB_LOG_LEVEL", "INFO")
+        monkeypatch.setenv("CYGNUSX_LOG_LEVEL", "INFO")
 
         setup_logging()
 
         # 验证主日志、JSON 日志、error 日志文件已创建
-        assert (tmp_path / "omichub.log").exists()
-        assert (tmp_path / "omichub.json.log").exists()
+        assert (tmp_path / "cygnusx.log").exists()
+        assert (tmp_path / "cygnusx.json.log").exists()
         assert (tmp_path / "error.log").exists()
 
     def test_service_binding(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("OMICHUB_LOG_DIR", str(tmp_path))
+        monkeypatch.setenv("CYGNUSX_LOG_DIR", str(tmp_path))
         monkeypatch.setenv("SERVICE_NAME", "test-worker")
 
         setup_logging()
@@ -59,9 +59,9 @@ class TestSetupLogging:
     def test_log_message_lands_in_file(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setenv("OMICHUB_LOG_DIR", str(tmp_path))
+        monkeypatch.setenv("CYGNUSX_LOG_DIR", str(tmp_path))
         monkeypatch.setenv("SERVICE_NAME", "test-web")
-        monkeypatch.setenv("OMICHUB_LOG_LEVEL", "INFO")
+        monkeypatch.setenv("CYGNUSX_LOG_LEVEL", "INFO")
 
         setup_logging()
 
@@ -73,19 +73,19 @@ class TestSetupLogging:
 
         time.sleep(0.2)
 
-        log_text = (tmp_path / "omichub.log").read_text(encoding="utf-8")
+        log_text = (tmp_path / "cygnusx.log").read_text(encoding="utf-8")
         assert test_message in log_text
         assert "test-web" in log_text
 
-        json_log_text = (tmp_path / "omichub.json.log").read_text(encoding="utf-8")
+        json_log_text = (tmp_path / "cygnusx.json.log").read_text(encoding="utf-8")
         assert test_message in json_log_text
 
     def test_error_log_only_contains_errors(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setenv("OMICHUB_LOG_DIR", str(tmp_path))
+        monkeypatch.setenv("CYGNUSX_LOG_DIR", str(tmp_path))
         monkeypatch.setenv("SERVICE_NAME", "test-web")
-        monkeypatch.setenv("OMICHUB_LOG_LEVEL", "INFO")
+        monkeypatch.setenv("CYGNUSX_LOG_LEVEL", "INFO")
 
         setup_logging()
 
@@ -113,7 +113,7 @@ class TestEnvironmentVariables:
         assert logging_module.SERVICE_NAME == "app"
 
     def test_default_log_level(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.delenv("OMICHUB_LOG_LEVEL", raising=False)
+        monkeypatch.delenv("CYGNUSX_LOG_LEVEL", raising=False)
         import importlib
 
         importlib.reload(logging_module)

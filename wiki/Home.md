@@ -1,6 +1,6 @@
-# OmicHub Wiki
+# CygnusX Wiki
 
-欢迎访问 OmicHub 私有化多组学分析平台 Wiki。本文档面向开发者、管理员和终端用户，汇总了平台的设计理念、部署方式、核心功能与运维排障知识。
+欢迎访问 CygnusX 私有化多组学分析平台 Wiki。本文档面向开发者、管理员和终端用户，汇总了平台的设计理念、部署方式、核心功能与运维排障知识。
 
 Wiki 正文会自动同步到平台知识库；维护规则和权威来源见 [Wiki 维护与知识库同步](documentation-maintenance)。
 
@@ -29,6 +29,7 @@ Wiki 正文会自动同步到平台知识库；维护规则和权威来源见 [W
 - [Docker 部署](deployment/docker-deployment)
 - [代码更新与回滚](deployment/update-rollback)
 - [生产环境检查清单](deployment/production-checklist)
+- [开启 Multi-Agent 与 AgentTeams](deployment/agentteams-enablement)
 - [常用命令](operations/common-commands)
 - [问题排查](operations/troubleshooting)
 - [部署索引](deployment)

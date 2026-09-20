@@ -1,4 +1,4 @@
-# OmicHub 知识库（Knowledge Base）实现架构
+# CygnusX 知识库（Knowledge Base）实现架构
 
 > **用途**：记录现阶段知识库模块的完整实现方式——数据模型、内容导入、页面展示、编辑审核流、AI 助手检索集成与 AI 配置中心管理入口。
 >
@@ -54,7 +54,7 @@ PostgreSQL
 
 ### 3.1 knowledge_bases（知识库资源表，2026-07-31 新增）
 
-`src/omichub/infrastructure/database/models/knowledge_base.py`
+`src/cygnusx/infrastructure/database/models/knowledge_base.py`
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
@@ -72,7 +72,7 @@ PostgreSQL
 
 ### 3.2 kb_documents（文档主表）
 
-`src/omichub/infrastructure/database/models/knowledge_document.py`
+`src/cygnusx/infrastructure/database/models/knowledge_document.py`
 
 | 字段 | 说明 |
 |---|---|
@@ -118,7 +118,7 @@ PostgreSQL
 ## 5. 实验室知识库页面
 
 - 前端：`frontend/src/views/KnowledgeView.vue` + `components/knowledge/`（DocTree 分类树 / DocReader / DocEditor / DocCreateModal / AuditPendingPanel / DocIssues / DocEditors），路由 `knowledge` / `knowledge-doc`；
-- 后端：`src/omichub/api/v1/docs.py`（`/docs/knowledge*` 路由组）+ `application/services/docs_service.py`；
+- 后端：`src/cygnusx/api/v1/docs.py`（`/docs/knowledge*` 路由组）+ `application/services/docs_service.py`；
 - **范围过滤**（`docs_service.py:46-91`）：查询时 `OUTER JOIN knowledge_bases`，只返回 `kb_id IS NULL` 或 `show_in_lab=true AND is_enabled=true` 的文档——scseq 库因此不出现在页面中；
 - 编辑走审核流：`PUT /docs/knowledge/{doc_id}` 写入 `pending_rev`，管理员在 `audit/pending` 审核通过后才切到 `current_rev`；`GET .../history|editors|issues` 提供历史、编辑者与问题反馈。
 

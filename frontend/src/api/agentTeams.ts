@@ -2,6 +2,7 @@ import apiClient from '@/api/client'
 
 export type AgentTeamsCaseStatus =
   | 'queued' | 'received' | 'planning_running' | 'preflight_running' | 'preflight_blocked' | 'waiting_for_correction'
+  | 'planning_failed'
   | 'approval_pending' | 'approved' | 'executing' | 'execution_failed' | 'quality_running'
   | 'quality_blocked' | 'remediation_pending' | 'delivery_ready' | 'closed' | 'cancelled'
 
@@ -159,11 +160,77 @@ export interface AgentTeamsRoom {
   has_pending_proposal: boolean
   created_at: string | null
   updated_at: string | null
+  role?: 'mine' | 'invited'
+}
+
+export interface AgentTeamsRoomMember {
+  id: string
+  room_id: string
+  user_id: string
+  role: string
+  status: 'pending' | 'accepted' | 'declined'
+  invited_by: string
+  created_at?: string | null
+  responded_at?: string | null
+}
+
+export interface AgentTeamsTurnSummary {
+  record_id: string
+  case_id: string
+  work_item_id: string
+  round_number: number
+  call_seq: number
+  agent_id: string
+  actor_user_id?: string | null
+  requester_ref?: string | null
+  provider: string
+  model: string
+  usage: Record<string, number | null>
+  duration_ms: number
+  status: string
+  recorded_at: string | null
+}
+
+export interface AgentTeamsTurnDetail extends AgentTeamsTurnSummary {
+  child_session_id: string
+  trace_id?: string | null
+  span_id?: string | null
+  sampling: Record<string, unknown>
+  messages?: Array<{ role: string; content: string }>
+  output_text: string
+  reasoning_text?: string | null
+  tool_calls: Array<Record<string, unknown>>
+  finish_reason: string
+  error?: string | null
+}
+
+export interface AgentTeamsFlowReportArtifact {
+  artifact_id: string
+  artifact_path: string
+  version_id: string
+  version_no: number
+  checksum_sha256: string
+  content_checksum_sha256: string
+  size_bytes: number
+  storage_uri: string
+  generated_at: string
 }
 
 export interface AgentTeamsRoomCreateRequest {
   title?: string
   origin?: string
+}
+
+/** Element 视图免登录会话凭据（POST /rooms/{room_id}/element-session 响应）。 */
+export interface AgentTeamsElementSession {
+  user_id: string
+  device_id: string
+  access_token: string
+  /** 浏览器侧可达的 Matrix C-S 地址（写入 Element mx_hs_url）。 */
+  homeserver_url: string
+  element_base_url?: string | null
+  matrix_room_id?: string | null
+  room_url?: string | null
 }
 
 export interface AgentTeamsRoomListResponse {
@@ -248,6 +315,43 @@ export interface AgentTeamsResponseTimingSummary {
   latest_duration_ms: number
 }
 
+export interface AgentTeamsArtifactVersion {
+  version_id: string
+  artifact_id: string
+  version_no: number
+  checksum_sha256: string
+  size_bytes: number
+  content_type: string
+  storage_uri: string
+  producing_event_id?: string | null
+  work_item_id?: string | null
+  created_at?: string | null
+  /** 上游一级展开：本产物依赖的上游 artifact_id 与关系。 */
+  upstream: Array<{ artifact_id: string; relation: string }>
+}
+
+export interface AgentTeamsArtifactDependency {
+  downstream_artifact_id: string
+  upstream_artifact_id: string
+  relation: string
+}
+
+export interface AgentTeamsQcCheck {
+  verdict: string
+  reason: string
+  reviewer_agent: string
+  claim_hash: string
+  evidence_event_id?: string | null
+  created_at?: string | null
+}
+
+export interface AgentTeamsArtifactLineageResponse {
+  versions: AgentTeamsArtifactVersion[]
+  dependencies: AgentTeamsArtifactDependency[]
+  /** counts 为全量聚合（始终含 pass/warn/fail 键）；checks 为最近若干条（后端上限 200）。 */
+  qc_verdicts: { counts: Record<string, number>; checks: AgentTeamsQcCheck[] }
+}
+
 export const agentTeamsApi = {
   async status(): Promise<AgentTeamsBridgeStatus> {
     return (await apiClient.get('/agent-teams/status')).data
@@ -299,11 +403,13 @@ export const agentTeamsApi = {
     content: string,
     contextRefs: AgentTeamsContextRef[] = [],
     clientMessageId?: string,
+    modelId?: string,
   ): Promise<Record<string, unknown>> {
     return (await apiClient.post(`/agent-teams/cases/${caseId}/messages`, {
       content,
       context_refs: contextRefs,
       client_message_id: clientMessageId,
+      model_id: modelId || undefined,
     })).data
   },
   async applyChangeDecision(
@@ -317,6 +423,9 @@ export const agentTeamsApi = {
   },
   async getManifest(caseId: string): Promise<Record<string, unknown>> {
     return (await apiClient.get<Record<string, unknown>>(`/agent-teams/cases/${caseId}/manifest`)).data
+  },
+  async getArtifactLineage(caseId: string): Promise<AgentTeamsArtifactLineageResponse> {
+    return (await apiClient.get<AgentTeamsArtifactLineageResponse>(`/agent-teams/cases/${caseId}/artifact-lineage`)).data
   },
   async getEvents(
     caseId: string,
@@ -336,16 +445,28 @@ export const agentTeamsApi = {
   async getRoom(roomId: string): Promise<AgentTeamsRoom> {
     return (await apiClient.get<AgentTeamsRoom>(`/agent-teams/rooms/${roomId}`)).data
   },
+  async renameRoom(roomId: string, title: string): Promise<AgentTeamsRoom> {
+    return (await apiClient.patch<AgentTeamsRoom>(`/agent-teams/rooms/${roomId}`, { title })).data
+  },
+  async deleteRoom(roomId: string): Promise<Record<string, unknown>> {
+    // 房间删除可能串联「已绑定 Case 删除 + 房间命名空间删除」两次 Bridge 调用，超时给足两倍余量
+    return (await apiClient.delete(`/agent-teams/rooms/${roomId}`, { timeout: 130000 })).data
+  },
+  async createRoomElementSession(roomId: string): Promise<AgentTeamsElementSession> {
+    return (await apiClient.post<AgentTeamsElementSession>(`/agent-teams/rooms/${roomId}/element-session`)).data
+  },
   async postRoomMessage(
     roomId: string,
     content: string,
     contextRefs: AgentTeamsContextRef[] = [],
     clientMessageId?: string,
+    modelId?: string,
   ): Promise<Record<string, unknown>> {
     return (await apiClient.post(`/agent-teams/rooms/${roomId}/messages`, {
       content,
       context_refs: contextRefs,
       client_message_id: clientMessageId,
+      model_id: modelId || undefined,
     })).data
   },
   async confirmRoomProposal(
@@ -364,6 +485,43 @@ export const agentTeamsApi = {
     return (await apiClient.get<AgentTeamsRoomEventListResponse>(
       `/agent-teams/rooms/${roomId}/events`,
       { params },
+    )).data
+  },
+  async inviteRoomMember(roomId: string, userId: string): Promise<AgentTeamsRoomMember> {
+    return (await apiClient.post<AgentTeamsRoomMember>(`/agent-teams/rooms/${roomId}/invitations`, { user_id: userId })).data
+  },
+  async pendingRoomInvitations(): Promise<AgentTeamsRoomMember[]> {
+    const response = await apiClient.get<{ items: AgentTeamsRoomMember[] }>('/agent-teams/invitations/pending')
+    return response.data.items
+  },
+  async listRoomMembers(roomId: string): Promise<AgentTeamsRoomMember[]> {
+    return (await apiClient.get<{ items: AgentTeamsRoomMember[] }>(`/agent-teams/rooms/${roomId}/members`)).data.items
+  },
+  async respondRoomInvitation(invitationId: string, decision: 'accept' | 'decline'): Promise<AgentTeamsRoomMember> {
+    return (await apiClient.post<AgentTeamsRoomMember>(`/agent-teams/invitations/${invitationId}/${decision}`)).data
+  },
+  async leaveRoom(roomId: string): Promise<void> {
+    await apiClient.post(`/agent-teams/rooms/${roomId}/leave`)
+  },
+  async removeRoomMember(roomId: string, userId: string): Promise<void> {
+    await apiClient.delete(`/agent-teams/rooms/${roomId}/members/${userId}`)
+  },
+  async revokeRoomInvitation(roomId: string, userId: string): Promise<void> {
+    await apiClient.delete(`/agent-teams/rooms/${roomId}/invitations/${userId}`)
+  },
+  async listCaseTurns(caseId: string): Promise<AgentTeamsTurnSummary[]> {
+    return (await apiClient.get<{ items: AgentTeamsTurnSummary[] }>(`/agent-teams/cases/${caseId}/turns`)).data.items
+  },
+  async getCaseTurn(caseId: string, recordId: string): Promise<AgentTeamsTurnDetail> {
+    return (await apiClient.get<AgentTeamsTurnDetail>(`/agent-teams/cases/${caseId}/turns/${recordId}`)).data
+  },
+  async createCaseFlowReport(caseId: string): Promise<AgentTeamsFlowReportArtifact> {
+    return (await apiClient.post<AgentTeamsFlowReportArtifact>(`/agent-teams/cases/${caseId}/reports/flow`)).data
+  },
+  async downloadCaseArtifact(caseId: string, artifactPath: string): Promise<Blob> {
+    return (await apiClient.get<Blob>(
+      `/agent-teams/cases/${caseId}/artifacts/${artifactPath}`,
+      { params: { download: true }, responseType: 'blob' },
     )).data
   },
 }

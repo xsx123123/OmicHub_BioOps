@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from omichub.api.v1.admin import agentteams_bridge
+from cygnusx.api.v1.admin import agentteams_bridge
 
 
 @pytest.mark.asyncio

@@ -159,8 +159,8 @@ F. 与上述描述不符之处的差异清单。
       但降级时必须写审计事件 room.dedup_degraded（含原因）；
    b. API 层 post_room_message() 返回 deduplicated=True 时，
       不再调用 respond_to_room_message.delay()；
-      涉及 src/omichub/api/v1/agentteams.py:611、
-      src/omichub/application/services/agentteams_service.py:1378；
+      涉及 src/cygnusx/api/v1/agentteams.py:611、
+      src/cygnusx/application/services/agentteams_service.py:1378；
    c. 响应事件携带 causation_event_id = 源 room.user_message.event_id；
       澄清答复事件携带 answer_to_event_id = 对应 room.ask_user.event_id。
 
@@ -186,7 +186,7 @@ F. 与上述描述不符之处的差异清单。
      工作区文件选择器，未填写不可提交；
    - 禁止"只选计划、不给对象"的答案通过提交——这必然制造第 2 轮
      相同追问（现状被单测 test_...:803,833 锁定，需同步更新测试）；
-   - 涉及：src/omichub/application/services/agentteams_room_response_service.py:777、
+   - 涉及：src/cygnusx/application/services/agentteams_room_response_service.py:777、
      frontend/src/components/ai-chat/AskUserCard.vue:27。
 2. 卡片状态语义修正（对应报告 F3）：
    - 提交中显示"正在提交"，API 成功后才显示"已提交"；
@@ -196,7 +196,7 @@ F. 与上述描述不符之处的差异清单。
      的推断逻辑（frontend/src/utils/agentTeamsRoom.ts:1317），
      只认 【澄清回复】 格式或 answer_to_event_id 因果关联；
    - 涉及：frontend/src/views/AgentTeamsRoomView.vue:784、
-     src/omichub/application/services/agentteams_room_response_service.py:922。
+     src/cygnusx/application/services/agentteams_room_response_service.py:922。
 
 【验收（端到端）】
 | 操作 | 期望现象 | 不通过时的处理 |

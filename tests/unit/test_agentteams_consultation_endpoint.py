@@ -1,4 +1,4 @@
-"""Gateway → OmicHub 会诊端点契约与聊天 Case Flow 绑定门槛测试。
+"""Gateway → CygnusX 会诊端点契约与聊天 Case Flow 绑定门槛测试。
 
 回归背景（2026-08-20 事故）：
 1. ``ScientificInterpretationRequest`` 缺少 ``requester_ref`` 等字段，Gateway 转发
@@ -14,20 +14,21 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
+from uuid import uuid4
 
 import pytest
 
-from omichub.api.v1.agentteams import (
+from cygnusx.api.v1.agentteams import (
     AgentTeamsRoomMessageRequest,
     ScientificInterpretationRequest,
     post_case_message,
     scientific_interpretation,
 )
-from omichub.application.services.agent_consultation_service import (
+from cygnusx.application.services.agent_consultation_service import (
     AgentConsultationService,
     ConsultationEnvelope,
 )
-from omichub.application.services.agentteams_service import AgentTeamsService
+from cygnusx.application.services.agentteams_service import AgentTeamsService
 
 
 def test_scientific_interpretation_request_accepts_gateway_payload() -> None:
@@ -55,6 +56,13 @@ def test_scientific_interpretation_request_accepts_gateway_payload() -> None:
     assert request.requester_ref == "user-1"
     assert request.work_item_id == "plan-01"
     assert request.execution_mode == "readonly_consultation"
+
+
+def test_room_message_request_accepts_model_override() -> None:
+    model_id = uuid4()
+    request = AgentTeamsRoomMessageRequest(content="切换模型后继续", model_id=model_id)
+
+    assert request.model_id == model_id
 
 
 @pytest.mark.asyncio
@@ -105,7 +113,7 @@ def test_chat_flow_binding_ignores_auto_injected_refs(
         return SimpleNamespace(flow_id="scrna", lead_planner="agent-scrna")
 
     monkeypatch.setattr(
-        "omichub.application.services.agentteams_service.infer_intent_route", fake_route
+        "cygnusx.application.services.agentteams_service.infer_intent_route", fake_route
     )
 
     assert (
@@ -129,7 +137,7 @@ def test_chat_flow_binding_allows_real_data_refs(
 ) -> None:
     """真实文件引用或文本内明确数据产物仍允许在创建时绑定领域 Flow。"""
     monkeypatch.setattr(
-        "omichub.application.services.agentteams_service.infer_intent_route",
+        "cygnusx.application.services.agentteams_service.infer_intent_route",
         lambda text: SimpleNamespace(flow_id="scrna", lead_planner="agent-scrna"),
     )
 
@@ -152,7 +160,7 @@ async def test_duplicate_room_message_does_not_dispatch_manager_task(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """服务已按 client_message_id 去重时，API 不应再次投递 Celery 回复任务。"""
-    from omichub.infrastructure.celery_app.tasks import agentteams as task_module
+    from cygnusx.infrastructure.celery_app.tasks import agentteams as task_module
 
     delay = Mock()
     monkeypatch.setattr(task_module.respond_to_room_message, "delay", delay)
@@ -171,3 +179,27 @@ async def test_duplicate_room_message_does_not_dispatch_manager_task(
 
     assert result["response_dispatch"] == "deduplicated"
     delay.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_room_message_dispatches_selected_model_override(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from cygnusx.infrastructure.celery_app.tasks import agentteams as task_module
+
+    delay = Mock()
+    monkeypatch.setattr(task_module.respond_to_room_message, "delay", delay)
+    service = SimpleNamespace(
+        post_room_message=AsyncMock(return_value={"event_id": "evt-1"})
+    )
+    model_id = uuid4()
+
+    result = await post_case_message(
+        "bioops_1",
+        AgentTeamsRoomMessageRequest(content="使用备用模型继续", model_id=model_id),
+        "user-1",
+        service,
+    )
+
+    assert result["response_dispatch"] == "queued"
+    delay.assert_called_once_with("bioops_1", "user-1", "使用备用模型继续", None, str(model_id))

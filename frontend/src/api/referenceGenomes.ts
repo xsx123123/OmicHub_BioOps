@@ -56,7 +56,7 @@ export function fetchGeneDetail(versionId: string, geneId: string): Promise<Gene
 export function fetchGeneSequence(
   versionId: string,
   geneId: string,
-  params: { type: 'genomic' | 'cds' | 'protein'; format?: 'json' | 'fasta' },
+  params: { type: 'genomic' | 'cds' | 'protein' | 'promoter'; format?: 'json' | 'fasta'; upstream?: number },
 ): Promise<SequenceResult> {
   return apiClient
     .get(`/reference-genomes/versions/${versionId}/genes/${encodeURIComponent(geneId)}/sequence`, { params })

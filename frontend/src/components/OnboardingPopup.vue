@@ -5,7 +5,7 @@ import logoImg from '@/assets/ChatGPT_logo.png'
 
 interface Props {
   visible: boolean
-  // 管理员联系方式（来自 data/OmicHub.yaml registration.admin_contact）；为空则不展示该行
+  // 管理员联系方式（来自 data/CygnusX.yaml registration.admin_contact）；为空则不展示该行
   adminContact?: string
 }
 const props = withDefaults(defineProps<Props>(), {
@@ -55,7 +55,7 @@ function handleSkip() {
         <div class="flex justify-center pt-8 pb-2">
           <img
             :src="logoImg"
-            alt="OmicHub 守护者"
+            alt="CygnusX 守护者"
             class="h-48 w-auto select-none drop-shadow-md animate-soft-float"
             draggable="false"
           />
@@ -64,7 +64,7 @@ function handleSkip() {
         <!-- 欢迎文案 -->
         <div class="px-8 pb-2 text-center">
           <h1 class="text-2xl font-bold text-text-primary">
-            欢迎来到 OmicHub 🚀
+            欢迎来到 CygnusX 🚀
           </h1>
           <p class="mt-2 mb-4 text-sm text-text-secondary">
             开启你的高效多组学探索之旅！先去看看实验室知识库吧～

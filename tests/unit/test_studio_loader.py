@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from omichub.core.config import get_settings
-from omichub.infrastructure.config.studio_loader import (
+from cygnusx.core.config import get_settings
+from cygnusx.infrastructure.config.studio_loader import (
     StudioConfig,
     StudioConfigManager,
 )
@@ -21,16 +21,23 @@ def test_loads_defaults_when_file_missing(tmp_path: Path):
     manager = StudioConfigManager(config_path=tmp_path / "not-exist.yaml")
     config = manager.get_config()
     assert config.enabled is True
-    assert config.default_image == "omichub-analysis:core-2026.07"
+    assert config.default_image == "cygnusx-analysis:core-v0.0.2dev"
     assert config.session.idle_ttl_minutes == 30
     assert config.session.workspace_retention_days == 7
     assert config.session.prewarm_on_create is True
     assert config.sandbox.cpu == 2
     assert config.sandbox.memory == "4g"
     assert config.sandbox.exec_timeout_seconds == 600
+    assert config.sandbox.pids_limit == 512
+    assert config.sandbox.read_only_rootfs is True
+    assert config.sandbox.tmpfs_size == "512m"
+    assert config.sandbox.container_user == "10001:10001"
+    assert config.sandbox.seccomp_profile == "default"
+    assert config.sandbox.workspace_quota_bytes == 10 * 1024**3
+    assert config.sandbox.workspace_quota_check_interval_seconds == 30
     assert config.sandbox.network.mode == "none"
-    assert config.sandbox.network.docker_network == "omichub-studio-egress"
-    assert config.sandbox.network.proxy_container == "omichub-studio-egress-proxy"
+    assert config.sandbox.network.docker_network == "cygnusx-studio-egress"
+    assert config.sandbox.network.proxy_container == "cygnusx-studio-egress-proxy"
     assert config.sandbox.network.proxy_host == "studio-egress-proxy"
     assert config.sandbox.network.proxy_port == 3128
     assert config.agent.loop_control.max_tool_calls_per_turn == 40
@@ -48,7 +55,7 @@ def test_parses_studio_section(tmp_path: Path):
         """
 studio:
   enabled: true
-  default_image: omichub-sandbox:base
+  default_image: cygnusx-sandbox:base
   session:
     idle_ttl_minutes: 15
     prewarm_on_create: false
@@ -67,12 +74,13 @@ studio:
     micro_compaction:
       threshold_chars: 1200
   images:
-    base: {dockerfile: deploy/studio/base.Dockerfile}
+    base: {image: img:base, dockerfile: deploy/studio/base.Dockerfile, capabilities: [code]}
+    browser: {image: img:browser, capabilities: [code, browser]}
 other_key: ignored
 """,
     )
     config = StudioConfigManager(config_path=yaml_path).get_config()
-    assert config.default_image == "omichub-sandbox:base"
+    assert config.default_image == "cygnusx-sandbox:base"
     assert config.session.idle_ttl_minutes == 15
     assert config.session.prewarm_on_create is False
     assert config.sandbox.cpu == 4
@@ -85,6 +93,9 @@ other_key: ignored
     assert config.agent.loop_control.auto_downgrade_to_supervised is False
     assert config.agent.micro_compaction.threshold_chars == 1200
     assert config.images["base"].dockerfile == "deploy/studio/base.Dockerfile"
+    assert config.image_for_capabilities(["code"]) == "img:base"
+    assert config.image_for_capabilities(["code", "browser"]) == "img:browser"
+    assert config.capabilities_for_image("img:browser") == ["code", "browser"]
 
 
 @pytest.mark.unit
@@ -94,6 +105,41 @@ def test_invalid_yaml_falls_back_to_defaults(tmp_path: Path):
     _write_yaml(yaml_path, "studio: [not, a, mapping")
     config = StudioConfigManager(config_path=yaml_path).get_config()
     assert config == StudioConfig()
+
+
+@pytest.mark.unit
+def test_invalid_image_capability_falls_back_to_defaults(tmp_path: Path):
+    yaml_path = tmp_path / "studio.yaml"
+    _write_yaml(
+        yaml_path,
+        """
+studio:
+  images:
+    unsafe: {image: img:unsafe, capabilities: [code, desktop]}
+""",
+    )
+    config = StudioConfigManager(config_path=yaml_path).get_config()
+    assert config == StudioConfig()
+
+
+@pytest.mark.unit
+def test_real_studio_config_registers_all_runtime_images():
+    config = StudioConfigManager("data/ai/studio.yaml").get_config()
+    assert {
+        "analysis-core",
+        "analysis-plot",
+        "analysis-scrna",
+        "base",
+        "bio",
+        "browser-office",
+    } <= set(config.images)
+    assert config.images["analysis-core"].runtime_profile == "analysis-core"
+    assert config.images["analysis-plot"].runtime_profile == "analysis-plot"
+    assert config.images["analysis-scrna"].runtime_profile == "analysis-scrna"
+    assert config.images["base"].image == "cygnusx-sandbox-base:v0.0.2dev"
+    assert config.capabilities_for_image(
+        "cygnusx-sandbox-browser-office:v0.0.2dev"
+    ) == ["code", "browser", "document"]
 
 
 @pytest.mark.unit
@@ -109,6 +155,53 @@ def test_hot_reload_on_mtime_change(tmp_path: Path):
     _write_yaml(yaml_path, "studio:\n  default_image: img:v2\n")
     os.utime(yaml_path, (manager._mtime + 10, manager._mtime + 10))
     assert manager.get_config().default_image == "img:v2"
+
+
+@pytest.mark.unit
+def test_retention_quota_archive_defaults():
+    """生命周期/配额/归档配置项默认值（archive.backend=s3 仅占位不实现）"""
+    config = StudioConfig()
+    assert config.retention.active_days == 14
+    assert config.quota.workspace_gb == 500
+    assert config.quota.archive_gb == 50
+    assert config.archive.backend == "local"
+    assert config.archive.retention_days == 180
+    # 兼容：workspace_retention_days 配置项保留但不再是 purge 删除依据
+    assert config.session.workspace_retention_days == 7
+
+
+@pytest.mark.unit
+def test_retention_quota_archive_from_yaml(tmp_path: Path):
+    yaml_path = tmp_path / "studio.yaml"
+    _write_yaml(
+        yaml_path,
+        """
+studio:
+  retention:
+    active_days: 30
+  quota:
+    workspace_gb: 100
+    archive_gb: 10
+  archive:
+    backend: s3
+    retention_days: 90
+""",
+    )
+    config = StudioConfigManager(config_path=yaml_path).get_config()
+    assert config.retention.active_days == 30
+    assert config.quota.workspace_gb == 100
+    assert config.quota.archive_gb == 10
+    # s3 允许填写（占位），但本期不实现，运行期按 local 行为处理
+    assert config.archive.backend == "s3"
+    assert config.archive.retention_days == 90
+
+
+@pytest.mark.unit
+def test_invalid_archive_backend_falls_back_to_defaults(tmp_path: Path):
+    yaml_path = tmp_path / "studio.yaml"
+    _write_yaml(yaml_path, "studio:\n  archive:\n    backend: oss\n")
+    config = StudioConfigManager(config_path=yaml_path).get_config()
+    assert config == StudioConfig()
 
 
 @pytest.mark.unit

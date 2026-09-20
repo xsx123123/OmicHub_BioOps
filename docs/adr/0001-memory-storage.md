@@ -1,4 +1,4 @@
-# ADR 0001: OmicHub Memory Storage
+# ADR 0001: CygnusX Memory Storage
 
 ## Status
 
@@ -6,7 +6,7 @@ Accepted for the memory v2 rollout.
 
 ## Decision
 
-OmicHub uses a small, application-owned PostgreSQL layer backed by pgvector.
+CygnusX uses a small, application-owned PostgreSQL layer backed by pgvector.
 `memory_blocks` stores curated resident context and `memory_facts` stores
 time-decayed semantic facts. Application code accesses facts through the
 `FactStore` protocol so a future Qdrant or pgvectorscale migration does not

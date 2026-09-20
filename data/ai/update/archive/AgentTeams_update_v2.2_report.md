@@ -13,8 +13,8 @@
 
 ### P0-1 Compose 接入 MinIO — ⚠️
 
-- 完成主栈 `minio`/`minio-init`、私有 bucket、127.0.0.1 端口、bind mount、`data_net`/`omichub_net`。
-- 完成 Bridge 加入 external `omichub_net` 及四项服务端 MinIO 环境变量。
+- 完成主栈 `minio`/`minio-init`、私有 bucket、127.0.0.1 端口、bind mount、`data_net`/`cygnusx_net`。
+- 完成 Bridge 加入 external `cygnusx_net` 及四项服务端 MinIO 环境变量。
 - `docker compose config` 主栈与 Bridge 均成功；compose 契约测试 4 项通过。
 - 运行 `docker compose --env-file ../../.env -p docker up -d minio minio-init` 时 Docker socket 返回 `operation not permitted`，故未完成真实 bucket `mc ls` 验收。
 
@@ -104,13 +104,13 @@
 - `deploy/docker/docker-compose.yml`
 - `deploy/agentteams/docker-compose.agentteams.yml`
 - `deploy/agentteams/bridge.env.example`
-- `src/omichub/infrastructure/storage/minio_store.py`
-- `src/omichub/application/services/agent_consultation_service.py`
-- `src/omichub/application/services/agentteams_data_tool_service.py`
-- `src/omichub/application/services/agentteams_evidence_gc_service.py`
-- `src/omichub/infrastructure/celery_app/tasks/agentteams.py`
-- `integrations/agentteams/bridge/omichub_agentteams_bridge/models.py`
-- `integrations/agentteams/bridge/omichub_agentteams_bridge/service.py`
+- `src/cygnusx/infrastructure/storage/minio_store.py`
+- `src/cygnusx/application/services/agent_consultation_service.py`
+- `src/cygnusx/application/services/agentteams_data_tool_service.py`
+- `src/cygnusx/application/services/agentteams_evidence_gc_service.py`
+- `src/cygnusx/infrastructure/celery_app/tasks/agentteams.py`
+- `integrations/agentteams/bridge/cygnusx_agentteams_bridge/models.py`
+- `integrations/agentteams/bridge/cygnusx_agentteams_bridge/service.py`
 - `integrations/agentteams/worker/production_runner.py`
 - `integrations/agentteams/worker/worker_runner.py`
 - `tool_configs/tools_schema.yaml`
@@ -134,6 +134,6 @@
 ## 后续建议
 
 1. 在有 Docker 权限的部署机执行 MinIO 三条运行态验收命令，并保存 `mc ls` 输出。
-2. 在可联网环境执行 `UV_CACHE_DIR=/tmp/omichub-uv-cache uv lock`，随后重建 web 镜像。
+2. 在可联网环境执行 `UV_CACHE_DIR=/tmp/cygnusx-uv-cache uv lock`，随后重建 web 镜像。
 3. 补齐 P1-2 file_records 产物列表/逐文件下载与聊天卡最近 3 项缩略。
 4. 为零 LLM 建单增加“planner 调用次数为 0”的自动化断言。

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from omichub.infrastructure.mcp.builder.safety import (
+from cygnusx.infrastructure.mcp.builder.safety import (
     GENERATED_MARKER,
     SafetyReport,
     StaticSafetyChecker,

@@ -748,9 +748,9 @@ export function exportPrimerReportHtml(result: PrimerDesignResult): string {
 
   return `<!doctype html>
 <html>
-<head><meta charset="utf-8"><title>OmicHub PrimerForge Report</title></head>
+<head><meta charset="utf-8"><title>CygnusX PrimerForge Report</title></head>
 <body>
-  <h1>OmicHub PrimerForge 引物设计报告</h1>
+  <h1>CygnusX PrimerForge 引物设计报告</h1>
   <table border="1">
     <tr><th>序列ID</th><td>${escapeHtml(result.sequenceId)}</td></tr>
     <tr><th>任务类型</th><td>${result.taskType}</td></tr>
@@ -774,7 +774,7 @@ export function exportPrimerReportHtml(result: PrimerDesignResult): string {
 }
 
 export function generateSynthesisOrderDraft(input: OrderDraftInput): OrderDraft {
-  const subject = `引物合成订单 - ${input.labName || 'OmicHub'} - ${input.sequenceId}`
+  const subject = `引物合成订单 - ${input.labName || 'CygnusX'} - ${input.sequenceId}`
   const primerLines = input.pairs.map((pair) => {
     const base = [
       `引物对 #${pair.rank}，产物 ${pair.productSize} bp，评分 ${pair.qualityScore}`,

@@ -1,6 +1,6 @@
 # 6.7 开发里程碑（MVP → v1.0）
 
-> **项目背景**：OmicsHub 是组内多组学分析平台，当前维护者仅 1 人（全栈开发），组内无专业前端/UI 设计师。核心诉求是尽快替代命令行提交任务的方式，让组内成员通过 Web 界面即可提交和监控分析任务。
+> **项目背景**：CygnusX 是组内多组学分析平台，当前维护者仅 1 人（全栈开发），组内无专业前端/UI 设计师。核心诉求是尽快替代命令行提交任务的方式，让组内成员通过 Web 界面即可提交和监控分析任务。
 >
 > **技术栈**：前端 Vue 3 + TypeScript + Naive UI；后端 FastAPI + Pydantic v2 + PostgreSQL + Redis + Celery；执行层 Snakemake（本地/远程混合模式）；部署 Docker + Docker Compose。
 
@@ -23,7 +23,7 @@
 
 ```mermaid
 gantt
-    title OmicsHub 开发里程碑
+    title CygnusX 开发里程碑
     dateFormat YYYY-MM-DD
     axisFormat W%W
     tickInterval 1week
@@ -143,8 +143,8 @@ meta:
   version: "1.0.0"
   description: "从原始 FASTQ 到差异表达基因的完整 RNA-seq 分析流程"
   category: "转录组学"
-  author: "OmicsHub"
-  docker_image: "omicshub/rnaseq:1.0"
+  author: "CygnusX"
+  docker_image: "cygnusx/rnaseq:1.0"
   entrypoint: "Snakefile"
 
 parameters:
@@ -566,7 +566,7 @@ DELETE /api/v1/tasks/{id}         # 删除任务（仅 pending/failed）
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  OmicsHub                              [用户头像 ▼] │
+│  CygnusX                              [用户头像 ▼] │
 ├────────────┬────────────────────────────────────────┤
 │            │  任务管理                              │
 │  仪表盘     ├────────────────────────────────────────┤
@@ -602,7 +602,7 @@ DELETE /api/v1/tasks/{id}         # 删除任务（仅 pending/failed）
 **目录结构**：
 
 ```
-omichub/
+cygnusx/
 ├── docker-compose.yml              # 主部署文件
 ├── docker-compose.override.yml     # 本地开发覆盖
 ├── .env.example                    # 环境变量模板
@@ -633,19 +633,19 @@ version: "3.8"
 services:
   web:
     build: ./web
-    container_name: omicshub-web
+    container_name: cygnusx-web
     ports:
       - "80:80"
     depends_on:
       - server
     networks:
-      - omicshub-net
+      - cygnusx-net
 
   server:
     build: ./server
-    container_name: omicshub-server
+    container_name: cygnusx-server
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/omicshub
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/cygnusx
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/1
       - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
@@ -661,14 +661,14 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - omicshub-net
+      - cygnusx-net
 
   worker:
     build: ./server
-    container_name: omicshub-worker
+    container_name: cygnusx-worker
     command: celery -A server.core.celery worker --loglevel=info --concurrency=2
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/omicshub
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/cygnusx
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/1
       - TASK_DATA_DIR=/data/tasks
@@ -680,13 +680,13 @@ services:
       - redis
       - postgres
     networks:
-      - omicshub-net
+      - cygnusx-net
 
   postgres:
     image: postgres:16-alpine
-    container_name: omicshub-postgres
+    container_name: cygnusx-postgres
     environment:
-      - POSTGRES_DB=omicshub
+      - POSTGRES_DB=cygnusx
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
     volumes:
@@ -698,11 +698,11 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - omicshub-net
+      - cygnusx-net
 
   redis:
     image: redis:7-alpine
-    container_name: omicshub-redis
+    container_name: cygnusx-redis
     volumes:
       - redis_data:/data
     healthcheck:
@@ -711,14 +711,14 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - omicshub-net
+      - cygnusx-net
 
 volumes:
   postgres_data:
   redis_data:
 
 networks:
-  omicshub-net:
+  cygnusx-net:
     driver: bridge
 ```
 
@@ -799,7 +799,7 @@ class Workflow(BaseModel):
     version = Column(String(16), nullable=False)         # 语义化版本
     description = Column(Text)
     category = Column(String(64), index=True)            # "转录组学"/"表观组学"
-    author = Column(String(64), default="OmicsHub")
+    author = Column(String(64), default="CygnusX")
     
     # YAML 配置内容（完整存储）
     yaml_content = Column(Text, nullable=False)
@@ -1169,12 +1169,12 @@ const removeGroup = (index: number) => {
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│  OmicsHub                                        [AI助手 ▶] │
+│  CygnusX                                        [AI助手 ▶] │
 ├───────────────────────────────┬──────────────────────────────┤
-│                               │  🤖 OmicsHub AI 助手         │
+│                               │  🤖 CygnusX AI 助手         │
 │  主内容区                      ├──────────────────────────────┤
 │  （表单/任务列表等）             │                              │
-│                               │  AI: 你好！我是 OmicsHub     │
+│                               │  AI: 你好！我是 CygnusX     │
 │                               │  AI 助手，可以帮你：          │
 │                               │  • 选择合适的分析流程         │
 │                               │  • 解释参数含义               │
@@ -1247,7 +1247,7 @@ async def ai_chat(
 
 def build_system_prompt(context: dict | None) -> str:
     """根据上下文构建系统提示词"""
-    base_prompt = """你是 OmicsHub 的 AI 助手，一个专业的生物信息学分析平台助手。
+    base_prompt = """你是 CygnusX 的 AI 助手，一个专业的生物信息学分析平台助手。
     
 你可以帮助用户：
 1. 选择合适的分析流程（RNA-seq、ATAC-seq、scRNA-seq 等）
@@ -1428,7 +1428,7 @@ async def cancel_task(
     # Celery revoke
     if task.celery_task_id:
         from celery import Celery
-        celery_app = Celery('omicshub')
+        celery_app = Celery('cygnusx')
         celery_app.control.revoke(task.celery_task_id, terminate=True)
     
     # 终止 subprocess（如果是本地执行）
@@ -1463,9 +1463,9 @@ def send_task_notification(task_id: str, event: str):
     user = User.get_by_id(task.user_id)
     
     subject_map = {
-        "completed": f"[OmicsHub] 任务 #{task.id} 已完成",
-        "failed": f"[OmicsHub] 任务 #{task.id} 执行失败",
-        "cancelled": f"[OmicsHub] 任务 #{task.id} 已取消",
+        "completed": f"[CygnusX] 任务 #{task.id} 已完成",
+        "failed": f"[CygnusX] 任务 #{task.id} 执行失败",
+        "cancelled": f"[CygnusX] 任务 #{task.id} 已取消",
     }
     
     template_map = {
@@ -1476,7 +1476,7 @@ def send_task_notification(task_id: str, event: str):
     
     send_email(
         to=user.email,
-        subject=subject_map.get(event, f"[OmicsHub] 任务 #{task.id} 状态更新"),
+        subject=subject_map.get(event, f"[CygnusX] 任务 #{task.id} 状态更新"),
         template=template_map.get(event),
         context={
             "user_name": user.name,
@@ -1578,7 +1578,7 @@ def send_task_notification(task_id: str, event: str):
 from fastapi import FastAPI, WebSocket
 from fastapi.responses import JSONResponse
 
-app = FastAPI(title="OmicsHub Executor Service")
+app = FastAPI(title="CygnusX Executor Service")
 
 
 @app.post("/execute")
@@ -1828,7 +1828,7 @@ class AIToolRegistry:
     TOOLS = [
         {
             "name": "submit_task",
-            "description": "提交一个分析任务到 OmicsHub",
+            "description": "提交一个分析任务到 CygnusX",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -1960,7 +1960,7 @@ AI → 用户:
 # docker-compose.yml (追加)
   flower:
     image: mher/flower:latest
-    container_name: omicshub-flower
+    container_name: cygnusx-flower
     environment:
       - CELERY_BROKER_URL=redis://redis:6379/1
       - FLOWER_BASIC_AUTH=${FLOWER_AUTH:-admin:admin}
@@ -1969,7 +1969,7 @@ AI → 用户:
     depends_on:
       - redis
     networks:
-      - omicshub-net
+      - cygnusx-net
 ```
 
 **预估工时**：3 天

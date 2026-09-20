@@ -1,6 +1,6 @@
 # 开发规范
 
-本章节面向 OmicHub 开发者，说明如何新增模块、设计 API、编写前端页面、管理数据库迁移以及验证代码。
+本章节面向 CygnusX 开发者，说明如何新增模块、设计 API、编写前端页面、管理数据库迁移以及验证代码。
 
 ## 内容导航
 
@@ -13,7 +13,7 @@
 
 ## 开发前必读
 
-1. 先阅读 `ARCHITECTURE_DESIN/omichub_design.md` 的设计原则与模块类型划分。
+1. 先阅读 `ARCHITECTURE_DESIN/cygnusx_design.md` 的设计原则与模块类型划分。
 2. 新增模块前，按 [模块设计与接入](module-design) 完成可审查设计文档；当前设计文档应保存在
    `docs/` 的非归档位置，不要新建日期归档作为唯一规范。
 3. 前后端接口先定契约（Pydantic DTO ↔ TypeScript types），再写页面。

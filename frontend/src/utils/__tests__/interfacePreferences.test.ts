@@ -6,7 +6,7 @@ import {
   setFestivalEffectsEnabled,
 } from '@/utils/interfacePreferences'
 
-const FESTIVAL_EFFECTS_KEY = 'omichub-festival-effects'
+const FESTIVAL_EFFECTS_KEY = 'cygnusx-festival-effects'
 
 afterEach(() => {
   localStorage.removeItem(FESTIVAL_EFFECTS_KEY)

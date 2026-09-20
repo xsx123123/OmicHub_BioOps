@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-import omichub.infrastructure.celery_app.tasks.agentteams as task_module
+import cygnusx.infrastructure.celery_app.tasks.agentteams as task_module
 
 
 class FakeRedis:
@@ -209,11 +209,11 @@ def _install_fake_service(monkeypatch, service) -> None:
     from unittest.mock import AsyncMock
 
     monkeypatch.setattr(
-        "omichub.application.services.agentteams_bridge_settings_service.AgentTeamsBridgeSettingsService",
+        "cygnusx.application.services.agentteams_bridge_settings_service.AgentTeamsBridgeSettingsService",
         lambda *_a, **_k: SimpleNamespace(get_runtime_config=AsyncMock(return_value=None)),
     )
     monkeypatch.setattr(
-        "omichub.application.services.agentteams_service.AgentTeamsService",
+        "cygnusx.application.services.agentteams_service.AgentTeamsService",
         lambda *_a, **_k: service,
     )
 

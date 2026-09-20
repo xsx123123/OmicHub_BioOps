@@ -2,7 +2,7 @@
 
 *   **Author**: Zhang Jian
 *   **Date**: 2025-12-23
-*   **Version**: v4.1.0-alpha
+*   **Version**: v4.1.2-alpha
 
 ## 简介 (Introduction)
 
@@ -314,7 +314,7 @@ rm -rf pbmc_1k_v3_filtered_feature_bc_matrix pbmc_1k_v3_filtered_feature_bc_matr
 ```bash
 # 构建镜像
 docker build --no-cache \
-  --tag scrna-seq-multicommand:v4.1.1-alpha \
+  --tag scrna-seq-multicommand:v4.1.2-alpha \
   -f ./build_analysis_env/multiStage.Dockerfile ./
 
 # 运行测试
@@ -322,7 +322,7 @@ docker run --rm \
   -v $(pwd)/data/testdata:/home/mambauser/workdir/data \
   -v $(pwd)/data/test_output:/home/mambauser/workdir/output \
   -v $(pwd)/Celldex:/home/mambauser/scRNAseqMulticommand/Celldex \
-  scrna-seq-multicommand:v4.1.1-alpha \
+  scrna-seq-multicommand:v4.1.2-alpha \
   Rscript /home/mambauser/scRNAseqMulticommand/scRNAseqMulticommand \
   -c /home/mambauser/workdir/data/scRNA-seq.conf \
   -T 10x \
@@ -369,6 +369,6 @@ data/
 使用特定版本构建镜像：
 ```bash
 docker build --no-cache \
-  --tag scrna-seq-multicommand:v4.1.1-alpha \
+  --tag scrna-seq-multicommand:v4.1.2-alpha \
   -f ./build_analysis_env/multiStage.Dockerfile ./
 ```

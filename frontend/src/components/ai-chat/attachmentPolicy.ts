@@ -3,6 +3,7 @@ const DATA_MANAGEMENT_ONLY_SUFFIXES = new Set([
   '.cram',
   '.h5ad',
   '.rds',
+  '.qs',
   '.zip',
 ])
 

@@ -166,7 +166,7 @@ onMounted(async () => {
 
       <NCard title="AI Token 用量" :bordered="false" class="arco-card">
         <template #header-extra>
-          <div class="omichub-segmented-toggle unit-toggle" role="group" aria-label="Token 单位切换">
+          <div class="cygnusx-segmented-toggle unit-toggle" role="group" aria-label="Token 单位切换">
             <button type="button" :class="{ active: tokenUnit === 'K' }" :aria-pressed="tokenUnit === 'K'" @click="tokenUnit = 'K'">K</button>
             <button type="button" :class="{ active: tokenUnit === 'M' }" :aria-pressed="tokenUnit === 'M'" @click="tokenUnit = 'M'">M</button>
           </div>

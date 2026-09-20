@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { requiresDataManagementUpload } from '../attachmentPolicy'
 
 describe('requiresDataManagementUpload', () => {
-  it.each(['sample.bam', 'alignment.CRAM', 'cells.h5ad', 'object.Rds', 'bundle.zip'])(
+  it.each(['sample.bam', 'alignment.CRAM', 'cells.h5ad', 'object.Rds', 'integration_harmony.qs', 'bundle.zip'])(
     'routes %s through file management',
     (filename) => {
       expect(requiresDataManagementUpload(filename)).toBe(true)

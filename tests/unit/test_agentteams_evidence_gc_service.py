@@ -3,10 +3,10 @@ from __future__ import annotations
 import asyncio
 from datetime import UTC, datetime, timedelta
 
-from omichub.application.services.agentteams_evidence_gc_service import (
+from cygnusx.application.services.agentteams_evidence_gc_service import (
     AgentTeamsEvidenceGcService,
 )
-from omichub.core.config import Settings
+from cygnusx.core.config import Settings
 
 
 def test_gc_removes_only_expired_closed_cases(monkeypatch) -> None:

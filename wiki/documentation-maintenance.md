@@ -1,6 +1,6 @@
 # Wiki 维护与知识库同步
 
-Wiki 是 OmicHub 面向用户、管理员和开发者的稳定说明层。它不复制全部仓库 Markdown，而是从当前实现
+Wiki 是 CygnusX 面向用户、管理员和开发者的稳定说明层。它不复制全部仓库 Markdown，而是从当前实现
 和权威文档中提炼可操作、可检索的内容；日期归档、实施草稿、内部提示词和自动生成报告不作为 Wiki
 正文来源。
 
@@ -16,10 +16,10 @@ Wiki 是 OmicHub 面向用户、管理员和开发者的稳定说明层。它不
 | Wiki 主题 | 优先核对来源 |
 | --- | --- |
 | 快速开始、部署、运维、安全 | `README.md`、`.env.example`、`Makefile`、`deploy/` |
-| AI、Agent、超频和工作台 | `data/ai/`、`src/omichub/application/services/`、`ARCHITECTURE_DESIN/`、测试 |
+| AI、Agent、超频和工作台 | `data/ai/`、`src/cygnusx/application/services/`、`ARCHITECTURE_DESIN/`、测试 |
 | 知识库 | `docs/knowledge/`、知识库服务和同步脚本 |
 | Flow、工具和生信分析 | `flows/`、`tool_configs/`、`pipelines/` |
-| 前端与 API | `frontend/`、`src/omichub/api/`、DTO 和相关测试 |
+| 前端与 API | `frontend/`、`src/cygnusx/api/`、DTO 和相关测试 |
 
 ## 知识库索引
 

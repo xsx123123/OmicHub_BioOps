@@ -5,7 +5,7 @@
 - 典型用户问句 → 期望专家 的参数化映射（mock router 决策输出）
 - 边界与容错：空输出、纯思考、空 agent_id、幻觉 consult_agent_ids、expect_handoff 异常值
 - 配置一致性：data/ai/*.yaml 可加载、router.md 只依赖运行时目录、
-  OmicHub.yaml agents.enabled 配置文件齐全
+  CygnusX.yaml agents.enabled 配置文件齐全
 """
 
 import json
@@ -15,14 +15,14 @@ from typing import Any
 
 import pytest
 
-import omichub.application.services.chat_service as chat_service_module
-from omichub.application.schemas.agent import AgentTemplateDTO
-from omichub.application.services.chat_service import ROUTER_SYSTEM_PROMPT, ChatService
-from omichub.infrastructure.config import agent_loader
+import cygnusx.application.services.chat_service as chat_service_module
+from cygnusx.application.schemas.agent import AgentTemplateDTO
+from cygnusx.application.services.chat_service import ROUTER_SYSTEM_PROMPT, ChatService
+from cygnusx.infrastructure.config import agent_loader
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 AI_DIR = REPO_ROOT / "data" / "ai"
-SITE_YAML = REPO_ROOT / "data" / "OmicHub.yaml"
+SITE_YAML = REPO_ROOT / "data" / "CygnusX.yaml"
 ROUTER_PROMPT_MD = AI_DIR / "prompts" / "router.md"
 
 
@@ -43,7 +43,7 @@ def _candidate(agent_id: str, category: str, name: str, router: bool = False) ->
     )
 
 
-# 与 data/OmicHub.yaml agents.enabled 对齐的完整候选清单
+# 与 data/CygnusX.yaml agents.enabled 对齐的完整候选清单
 CANDIDATES = [
     _candidate("agent-router", "general", "智能助手", router=True),
     _candidate("agent-general", "general", "通用助手"),
@@ -72,6 +72,7 @@ def _catalog_entry(dto: AgentTemplateDTO) -> dict[str, Any]:
         "routing_hints": [],
         "capability_tags": [],
         "routing_notes": "",
+        "persona": {},
         "avatar": dto.avatar,
         "color": dto.color,
     }
@@ -131,10 +132,10 @@ def _fake_chat_stream(text: str):
 @pytest.fixture
 def service(monkeypatch: pytest.MonkeyPatch) -> ChatService:
     monkeypatch.setattr(
-        "omichub.application.services.agent_service.AgentService", _FakeAgentService
+        "cygnusx.application.services.agent_service.AgentService", _FakeAgentService
     )
     monkeypatch.setattr(
-        "omichub.application.services.agentteams_capability_registry"
+        "cygnusx.application.services.agentteams_capability_registry"
         ".get_agentteams_capability_registry",
         lambda: _FakeCapabilityRegistry(),
     )
@@ -225,12 +226,12 @@ async def test_router_excludes_runtime_internal_chat_role(
 
     # 注册表负责 chat_entry 过滤:内部角色不出现在快照候选目录中。
     monkeypatch.setattr(
-        "omichub.application.services.agentteams_capability_registry"
+        "cygnusx.application.services.agentteams_capability_registry"
         ".get_agentteams_capability_registry",
         lambda: _FakeCapabilityRegistry(CANDIDATES),
     )
     monkeypatch.setattr(
-        "omichub.application.services.agent_service.AgentService", FakeAgentService
+        "cygnusx.application.services.agent_service.AgentService", FakeAgentService
     )
     _mock_router_output(
         monkeypatch,
@@ -286,74 +287,79 @@ async def test_question_routes_to_expected_expert(
 
 
 @pytest.mark.unit
-async def test_bulk_rnaseq_guard_corrects_scrna_model_misroute(
+async def test_text_intake_no_longer_bypasses_router(
     service: ChatService, router_ctx: Any, monkeypatch
 ):
-    _mock_router_output(
-        monkeypatch,
-        json.dumps(
-            {
-                "agent_id": "agent-scrna",
-                "reason": "误把怎么开始理解为单细胞上游",
-                "confidence": 0.82,
-            }
-        ),
-    )
+    """缺参数只影响专家后续 intake，不能在 Router 前强制改派通用助手。"""
+    captured: dict[str, Any] = {}
 
-    ctx, info = await service._route_to_agent(router_ctx, "RNA-seq 差异表达分析怎么开始")
+    async def route_with_model(**kwargs: Any):
+        captured.update(kwargs)
+        yield SimpleNamespace(
+            type="text",
+            content=json.dumps({"agent_id": "agent-rnaseq", "reason": "转录组研究计划"}),
+            metadata={},
+        )
 
-    assert ctx is not None and ctx.agent_id == "agent-rnaseq"
-    assert info is not None and info["agent_id"] == "agent-rnaseq"
-    assert "纠正单细胞专家误匹配" in info["reason"]
-
-
-@pytest.mark.unit
-async def test_ambiguous_tp53_plan_routes_to_general_intake_before_experts(
-    service: ChatService, router_ctx: Any, monkeypatch
-):
-    async def should_not_route_with_model(**_kwargs: Any):
-        raise AssertionError("模糊研究计划应由确定性 intake 门槛拦截")
-        yield SimpleNamespace(type="text", content="", metadata={})
-
-    monkeypatch.setattr(
-        chat_service_module.provider_manager, "chat_stream", should_not_route_with_model
-    )
+    monkeypatch.setattr(chat_service_module.provider_manager, "chat_stream", route_with_model)
     ctx, info = await service._route_to_agent(
         router_ctx,
         "我有两个 TP53 分组，想挖掘新颖发现，请写详细计划",
     )
 
-    assert ctx is not None and ctx.agent_id == "agent-general"
-    assert info is not None and info["needs_clarification"] is True
-    assert len(info["clarification_questions"]) == 3
-    assert "先由通用助手" in info["reason"]
+    assert ctx is not None and ctx.agent_id == "agent-rnaseq"
+    assert info is not None and info["reason"] == "转录组研究计划"
+    assert "TP53" in captured["messages"][0]["content"]
 
 
 @pytest.mark.unit
-async def test_image_attachment_bypasses_ambiguous_intake_and_explains_general_route(
+async def test_router_receives_uploaded_file_manifest_and_can_select_visualization_expert(
     service: ChatService, router_ctx: Any, monkeypatch
 ):
     captured: dict[str, Any] = {}
 
-    async def route_image_question(**kwargs: Any):
+    async def route_visualization_request(**kwargs: Any):
         captured.update(kwargs)
         yield SimpleNamespace(
             type="text",
-            content=json.dumps({"agent_id": "agent-general", "reason": "图片问题"}),
+            content=json.dumps({"agent_id": "agent-viz", "reason": "差异表达可视化交付"}),
             metadata={},
         )
 
-    monkeypatch.setattr(chat_service_module.provider_manager, "chat_stream", route_image_question)
+    monkeypatch.setattr(chat_service_module.provider_manager, "chat_stream", route_visualization_request)
     ctx, info = await service._route_to_agent(
         router_ctx,
-        "我有两个 TP53 分组，想挖掘新颖发现，请写详细计划",
-        attachments=[{"type": "image", "mime_type": "image/png"}],
+        "请基于上传的差异表达 CSV 生成火山图和热图，并给出结果总结。",
+        attachments=[
+            {
+                "name": "synthetic_gene_expression_3000 - Untitled.csv",
+                "type": "file",
+                "mime_type": "text/csv",
+            }
+        ],
     )
 
+    assert ctx is not None and ctx.agent_id == "agent-viz"
+    assert info is not None and info["reason"] == "差异表达可视化交付"
+    assert "synthetic_gene_expression_3000 - Untitled.csv" in captured["messages"][0]["content"]
+    assert "附件清单" in captured["messages"][0]["content"]
+
+
+@pytest.mark.unit
+async def test_router_does_not_override_model_target_with_keyword_rules(
+    service: ChatService, router_ctx: Any, monkeypatch
+):
+    """专家目标必须来自 Router JSON；用户文本中的关键词不能覆盖模型决策。"""
+    _mock_router_output(
+        monkeypatch,
+        json.dumps({"agent_id": "agent-general", "reason": "模型决定由通用助手处理"}),
+    )
+
+    ctx, info = await service._route_to_agent(router_ctx, "请画一个火山图")
+
     assert ctx is not None and ctx.agent_id == "agent-general"
-    assert info is not None and info["needs_clarification"] is False
-    assert info["reason"] == "已附图片，通用助手将先识别图片内容并直接回答当前问题"
-    assert "包含图片附件" in captured["messages"][0]["content"]
+    assert info is not None and info["agent_id"] == "agent-general"
+    assert info["reason"] == "模型决定由通用助手处理"
 
 
 # ---------------------------------------------------------------------------
@@ -527,7 +533,7 @@ async def test_json_embedded_in_code_block(service: ChatService, router_ctx: Any
 
 @pytest.mark.unit
 def test_all_enabled_agent_yamls_loadable():
-    """data/OmicHub.yaml agents.enabled 中每个 agent 的 yaml 都能被 agent_loader 加载"""
+    """data/CygnusX.yaml agents.enabled 中每个 agent 的 yaml 都能被 agent_loader 加载"""
     enabled = agent_loader._load_enabled_agents(SITE_YAML)
     assert enabled, "agents.enabled 不应为空"
     configs = agent_loader.load_agent_configs()
@@ -571,15 +577,15 @@ def test_router_prompt_uses_runtime_catalog_instead_of_static_candidates():
     """Router 只能依据运行时目录，避免静态候选表随 Agent 增删而漂移。"""
     prompt_text = ROUTER_PROMPT_MD.read_text(encoding="utf-8")
     assert "运行时候选目录（唯一依据）" in prompt_text
-    assert "不得维护、记忆或引用任何静态 Agent 名单" in prompt_text
+    assert "不维护、记忆或引用任何静态 Agent 名单" in prompt_text
     assert "| agent_id | 名称 | 适用请求 |" not in prompt_text
-    assert "领域路由与执行授权必须分离" in prompt_text
+    assert "领域路由与执行授权分离" in prompt_text
     assert "不能仅因“单细胞”创建流程型 Case" in prompt_text
 
 
 @pytest.mark.unit
 def test_site_yaml_enabled_agents_have_config_files():
-    """data/OmicHub.yaml agents.enabled 中的每个 agent 都有对应配置文件"""
+    """data/CygnusX.yaml agents.enabled 中的每个 agent 都有对应配置文件"""
     enabled = agent_loader._load_enabled_agents(SITE_YAML)
     assert enabled == [
         "router",

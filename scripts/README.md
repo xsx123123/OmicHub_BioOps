@@ -1,6 +1,6 @@
-# omichubtools 工具目录
+# cygnusxtools 工具目录
 
-`scripts/` 现在作为 OmicHub 离线维护工具包 `omichubtools` 的源码目录。目标是把部署、数据准备、数据库构建、巡检等重型或管理员操作收敛到一个可安装的 CLI 中，避免把转换任务压到 Web 服务或 Celery 任务链路上。
+`scripts/` 现在作为 CygnusX 离线维护工具包 `cygnusxtools` 的源码目录。目标是把部署、数据准备、数据库构建、巡检等重型或管理员操作收敛到一个可安装的 CLI 中，避免把转换任务压到 Web 服务或 Celery 任务链路上。
 
 ## 安装方式
 
@@ -19,24 +19,24 @@ pip install -e ./
 安装后会注册命令，帮助信息由 `rich-argparse` 美化显示：
 
 ```bash
-omichubtools --help
-omichubtools version
-omichubtools refdb build --help
+cygnusxtools --help
+cygnusxtools version
+cygnusxtools refdb build --help
 ```
 
 未安装时，也可以用源码路径调试：
 
 ```bash
-PYTHONPATH=scripts python -m omichubtools --help
-PYTHONPATH=scripts python -m omichubtools refdb build --help
+PYTHONPATH=scripts python -m cygnusxtools --help
+PYTHONPATH=scripts python -m cygnusxtools refdb build --help
 ```
 
-新自动化脚本统一使用 `omichubtools refdb build ...`。
+新自动化脚本统一使用 `cygnusxtools refdb build ...`。
 
 ## 当前命令结构
 
 ```text
-omichubtools
+cygnusxtools
 ├── version                         # 查看工具版本、Python 运行环境和外部工具状态
 ├── refdb
 │   └── build                       # 离线构建 FA/GFF/GO/KO/KEGG 参考数据库资产
@@ -45,7 +45,7 @@ omichubtools
 
 ## 脚本与文件清单
 
-`scripts/` 目录下既有可直接运行的独立脚本，也有正在演进的 `omichubtools` 离线 CLI 包。下面分别说明每个文件/脚本的作用。
+`scripts/` 目录下既有可直接运行的独立脚本，也有正在演进的 `cygnusxtools` 离线 CLI 包。下面分别说明每个文件/脚本的作用。
 
 ### 顶层独立维护脚本
 
@@ -61,43 +61,43 @@ omichubtools
 | `sync_knowledge_from_files.py` | 增量同步 `meta.yaml` 登记的 Markdown 与 Wiki 集合。QC、Cloud 等递归领域目录由各自专用导入脚本处理；本地 Docker 环境可统一执行 `make sync-knowledge`。 | `python scripts/sync_knowledge_from_files.py --auto-admin` |
 | `worker-compose.sh` | 启动 Worker 的包装脚本：先调用 `render_worker_config.py` 生成 env 文件，再 source 后执行 `docker compose -f deploy/docker/docker-compose.worker.yml`。 | `./scripts/worker-compose.sh up -d` |
 
-### omichubtools 包内文件
+### cygnusxtools 包内文件
 
 | 文件 | 作用 |
 | --- | --- |
-| `pyproject.toml` | `omichubtools` 独立包的安装配置（`pip install -e ./scripts`），定义依赖、入口脚本、构建后端和 ruff 配置。 |
-| `omichubtools/__init__.py` | 包初始化，暴露 `__version__`。 |
-| `omichubtools/__main__.py` | 支持以 `python -m omichubtools` 方式启动 CLI。 |
-| `omichubtools/cli.py` | CLI 顶层入口：注册全局参数、`version`、`refdb build` 以及兼容别名 `build-reference-database`。 |
-| `omichubtools/commands/__init__.py` | 命令模块包标记。 |
-| `omichubtools/commands/reference_database.py` | `refdb build` 命令的完整实现：解析 FASTA/GFF/GO/KO/KEGG 输入，生成 SQLite 数据库、`.fai` 索引、manifest 和 JBrowse 配置片段。 |
-| `omichubtools/config/default.yaml` | 包内默认日志配置（标签、级别、样式）。 |
-| `omichubtools/config/software.yaml` | 软件元信息（版本、作者、描述）和外部工具声明（如 `samtools`）。 |
-| `omichubtools/utils/argparse.py` | 自定义 `OmicHubHelpFormatter`，基于 `rich-argparse` 美化帮助输出，并提供无 Rich 时的降级。 |
-| `omichubtools/utils/configuration.py` | 配置加载：读取包内 YAML，支持项目级 `omichubtools.yaml` / `omichubtools.local.yaml` 覆盖。 |
-| `omichubtools/utils/logo.py` | 终端 logo 显示，支持 Rich 和 rich-gradient 渐变效果，无依赖时降级为纯文本。 |
-| `omichubtools/utils/log_utils.py` | loguru + Rich 日志初始化，支持拦截标准 logging、捕获 warning、文件日志和分级别控制台输出。 |
-| `omichubtools/utils/version.py` | `version` 命令实现：展示 Python 运行时、平台、依赖包版本和外部工具状态。 |
+| `pyproject.toml` | `cygnusxtools` 独立包的安装配置（`pip install -e ./scripts`），定义依赖、入口脚本、构建后端和 ruff 配置。 |
+| `cygnusxtools/__init__.py` | 包初始化，暴露 `__version__`。 |
+| `cygnusxtools/__main__.py` | 支持以 `python -m cygnusxtools` 方式启动 CLI。 |
+| `cygnusxtools/cli.py` | CLI 顶层入口：注册全局参数、`version`、`refdb build` 以及兼容别名 `build-reference-database`。 |
+| `cygnusxtools/commands/__init__.py` | 命令模块包标记。 |
+| `cygnusxtools/commands/reference_database.py` | `refdb build` 命令的完整实现：解析 FASTA/GFF/GO/KO/KEGG 输入，生成 SQLite 数据库、`.fai` 索引、manifest 和 JBrowse 配置片段。 |
+| `cygnusxtools/config/default.yaml` | 包内默认日志配置（标签、级别、样式）。 |
+| `cygnusxtools/config/software.yaml` | 软件元信息（版本、作者、描述）和外部工具声明（如 `samtools`）。 |
+| `cygnusxtools/utils/argparse.py` | 自定义 `CygnusXHelpFormatter`，基于 `rich-argparse` 美化帮助输出，并提供无 Rich 时的降级。 |
+| `cygnusxtools/utils/configuration.py` | 配置加载：读取包内 YAML，支持项目级 `cygnusxtools.yaml` / `cygnusxtools.local.yaml` 覆盖。 |
+| `cygnusxtools/utils/logo.py` | 终端 logo 显示，支持 Rich 和 rich-gradient 渐变效果，无依赖时降级为纯文本。 |
+| `cygnusxtools/utils/log_utils.py` | loguru + Rich 日志初始化，支持拦截标准 logging、捕获 warning、文件日志和分级别控制台输出。 |
+| `cygnusxtools/utils/version.py` | `version` 命令实现：展示 Python 运行时、平台、依赖包版本和外部工具状态。 |
 
 ## 参考数据库离线构建
 
 典型命令：
 
 ```bash
-omichubtools refdb build \
+cygnusxtools refdb build \
   --species-id Lsat \
   --version-id Lsat_v11 \
   --version-name v11 \
   --assembly-name Lsat.1.v11 \
   --scientific-name "Lactuca sativa" \
   --common-name "生菜" \
-  --fasta /data/omichub/omichub_data/db/Lsat/v11/Lsat.1.v11.fa \
-  --gff /data/omichub/omichub_data/db/Lsat/v11/Lsat.1.v11.gff3 \
-  --go /data/omichub/omichub_data/db/Lsat/v11/go_annotations.tsv \
-  --go-terms /data/omichub/omichub_data/db/Lsat/v11/go_terms.tsv \
-  --ko /data/omichub/omichub_data/db/Lsat/v11/ko_annotations.tsv \
-  --kegg /data/omichub/omichub_data/db/Lsat/v11/kegg_annotations.tsv \
-  --out-dir /data/omichub/omichub_data/db/Lsat/v11/build \
+  --fasta /data/cygnusx/cygnusx_data/db/Lsat/v11/Lsat.1.v11.fa \
+  --gff /data/cygnusx/cygnusx_data/db/Lsat/v11/Lsat.1.v11.gff3 \
+  --go /data/cygnusx/cygnusx_data/db/Lsat/v11/go_annotations.tsv \
+  --go-terms /data/cygnusx/cygnusx_data/db/Lsat/v11/go_terms.tsv \
+  --ko /data/cygnusx/cygnusx_data/db/Lsat/v11/ko_annotations.tsv \
+  --kegg /data/cygnusx/cygnusx_data/db/Lsat/v11/kegg_annotations.tsv \
+  --out-dir /data/cygnusx/cygnusx_data/db/Lsat/v11/build \
   --force
 ```
 
@@ -122,7 +122,7 @@ CLI 帮助输出使用 `rich-argparse`，会保留参数默认值并用 Rich 样
 ```text
 scripts/
 ├── pyproject.toml
-├── omichubtools/
+├── cygnusxtools/
 │   ├── __init__.py
 │   ├── __main__.py
 │   ├── cli.py
@@ -155,31 +155,31 @@ scripts/
 
 ## 配置覆盖
 
-`omichubtools` 默认读取包内配置：
+`cygnusxtools` 默认读取包内配置：
 
-- `scripts/omichubtools/config/software.yaml`
-- `scripts/omichubtools/config/default.yaml`
+- `scripts/cygnusxtools/config/software.yaml`
+- `scripts/cygnusxtools/config/default.yaml`
 
 后续如需要项目级覆盖，可在当前工作目录放置：
 
-- `omichubtools.yaml`
-- `omichubtools.local.yaml`
+- `cygnusxtools.yaml`
+- `cygnusxtools.local.yaml`
 
 或者使用全局参数传入：
 
 ```bash
-omichubtools --config ./my-tools.yaml version
+cygnusxtools --config ./my-tools.yaml version
 ```
 
 ## 后续扩展规范
 
 新增子命令建议遵循以下方式：
 
-1. 在 `scripts/omichubtools/commands/` 下新增独立模块，例如 `downloads.py`、`deploy.py`。
+1. 在 `scripts/cygnusxtools/commands/` 下新增独立模块，例如 `downloads.py`、`deploy.py`。
 2. 模块中提供 `add_<command>_arguments(parser)` 和 `run_<command>(args)`，保持 argparse 入口清晰。
-3. 在 `scripts/omichubtools/cli.py` 注册到对应 subparser。
+3. 在 `scripts/cygnusxtools/cli.py` 注册到对应 subparser。
 4. 重型任务必须保持离线执行，不要在 Web API、Celery Worker 或前端点击链路中隐式触发。
-5. 输出产物写入 `/data/omichub/omichub_data/...` 或显式 `--out-dir`，并生成可审计的 manifest/report。
+5. 输出产物写入 `/data/cygnusx/cygnusx_data/...` 或显式 `--out-dir`，并生成可审计的 manifest/report。
 6. 新命令完成后同步更新本文档和必要的架构文档。
 
 ## 与 gpse 工具模块的关系

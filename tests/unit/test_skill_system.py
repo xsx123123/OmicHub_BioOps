@@ -10,19 +10,19 @@ from pathlib import Path
 
 import pytest
 
-from omichub.application.services.skill_import_service import (
+from cygnusx.application.services.skill_import_service import (
     SkillImportService,
     _extract_aliyun_skills,
     _parse_github_url,
 )
-from omichub.domain.skill.entities import Skill
-from omichub.domain.skill.services import (
+from cygnusx.domain.skill.entities import Skill
+from cygnusx.domain.skill.services import (
     SKILL_TOOL_NAMES,
     SkillDomainService,
     build_skill_tools,
 )
-from omichub.infrastructure.skills import skill_store
-from omichub.infrastructure.skills.skillmd import (
+from cygnusx.infrastructure.skills import skill_store
+from cygnusx.infrastructure.skills.skillmd import (
     ParsedSkill,
     SkillParseError,
     parse_skill_folder,

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from omichub.application.services import studio_checkpoints
+from cygnusx.application.services import studio_checkpoints
 
 
 @pytest.mark.unit
@@ -48,6 +48,25 @@ def test_checkpoint_excludes_input_and_records_large_files(tmp_path: Path, monke
 
     assert "large.bin" in checkpoint["skipped"]
     assert "input/mounted.txt" not in checkpoint["skipped"]
+
+
+@pytest.mark.unit
+def test_checkpoints_degrade_gracefully_without_git(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """运行环境缺少 git 时，会话创建/升级不被检查点初始化阻断。"""
+    workspace = tmp_path / "session"
+    monkeypatch.setattr(
+        studio_checkpoints.studio_sandbox_manager,
+        "workspace_dir",
+        lambda _session_id: workspace,
+    )
+    monkeypatch.setattr(studio_checkpoints, "_git_available", lambda: False)
+
+    assert studio_checkpoints.ensure_checkpoint_repository("session") == workspace
+    assert workspace.is_dir()
+    assert studio_checkpoints.create_checkpoint("session", "tc-1") == {}
+    assert studio_checkpoints.list_checkpoints("session") == []
+    with pytest.raises(ValueError, match="git"):
+        studio_checkpoints.restore_checkpoint("session", "abc")
 
 
 @pytest.mark.unit

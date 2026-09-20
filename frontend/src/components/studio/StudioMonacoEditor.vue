@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import * as monaco from 'monaco-editor'
+import { useThemeStore } from '@/stores/theme'
+import { cygnusxMonacoTheme, ensureCygnusxMonacoThemes } from './monacoTheme'
 import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
 import JsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker'
 import CssWorker from 'monaco-editor/esm/vs/language/css/css.worker?worker'
@@ -37,6 +39,7 @@ const emit = defineEmits<{
 }>()
 
 const host = ref<HTMLDivElement | null>(null)
+const themeStore = useThemeStore()
 let editor: monaco.editor.IStandaloneCodeEditor | null = null
 let changingFromOutside = false
 
@@ -54,32 +57,11 @@ defineExpose({
 
 onMounted(() => {
   if (!host.value) return
-  monaco.editor.defineTheme('omichub-studio-light', {
-    base: 'vs',
-    inherit: true,
-    rules: [
-      { token: 'comment', foreground: '8A8AA3', fontStyle: 'italic' },
-      { token: 'keyword', foreground: '6C5CE7' },
-      { token: 'string', foreground: '167D67' },
-      { token: 'number', foreground: 'B05E1B' },
-    ],
-    colors: {
-      'editor.background': '#FFFFFF',
-      'editor.foreground': '#2B2B3D',
-      'editorLineNumber.foreground': '#B0AFC2',
-      'editorLineNumber.activeForeground': '#6C5CE7',
-      'editorCursor.foreground': '#6C5CE7',
-      'editor.selectionBackground': '#DDD7FF88',
-      'editor.inactiveSelectionBackground': '#EEEAFE88',
-      'editor.lineHighlightBackground': '#F8F7FF',
-      'editorIndentGuide.background1': '#EEEAF8',
-      'editorIndentGuide.activeBackground1': '#C8BEF3',
-    },
-  })
+  ensureCygnusxMonacoThemes()
   editor = monaco.editor.create(host.value, {
     value: props.modelValue,
     language: props.language,
-    theme: 'omichub-studio-light',
+    theme: cygnusxMonacoTheme(themeStore.isDark),
     readOnly: props.readonly,
     automaticLayout: true,
     minimap: { enabled: true, scale: 0.8 },
@@ -115,6 +97,7 @@ watch(() => props.language, (language) => {
   if (model) monaco.editor.setModelLanguage(model, language)
 })
 watch(() => props.readonly, (readOnly) => editor?.updateOptions({ readOnly }))
+watch(() => themeStore.isDark, (isDark) => monaco.editor.setTheme(cygnusxMonacoTheme(isDark)))
 
 onBeforeUnmount(() => editor?.dispose())
 </script>

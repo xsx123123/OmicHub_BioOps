@@ -1,5 +1,5 @@
 # ============================================
-# OmicHub 云端沙盒终端配置
+# CygnusX 云端沙盒终端配置
 # ============================================
 # 修改本文件后：配置加载器基于 mtime 自动热重载，无需重启后端。
 #
@@ -23,8 +23,8 @@ enabled: true
 # 容器镜像
 # --------------------------------------------
 image:
-  name: "omichub/sandbox-terminal"
-  tag: "latest"
+  name: "cygnusx-sandbox-terminal"
+  tag: "v0.0.2dev"
   pull_policy: "IfNotPresent"
 
 # --------------------------------------------
@@ -67,14 +67,14 @@ security:
 # 网络配置
 # --------------------------------------------
 network:
-  name: "omichub-sandbox-net"
+  name: "cygnusx-sandbox-net"
   mode: "bridge"
 
 # --------------------------------------------
 # 存储配置
 # --------------------------------------------
 storage:
-  workspace_base: "/data/omichub/users"
+  workspace_base: "/data/cygnusx/users"
 
 # --------------------------------------------
 # 端口分配范围（ttyd 映射到宿主机的高位端口）

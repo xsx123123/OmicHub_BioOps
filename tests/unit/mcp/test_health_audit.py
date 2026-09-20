@@ -5,9 +5,9 @@ from uuid import uuid4
 
 import pytest
 
-from omichub.application.services.mcp_service import MCPService
-from omichub.domain.mcp.entities import MCPServer
-from omichub.domain.mcp.value_objects import ServerStatus, Transport
+from cygnusx.application.services.mcp_service import MCPService
+from cygnusx.domain.mcp.entities import MCPServer
+from cygnusx.domain.mcp.value_objects import ServerStatus, Transport
 
 
 def server(name: str, transport: Transport) -> MCPServer:
@@ -26,7 +26,7 @@ async def test_health_audit_reports_probe_failure_without_fallback() -> None:
     service.ensure_presets = AsyncMock()  # type: ignore[method-assign]
     service._repo.list_all = AsyncMock(
         return_value=[
-            server("omichub-platform", Transport.BUILTIN),
+            server("cygnusx-platform", Transport.BUILTIN),
             server("ensmbl", Transport.STDIO),
         ]
     )

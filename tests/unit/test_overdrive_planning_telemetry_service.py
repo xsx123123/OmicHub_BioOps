@@ -4,8 +4,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import omichub.application.services.overdrive_planning_telemetry_service as telemetry_module
-from omichub.application.services.overdrive_planning_telemetry_service import (
+import cygnusx.application.services.overdrive_planning_telemetry_service as telemetry_module
+from cygnusx.application.services.overdrive_planning_telemetry_service import (
     OverdrivePlanningTelemetryService,
 )
 

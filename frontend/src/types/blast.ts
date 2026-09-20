@@ -1,6 +1,6 @@
 /**
  * BLAST 工具类型定义
- * 与后端 omichub/tools/blast/schema.py 对齐
+ * 与后端 cygnusx/tools/blast/schema.py 对齐
  */
 
 export type ProgramType = 'blastn' | 'blastp' | 'blastx' | 'tblastn' | 'tblastx'

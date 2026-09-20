@@ -13,13 +13,13 @@ import apiClient from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 
 /** 默认兜底文案：LLM 接口超时或报错时使用（务必保证弹窗弹出） */
-const DEFAULT_WELCOME_TEXT = '晚上好，root 👋 欢迎使用 OmicHub！'
+const DEFAULT_WELCOME_TEXT = '晚上好，root 👋 欢迎使用 CygnusX！'
 
 /** LLM 欢迎词接口超时（毫秒）—— 需求要求 3 秒 */
 const WELCOME_TIMEOUT_MS = 3_000
 
 /** 一次会话只弹一次的标记键 */
-const SESSION_FLAG_KEY = 'omichub:adminWelcomeShown'
+const SESSION_FLAG_KEY = 'cygnusx:adminWelcomeShown'
 
 /**
  * 模拟调用 LLM 欢迎词接口。

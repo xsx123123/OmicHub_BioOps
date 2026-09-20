@@ -1,4 +1,4 @@
-"""Matrix Gateway HTTP proxy contract tests; OmicHub never handles Matrix credentials."""
+"""Matrix Gateway HTTP proxy contract tests; CygnusX never handles Matrix credentials."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import json
 import httpx
 import pytest
 
-from omichub.application.services.agentteams_room_gateway_service import (
+from cygnusx.application.services.agentteams_room_gateway_service import (
     AgentTeamsRoomGatewayService,
     RoomGatewayRuntimeConfig,
 )

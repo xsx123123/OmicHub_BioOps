@@ -4,11 +4,12 @@ description: 负责细胞 QC、双细胞、批次校正、HVG、降维、聚类�
 avatar: "🧬"
 color: "#8e44ad"
 category: analysis
-model: qwen3.7-plus
+model: qdoubao-seed-evolving
 prompt_file: prompts/scrna_team/integration.md
 welcome_message: "你好！我可以协助细胞 QC、批次整合、UMAP/Leiden 聚类和 marker 检查。"
 temperature: 0.2
-max_tokens: 32768
+max_tokens: 65536
+package_catalogs: [scrna, r-bio, io, visualization, machine-learning, network]
 mcp_ids: []
 # 整合聚类可执行技能：对象格式转换 + 重聚类（规范：Protocol/Skill_design.md）
 skill_ids:

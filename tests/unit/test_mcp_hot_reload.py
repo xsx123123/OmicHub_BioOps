@@ -4,10 +4,10 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from omichub.application.schemas.mcp import CreateMCPServerDTO, UpdateMCPServerDTO
-from omichub.application.services.mcp_service import MCPService
-from omichub.domain.mcp.value_objects import ServerStatus
-from omichub.infrastructure.database.models.mcp_builder import MCPVersionModel
+from cygnusx.application.schemas.mcp import CreateMCPServerDTO, UpdateMCPServerDTO
+from cygnusx.application.services.mcp_service import MCPService
+from cygnusx.domain.mcp.value_objects import ServerStatus
+from cygnusx.infrastructure.database.models.mcp_builder import MCPVersionModel
 
 
 class _FakeResult:

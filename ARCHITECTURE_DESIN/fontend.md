@@ -1,12 +1,12 @@
-# OmicHub 前端设计系统与实现规范
+# CygnusX 前端设计系统与实现规范
 
-> **用途**：这是 OmicHub 的前端视觉、交互和实现基线。新增页面、组件及样式改动必须以此文档和现有设计令牌为准。它同时可作为其它科学计算、数据平台或工作台类 Vue 项目的迁移参考。
+> **用途**：这是 CygnusX 的前端视觉、交互和实现基线。新增页面、组件及样式改动必须以此文档和现有设计令牌为准。它同时可作为其它科学计算、数据平台或工作台类 Vue 项目的迁移参考。
 >
 > **使用方式**：先阅读“技术边界”和“页面配方”，再按“实施流程”和“验收清单”完成实现。业务组件只消费语义令牌与共享模式；新增全局规则时，必须同步更新本文件及相应源文件。
 
 ## 1. 设计目标与非协商原则
 
-OmicHub 是面向生物信息学任务、数据资产与 AI 工作流的科学工作台。界面应传达**平静、清晰、可靠、可控**，而非追求装饰性。
+CygnusX 是面向生物信息学任务、数据资产与 AI 工作流的科学工作台。界面应传达**平静、清晰、可靠、可控**，而非追求装饰性。
 
 1. **目的明确**：每个控件只服务一个主要任务；优先展示高频路径，复杂选项下沉。
 2. **即时反馈**：按下、悬停、聚焦、加载、完成和失败都有即时且可理解的反馈；不等待操作结束才改变界面。
@@ -86,7 +86,7 @@ OmicHub 是面向生物信息学任务、数据资产与 AI 工作流的科学�
 
 ### 3.3 Dark Mode Surface System
 
-OmicHub 深色工作台使用五级 Surface 空间层级，替代“页面背景 + 卡片”的二级结构。所有深色页面、Dashboard、对话区域和浮层优先消费这些语义令牌，不在业务组件中重复写 hex 或 rgba 颜色。
+CygnusX 深色工作台使用五级 Surface 空间层级，替代“页面背景 + 卡片”的二级结构。所有深色页面、Dashboard、对话区域和浮层优先消费这些语义令牌，不在业务组件中重复写 hex 或 rgba 颜色。
 
 #### 3.3.1 五级 Surface
 
@@ -247,20 +247,20 @@ AI 配置、饼干中心及后续同类后台配置页面使用统一的全宽�
 #### 紧凑型胶囊分段切换器
 
 - 适用于 Token 单位、图表形态等同层级的二选一偏好，不用于主流程提交或危险操作。
-- 复用全局 `.omichub-segmented-toggle`：`1px` `--neutral-border` 边框、`999px` 圆角、`--neutral-fill-2` 轨道、`11px` 加粗标签；选中态使用 `--arco-primary` 背景和 `--text-on-primary` 文字。
+- 复用全局 `.cygnusx-segmented-toggle`：`1px` `--neutral-border` 边框、`999px` 圆角、`--neutral-fill-2` 轨道、`11px` 加粗标签；选中态使用 `--arco-primary` 背景和 `--text-on-primary` 文字。
 - 容器使用 `role="group"` 和可读 `aria-label`；按钮使用 `aria-pressed`，并提供 hover、focus-visible、键盘操作和 `prefers-reduced-motion` 适配。
 - 窄屏保持紧凑但不得裁切标签；图表卡片工具栏在 `640px` 以下允许换行。
 
 ### 5.2 卡片
 
-- 使用 `NCard` 或已有 `.arco-card` / `.omichub-card` 外观模式；新卡片优先复用 `NCard`。
+- 使用 `NCard` 或已有 `.arco-card` / `.cygnusx-card` 外观模式；新卡片优先复用 `NCard`。
 - 卡片标题使用 `16px / 24px / 500`；卡片内信息按 `8px`、`12px`、`16px` 阶梯分组。
 - 可点击卡片应有 hover、active、focus-visible 和 selected 状态；悬停位移不超过 `2px`。
 - 只要卡片本身可点击，就不要在内部塞满冲突的次级点击区域；必要时使用显式操作菜单。
 
 #### 可选择卡片协议
 
-- 所有会保留选择结果的卡片使用 `.omichub-selectable-card`；已选项同时使用 `.is-selected`，或以 `aria-selected="true"`、`aria-checked="true"`、`data-selected="true"` 表达状态。
+- 所有会保留选择结果的卡片使用 `.cygnusx-selectable-card`；已选项同时使用 `.is-selected`，或以 `aria-selected="true"`、`aria-checked="true"`、`data-selected="true"` 表达状态。
 - 共享规则位于 `frontend/src/styles/global.css`：选中态使用完整、连续的主色内描边与左缘短状态线；状态线只用于已选项，hover 仅显示低强调预览。不要用状态线替代完整边框。
 - 单选卡使用 `role="radiogroup"` / `role="radio"` 和 `aria-checked`；列表型选项使用 `role="listbox"` / `role="option"` 和 `aria-selected`。自定义卡片必须支持 `Enter` 与 `Space` 触发选择。
 - 已选状态还必须通过现有标签、单选标记或文字说明表达；色彩与状态线不能是唯一的信息来源。
@@ -282,7 +282,7 @@ AI 配置、饼干中心及后续同类后台配置页面使用统一的全宽�
 
 - 使用 `NDataTable`；列标题为 `12px` 辅助色，单元格为 `13px` 主文本色，行 hover 使用 `--neutral-hover`。
 - 长标识符、路径和标题必须启用省略与 Tooltip，避免撑破布局。
-- **用户文件路径不得暴露平台存储根目录**：面向普通用户展示、通知、复制的任务工作目录、结果目录、产物目录等路径，统一通过 `frontend/src/utils/userPathDisplay.ts` 的 `formatUserPath()` 格式化。它仅移除当前用户 Home 前缀 `/data/omichub/users/<user-id>`，保留其后以 `/` 开始的工作台相对路径；例如 `/data/omichub/users/cb79a200-b2ca-441f-9a42-d3417fbfa89d/raw_data/raw-data/PRJNA1478012` 显示为 `/raw_data/raw-data/PRJNA1478012`。日志、错误详情、提示等自由文本使用同文件的 `redactUserHomePaths()` 移除其中每个用户 Home 前缀。不可在业务组件内用 `replace()` 重复实现；原始绝对路径仅用于后端/API 请求，平台共享资源、管理员诊断路径和无法确认属于当前用户 Home 的路径保持原样。
+- **用户文件路径不得暴露平台存储根目录**：面向普通用户展示、通知、复制的任务工作目录、结果目录、产物目录等路径，统一通过 `frontend/src/utils/userPathDisplay.ts` 的 `formatUserPath()` 格式化。它仅移除当前用户 Home 前缀 `/data/cygnusx/users/<user-id>`，保留其后以 `/` 开始的工作台相对路径；例如 `/data/cygnusx/users/cb79a200-b2ca-441f-9a42-d3417fbfa89d/raw_data/raw-data/PRJNA1478012` 显示为 `/raw_data/raw-data/PRJNA1478012`。日志、错误详情、提示等自由文本使用同文件的 `redactUserHomePaths()` 移除其中每个用户 Home 前缀。不可在业务组件内用 `replace()` 重复实现；原始绝对路径仅用于后端/API 请求，平台共享资源、管理员诊断路径和无法确认属于当前用户 Home 的路径保持原样。
 - 任务状态使用 `NTag`，进度使用 `NProgress`；颜色必须来自语义令牌，轨道使用 `var(--neutral-border)`。
 - 加载采用 `NSpin` 或 `NSkeleton`；无数据采用 `NEmpty`，并给出下一步按钮或解释。
 - 成功、警告、错误消息使用 `useMessage()`；长期或富内容反馈使用 Notification / Result，不要把所有信息塞进 toast。
@@ -410,7 +410,7 @@ Hero 区域（`HomeView.vue`）、通知条幅（`AnnouncementBanner.vue`）等�
 将本规范用于新平台时，按以下顺序迁移，而非复制局部 CSS：
 
 1. **建立令牌层**：先创建品牌、明暗主题、文本、边框、间距、圆角、阴影与动效令牌。
-2. **选定单一组件库**：OmicHub 使用 Naive UI；新 Vue 平台可选择 Arco Design Vue，但不得混用。
+2. **选定单一组件库**：CygnusX 使用 Naive UI；新 Vue 平台可选择 Arco Design Vue，但不得混用。
 3. **配置应用层主题**：在入口注册组件库、全局语言、主题和图标；将主色、圆角、背景与表面映射到令牌。
 4. **建立壳层**：先完成顶部栏、侧边栏、移动端抽屉和统一页头，再开发业务页面。
 5. **沉淀页面配方**：实现仪表盘、列表/表格、详情、表单、空状态和错误状态的标准模板。
@@ -418,7 +418,7 @@ Hero 区域（`HomeView.vue`）、通知条幅（`AnnouncementBanner.vue`）等�
 
 ### 8.1 Naive UI 与 Arco Design Vue 对照
 
-| 场景 | OmicHub（Naive UI） | 新平台如选择 Arco Design Vue |
+| 场景 | CygnusX（Naive UI） | 新平台如选择 Arco Design Vue |
 | --- | --- | --- |
 | 主按钮 | `NButton type="primary"` | `<a-button type="primary">` |
 | 表单 | `NForm` + `NFormItem` | `<a-form>` + `<a-form-item>` |
@@ -449,7 +449,7 @@ Arco 项目遵守 Vue 3 `<script setup lang="ts">`、kebab-case 模板属性、`
 - [ ] 是否复用了 `PageHeader`，并把页面级操作放入 `#actions`？
 - [ ] 是否避免硬编码只适用于浅色模式的背景、边框、图表轨道和状态颜色？
 - [ ] 按钮、卡片、输入和表格是否具备 hover、active、focus-visible、disabled、loading 和 error 等适用状态？
-- [ ] 所有可选择卡片是否使用 `.omichub-selectable-card`，并提供连续选中描边、左缘状态线、文本或图标提示与键盘选择？
+- [ ] 所有可选择卡片是否使用 `.cygnusx-selectable-card`，并提供连续选中描边、左缘状态线、文本或图标提示与键盘选择？
 - [ ] 系统健康、进度和任务状态是否同时呈现文本、颜色与加载/错误语义？
 - [ ] 刷新是否保持页面上下文，而不是使用整页重载？
 - [ ] 是否处理了空状态、部分失败、权限不足和长文本溢出？
@@ -476,12 +476,12 @@ Arco 项目遵守 Vue 3 `<script setup lang="ts">`、kebab-case 模板属性、`
 
 ## 11. 可复用 Skill 入口
 
-本规范对应本机 Codex 技能 `$omichub-frontend-design`。技能入口保持简洁，完整参考保存在本文件；当令牌、共享组件或工作流变化时，先更新本文件，再同步技能引用副本。
+本规范对应本机 Codex 技能 `$cygnusx-frontend-design`。技能入口保持简洁，完整参考保存在本文件；当令牌、共享组件或工作流变化时，先更新本文件，再同步技能引用副本。
 
 建议的调用方式：
 
 ```text
-使用 $omichub-frontend-design 优化此 Vue 工作台页面；沿用项目已有组件库和主题，先检查设计令牌、页面状态、响应式与可访问性，再实施并验证构建。
+使用 $cygnusx-frontend-design 优化此 Vue 工作台页面；沿用项目已有组件库和主题，先检查设计令牌、页面状态、响应式与可访问性，再实施并验证构建。
 ```
 
 技能用于提供一致的实施流程，不替代具体仓库中的 `AGENTS.md`、前端架构说明或组件库文档；发生冲突时，以当前仓库的直接指令和实现为准。
@@ -714,6 +714,59 @@ AI 消息区内嵌的状态提示、路由转交、协作决策等卡片（如 `
 - **权威实现**：`frontend/src/components/ai-chat/RouteTransitionCard.vue`、`frontend/src/components/ai-chat/CollaborationRouteNotice.vue`。
 - **新增组件**：凡是在 AI 消息流中水平排列、非浮动/非模态的内联信息卡，默认复用上述尺寸与排列规则；需要特殊宽度时必须在前端设计文档中说明理由。
 
+#### 18.1.2 Plan 分析计划卡片规范（强制）
+
+Plan 分析计划卡片（`PlanCard`）是 Plan 模式下展示任务步骤与执行进度的**输入框附着面板**，不是普通 AI 消息气泡。它必须与底部输入框形成视觉整体，同时保持独立容器与独立生命周期。
+
+**权威实现**：`frontend/src/components/studio/StudioPlanTimeline.vue`；工作台挂载位置为 `frontend/src/views/StudioView.vue` 的输入区上方。相关视觉基线见 `docs/info/26.8.22/前端组件规范-Plan分析计划卡片.md`。
+
+##### 结构与布局
+
+- 卡片由标题行、进度 chip、折叠 chevron 和纵向步骤时间线组成；标题行整行可点击。
+- 卡片左右边界必须与同一页面的 `KimiChatInput` 输入框完全对齐。优先复用同一 wrapper；若卡片与输入框是兄弟节点，使用相同的水平 padding 与 `box-sizing: border-box`，不得单独套用消息气泡宽度。
+- 卡片与输入框保持 `8px` 间距；卡片使用独立容器，不得叠入、遮挡或改变输入框组件的生命周期。
+- 容器使用 `12px` 圆角、`1px` 语义边框、`var(--chat-ai-card)` 或等价 Surface 背景，以及 `var(--chat-shadow-sm)` / `var(--shadow-card)` 柔和阴影。
+- 桌面与移动端均须保持输入框边界对齐，移动端不得出现横向滚动；步骤标题过长使用省略号，不允许撑破卡片。
+
+##### 尺寸与视觉层级
+
+| 元素 | 规范 |
+| --- | --- |
+| 标题 | `14px`、字重 `600` |
+| 步骤文字 | `13px`～`14px`；进行中步骤 `500`，其余 `400` |
+| 步骤行 | `padding: 8px 12px`；状态标签与步骤文字同行右对齐 |
+| 连接线 | `2px`，使用 `--chat-border` / `--neutral-border` 等语义令牌 |
+| 时间线节点 | 与步骤文字首行基线对齐；进行中节点显示主色外环 |
+| 进度 chip | 文案为 `X/N`，`12px`，圆角 `999px`，水平 padding `8px` |
+| 折叠按钮 | 可点击区域不小于 `24×24px`；hover 使用 Surface Hover，不新造颜色 |
+
+颜色必须来自 `--chat-*`、`--neutral-*`、`--arco-primary` 或现有成功/错误语义变量。待执行文字不能使用低对比度浅灰；浅色和深色主题均须满足 WCAG AA，正文对比度不低于 `4.5:1`。禁止在组件样式中新增孤立的 hex 色值。
+
+##### 状态与数据契约
+
+- 计划步骤数据结构与状态流转由业务层维护；卡片只消费步骤列表，不在视觉组件内重写轮询、流式更新或状态机。
+- 三种状态必须同时体现为文字、节点视觉和必要的颜色语义：`in_progress`（进行中）、`pending`（待执行）、`done`（已完成）。
+- 步骤状态从进行中推进到已完成时，卡片应实时更新节点、状态标签和 `X/N` 进度，不得因折叠动画或组件重渲染丢失数据。
+- `done` 步骤可使用实心主色节点与“已完成”标签；`in_progress` 使用主色节点、当前步骤字重 `500` 和低频脉冲；`pending` 使用空心弱化节点，但文字仍需达到可读对比度。
+
+##### 折叠与摘要
+
+- 默认展示步骤列表；折叠后只保留一行摘要和 chevron。
+- 执行中摘要格式：`分析计划 · 已完成 X/N · 当前：{当前步骤标题}`。
+- 全部完成摘要格式：`分析计划 · N/N 已完成 ✓`。
+- 当前步骤优先取 `in_progress`，没有进行中步骤时取下一条 `pending`；没有可执行步骤时显示“等待执行”。标题过长必须省略截断。
+- 折叠/展开使用 `grid-template-rows: 0fr ↔ 1fr` 或等价高度过渡，默认 `250ms ease-out`；不支持时降级为可控的 `max-height`，不得用突兀的 `display: none` 代替动画。
+- 计划全部完成后只自动折叠一次。用户手动展开后，后续状态更新不得再次自动收起；折叠状态保持在组件会话生命周期内即可，不要求持久化。
+- 折叠控制必须提供 `aria-expanded` 与 `aria-controls`；摘要文字应在折叠态对屏幕阅读器可感知。
+
+##### 动效、响应式与验收
+
+- chevron 使用 `transform` 旋转约 `180°`，过渡 `200ms`～`250ms`。
+- 进行中节点呼吸效果只允许使用 `opacity`，周期 `1.2s`、`ease-in-out`；禁止使用会引起布局抖动的宽高或 margin 动画。
+- 所有过渡控制在 `200ms`～`300ms`；必须提供 `@media (prefers-reduced-motion: reduce)`，关闭循环动画并让折叠直接切换。
+- 新增或修改 Plan 卡片时，至少验证：桌面与窄屏边界对齐、折叠摘要、全部完成自动折叠、手动展开后不再自动收起、深浅主题对比度、状态实时推进和无横向滚动。
+- 组件测试应覆盖标题行折叠/展开、`X/N` 进度更新和自动折叠护栏；不得只验证静态文案。
+
 ### 18.2 流式输出
 
 - 使用 `useChatStream` / `useAgentChatStream` 处理 SSE 或 WebSocket 流。
@@ -780,7 +833,7 @@ AI 消息区内嵌的状态提示、路由转交、协作决策等卡片（如 `
 - 权威 hydrate 实现：`frontend/src/stores/agentHub.ts` 的 `loadSessionMessages()`——从 `metadata_json.tool_invocations` 重建 `msg.toolCalls`，从 `metadata_json.timeline` 重建正文/工具交错顺序。
 - **`tool_invocations`**：每次工具调用一条，字段 `tool_call_id / tool_name / arguments / success / result / ui_payload / mcp_server`。前端凭 `arguments + ui_payload + result` 渲染卡片。**Plotly 火山图等图表数据在 `ui_payload.plotly_figure` 里**（见 `KimiMessageItem.vue` 的 `extractPlotlyFigure`），这个字段不落库，重开后图就永久消失。
 - **`timeline`**：`{ kind: 'text'|'tool', text?, tool_call_id?, tool_name? }` 段数组，保证重载后仍是"正文→工具→正文"的交错布局，而不是正文堆上面、工具全堆下面。
-- 落库载荷经 `_cap_tool_invocation_payload`（200KB 护栏）截断；前端遇到 `{ _omichub_payload_truncated: true }` 按"无载荷"降级渲染，不能崩。
+- 落库载荷经 `_cap_tool_invocation_payload`（200KB 护栏）截断；前端遇到 `{ _cygnusx_payload_truncated: true }` 按"无载荷"降级渲染，不能崩。
 - 前端 hydrate 时：`mcp_server` 旧数据缺失回退 `'studio'`；`update_plan` 的 steps 要恢复到右侧待办面板；`ui_payload.stdout/stderr` 拼到 `tool.output`。
 
 > **后端双执行路径陷阱**：`ChatService` 有两套并行的 Agent 执行路径——legacy 手写 `for _round` 循环和 LangGraph 引擎（`_stream_agent_chat_langgraph`，普通 `mode=chat` 会话默认走它）。工具调用落库、`timeline`、`ask_request`、handoff 等副作用在两条路径里**各自独立实现**。任何"工具结果要持久化/要随消息返回"的改动，**必须同时改两条路径**；只改 legacy 会让普通 chat 会话重开后卡片与图全部丢失（此问题真实发生过：LangGraph 路径只把 tool_call/tool_result yield 透传，从未写 `tool_invocations`）。
@@ -805,7 +858,7 @@ AI 消息区内嵌的状态提示、路由转交、协作决策等卡片（如 `
 - 命中 `rm / rmdir / unlink / shred / find -delete / git rm / git clean` 等删除类命令时，拦截回车、弹出确认（`确认执行` 为 `type="error"` 按钮，`maskClosable/closeOnEsc` 关闭）；确认后才发送回车，取消发送 `Ctrl+U` 清除 shell 行。
 - 弹窗打开期间吞掉终端输入，避免破坏 shell 行状态；方向键 / Tab 补全 / 历史搜索等带外改行场景标记 uncertain 并跳过本次检测，宁可漏报不打扰。
 - 该守护是"提示"而非安全边界，不替代后端权限与容器隔离。
-- 面向用户不得暴露容器内路径（如 `/home/omichub/workspace`）：启动配置预览的挂载目录显示"我的 workspace"，容器 zshrc MOTD 使用 `~/workspace` 表述并附数据警示（`tool_configs/terminal/docker/zshrc`，改动需重建镜像生效）。
+- 面向用户不得暴露容器内路径（如 `/home/cygnusx/workspace`）：启动配置预览的挂载目录显示"我的 workspace"，容器 zshrc MOTD 使用 `~/workspace` 表述并附数据警示（`tool_configs/terminal/docker/zshrc`，改动需重建镜像生效）。
 
 ### 19.3 代码沙箱
 
@@ -849,7 +902,7 @@ frontend/src/
 | Store | camelCase + `use` 前缀导出 | `useThemeStore` |
 | API 函数 | camelCase + 动词前缀 | `getTaskList`、`submitBlast` |
 | 类型/接口 | PascalCase | `EnrichmentResult` |
-| CSS 类 | kebab-case 或 BEM | `.omichub-selectable-card`、`.page-header-main` |
+| CSS 类 | kebab-case 或 BEM | `.cygnusx-selectable-card`、`.page-header-main` |
 | 路由 name | PascalCase | `BlastSearch`、`PhylogeneticTree` |
 | 常量 | UPPER_SNAKE_CASE | `MAX_UPLOAD_SIZE` |
 
@@ -1011,7 +1064,7 @@ frontend/src/
 - 路由定义在 `frontend/src/router/index.ts`；按功能域拆分路由数组。
 - 所有业务路由使用懒加载：`component: () => import('@/views/...')`。
 - 路由 `meta` 字段携带：`title`（页面标题）、`requiresAuth`（是否需要登录）、`roles`（允许角色）。
-- 页面标题在 `router.afterEach` 中统一设置为 `{title} - OmicHub`。
+- 页面标题在 `router.afterEach` 中统一设置为 `{title} - CygnusX`。
 
 ### 27.2 导航守卫
 
@@ -1453,7 +1506,7 @@ function pct(value: number | null | undefined): number {
 - 进度单元格统一由 `renderTaskProgress()` 生成：外层 `.recent-task-progress` 使用 `display: flex`、`align-items: center`、`min-width: 0` 和 `white-space: nowrap`；内部 `.n-progress` 使用 `flex: 1 1 auto` 和 `min-width: 60px`；百分比 `.recent-task-progress__value` 使用 `flex: 0 0 44px`、右对齐、`white-space: nowrap` 与 `font-variant-numeric: tabular-nums`。`NProgress` 关闭内置指示器，百分比由固定宽度文本单独渲染，保证 `0%`、`45%`、`100%` 均不折行。
 - 操作列使用列级居中；多图标操作组通过 `NSpace` 的 `justify: 'center'` 和 `size: 12` 布局。图标按钮仍必须保留 `NTooltip`，删除操作仍通过 `NPopconfirm` 确认；本规范只约束样式与布局，不改变刷新、查看、重试或删除逻辑。
 
-**⑦ 平台通用卡片表格基线。** 除仪表盘任务表的专属进度规则外，所有嵌入 `NCard`、`.arco-card`、`.omichub-card`、`.table-card`、`.work-card`、`.result-card`、`.bottom-table`、`.table-wrap` 或 `.resource-tab` 的 `NDataTable` 都由 `frontend/src/styles/global.css` 的“卡片内数据表格”规则统一提供不透明 `--neutral-card` 表面、`--neutral-bg` 表头、`--neutral-border` 分隔线、`--neutral-hover` 行悬停色以及 `max-width: 100%` 容器约束。因此，任务/结果表、管理表和实验计算器结果表不得在局部样式中重新引入半透明表格底色或硬编码白色；业务页面只需按数据密度配置列宽、`scroll-x`、省略与对齐策略。
+**⑦ 平台通用卡片表格基线。** 除仪表盘任务表的专属进度规则外，所有嵌入 `NCard`、`.arco-card`、`.cygnusx-card`、`.table-card`、`.work-card`、`.result-card`、`.bottom-table`、`.table-wrap` 或 `.resource-tab` 的 `NDataTable` 都由 `frontend/src/styles/global.css` 的“卡片内数据表格”规则统一提供不透明 `--neutral-card` 表面、`--neutral-bg` 表头、`--neutral-border` 分隔线、`--neutral-hover` 行悬停色以及 `max-width: 100%` 容器约束。因此，任务/结果表、管理表和实验计算器结果表不得在局部样式中重新引入半透明表格底色或硬编码白色；业务页面只需按数据密度配置列宽、`scroll-x`、省略与对齐策略。
 
 带内置分页的卡片表格还必须把 `.n-data-table__pagination` 作为独立 footer：使用实体 `--neutral-card` 背景、顶部 `--neutral-border` 分隔线，以及足够的左右和底部内边距。分页存在时，末行单元格的底边应透明，由 footer 顶边承担唯一分隔，避免暗色模式下末行横线与分页器重叠；最右侧翻页按钮不得贴住卡片边缘或被圆角裁切。该规则统一维护在 `frontend/src/styles/global.css`，页面不得逐个复制分页补丁。
 
@@ -1532,7 +1585,7 @@ const columns: DataTableColumns<Task> = [
 
 ## 35. AI 助手主入口设计与优化规范
 
-> **适用范围**：OmicHub 星尘 AI 主入口、空会话欢迎页、对话页、工作台模式和智能体能力入口。
+> **适用范围**：CygnusX 星尘 AI 主入口、空会话欢迎页、对话页、工作台模式和智能体能力入口。
 >
 > **设计目标**：AI 主入口不是营销落地页，而是面向生物信息学任务的高频工作界面。页面应让用户在进入后快速完成“理解当前助手 → 选择常见任务或引用数据 → 输入需求 → 查看执行过程与结果”的完整路径。
 >
@@ -2218,7 +2271,7 @@ export interface AIQuickAction {
 ```md
 ### 36.1 完整优化提示词
 
-使用 `$omichub-frontend-design` 对 OmicHub 的星尘 AI 主入口进行完整优化。
+使用 `$cygnusx-frontend-design` 对 CygnusX 的星尘 AI 主入口进行完整优化。
 
 开始前必须先阅读并遵守：
 
@@ -2301,7 +2354,7 @@ export interface AIQuickAction {
 ### 36.2 第一阶段提示词：首屏与输入区
 
 ```text
-使用 $omichub-frontend-design 优化星尘 AI 主入口的首屏任务路径。
+使用 $cygnusx-frontend-design 优化星尘 AI 主入口的首屏任务路径。
 
 只处理以下范围：
 1. 区分空会话与已有消息状态。
@@ -2321,7 +2374,7 @@ export interface AIQuickAction {
 ### 36.3 第二阶段提示词：快捷任务与工具栏
 
 ```text
-使用 $omichub-frontend-design 优化星尘 AI 的快捷任务和输入工具栏。
+使用 $cygnusx-frontend-design 优化星尘 AI 的快捷任务和输入工具栏。
 
 任务：
 1. 将快捷任务改为结构化配置驱动。
@@ -2342,7 +2395,7 @@ export interface AIQuickAction {
 ### 36.4 第三阶段提示词：导航与最近会话
 
 ```text
-使用 $omichub-frontend-design 优化星尘 AI 页面的多层导航和最近上下文。
+使用 $cygnusx-frontend-design 优化星尘 AI 页面的多层导航和最近上下文。
 
 任务：
 1. 梳理平台顶部导航、全局侧栏和 AI 侧栏的职责。
@@ -2364,7 +2417,7 @@ export interface AIQuickAction {
 ### 36.5 第四阶段提示词：流式输出与工具调用
 
 ```text
-使用 $omichub-frontend-design 完善星尘 AI 的流式输出、连接状态和工具调用卡片。
+使用 $cygnusx-frontend-design 完善星尘 AI 的流式输出、连接状态和工具调用卡片。
 
 任务：
 1. 复用现有 useChatStream、useAgentChatStream、AI Store 或 WebSocket composable。
@@ -2387,7 +2440,7 @@ export interface AIQuickAction {
 ### 36.6 只做审查、不修改代码的提示词
 
 ```text
-使用 $omichub-frontend-design 审查 OmicHub 星尘 AI 主入口，但暂不修改代码。
+使用 $cygnusx-frontend-design 审查 CygnusX 星尘 AI 主入口，但暂不修改代码。
 
 重点检查：
 - 空会话与活跃会话布局；
@@ -2412,4 +2465,4 @@ export interface AIQuickAction {
 6. 不输出泛化视觉建议，不臆测不存在的接口或组件。
 ```
 
-另外建议修正文件名：如果当前仓库实际叫 `fontend.md`，最好迁移为正确拼写的 `frontend.md`，并同步 `$omichub-frontend-design`、`AGENTS.md` 和其它文档中的引用。如果已有自动化脚本依赖旧文件名，则先保留一个短的兼容入口，避免技能引用失效。
+另外建议修正文件名：如果当前仓库实际叫 `fontend.md`，最好迁移为正确拼写的 `frontend.md`，并同步 `$cygnusx-frontend-design`、`AGENTS.md` 和其它文档中的引用。如果已有自动化脚本依赖旧文件名，则先保留一个短的兼容入口，避免技能引用失效。

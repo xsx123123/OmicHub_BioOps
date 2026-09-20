@@ -4,10 +4,10 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from omichub.core.exceptions import AuthorizationError
-from omichub.core.security import create_access_token
-from omichub.main import app
-from omichub.middleware.rbac import require_admin
+from cygnusx.core.exceptions import AuthorizationError
+from cygnusx.core.security import create_access_token
+from cygnusx.main import app
+from cygnusx.middleware.rbac import require_admin
 
 
 @pytest.fixture
@@ -20,7 +20,7 @@ def auth_headers() -> dict[str, str]:
 async def test_user_overview_contract(client, auth_headers):
     """个人状态概览返回 running/total/samples。"""
     with patch(
-        "omichub.api.v1.stats.StatsService.user_overview",
+        "cygnusx.api.v1.stats.StatsService.user_overview",
         new=AsyncMock(return_value={"running": 1, "total": 5, "samples": 12}),
     ):
         resp = await client.get("/api/v1/stats/overview", headers=auth_headers)
@@ -34,7 +34,7 @@ async def test_user_trend_passes_days_param(client, auth_headers):
     """趋势接口透传 days 查询参数。"""
     payload = [{"date": "06/30", "tasks": 1, "samples": 2}]
     with patch(
-        "omichub.api.v1.stats.StatsService.user_trend",
+        "cygnusx.api.v1.stats.StatsService.user_trend",
         new=AsyncMock(return_value=payload),
     ) as mocked:
         resp = await client.get("/api/v1/stats/trend?days=30", headers=auth_headers)
@@ -70,7 +70,7 @@ async def test_admin_status_ok_for_admin(client, auth_headers):
     app.dependency_overrides[require_admin] = _allow
     try:
         with patch(
-            "omichub.api.v1.admin.stats.StatsService.admin_status",
+            "cygnusx.api.v1.admin.stats.StatsService.admin_status",
             new=AsyncMock(return_value={"running": 2, "success": 5, "failed": 1}),
         ):
             resp = await client.get("/api/v1/admin/stats/status", headers=auth_headers)
@@ -101,7 +101,7 @@ async def test_admin_recent_failed_contract(client, auth_headers):
             }
         ]
         with patch(
-            "omichub.api.v1.admin.stats.StatsService.admin_recent_failed",
+            "cygnusx.api.v1.admin.stats.StatsService.admin_recent_failed",
             new=AsyncMock(return_value=failed),
         ):
             resp = await client.get(

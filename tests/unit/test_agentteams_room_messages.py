@@ -9,20 +9,20 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError
 
-from omichub.api.v1.agentteams import (
+from cygnusx.api.v1.agentteams import (
     AgentTeamsCaseCreateRequest,
     AgentTeamsRoomMessageRequest,
     create_case,
     post_case_message,
 )
-from omichub.application.services.agentteams_service import (
+from cygnusx.application.services.agentteams_service import (
     CASE_LEVEL_WORK_ITEM_ID,
     ROOM_MEMBER_IDENTITIES,
     AgentTeamsService,
 )
-from omichub.application.services.project_service import ProjectService
-from omichub.core.config import Settings
-from omichub.core.exceptions import AuthorizationError
+from cygnusx.application.services.project_service import ProjectService
+from cygnusx.core.config import Settings
+from cygnusx.core.exceptions import AuthorizationError
 
 
 @pytest.fixture
@@ -61,7 +61,7 @@ class FakeRoomGateway:
 
 def _install_gateway(monkeypatch: pytest.MonkeyPatch, gateway: FakeRoomGateway) -> None:
     monkeypatch.setattr(
-        "omichub.application.services.agentteams_service.AgentTeamsRoomGatewayService",
+        "cygnusx.application.services.agentteams_service.AgentTeamsRoomGatewayService",
         lambda: gateway,
     )
 
@@ -76,14 +76,14 @@ async def test_provision_case_room_creates_room_and_persists_binding(
     monkeypatch.setattr(service, "post_case_evidence", evidence)
     bind = AsyncMock()
     monkeypatch.setattr(
-        "omichub.application.services.agentteams_room_sync_service.record_room_binding", bind
+        "cygnusx.application.services.agentteams_room_sync_service.record_room_binding", bind
     )
 
     room = await service.provision_case_room("bioops_abc", requester_ref="user-a")
 
     assert room == gateway._room
-    assert gateway.create_calls == [("bioops_abc", [*ROOM_MEMBER_IDENTITIES, "omichub-user-user-a"])]
-    assert gateway.ensured_calls == [[*ROOM_MEMBER_IDENTITIES, "omichub-user-user-a"]]
+    assert gateway.create_calls == [("bioops_abc", [*ROOM_MEMBER_IDENTITIES, "cygnusx-user-user-a"])]
+    assert gateway.ensured_calls == [[*ROOM_MEMBER_IDENTITIES, "cygnusx-user-user-a"]]
     evidence.assert_awaited_once()
     kwargs = evidence.await_args.kwargs
     assert kwargs["work_item_id"] == CASE_LEVEL_WORK_ITEM_ID
@@ -143,9 +143,9 @@ async def test_create_case_endpoint_provisions_room_after_create(monkeypatch: py
         provision_case_room=AsyncMock(return_value=None),
     )
     monkeypatch.setattr(ProjectService, "get_project", AsyncMock())
-    monkeypatch.setattr("omichub.api.v1.agentteams._is_chat_case_flow_allowed", lambda _flow: True)
+    monkeypatch.setattr("cygnusx.api.v1.agentteams._is_chat_case_flow_allowed", lambda _flow: True)
     monkeypatch.setattr(
-        "omichub.api.v1.agentteams.get_agentteams_capability_registry",
+        "cygnusx.api.v1.agentteams.get_agentteams_capability_registry",
         lambda: SimpleNamespace(agent_for_flow=lambda _flow: "agent-rnaseq"),
     )
 
@@ -209,7 +209,7 @@ async def test_post_room_message_records_context_refs_in_payload(service: AgentT
 
 @pytest.mark.asyncio
 async def test_post_case_message_endpoint_delegates_to_service(monkeypatch: pytest.MonkeyPatch) -> None:
-    from omichub.infrastructure.celery_app.tasks.agentteams import respond_to_room_message
+    from cygnusx.infrastructure.celery_app.tasks.agentteams import respond_to_room_message
 
     monkeypatch.setattr(respond_to_room_message, "delay", MagicMock())
     service = SimpleNamespace(post_room_message=AsyncMock(return_value={"event_id": "evt-1"}))
@@ -231,7 +231,7 @@ async def test_post_case_message_endpoint_delegates_to_service(monkeypatch: pyte
 async def test_post_case_message_passes_context_refs_to_service(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from omichub.infrastructure.celery_app.tasks.agentteams import respond_to_room_message
+    from cygnusx.infrastructure.celery_app.tasks.agentteams import respond_to_room_message
 
     monkeypatch.setattr(respond_to_room_message, "delay", MagicMock())
     service = SimpleNamespace(post_room_message=AsyncMock(return_value={"event_id": "evt-2"}))
@@ -274,7 +274,7 @@ async def test_post_case_message_endpoint_propagates_ownership_403() -> None:
 
 @pytest.mark.asyncio
 async def test_post_case_message_dispatches_manager_response_task(monkeypatch: pytest.MonkeyPatch) -> None:
-    from omichub.infrastructure.celery_app.tasks.agentteams import respond_to_room_message
+    from cygnusx.infrastructure.celery_app.tasks.agentteams import respond_to_room_message
 
     delay = MagicMock()
     monkeypatch.setattr(respond_to_room_message, "delay", delay)
@@ -295,7 +295,7 @@ async def test_post_case_message_dispatches_manager_response_task(monkeypatch: p
 async def test_post_case_message_survives_response_dispatch_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from omichub.infrastructure.celery_app.tasks.agentteams import respond_to_room_message
+    from cygnusx.infrastructure.celery_app.tasks.agentteams import respond_to_room_message
 
     monkeypatch.setattr(
         respond_to_room_message, "delay", MagicMock(side_effect=RuntimeError("broker down"))
@@ -335,7 +335,7 @@ async def test_create_case_chat_style_injects_workspace_without_auto_confirm(
         provision_case_room=AsyncMock(return_value=None),
     )
     redis = FakeRedis()
-    monkeypatch.setattr("omichub.api.v1.agentteams.get_redis", lambda: redis)
+    monkeypatch.setattr("cygnusx.api.v1.agentteams.get_redis", lambda: redis)
 
     response = await create_case(request, str(user_id), service, SimpleNamespace())
 
@@ -363,11 +363,11 @@ async def test_create_case_flow_case_skips_injection_and_auto_confirm(
         provision_case_room=AsyncMock(return_value=None),
     )
     redis = FakeRedis()
-    monkeypatch.setattr("omichub.api.v1.agentteams.get_redis", lambda: redis)
+    monkeypatch.setattr("cygnusx.api.v1.agentteams.get_redis", lambda: redis)
     monkeypatch.setattr(ProjectService, "get_project", AsyncMock())
-    monkeypatch.setattr("omichub.api.v1.agentteams._is_chat_case_flow_allowed", lambda _flow: True)
+    monkeypatch.setattr("cygnusx.api.v1.agentteams._is_chat_case_flow_allowed", lambda _flow: True)
     monkeypatch.setattr(
-        "omichub.api.v1.agentteams.get_agentteams_capability_registry",
+        "cygnusx.api.v1.agentteams.get_agentteams_capability_registry",
         lambda: SimpleNamespace(agent_for_flow=lambda _flow: "agent-rnaseq"),
     )
 
@@ -392,7 +392,7 @@ async def test_create_case_general_case_keeps_explicit_context_without_auto_conf
         provision_case_room=AsyncMock(return_value=None),
     )
     redis = FakeRedis()
-    monkeypatch.setattr("omichub.api.v1.agentteams.get_redis", lambda: redis)
+    monkeypatch.setattr("cygnusx.api.v1.agentteams.get_redis", lambda: redis)
 
     await create_case(request, str(user_id), service, SimpleNamespace())
 
@@ -413,7 +413,7 @@ async def test_create_case_chat_style_survives_redis_failure(
         provision_case_room=AsyncMock(return_value=None),
     )
     redis = FakeRedis(error=RuntimeError("redis down"))
-    monkeypatch.setattr("omichub.api.v1.agentteams.get_redis", lambda: redis)
+    monkeypatch.setattr("cygnusx.api.v1.agentteams.get_redis", lambda: redis)
 
     response = await create_case(request, str(user_id), service, SimpleNamespace())
 

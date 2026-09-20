@@ -1,12 +1,12 @@
 # AgentTeams Bridge repeatable demo
 
-This runbook targets a **separately deployed Bridge and OmicHub staging environment**. It never
-starts the Controller, never uses an OmicHub database, and never reads `/data/omichub`.
+This runbook targets a **separately deployed Bridge and CygnusX staging environment**. It never
+starts the Controller, never uses an CygnusX database, and never reads `/data/cygnusx`.
 
 ## Prerequisites
 
 1. Start the Bridge with real non-placeholder production/staging credentials.
-2. Create a dedicated OmicHub demo project and configure a real `rna_seq` demo input.
+2. Create a dedicated CygnusX demo project and configure a real `rna_seq` demo input.
 3. Export the minimum service identity tokens required by the selected mode:
 
 ```bash
@@ -57,6 +57,6 @@ python3 integrations/agentteams/demo/run_bridge_demo.py \
 
 `--allow-automated-demo-approval` is deliberately required because the command mints an internal
 short-lived Bridge approval token. It is only for controlled staging demonstrations and must not
-replace a real human approval card in production. The script waits for a real OmicHub terminal
+replace a real human approval card in production. The script waits for a real CygnusX terminal
 task status, runs the quality gate only after `success`, and closes the Case to emit a real
 manifest reference.

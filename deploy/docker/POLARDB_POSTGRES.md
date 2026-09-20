@@ -8,7 +8,7 @@ Do **not** point the pgvector image at a pre-existing PostgreSQL data directory.
 
 ```bash
 docker compose -f deploy/docker/docker-compose.yml -f deploy/docker/docker-compose.pgvector.yml up -d db pgbouncer postgres-exporter
-docker exec omichub-web alembic upgrade head
+docker exec cygnusx-web alembic upgrade head
 ```
 
 Use PgBouncer only for application traffic. Alembic migrations, `pg_dump`, and `pg_restore` must connect directly to the writer endpoint.
@@ -36,14 +36,14 @@ Convenience commands: `make docker-up-pgvector`, `make pgvector-acceptance`, `ma
 After the migration, backfill existing published documents before enabling semantic retrieval:
 
 ```bash
-docker exec omichub-web python scripts/reindex_knowledge_vectors.py
+docker exec cygnusx-web python scripts/reindex_knowledge_vectors.py
 ```
 
 ## Backup and restore drill
 
 ```bash
 DATABASE_URL=postgresql+asyncpg://... scripts/backup_polardb_postgres.sh
-RESTORE_DATABASE_URL=postgresql+asyncpg://... scripts/restore_polardb_postgres.sh /data/omichub/backups/postgres/omichub-<timestamp>.dump
+RESTORE_DATABASE_URL=postgresql+asyncpg://... scripts/restore_polardb_postgres.sh /data/cygnusx/backups/postgres/cygnusx-<timestamp>.dump
 ```
 
 Restore only into an empty/non-production target and rerun `scripts/verify_polardb_postgres.sh` after restore. Use PolarDB automated backups/PITR as the production recovery control; these scripts are the logical portability and drill path.

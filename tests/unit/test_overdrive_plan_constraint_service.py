@@ -2,12 +2,12 @@
 
 import pytest
 
-from omichub.application.services.overdrive_plan_constraint_service import (
+from cygnusx.application.services.overdrive_plan_constraint_service import (
     apply_authoritative_plan,
     merge_with_authoritative,
     validate_plan,
 )
-from omichub.domain.domains.schema import AssignmentRule
+from cygnusx.domain.domains.schema import AssignmentRule
 
 
 def _rules() -> list[AssignmentRule]:
@@ -226,3 +226,185 @@ async def test_failed_repair_rule_merges_and_preserves_latest_llm_speech() -> No
     assert result.planning_mode == "rule_merge"
     assert result.violations
     assert result.repair_attempted is True
+
+
+# ===== 通用能力匹配软校验（无领域锚点路径） =====
+
+from cygnusx.application.services.overdrive_plan_constraint_service import (  # noqa: E402
+    build_repair_prompt,
+    validate_capability_match,
+)
+
+
+def test_capability_match_flags_viz_task_assigned_to_code_agent() -> None:
+    assignments = [
+        {
+            "task_id": "tree-viz",
+            "agent_id": "agent-code",
+            "task": "使用 ggtree 绘制系统发育树图",
+            "accepts_inputs": ["treefile"],
+            "produces_outputs": ["可视化树图"],
+        }
+    ]
+
+    violations = validate_capability_match(assignments, CATALOG)
+
+    assert any("tree-viz" in item and "可视化" in item for item in violations)
+
+
+def test_capability_match_passes_when_agent_covers_capability() -> None:
+    assignments = [
+        {
+            "task_id": "tree-viz",
+            "agent_id": "agent-viz",
+            "task": "使用 ggtree 绘制系统发育树图",
+            "accepts_inputs": ["treefile"],
+            "produces_outputs": ["可视化树图"],
+        }
+    ]
+
+    assert validate_capability_match(assignments, CATALOG) == []
+
+
+def test_capability_match_skips_when_no_better_candidate() -> None:
+    catalog = {"agent-general": CATALOG["agent-general"]}
+    assignments = [
+        {
+            "task_id": "tree-viz",
+            "agent_id": "agent-general",
+            "task": "绘制系统发育树图",
+            "accepts_inputs": [],
+            "produces_outputs": [],
+        }
+    ]
+
+    assert validate_capability_match(assignments, catalog) == []
+
+
+def test_capability_match_uses_top_level_capability_scope() -> None:
+    catalog = {
+        "agent-scripts": {
+            "agent_id": "agent-scripts",
+            "name": "脚本执行器",
+            "category": "specialist",
+            "capability_scope": ["Python", "Bash", "脚本设计"],
+        },
+        "agent-viz": CATALOG["agent-viz"],
+    }
+    assignments = [
+        {
+            "task_id": "run-pipeline",
+            "agent_id": "agent-scripts",
+            "task": "编写 Python 脚本批量处理输入文件",
+            "accepts_inputs": [],
+            "produces_outputs": [],
+        }
+    ]
+
+    assert validate_capability_match(assignments, catalog) == []
+
+
+@pytest.mark.asyncio
+async def test_generic_check_repairs_mismatched_plan() -> None:
+    mismatched = [
+        {
+            "task_id": "tree-viz",
+            "agent_id": "agent-code",
+            "task": "绘制并美化系统发育树图",
+            "accepts_inputs": ["treefile"],
+            "produces_outputs": ["树图"],
+        }
+    ]
+    fixed = [{**mismatched[0], "agent_id": "agent-viz"}]
+
+    async def repair(_violations: list[str]) -> tuple[str, list[dict[str, object]]]:
+        return "已改派可视化助手", fixed
+
+    result = await apply_authoritative_plan(
+        assignments=mismatched,
+        speech="原始说明",
+        authoritative_assignments=[],
+        rules=[],
+        catalog_by_id=CATALOG,
+        mode="constraint",
+        repair_enabled=True,
+        repair_plan=repair,
+    )
+
+    assert result.assignments == fixed
+    assert result.speech == "已改派可视化助手"
+    assert result.planning_mode == "llm_repaired"
+    assert result.violations == []
+    assert result.repair_attempted is True
+
+
+@pytest.mark.asyncio
+async def test_generic_check_failed_repair_keeps_plan_and_records_violations() -> None:
+    mismatched = [
+        {
+            "task_id": "tree-viz",
+            "agent_id": "agent-code",
+            "task": "绘制并美化系统发育树图",
+            "accepts_inputs": ["treefile"],
+            "produces_outputs": ["树图"],
+        }
+    ]
+
+    async def repair(_violations: list[str]) -> tuple[str, list[dict[str, object]]]:
+        return "", mismatched
+
+    result = await apply_authoritative_plan(
+        assignments=mismatched,
+        speech="原始说明",
+        authoritative_assignments=[],
+        rules=[],
+        catalog_by_id=CATALOG,
+        mode="constraint",
+        repair_enabled=True,
+        repair_plan=repair,
+    )
+
+    assert result.assignments == mismatched
+    assert result.speech == "原始说明"
+    assert result.planning_mode == "llm"
+    assert result.violations
+    assert result.repair_attempted is True
+
+
+@pytest.mark.asyncio
+async def test_generic_check_disabled_passes_through() -> None:
+    mismatched = [
+        {
+            "task_id": "tree-viz",
+            "agent_id": "agent-code",
+            "task": "绘制并美化系统发育树图",
+            "accepts_inputs": [],
+            "produces_outputs": [],
+        }
+    ]
+
+    result = await apply_authoritative_plan(
+        assignments=mismatched,
+        speech="原始说明",
+        authoritative_assignments=[],
+        rules=[],
+        catalog_by_id=CATALOG,
+        mode="constraint",
+        repair_enabled=True,
+        repair_plan=_unused_repair,
+        capability_check_enabled=False,
+    )
+
+    assert result.assignments == mismatched
+    assert result.planning_mode == "llm"
+    assert result.violations == []
+    assert result.repair_attempted is False
+
+
+def test_build_repair_prompt_switches_wording_by_anchors() -> None:
+    anchored = build_repair_prompt(["缺失必需锚点 x"], "- x: depends_on=[]")
+    generic = build_repair_prompt(["任务 t 涉及可视化/绘图"], "无。")
+
+    assert "必需环节契约" in anchored
+    assert "能力错配" in generic
+    assert "必需环节契约" not in generic

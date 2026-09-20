@@ -85,13 +85,13 @@ agent-scrna（领域负责人）
 
 | 已有能力 | 说明 | 主要位置 |
 | --- | --- | --- |
-| 房间消息审计 | 用户消息以 `room.user_message` 记录，可经 SSE 历史重载 | `src/omichub/application/services/agentteams_service.py` |
+| 房间消息审计 | 用户消息以 `room.user_message` 记录，可经 SSE 历史重载 | `src/cygnusx/application/services/agentteams_service.py` |
 | 房间消息历史恢复 | 切换 Case 时前端分页加载全部历史，再从最后事件启动 SSE | `frontend/src/views/AgentTeamsRoomView.vue` |
-| 路由决策 | Router/规则根据原始需求选择 Flow 和 lead planner；高置信不要求用户选 Agent | `src/omichub/application/services/agentteams_route_decision.py` |
-| Manager/领域流程交接 | 正式规划启动后停止 Manager 的重复泛化追问 | `src/omichub/application/services/agentteams_room_response_service.py` |
+| 路由决策 | Router/规则根据原始需求选择 Flow 和 lead planner；高置信不要求用户选 Agent | `src/cygnusx/application/services/agentteams_route_decision.py` |
+| Manager/领域流程交接 | 正式规划启动后停止 Manager 的重复泛化追问 | `src/cygnusx/application/services/agentteams_room_response_service.py` |
 | Worker 进度投影 | work item、Skill、工具调用、产物可在房间内展示 | `frontend/src/utils/agentTeamsRoom.ts` |
-| 运行中工作项取消 | Bridge 的 Manager 身份可取消非终态 work item，并级联跳过下游依赖 | `integrations/agentteams/bridge/omichub_agentteams_bridge/service.py` |
-| 人工审批 | 真实计算必须经 Case 人工审批卡确认；旧自动确认标记只清理、不再放行 | `src/omichub/application/services/agentteams_service.py` |
+| 运行中工作项取消 | Bridge 的 Manager 身份可取消非终态 work item，并级联跳过下游依赖 | `integrations/agentteams/bridge/cygnusx_agentteams_bridge/service.py` |
+| 人工审批 | 真实计算必须经 Case 人工审批卡确认；旧自动确认标记只清理、不再放行 | `src/cygnusx/application/services/agentteams_service.py` |
 
 ### 3.2 当前缺口
 
@@ -127,10 +127,10 @@ Phase 2 当前新增：
 
 对应实现文件：
 
-- `src/omichub/application/services/agentteams_mention_resolver.py`
-- `src/omichub/application/services/agentteams_service.py`
-- `src/omichub/application/services/agentteams_room_response_service.py`
-- `src/omichub/infrastructure/celery_app/tasks/agentteams.py`
+- `src/cygnusx/application/services/agentteams_mention_resolver.py`
+- `src/cygnusx/application/services/agentteams_service.py`
+- `src/cygnusx/application/services/agentteams_room_response_service.py`
+- `src/cygnusx/infrastructure/celery_app/tasks/agentteams.py`
 - `frontend/src/components/ai-chat/KimiChatInput.vue`
 - `frontend/src/components/ai-chat/MentionMenu.vue`
 - `frontend/src/views/AgentTeamsRoomView.vue`

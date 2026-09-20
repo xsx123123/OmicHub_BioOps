@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>正在进入协作房间…</title>
+  <style>
+    body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+           font-family: -apple-system, "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+           background: #f6f7f9; color: #333; }
+    .card { text-align: center; padding: 32px 40px; background: #fff; border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(30, 50, 100, 0.08); max-width: 420px; }
+    .card h1 { font-size: 16px; margin: 0 0 8px; font-weight: 600; }
+    .card p { font-size: 13px; color: #888; margin: 0; line-height: 1.6; }
+    .error h1 { color: #d03050; }
+  </style>
+</head>
+<body>
+  <div class="card" id="card">
+    <h1>正在进入协作房间…</h1>
+    <p>正在为当前账号建立 Element 会话，请稍候。</p>
+  </div>
+  <script>
+    // CygnusX Element 免登录跳板：
+    // 凭据经 URL fragment 传入（fragment 不发送到服务器，不进 nginx access log），
+    // 写入 Element 启动时读取的 localStorage 键后立即抹除地址并跳转房间深链。
+    (function () {
+      var card = document.getElementById('card');
+      function fail(message) {
+        card.className = 'card error';
+        card.innerHTML = '<h1>进入协作房间失败</h1><p>' + message + '</p>';
+      }
+      try {
+        var params = {};
+        location.hash.replace(/^#/, '').split('&').forEach(function (pair) {
+          if (!pair) return;
+          var idx = pair.indexOf('=');
+          if (idx < 0) return;
+          params[pair.slice(0, idx)] = decodeURIComponent(pair.slice(idx + 1).replace(/\+/g, ' '));
+        });
+        var hs = params.hs || '';
+        var userId = params.user_id || '';
+        var token = params.token || '';
+        var deviceId = params.device_id || '';
+        var room = params.room || '';
+        if (!/^https?:\/\//i.test(hs) || !userId || !token || !deviceId || !room) {
+          fail('缺少会话参数或参数格式不正确，请回到协作室重新打开 Element 视图。');
+          return;
+        }
+        // 每次免登录签发的是新设备；若 IndexedDB 里的 rust crypto store 还属于
+        // 上一个设备，Element 恢复会话会因 "account in the store doesn't match"
+        // 直接报 Unable to restore session。换设备前清掉旧会话存储。
+        // 房间未启用 E2EE，清 crypto store 无历史代价。
+        function wipeStoresIfDeviceChanged(next) {
+          var storedUser = null;
+          var storedDevice = null;
+          try {
+            storedUser = localStorage.getItem('mx_user_id');
+            storedDevice = localStorage.getItem('mx_device_id');
+          } catch (e) { /* localStorage 不可用时按无需清理处理 */ }
+          if (!storedDevice || (storedUser === userId && storedDevice === deviceId)) {
+            next();
+            return;
+          }
+          var finished = false;
+          function finish() {
+            if (finished) return;
+            finished = true;
+            next();
+          }
+          // 另一个 Element 视图可能还开着这些库（deleteDatabase 会 blocked），
+          // 超时兜底照常继续，保证单视图场景必达。
+          setTimeout(finish, 1500);
+          try { localStorage.clear(); } catch (e) { /* ignore */ }
+          var fallbackNames = [
+            'matrix-js-sdk::matrix-sdk-crypto', // rust crypto store（本构建实测）
+            'matrix-js-sdk:riot-web-sync',      // sync store（本构建实测）
+            'matrix-js-sdk:crypto',             // legacy libolm store
+            'matrix-js-sdk:sync'
+          ];
+          function deleteAll(names) {
+            if (!names.length) { finish(); return; }
+            var remaining = names.length;
+            names.forEach(function (name) {
+              try {
+                var req = indexedDB.deleteDatabase(name);
+                req.onsuccess = req.onerror = req.onblocked = function () {
+                  remaining -= 1;
+                  if (remaining === 0) finish();
+                };
+              } catch (e) {
+                remaining -= 1;
+                if (remaining === 0) finish();
+              }
+            });
+          }
+          try {
+            if (indexedDB.databases) {
+              indexedDB.databases().then(function (dbs) {
+                var names = dbs.map(function (d) { return d.name; })
+                  .filter(function (n) { return n && n.indexOf('matrix-js-sdk') === 0; });
+                deleteAll(names.length ? names : fallbackNames);
+              }, function () { deleteAll(fallbackNames); });
+            } else {
+              deleteAll(fallbackNames);
+            }
+          } catch (e) {
+            finish();
+          }
+        }
+        wipeStoresIfDeviceChanged(function () {
+          // 立刻抹掉地址栏中的凭据，再写 localStorage。
+          history.replaceState(null, '', location.pathname);
+          localStorage.setItem('mx_hs_url', hs.replace(/\/+$/, ''));
+          localStorage.setItem('mx_user_id', userId);
+          localStorage.setItem('mx_access_token', token);
+          localStorage.setItem('mx_device_id', deviceId);
+          localStorage.setItem('mx_is_guest', 'false');
+          // 跳过 Element 的浏览器兼容性闸门（sandbox iframe 内部分检查项不可达）。
+          localStorage.setItem('mx_accepts_unsupported_browser', 'true');
+          // query 参数破除 Element index.html 的浏览器缓存（SPA 只读 hash，query 无害）。
+          location.replace('/?v=cygnusx1#/room/' + encodeURIComponent(room));
+        });
+      } catch (error) {
+        fail('当前浏览器环境不允许写入本地存储：' + (error && error.message ? error.message : error));
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -2,6 +2,6 @@
 id: visualization
 description: 火山图、曼哈顿图与生物信息工具箱 · 系统发育树构建。
 builtin_tools:
-  - omichub_plot_volcano
-  - omichub_plot_manhattan
-  - omichub_build_phylogenetic_tree
+  - cygnusx_plot_volcano
+  - cygnusx_plot_manhattan
+  - cygnusx_build_phylogenetic_tree

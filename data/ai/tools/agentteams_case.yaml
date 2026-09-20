@@ -3,8 +3,11 @@ description: 将需人工审批、跨角色执行和交付验收的重型任务�
 builtin_tools:
   - create_agentteams_case
   - task_result_summary
+  - room_messages_read
+  - room_facts_query
   - task_file_preview
   - workspace_file_preview
   - artifact_fetch
   - task_compare_metrics
   - rule_threshold_lookup
+  - case_facts_query

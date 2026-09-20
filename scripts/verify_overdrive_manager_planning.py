@@ -11,12 +11,12 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from omichub.application.services.overdrive_planning_telemetry_service import (
+from cygnusx.application.services.overdrive_planning_telemetry_service import (
     OverdrivePlanningTelemetryService,
 )
-from omichub.infrastructure.database.models.chat import ChatMessageModel
-from omichub.infrastructure.database.models.overdrive import OverdriveRunModel
-from omichub.infrastructure.database.session import create_unpooled_engine
+from cygnusx.infrastructure.database.models.chat import ChatMessageModel
+from cygnusx.infrastructure.database.models.overdrive import OverdriveRunModel
+from cygnusx.infrastructure.database.session import create_unpooled_engine
 from sqlalchemy import select
 
 _ALLOWED_MODES = {"llm", "llm_repaired", "rule_merge", "rule_override", "rule_preflight"}

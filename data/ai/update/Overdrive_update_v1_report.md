@@ -20,7 +20,7 @@
 执行：
 
 ```bash
-grep -rn 'authoritative_only\|OVERDRIVE_MANAGER_PROMPT\|_default_overdrive_assignments' src/omichub --include='*.py' | grep -v test
+grep -rn 'authoritative_only\|OVERDRIVE_MANAGER_PROMPT\|_default_overdrive_assignments' src/cygnusx --include='*.py' | grep -v test
 ```
 
 所有命中均位于 `chat_service.py` 的同一冻结计划前入口。LangGraph 与 legacy worker 分叉发生在该计划已构建/冻结之后，两条路径共用本次改造后的 Manager 规划结果；未发现第二处等价的 authoritative assignments 覆盖逻辑。
@@ -100,7 +100,7 @@ Operation not permitted / permission denied
 
 同时宿主机没有暴露可访问的 Web、Postgres 或 Redis 端口，因此以下证据当前无法生成：
 
-- `docker restart omichub-web` 后的新进程代码加载证明；
+- `docker restart cygnusx-web` 后的新进程代码加载证明；
 - 真实发送 20 基因组与 200 基因组请求；
 - `chat_messages.created_at` 用户/助手间隔达到数百毫秒；
 - live Redis 中 10 次 mode 分布；
@@ -110,22 +110,22 @@ Operation not permitted / permission denied
 
 ```bash
 # 1. 后端代码加载
-docker restart omichub-web
+docker restart cygnusx-web
 
 # 2. 若修改了真实 .env 中的 OVERDRIVE_* 值，必须重建而非 restart
 cd deploy/docker
-docker compose --env-file ../../.env -p omichub up -d web
+docker compose --env-file ../../.env -p cygnusx up -d web
 
 # 3. 分别发送新会话请求
 # - TnpD 对 20 个基因组建树（提供真实 query/genome 输入）
 # - 对 200 个基因组做同样分析
 
 # 4. 查询对应 chat_messages，比较用户消息和 Manager 回复 created_at
-# 5. 查询 Redis omichub:overdrive:planning:<UTC-date> hash
+# 5. 查询 Redis cygnusx:overdrive:planning:<UTC-date> hash
 # 6. override 回滚验证后恢复 constraint
 
 # 可用以下命令自动完成第 4–5 步与计划锚点检查：
-docker exec omichub-web python scripts/verify_overdrive_manager_planning.py \
+docker exec cygnusx-web python scripts/verify_overdrive_manager_planning.py \
   --session-id <20-genome-session-id> \
   --session-id <200-genome-session-id> \
   --sharded-session-id <200-genome-session-id> \

@@ -6,9 +6,9 @@ from unittest.mock import AsyncMock
 import httpx
 import pytest
 
-from omichub.api.v1 import studio as studio_api
-from omichub.core.exceptions import AuthenticationError
-from omichub.infrastructure.studio.control_client import (
+from cygnusx.api.v1 import studio as studio_api
+from cygnusx.core.exceptions import AuthenticationError
+from cygnusx.infrastructure.studio.control_client import (
     StudioControlClient,
     resolve_studio_control_token,
 )
@@ -46,7 +46,7 @@ async def test_control_client_streams_ndjson_and_sends_token():
     seen: dict[str, object] = {}
 
     async def handler(request: httpx.Request) -> httpx.Response:
-        seen["token"] = request.headers.get("X-OmicHub-Studio-Control-Token")
+        seen["token"] = request.headers.get("X-CygnusX-Studio-Control-Token")
         seen["path"] = request.url.path
         return httpx.Response(
             200,
@@ -80,7 +80,7 @@ async def test_control_client_streams_ndjson_and_sends_token():
 @pytest.mark.unit
 async def test_control_client_recycle_idle():
     async def handler(request: httpx.Request) -> httpx.Response:
-        assert request.headers["X-OmicHub-Studio-Control-Token"] == "secret"
+        assert request.headers["X-CygnusX-Studio-Control-Token"] == "secret"
         return httpx.Response(200, json={"recycled": 2})
 
     client = StudioControlClient(
@@ -96,7 +96,7 @@ async def test_control_client_purges_workspace():
     async def handler(request: httpx.Request) -> httpx.Response:
         assert request.method == "DELETE"
         assert request.url.path == "/api/v1/studio/internal/sessions/sess-1/workspace"
-        assert request.headers["X-OmicHub-Studio-Control-Token"] == "secret"
+        assert request.headers["X-CygnusX-Studio-Control-Token"] == "secret"
         return httpx.Response(200, json={"status": "removed"})
 
     client = StudioControlClient(

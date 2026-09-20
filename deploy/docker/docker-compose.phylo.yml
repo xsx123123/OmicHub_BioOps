@@ -1,11 +1,11 @@
 services:
   phylo-worker:
-    image: omichub/phylo-toolkit:1.0.0
+    image: ${CYGNUSX_PHYLO_TOOLKIT_IMAGE:-cygnusx/phylo-toolkit:v0.0.2dev}
     build:
       context: ../..
       dockerfile: deploy/docker/Dockerfile.phylo
     command: >
-      celery -A omichub.infrastructure.celery_app.celery:celery_app worker
+      celery -A cygnusx.infrastructure.celery_app.celery:celery_app worker
       -Q phylo_tree -n phylo@%h
       --concurrency=2 --prefetch-multiplier=1 --loglevel=info
     deploy:
@@ -16,14 +16,14 @@ services:
       - CELERY_RESULT_BACKEND=redis://redis:6379/2
       - OMP_NUM_THREADS=4
     volumes:
-      - /data/omichub:/data/omichub:rw
+      - /data/cygnusx:/data/cygnusx:rw
     depends_on:
       - redis
 
   phylo-worker-highmem:
-    image: omichub/phylo-toolkit:1.0.0
+    image: ${CYGNUSX_PHYLO_TOOLKIT_IMAGE:-cygnusx/phylo-toolkit:v0.0.2dev}
     command: >
-      celery -A omichub.infrastructure.celery_app.celery:celery_app worker
+      celery -A cygnusx.infrastructure.celery_app.celery:celery_app worker
       -Q phylo_tree_highmem -n phylo-highmem@%h
       --concurrency=1 --prefetch-multiplier=1 --loglevel=info
     deploy:
@@ -34,7 +34,7 @@ services:
       - CELERY_RESULT_BACKEND=redis://redis:6379/2
       - OMP_NUM_THREADS=8
     volumes:
-      - /data/omichub:/data/omichub:rw
+      - /data/cygnusx:/data/cygnusx:rw
     depends_on:
       - redis
 

@@ -1,5 +1,5 @@
 # MCP 构建师 — AI 自生成 MCP Server
-# 加载链路：AgentService.ensure_builtin_agents() → data/OmicHub.yaml agents.enabled 列出 mcp_builder
+# 加载链路：AgentService.ensure_builtin_agents() → data/CygnusX.yaml agents.enabled 列出 mcp_builder
 agent_id: agent-mcp-builder
 name: MCP 构建师
 description: 根据自然语言需求自动规划、搜索、生成、测试并注册 MCP Server。实验性 MCP 带 TTL，发布需审核。
@@ -8,9 +8,9 @@ color: "#8b5cf6"
 category: development
 
 # 代码生成使用最强模型 + 低温度，保证协议合规与稳定性
-model: qwen3.7-plus
+model: qdoubao-seed-evolving
 temperature: 0.2
-max_tokens: 32768
+max_tokens: 65536
 
 prompt_file: prompts/mcp_builder.md
 welcome_message: "你好！我是 MCP 构建师。告诉我你想要什么工具（例如：查询 PubMed 文献、调用 OpenWeather 天气接口），我会自动生成、测试并注册一个 MCP Server 供平台 AI 调用。"

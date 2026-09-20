@@ -49,6 +49,9 @@ const selectedWorkspaceCandidate = computed(() => props.ask.workspaceCandidates?
 const hasExecutionObject = computed(() => Boolean(
   selectedObjectFile.value || objectPath.value.trim() || selectedWorkspaceCandidate.value,
 ))
+const canSubmit = computed(() => objectRequired.value
+  ? hasExecutionObject.value
+  : Boolean(currentAnswer.value))
 const isSubmitting = computed(() => Boolean(props.ask.submitting || submitting.value))
 
 watch(() => props.ask.submitting, (value) => {
@@ -69,6 +72,10 @@ function selectOption(opt: string) {
   selections.value[currentIndex.value] = opt
   otherTexts.value[currentIndex.value] = ''
   showOther.value[currentIndex.value] = false
+  if (objectRequired.value) {
+    objectPath.value = ''
+    selectedObjectFile.value = null
+  }
 }
 
 function toggleOther() {
@@ -87,12 +94,25 @@ function chooseObjectFile() {
 function onObjectFileChange(event: Event) {
   const input = event.target as HTMLInputElement
   selectedObjectFile.value = input.files?.[0] || null
-  if (selectedObjectFile.value) objectPath.value = ''
+  if (selectedObjectFile.value) {
+    objectPath.value = ''
+    selections.value[currentIndex.value] = ''
+    otherTexts.value[currentIndex.value] = ''
+  }
   input.value = ''
 }
 
 function clearObjectFile() {
   selectedObjectFile.value = null
+}
+
+function onObjectPathInput(value: string) {
+  objectPath.value = value
+  if (value.trim()) {
+    selectedObjectFile.value = null
+    selections.value[currentIndex.value] = ''
+    otherTexts.value[currentIndex.value] = ''
+  }
 }
 
 /** 跳过当前题（答案留空，由 AI 自行决定）；最后一题时直接提交 */
@@ -113,13 +133,13 @@ function advance() {
 }
 
 const submitting = ref(false)
-function submit() {
-  if (isSubmitting.value || (objectRequired.value && !hasExecutionObject.value)) return
+function submit(allowMissingExecutionObject = false) {
+  if (isSubmitting.value || (objectRequired.value && !hasExecutionObject.value && !allowMissingExecutionObject)) return
   submitting.value = true
   emit(
     'submit',
     questions.value.map((_, i) => otherTexts.value[i]?.trim() || selections.value[i] || ''),
-    objectRequired.value
+    objectRequired.value && hasExecutionObject.value
       ? {
           path: objectPath.value.trim() || undefined,
           file: selectedObjectFile.value || undefined,
@@ -129,8 +149,16 @@ function submit() {
   )
 }
 
+function discussInstead() {
+  selections.value[currentIndex.value] = '先讨论方案（暂不执行）'
+  otherTexts.value[currentIndex.value] = ''
+  submit(true)
+}
+
 function handleKeydown(e: KeyboardEvent) {
-  if (e.key === 'Escape' && !props.ask.answered) skip()
+  if (e.key !== 'Escape' || props.ask.answered) return
+  if (objectRequired.value) discussInstead()
+  else skip()
 }
 
 // ---------- 已回答：折叠为工具卡片样式（§18.4.2 默认折叠单行，点击展开回看问答） ----------
@@ -184,7 +212,7 @@ function displayAnswer(index: number): string {
       </div>
 
       <div
-        v-if="current?.options?.length"
+        v-if="current?.options?.length && !objectRequired"
         class="auc-option auc-other"
         :class="{ selected: !!otherTexts[currentIndex]?.trim() }"
         role="button"
@@ -198,7 +226,7 @@ function displayAnswer(index: number): string {
       </div>
 
       <n-input
-        v-if="showOther[currentIndex]"
+        v-if="showOther[currentIndex] && !objectRequired"
         :value="otherTexts[currentIndex]"
         size="small"
         placeholder="输入你的回答…"
@@ -208,7 +236,7 @@ function displayAnswer(index: number): string {
       />
 
       <div v-if="objectRequired" class="auc-object-ref">
-        <span class="auc-object-ref__label">输入文件或工作区路径</span>
+        <span class="auc-object-ref__label">数据来源（任选其一）</span>
         <div class="auc-object-ref__actions">
           <n-button size="small" secondary :disabled="isSubmitting" @click="chooseObjectFile">选择并上传文件</n-button>
           <input ref="objectFileInput" class="auc-object-ref__input" type="file" @change="onObjectFileChange" />
@@ -219,28 +247,32 @@ function displayAnswer(index: number): string {
         </div>
         <n-input
           v-if="!selectedObjectFile"
-          v-model:value="objectPath"
+          :value="objectPath"
           size="small"
-          placeholder="或填写工作区文件名/路径，例如 raw/genes.xlsx"
+          placeholder="填写工作区文件名/路径，例如 raw/genes.xlsx"
+          @update:value="onObjectPathInput"
           @keydown.stop
         />
-        <span class="auc-object-ref__hint">选择文件会上传后随答案引用；填写路径会作为工作区只读引用。</span>
+        <span class="auc-object-ref__hint">选择候选文件、上传文件或填写路径，任选一种即可；暂不执行可先讨论方案。</span>
       </div>
     </div>
 
     <div class="auc-footer">
-      <n-button size="small" quaternary @click="skip">
+      <n-button v-if="!objectRequired" size="small" quaternary @click="skip">
         跳过
         <span class="auc-key-hint">Esc</span>
+      </n-button>
+      <n-button v-else size="small" quaternary :disabled="isSubmitting" @click="discussInstead">
+        先讨论方案
       </n-button>
       <n-button
         size="small"
         type="primary"
-        :disabled="!currentAnswer || (objectRequired && !hasExecutionObject)"
+        :disabled="!canSubmit"
         :loading="isSubmitting"
         @click="next"
       >
-        {{ isLast ? '提交' : '下一步' }} →
+        {{ objectRequired && isLast ? '使用此数据继续' : (isLast ? '提交' : '下一步') }} →
         <span class="auc-key-hint auc-key-hint--primary">↵</span>
       </n-button>
     </div>

@@ -5,9 +5,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from omichub.core.config import Settings
-from omichub.core.exceptions import BusinessError
-from omichub.infrastructure.storage.minio_store import MinioStore
+from cygnusx.core.config import Settings
+from cygnusx.core.exceptions import BusinessError
+from cygnusx.infrastructure.storage.minio_store import MinioStore
 
 
 class FakeClient:

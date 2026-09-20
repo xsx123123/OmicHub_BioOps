@@ -1,12 +1,63 @@
 studio:
   enabled: true
-  default_image: omichub-analysis:core-2026.07
+  # 默认走 micromamba 系 analysis 镜像（含 Python 3.12 + R 4.4 + uv + pip）；
+  # 这里只定义 Studio 的全局兜底和能力覆盖映射。Agent 的专用画像以
+  # data/ai/<agent>.yaml 的 studio.runtime_profile 经 runtime_images.yaml 解析为准。
+  # 不要把 default_image 当作所有 Agent 的镜像；修改默认镜像、能力映射或 tag 前，
+  # 必须先向用户询问，因为这会改变未显式覆盖请求的会话行为。
+  # browser/document 能力会话仍按 capabilities 匹配到 browser-office 镜像。
+  default_image: cygnusx-analysis:core-v0.0.2dev
+  images:
+    analysis-core:
+      image: cygnusx-analysis:core-v0.0.2dev
+      runtime_profile: analysis-core
+      dockerfile: deploy/runtime-images/core.Dockerfile
+      capabilities: [code]
+    analysis-plot:
+      image: cygnusx-analysis:plot-v0.0.2dev
+      runtime_profile: analysis-plot
+      dockerfile: deploy/runtime-images/plot.Dockerfile
+      capabilities: [code]
+    analysis-scrna:
+      image: cygnusx-analysis:scrna-v0.0.3dev
+      runtime_profile: analysis-scrna
+      dockerfile: deploy/runtime-images/scrna.Dockerfile
+      capabilities: [code]
+    base:
+      image: cygnusx-sandbox-base:v0.0.2dev
+      dockerfile: deploy/studio/base.Dockerfile
+      capabilities: [code]
+    bio:
+      image: cygnusx-sandbox-bio:v0.0.2dev
+      runtime_profile: bio
+      dockerfile: deploy/studio/bio.Dockerfile
+      capabilities: [code]
+    browser-office:
+      image: cygnusx-sandbox-browser-office:v0.0.2dev
+      runtime_profile: browser-office
+      dockerfile: deploy/studio/browser-office.Dockerfile
+      capabilities: [code, browser, document]
   session:
     idle_ttl_minutes: 10
-    # 工作区自会话最后更新起保留 7 天；有效分享、近期活动或执行中的会话不会清理。
-    # 已登记到报告中心的产物已复制到独立结果存储，不受此清理影响。
+    # 已登记到报告中心的产物已复制到独立结果存储，不受清理影响。
+    # workspace_retention_days 不再作为 purge 删除依据，仅保留为后续休眠功能的候选线；
+    # 删除线与豁免窗口由下方 retention.active_days 决定。
     workspace_retention_days: 7
     prewarm_on_create: true
+  retention:
+    # 最近 active_days 天内有消息或执行记录的会话豁免 purge；
+    # 超过该窗口且无豁免（pin / 绑定项目 / 有效分享）的会话工作区会被清理。
+    active_days: 14
+    # 超过 dormant_days 天未活动且无豁免的会话工作区会被休眠打包归档。
+    dormant_days: 90
+  quota:
+    # 存储配额占位配置（本期仅配置化，配额强制不生效）。
+    workspace_gb: 500
+    archive_gb: 50
+  archive:
+    # 归档占位配置；backend=s3 本期仅为配置占位、不实现，运行期按 local 行为处理。
+    backend: local
+    retention_days: 180
   agent:
     permission_modes: [supervised, plan, auto]
     micro_compaction:
@@ -25,14 +76,23 @@ studio:
     cpu: 2
     memory: 4g
     exec_timeout_seconds: 600
+    pids_limit: 512
+    read_only_rootfs: true
+    tmpfs_size: 512m
+    container_user: 10001:10001
+    seccomp_profile: default
+    workspace_quota_bytes: 10737418240
+    workspace_quota_check_interval_seconds: 30
     network:
       mode: whitelist
-      docker_network: omichub-studio-egress
-      proxy_container: omichub-studio-egress-proxy
+      docker_network: cygnusx-studio-egress
+      proxy_container: cygnusx-studio-egress-proxy
       proxy_host: studio-egress-proxy
       proxy_port: 3128
-      # 包源白名单：允许沙盒内 uv/micromamba 现场安装依赖；仅放行包源域名，保持其余断网
-      allow: [conda.anaconda.org, pypi.org, files.pythonhosted.org, mirrors.aliyun.com, mirrors.ustc.edu.cn, pypi.mirrors.ustc.edu.cn]
+      # 包源白名单：允许沙盒内 uv/micromamba 现场安装依赖；仅放行包源域名，保持其余断网。
+      # mirrors.nju.edu.cn 必配：ustc anaconda 镜像对部分频道（实测 menpo）302 重定向到
+      # nju，不放行则容器内任何涉及该频道的 conda 事务整体失败（WP2 环境还原链路实测）。
+      allow: [conda.anaconda.org, pypi.org, files.pythonhosted.org, mirrors.aliyun.com, mirrors.ustc.edu.cn, mirrors.nju.edu.cn, pypi.mirrors.ustc.edu.cn]
   mounts:
     workspace: '{storage_path}/studio'
   tools:
@@ -48,3 +108,17 @@ studio:
     - update_plan
     - pipeline_query
     - ask_user
+    # 公共元数据/API 访问：调用前由前端审批，不能用于大文件下载。
+    - network_request
+    - browser_navigate
+    - browser_screenshot
+    - browser_click
+    - browser_type
+    - browser_press
+    - browser_close
+    - document_inspect
+    - document_create
+    - document_edit
+    - document_convert
+    - onlyoffice_status
+    - onlyoffice_convert

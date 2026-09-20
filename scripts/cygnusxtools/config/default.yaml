@@ -1,0 +1,5 @@
+logs:
+  Label: cygnusxtools
+  log_level: INFO
+  more_info: false
+  style: default

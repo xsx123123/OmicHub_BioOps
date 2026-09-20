@@ -16,7 +16,7 @@ from pathlib import Path
 import yaml
 
 AI_DIR = Path("data/ai")
-SITE_YAML = Path("data/OmicHub.yaml")
+SITE_YAML = Path("data/CygnusX.yaml")
 CAPABILITIES_YAML = AI_DIR / "mas" / "agent_capabilities.yaml"
 ABILITY_YAML = AI_DIR / "agent_ability.yaml"
 ROUTER_PROMPT = AI_DIR / "prompts" / "router.md"
@@ -155,12 +155,23 @@ def test_all_enabled_agents_have_runtime_ability_records() -> None:
 
 
 def test_runtime_ability_records_have_required_fields() -> None:
-    required = {"summary", "capabilities", "not_suitable_for", "handoff_when", "preferred_inputs"}
+    """F5 渐进暴露：summary 顶层常驻注入；四段契约与输入示例收进 detail 子层。"""
+    detail_required = {
+        "capabilities",
+        "not_suitable_for",
+        "handoff_when",
+        "preferred_inputs",
+        "input_examples",
+    }
     for agent_id, ability in _load(ABILITY_YAML)["agents"].items():
-        assert required <= set(ability), f"{agent_id} 的能力目录缺少字段"
-        assert ability["summary"]
-        for key in required - {"summary"}:
-            assert isinstance(ability[key], list) and ability[key], f"{agent_id}.{key} 不能为空"
+        assert ability.get("summary"), f"{agent_id} 的能力目录缺少 summary"
+        detail = ability.get("detail")
+        assert isinstance(detail, dict), f"{agent_id} 缺少 detail 子层"
+        assert detail_required <= set(detail), f"{agent_id}.detail 缺少字段"
+        for key in detail_required:
+            assert isinstance(detail[key], list) and detail[key], (
+                f"{agent_id}.detail.{key} 不能为空"
+            )
 
 
 def test_all_enabled_agent_prompts_follow_standard_section_order() -> None:
@@ -189,14 +200,14 @@ def test_rnaseq_prompt_keeps_analysis_center_priority_contract() -> None:
 
     required_prompt_phrases = (
         "最高优先级：正式分析优先使用平台分析中心",
-        "默认且优先使用 OmicHub「分析中心」的 RNAFlow 标准流程",
-        "不得在聊天沙盒中手工拼接并运行 FASTQ 到报告的完整主流程",
+        "默认且优先使用 CygnusX「分析中心」的 RNAFlow 标准流程",
+        "完整主流程不在聊天沙盒中手工拼接运行",
         "避免只说“可以调用 RNAFlow”",
     )
     for phrase in required_prompt_phrases:
         assert phrase in prompt, f"RNA-seq 提示词缺少分析中心优先约束：{phrase}"
 
-    assert "OmicHub 正式 bulk RNA-seq 分析的默认首选能力" in skill
+    assert "CygnusX 正式 bulk RNA-seq 分析的默认首选能力" in skill
     assert "优先通过平台「分析中心」运行 RNAFlow" in skill
 
 
@@ -209,6 +220,6 @@ def test_router_prompt_uses_runtime_catalog_only() -> None:
     """router.md 不得维护静态 Agent 表，必须要求使用运行时目录。"""
     text = ROUTER_PROMPT.read_text(encoding="utf-8")
     assert "运行时候选目录（唯一依据）" in text
-    assert "不得维护、记忆或引用任何静态 Agent 名单" in text
+    assert "不维护、记忆或引用任何静态 Agent 名单" in text
     assert "chat_entry=false" in text
     assert "| agent_id | 名称 | 适用请求 |" not in text

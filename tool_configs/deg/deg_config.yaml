@@ -1,5 +1,5 @@
 # ============================================
-# OmicHub DEG 差异表达分析工具运行配置
+# CygnusX DEG 差异表达分析工具运行配置
 # ============================================
 # 修改本文件后由配置加载器基于 mtime 自动热重载，无需重启后端。
 #
@@ -35,7 +35,7 @@ input_limits:
 
 execution:
   use_docker: true                   # false 时 worker 内直接 Rscript（需本机装好依赖）
-  docker_image: "omichub-r-deg:v1"   # make docker-build-deg 构建，见 deploy/docker/Dockerfile.deg
+  docker_image: "cygnusx-r-deg:v1"   # make docker-build-deg 构建，见 deploy/docker/Dockerfile.deg
   queue: "analysis"                  # Celery 队列，与 enrichment 等分析任务共用
   timeout: 7200                      # 容器软超时（秒）
   cpus: 4.0                          # docker run --cpus

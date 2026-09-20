@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from omichub.application.services.overdrive_runtime import (
+from cygnusx.application.services.overdrive_runtime import (
     OverdriveManifest,
     assignment_waves,
     build_upstream_context,
@@ -37,7 +37,7 @@ def test_wave_limit_and_cycle_warning() -> None:
 
 def test_manifest_artifacts_are_atomic_and_resume_running(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr(
-        "omichub.application.services.overdrive_runtime.overdrive_root",
+        "cygnusx.application.services.overdrive_runtime.overdrive_root",
         lambda _session_id: tmp_path / "output" / "overdrive" / "session-1",
     )
     manifest = OverdriveManifest("session-1")
@@ -56,7 +56,7 @@ def test_manifest_artifacts_are_atomic_and_resume_running(monkeypatch, tmp_path)
 
 def test_upstream_context_contains_summary_paths_not_full_result(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr(
-        "omichub.application.services.overdrive_runtime.overdrive_root",
+        "cygnusx.application.services.overdrive_runtime.overdrive_root",
         lambda _session_id: tmp_path / "output" / "overdrive" / "session-1",
     )
     manifest = OverdriveManifest("session-1")

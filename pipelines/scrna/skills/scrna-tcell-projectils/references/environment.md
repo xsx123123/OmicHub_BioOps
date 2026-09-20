@@ -10,28 +10,27 @@
 
 | 包 | 版本要求 | 用途 | 安装方式 |
 |---|---|---|---|
-| Seurat | 4.x 或 5.x | 对象读写、FindMarkers、降维检查 | CRAN |
-| ProjecTILs | ≥ 1.0 | 核心注释：`ProjecTILs.classifier`、`load.reference.map()` | `remotes::install_github("carmonalab/ProjecTILs")`（CRAN 无） |
-| scCustomize | ≥ 1.1 | `DimPlot_scCustom`、`DotPlot_scCustom` 可视化 | `remotes::install_github("samuel-marsh/scCustomize")` |
-| optparse | ≥ 1.7 | CLI 参数解析（wrapper） | CRAN |
-| jsonlite | ≥ 1.8 | summary.json 输出（wrapper） | CRAN |
-| ggplot2 | ≥ 3.4 | 绘图基础 | CRAN |
-| patchwork | ≥ 1.1 | 拼图 | CRAN |
-| viridis | ≥ 0.6 | scCustomize 色板（viridis_plasma_dark_high 等） | CRAN |
-| forcats | ≥ 1.0 | Dotplot 因子排序 | CRAN |
-| dplyr | ≥ 1.1 | 数据处理 | CRAN |
-| log4r | ≥ 0.4 | 日志 | CRAN |
-| crayon | ≥ 1.5 | 日志着色 | CRAN |
+| Seurat | 4.x 或 5.x | 对象读写、FindMarkers、降维检查 | scrna 镜像已预装；缺时 `micromamba install -y -n base r-seurat` |
+| ProjecTILs | ≥ 1.0 | 核心注释：`ProjecTILs.classifier`、`load.reference.map()` | **GitHub 独占包，Studio 白名单不可达、无法现场安装**；需管理员预装进镜像 |
+| scCustomize | ≥ 1.1 | `DimPlot_scCustom`、`DotPlot_scCustom` 可视化 | **GitHub 独占包，同上需管理员预装** |
+| optparse | ≥ 1.7 | CLI 参数解析（wrapper） | `micromamba install -y -n base r-optparse` |
+| jsonlite | ≥ 1.8 | summary.json 输出（wrapper） | `micromamba install -y -n base r-jsonlite` |
+| ggplot2 | ≥ 3.4 | 绘图基础 | `micromamba install -y -n base r-ggplot2` |
+| patchwork | ≥ 1.1 | 拼图 | `micromamba install -y -n base r-patchwork` |
+| viridis | ≥ 0.6 | scCustomize 色板（viridis_plasma_dark_high 等） | `micromamba install -y -n base r-viridis` |
+| forcats | ≥ 1.0 | Dotplot 因子排序 | `micromamba install -y -n base r-forcats` |
+| dplyr | ≥ 1.1 | 数据处理 | `micromamba install -y -n base r-dplyr` |
+| log4r | ≥ 0.4 | 日志 | `micromamba install -y -n base r-log4r` |
+| crayon | ≥ 1.5 | 日志着色 | `micromamba install -y -n base r-crayon` |
 
-## 参考数据（不进技能包）
+> Studio 沙盒出站仅放行包源白名单：CRAN（`install.packages`）与 GitHub
+> （`remotes::install_github`）均不可达，上表 conda 通道是唯一现场安装路径；
+> ProjecTILs/scCustomize 未预装时本技能无法运行，应如实告知用户。
 
-- ProjecTILs TIL 参考 atlas：默认由 `ProjecTILs::load.reference.map()` **在线加载**（需网络）。
-- 无网络沙盒：在有网环境执行以下命令预下载，产物放共享数据卷，运行时经 `--ref` 传入：
+## 参考数据（不进技能包，管理员预置）
 
-```r
-ref <- ProjecTILs::load.reference.map()
-saveRDS(ref, "projectils_ref.rds")
-```
+- ProjecTILs TIL 参考 atlas rds 由平台管理员按 `provisioning.md` 预置到共享数据卷，沙盒内路径约定 `ref/ProjecTILs/projectils_ref.rds`，运行时经 `--ref` 传入；
+- 未传 `--ref` 时脚本回退为 `ProjecTILs::load.reference.map()` **在线加载**（需网络），平台沙盒无外网必失败；运行时模型只上报缺失，不自行下载。
 
 ## 资源建议
 

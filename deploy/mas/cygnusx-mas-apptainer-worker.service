@@ -1,0 +1,23 @@
+[Unit]
+Description=CygnusX MAS Apptainer Celery worker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=cygnusx
+Group=cygnusx
+WorkingDirectory=/opt/cygnusx/app
+EnvironmentFile=/etc/cygnusx/mas-apptainer-worker.env
+Environment=PYTHONPATH=/opt/cygnusx/app/src
+ExecStart=/opt/cygnusx/app/.venv/bin/celery -A cygnusx.infrastructure.celery_app.celery worker -Q mas_apptainer --loglevel=info --hostname=mas-apptainer@%%H
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/data/cygnusx
+
+[Install]
+WantedBy=multi-user.target

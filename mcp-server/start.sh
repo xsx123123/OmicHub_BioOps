@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# OmicHub MCP Server 启动脚本
+# CygnusX MCP Server 启动脚本
 set -euo pipefail
 cd "$(dirname "$0")"
 

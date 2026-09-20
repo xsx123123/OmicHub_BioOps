@@ -1,4 +1,4 @@
-from omichub.application.services.biomedical_literature_service import (
+from cygnusx.application.services.biomedical_literature_service import (
     BiomedicalLiteratureService,
 )
 

@@ -3,7 +3,7 @@
 
 The script is deliberately controller-agnostic: it validates only the Bridge configuration and,
 when requested, performs a read-only `/healthz` probe. It never starts containers, submits tasks,
-or reads OmicHub data directories.
+or reads CygnusX data directories.
 """
 
 from __future__ import annotations
@@ -44,7 +44,7 @@ def is_placeholder(value: str | None) -> bool:
 def validate_bridge_env(values: dict[str, str]) -> list[str]:
     errors: list[str] = []
     for key in (
-        "BRIDGE_OMICHUB_BASE_URL",
+        "BRIDGE_CYGNUSX_BASE_URL",
         "BRIDGE_GATEWAY_URL",
         "BRIDGE_GATEWAY_MANAGER_TOKEN",
         "BRIDGE_STATE_STORE_URL",
@@ -56,16 +56,16 @@ def validate_bridge_env(values: dict[str, str]) -> list[str]:
             errors.append(f"{key} is missing or still a template placeholder")
     upstream_credentials = [
         key
-        for key in ("BRIDGE_OMICHUB_SERVICE_TOKEN", "BRIDGE_OMICHUB_API_KEY")
+        for key in ("BRIDGE_CYGNUSX_SERVICE_TOKEN", "BRIDGE_CYGNUSX_API_KEY")
         if not is_placeholder(values.get(key))
     ]
     if not upstream_credentials:
         errors.append(
-            "configure exactly one of BRIDGE_OMICHUB_SERVICE_TOKEN or BRIDGE_OMICHUB_API_KEY"
+            "configure exactly one of BRIDGE_CYGNUSX_SERVICE_TOKEN or BRIDGE_CYGNUSX_API_KEY"
         )
     elif len(upstream_credentials) > 1:
         errors.append(
-            "configure only one of BRIDGE_OMICHUB_SERVICE_TOKEN or BRIDGE_OMICHUB_API_KEY"
+            "configure only one of BRIDGE_CYGNUSX_SERVICE_TOKEN or BRIDGE_CYGNUSX_API_KEY"
         )
     identities: dict[str, str] = {}
     for entry in values.get("BRIDGE_IDENTITIES", "").split(","):
@@ -82,10 +82,10 @@ def validate_bridge_env(values: dict[str, str]) -> list[str]:
     return errors
 
 
-def validate_omichub_env(values: dict[str, str]) -> list[str]:
+def validate_cygnusx_env(values: dict[str, str]) -> list[str]:
     errors: list[str] = []
     if values.get("AGENTTEAMS_BRIDGE_ENABLED", "false").lower() != "true":
-        errors.append("AGENTTEAMS_BRIDGE_ENABLED must be true before the OmicHub proxy is enabled")
+        errors.append("AGENTTEAMS_BRIDGE_ENABLED must be true before the CygnusX proxy is enabled")
     for key in (
         "AGENTTEAMS_BRIDGE_URL",
         "AGENTTEAMS_BRIDGE_MANAGER_TOKEN",
@@ -107,14 +107,14 @@ def validate_gateway_env(values: dict[str, str]) -> list[str]:
         "GATEWAY_MATRIX_SERVICE_TOKEN",
         "GATEWAY_MATRIX_IDENTITIES",
         "GATEWAY_ELEMENT_BASE_URL",
-        "GATEWAY_OMICHUB_INTEGRATION_TOKEN",
+        "GATEWAY_CYGNUSX_INTEGRATION_TOKEN",
     ):
         if is_placeholder(values.get(key)):
             errors.append(f"{key} is missing or still a template placeholder")
     if "bioops-manager:" not in values.get("GATEWAY_IDENTITIES", ""):
         errors.append("GATEWAY_IDENTITIES is missing bioops-manager")
     matrix_identities = values.get("GATEWAY_MATRIX_IDENTITIES", "")
-    for identity in ("bioops-manager", "omichub-user"):
+    for identity in ("bioops-manager", "cygnusx-user"):
         if f"{identity}=" not in matrix_identities:
             errors.append(f"GATEWAY_MATRIX_IDENTITIES is missing {identity}")
     return errors
@@ -147,7 +147,7 @@ def check_healthz(
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--bridge-env", type=Path, required=True, help="Deployed Bridge env file")
-    parser.add_argument("--omichub-env", type=Path, help="Deployed OmicHub env file")
+    parser.add_argument("--cygnusx-env", type=Path, help="Deployed CygnusX env file")
     parser.add_argument("--gateway-env", type=Path, help="Deployed Matrix Gateway env file")
     parser.add_argument("--bridge-url", help="Bridge URL used only with --check-health")
     parser.add_argument("--gateway-url", help="Gateway URL used only with --check-health")
@@ -167,11 +167,11 @@ def main() -> int:
         errors.append(f"Bridge env file does not exist: {args.bridge_env}")
     else:
         errors.extend(validate_bridge_env(parse_env_file(args.bridge_env)))
-    if args.omichub_env:
-        if not args.omichub_env.is_file():
-            errors.append(f"OmicHub env file does not exist: {args.omichub_env}")
+    if args.cygnusx_env:
+        if not args.cygnusx_env.is_file():
+            errors.append(f"CygnusX env file does not exist: {args.cygnusx_env}")
         else:
-            errors.extend(validate_omichub_env(parse_env_file(args.omichub_env)))
+            errors.extend(validate_cygnusx_env(parse_env_file(args.cygnusx_env)))
     if args.gateway_env:
         if not args.gateway_env.is_file():
             errors.append(f"Gateway env file does not exist: {args.gateway_env}")

@@ -18,17 +18,17 @@ Gene 为核心实体，关联 Transcripts、GOAnnotations、KEGGAnnotations、Se
 
 ## 离线构建
 
-平台不负责在线转换。管理员使用 `omichubtools refdb build` 离线生成资产：
+平台不负责在线转换。管理员使用 `cygnusxtools refdb build` 离线生成资产：
 
 ```bash
 pip install -e ./scripts
 
-omichubtools refdb build \
+cygnusxtools refdb build \
   --species-id Lsat \
   --version-id Lsat_v11 \
-  --fasta /data/omichub/omichub_data/db/Lsat/v11/Lsat.1.v11.fa \
-  --gff /data/omichub/omichub_data/db/Lsat/v11/Lsat.1.v11.gff3 \
-  --out-dir /data/omichub/omichub_data/db/Lsat/v11/build
+  --fasta /data/cygnusx/cygnusx_data/db/Lsat/v11/Lsat.1.v11.fa \
+  --gff /data/cygnusx/cygnusx_data/db/Lsat/v11/Lsat.1.v11.gff3 \
+  --out-dir /data/cygnusx/cygnusx_data/db/Lsat/v11/build
 ```
 
 输出：`database.sqlite`、`.fai`、`database_manifest.json`、`jbrowse_assembly_snippet.yaml`、`build_report.json`。

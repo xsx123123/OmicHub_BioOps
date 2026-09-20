@@ -3,10 +3,10 @@
  * 账户未激活弹窗 —— 复用 RegistrationDisabledModal 的视觉外壳，
  * 在其之上叠加“点击计数 + 文案切换 + 第 5 次猫爪彩蛋”交互。
  *
- * 计数规则（localStorage 键 omicHub_activation_click_count）：
+ * 计数规则（localStorage 键 cygnusX_activation_click_count）：
  *   - 第 1-2 次打开：正常版文案（title / message / button_text）
  *   - 第 3 次及以后：着急版文案（title_urgent / message_urgent / button_text_urgent）
- *   - 第 5 次点击“确认按钮”关闭后：派发全局事件 omicHub:triggerCatPaws 触发猫爪彩蛋
+ *   - 第 5 次点击“确认按钮”关闭后：派发全局事件 cygnusX:triggerCatPaws 触发猫爪彩蛋
  *
  * 计数仅由“确认按钮”点击驱动（confirm 事件）；蒙层关闭不计入。
  * 用户清除 localStorage → 计数自然重置。
@@ -26,7 +26,7 @@ const emit = defineEmits<{
 
 const siteConfig = useSiteConfigStore()
 
-const COUNT_KEY = 'omicHub_activation_click_count'
+const COUNT_KEY = 'cygnusX_activation_click_count'
 /** 着急版阈值：累计点击数 >= 此值时切换文案 */
 const URGENT_THRESHOLD = 2
 /** 第 N 次点击触发猫爪彩蛋 */
@@ -79,7 +79,7 @@ function handleConfirm() {
   }
   // 第 5 次点击：关闭后触发全局猫爪彩蛋
   if (next === PAW_TRIGGER_AT) {
-    window.dispatchEvent(new CustomEvent('omicHub:triggerCatPaws'))
+    window.dispatchEvent(new CustomEvent('cygnusX:triggerCatPaws'))
   }
 }
 </script>

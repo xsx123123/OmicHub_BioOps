@@ -1,6 +1,6 @@
 # RNA-seq 分析小贴士
 
-RNA-seq 是转录组研究最常用的技术之一。以下是一些在 OmicHub 平台上进行 RNA-seq 分析的实用建议。
+RNA-seq 是转录组研究最常用的技术之一。以下是一些在 CygnusX 平台上进行 RNA-seq 分析的实用建议。
 
 ## 样本设计
 

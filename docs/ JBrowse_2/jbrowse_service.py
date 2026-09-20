@@ -73,11 +73,11 @@ class JBrowseService:
                 "adapter": {
                     "type": "IndexedFastaAdapter",
                     "fastaLocation": {
-                        "uri": f"{self.base_url}{assembly.fasta.replace('/data/omichub', '')}",
+                        "uri": f"{self.base_url}{assembly.fasta.replace('/data/cygnusx', '')}",
                         "locationType": "UriLocation"
                     },
                     "faiLocation": {
-                        "uri": f"{self.base_url}{assembly.fai.replace('/data/omichub', '')}",
+                        "uri": f"{self.base_url}{assembly.fai.replace('/data/cygnusx', '')}",
                         "locationType": "UriLocation"
                     }
                 }
@@ -100,13 +100,13 @@ class JBrowseService:
 
         if adapter_info["type"] == "BamAdapter":
             adapter["bamLocation"] = {
-                "uri": f"{self.base_url}{track.file.replace('/data/omichub', '')}",
+                "uri": f"{self.base_url}{track.file.replace('/data/cygnusx', '')}",
                 "locationType": "UriLocation"
             }
             if track.index:
                 adapter["index"] = {
                     "location": {
-                        "uri": f"{self.base_url}{track.index.replace('/data/omichub', '')}",
+                        "uri": f"{self.base_url}{track.index.replace('/data/cygnusx', '')}",
                         "locationType": "UriLocation"
                     },
                     "indexType": adapter_info["index_type"]
@@ -114,20 +114,20 @@ class JBrowseService:
 
         elif adapter_info["type"] == "BigWigAdapter":
             adapter["bigWigLocation"] = {
-                "uri": f"{self.base_url}{track.file.replace('/data/omichub', '')}",
+                "uri": f"{self.base_url}{track.file.replace('/data/cygnusx', '')}",
                 "locationType": "UriLocation"
             }
 
         elif adapter_info["type"] in ["VcfTabixAdapter", "BedTabixAdapter", "Gff3TabixAdapter"]:
             loc_key = "vcfGzLocation" if "Vcf" in adapter_info["type"] else                       "bedGzLocation" if "Bed" in adapter_info["type"] else "gffGzLocation"
             adapter[loc_key] = {
-                "uri": f"{self.base_url}{track.file.replace('/data/omichub', '')}",
+                "uri": f"{self.base_url}{track.file.replace('/data/cygnusx', '')}",
                 "locationType": "UriLocation"
             }
             if track.index:
                 adapter["index"] = {
                     "location": {
-                        "uri": f"{self.base_url}{track.index.replace('/data/omichub', '')}",
+                        "uri": f"{self.base_url}{track.index.replace('/data/cygnusx', '')}",
                         "locationType": "UriLocation"
                     },
                     "indexType": adapter_info["index_type"]
@@ -199,7 +199,7 @@ class JBrowseService:
             "assemblies": assemblies,
             "tracks": tracks,
             "defaultSession": {
-                "name": f"OmicHub-{assembly_id}",
+                "name": f"CygnusX-{assembly_id}",
                 "view": {
                     "id": "linearGenomeView",
                     "type": "LinearGenomeView",

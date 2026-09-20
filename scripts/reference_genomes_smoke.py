@@ -3,7 +3,7 @@
 用法：
     cd <repo> && PYTHONPATH=src .venv/bin/python scripts/reference_genomes_smoke.py
 
-依赖 tair10 索引已构建（python -m omichub.reference_genomes.indexer build --version tair10）。
+依赖 tair10 索引已构建（python -m cygnusx.reference_genomes.indexer build --version tair10）。
 不起 PostgreSQL：仅挂载 reference_genomes router，鉴权依赖被 override。
 """
 
@@ -15,9 +15,9 @@ import time
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from omichub.api.deps import get_current_user_id
-from omichub.middleware.rbac import require_admin
-from omichub.reference_genomes.api import router
+from cygnusx.api.deps import get_current_user_id
+from cygnusx.middleware.rbac import require_admin
+from cygnusx.reference_genomes.api import router
 
 VERSION = "tair10"
 
@@ -25,19 +25,19 @@ VERSION = "tair10"
 def build_client() -> TestClient:
     from fastapi.responses import JSONResponse
 
-    from omichub.core.exceptions import OmicHubError
+    from cygnusx.core.exceptions import CygnusXError
 
     app = FastAPI()
     app.include_router(router, prefix="/api/v1/reference-genomes")
 
-    # 复现 main.py 的全局异常处理（OmicHubError → status_code/detail）
-    @app.exception_handler(OmicHubError)
+    # 复现 main.py 的全局异常处理（CygnusXError → status_code/detail）
+    @app.exception_handler(CygnusXError)
     async def _omic_error_handler(request, exc):  # noqa: ANN001
         return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
     app.dependency_overrides[get_current_user_id] = lambda: "smoke-user"
     try:
-        from omichub.api.deps import require_admin as deps_require_admin
+        from cygnusx.api.deps import require_admin as deps_require_admin
 
         app.dependency_overrides[deps_require_admin] = lambda: "smoke-admin"
     except Exception:
@@ -150,7 +150,7 @@ def main() -> int:
                 params={"chrom": g["chromosome"], "start": g["start"], "end": g["end"], "strand": "+"},
             )
             if r1.status_code == 200 and r2.status_code == 200:
-                from omichub.reference_genomes.sequence import reverse_complement
+                from cygnusx.reference_genomes.sequence import reverse_complement
 
                 check(
                     "负链=正链反向互补",

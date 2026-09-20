@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from omichub.infrastructure.cache.goal_lease import GoalRedisLease, get_goal_lease_key
+from cygnusx.infrastructure.cache.goal_lease import GoalRedisLease, get_goal_lease_key
 
 
 class FakeRedis:
@@ -58,7 +58,7 @@ async def test_goal_lease_marks_itself_lost_when_renewal_fails(
     async def no_wait(_seconds: float) -> None:
         return None
 
-    monkeypatch.setattr("omichub.infrastructure.cache.goal_lease.asyncio.sleep", no_wait)
+    monkeypatch.setattr("cygnusx.infrastructure.cache.goal_lease.asyncio.sleep", no_wait)
 
     await lease._heartbeat()
 

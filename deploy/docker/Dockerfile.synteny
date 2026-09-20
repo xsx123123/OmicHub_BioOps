@@ -7,5 +7,5 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
     ca-certificates python3 && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /work
-COPY . /opt/omichub/synteny
-ENTRYPOINT ["python3", "/opt/omichub/synteny/synteny_runner.py"]
+COPY . /opt/cygnusx/synteny
+ENTRYPOINT ["python3", "/opt/cygnusx/synteny/synteny_runner.py"]

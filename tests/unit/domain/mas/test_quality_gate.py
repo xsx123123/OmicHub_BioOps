@@ -1,12 +1,12 @@
 import pytest
 
-from omichub.domain.mas.quality_gate import (
+from cygnusx.domain.mas.quality_gate import (
     QCOverrideRequest,
     QualityGateStatus,
     apply_qc_override,
     evaluate_mapping_rate,
 )
-from omichub.infrastructure.mas.qc_metrics import extract_median_mapping_rate
+from cygnusx.infrastructure.mas.qc_metrics import extract_median_mapping_rate
 
 
 def test_mapping_rate_at_thirty_percent_requires_review() -> None:

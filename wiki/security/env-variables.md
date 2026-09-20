@@ -21,9 +21,9 @@
 
 | 配置组 | 示例变量 | 何时修改 |
 | --- | --- | --- |
-| 数据根与 HTTP 入口 | `OMICHUB_DATA_ROOT`、`OMICHUB_HTTP_*` | 更换数据盘、反向代理或监听地址 |
+| 数据根与 HTTP 入口 | `CYGNUSX_DATA_ROOT`、`CYGNUSX_HTTP_*` | 更换数据盘、反向代理或监听地址 |
 | AI Provider | `AI_*`、Provider YAML | 接入或轮换模型服务密钥 |
-| Worker 与共享存储 | `OMICHUB_CONTROL_*`、`WORKER_*` | 跨机器或 NAS 挂载部署 |
+| Worker 与共享存储 | `CYGNUSX_CONTROL_*`、`WORKER_*` | 跨机器或 NAS 挂载部署 |
 | 多 Agent 与 AgentTeams | `UNIFIED_INTENT_ROUTER_ENABLED`、`MAS_ENABLED`、`AGENTTEAMS_*` | 灰度启用协作能力 |
 | 知识库与检索 | 数据库、模型和缓存相关变量 | 部署向量检索、备份或索引服务 |
 | 可观测性 | `TELEMETRY_ENABLED`、`METRICS_ENABLED`、`OTEL_*` | 接入指标和追踪平台 |

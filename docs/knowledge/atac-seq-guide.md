@@ -16,9 +16,9 @@ ATAC-seq（Assay for Transposase-Accessible Chromatin using sequencing）用于�
 - 每个样本建议 20M ~ 50M reads
 - 生物学重复 ≥ 3
 
-## OmicHub ATAC-seq 分析流程
+## CygnusX ATAC-seq 分析流程
 
-OmicHub 的 ATAC-seq 流程基于 ATACFlow，主要步骤包括：
+CygnusX 的 ATAC-seq 流程基于 ATACFlow，主要步骤包括：
 
 1. **质量控制**：FastQC / MultiQC
 2. **序列比对**：bowtie2 / chromap

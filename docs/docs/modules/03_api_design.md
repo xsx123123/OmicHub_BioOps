@@ -1,7 +1,7 @@
-# 6.3 OmicsHub 完整 API 接口设计（REST + WebSocket）
+# 6.3 CygnusX 完整 API 接口设计（REST + WebSocket）
 
 > **文档版本**: v1.0  
-> **项目**: OmicsHub — 私有化多组学分析平台  
+> **项目**: CygnusX — 私有化多组学分析平台  
 > **目标读者**: 全栈开发工程师、前端开发工程师  
 > **技术约束**: FastAPI + Pydantic v2 + Python 3.10+ + WebSocket  
 
@@ -182,7 +182,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class OmicsHubException(Exception):
+class CygnusXException(Exception):
     """业务异常基类"""
     def __init__(self, message: str, code: int = 400, details: dict | None = None):
         self.message = message
@@ -191,7 +191,7 @@ class OmicsHubException(Exception):
         super().__init__(message)
 
 
-class NotFoundException(OmicsHubException):
+class NotFoundException(CygnusXException):
     """资源不存在异常"""
     def __init__(self, resource: str, identifier: str):
         super().__init__(
@@ -200,13 +200,13 @@ class NotFoundException(OmicsHubException):
         )
 
 
-class PermissionDeniedException(OmicsHubException):
+class PermissionDeniedException(CygnusXException):
     """权限不足异常"""
     def __init__(self, message: str = "Permission denied"):
         super().__init__(message=message, code=403)
 
 
-class ConflictException(OmicsHubException):
+class ConflictException(CygnusXException):
     """资源冲突异常（如重复注册）"""
     def __init__(self, message: str):
         super().__init__(message=message, code=409)
@@ -214,8 +214,8 @@ class ConflictException(OmicsHubException):
 
 # ============ FastAPI 全局异常处理器 ============
 
-async def omicshub_exception_handler(request: Request, exc: OmicsHubException) -> JSONResponse:
-    """捕获所有 OmicsHubException 及其子类"""
+async def cygnusx_exception_handler(request: Request, exc: CygnusXException) -> JSONResponse:
+    """捕获所有 CygnusXException 及其子类"""
     logger.warning(f"Business exception [{exc.code}]: {exc.message} | path={request.url.path}")
     return JSONResponse(
         status_code=200,  # HTTP 状态码始终 200，业务状态码在 body 中
@@ -273,7 +273,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
 
 # ============ 在 FastAPI 应用实例上注册 ============
 # app = FastAPI()
-# app.add_exception_handler(OmicsHubException, omicshub_exception_handler)
+# app.add_exception_handler(CygnusXException, cygnusx_exception_handler)
 # app.add_exception_handler(StarletteHTTPException, http_exception_handler)
 # app.add_exception_handler(RequestValidationError, validation_exception_handler)
 # app.add_exception_handler(Exception, unhandled_exception_handler)
@@ -410,8 +410,8 @@ class TokenResponse(BaseModel):
 from fastapi import FastAPI, APIRouter
 
 app = FastAPI(
-    title="OmicsHub API",
-    description="OmicsHub 多组学分析平台 RESTful API",
+    title="CygnusX API",
+    description="CygnusX 多组学分析平台 RESTful API",
     version="1.0.0",
     docs_url="/api/docs",           # Swagger UI
     redoc_url="/api/redoc",         # ReDoc
@@ -578,7 +578,7 @@ async def login(
     """
     **请求示例**:
     ```bash
-    curl -X POST "https://omicshub.hzau.edu.cn/api/v1/auth/login" \\
+    curl -X POST "https://cygnusx.hzau.edu.cn/api/v1/auth/login" \\
       -H "Content-Type: application/x-www-form-urlencoded" \\
       -d "username=zhangsan&password=secret123"
     ```
@@ -905,7 +905,7 @@ async def deactivate_flow(flow_id: str):
 
 ### 3.5 任务域（/api/v1/tasks）
 
-任务域是 OmicsHub 的核心业务域，涵盖任务提交、状态查询、日志获取、结果下载与预览。
+任务域是 CygnusX 的核心业务域，涵盖任务提交、状态查询、日志获取、结果下载与预览。
 
 | 方法 | 路径 | 认证 | 功能 | 请求/Query | 响应体 |
 |------|------|------|------|------------|--------|
@@ -1384,7 +1384,7 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
 
 
-class OmicsHubBaseSchema(BaseModel):
+class CygnusXBaseSchema(BaseModel):
     """所有 Schema 的基类"""
     model_config = ConfigDict(
         from_attributes=True,        # 支持从 ORM 对象自动转换
@@ -1400,7 +1400,7 @@ class TimestampMixin(BaseModel):
     updated_at: datetime = Field(description="更新时间（UTC）")
 
 
-class PaginationParams(OmicsHubBaseSchema):
+class PaginationParams(CygnusXBaseSchema):
     """分页参数基类"""
     page: int = Field(default=1, ge=1)
     page_size: int = Field(default=20, ge=1, le=200)
@@ -1419,7 +1419,7 @@ from typing import Optional
 import re
 
 
-class UserRegisterRequest(OmicsHubBaseSchema):
+class UserRegisterRequest(CygnusXBaseSchema):
     """用户注册请求"""
     username: str = Field(
         ...,
@@ -1452,12 +1452,12 @@ class UserRegisterRequest(OmicsHubBaseSchema):
         return v
 
 
-class RefreshTokenRequest(OmicsHubBaseSchema):
+class RefreshTokenRequest(CygnusXBaseSchema):
     """刷新 Token 请求"""
     refresh_token: str = Field(..., description="Refresh Token")
 
 
-class UserResponse(OmicsHubBaseSchema):
+class UserResponse(CygnusXBaseSchema):
     """用户响应（脱敏，不包含密码）"""
     model_config = ConfigDict(from_attributes=True)
 
@@ -1482,7 +1482,7 @@ from pydantic import Field, field_validator
 from typing import Optional
 
 
-class UserUpdateRequest(OmicsHubBaseSchema):
+class UserUpdateRequest(CygnusXBaseSchema):
     """用户更新请求"""
     username: Optional[str] = Field(
         default=None,
@@ -1506,7 +1506,7 @@ class UserUpdateRequest(OmicsHubBaseSchema):
         return v
 
 
-class UserListItem(OmicsHubBaseSchema):
+class UserListItem(CygnusXBaseSchema):
     """用户列表项（精简字段，减少传输量）"""
     id: str
     username: str
@@ -1534,7 +1534,7 @@ from typing import Optional, List
 from datetime import datetime
 
 
-class ProjectCreateRequest(OmicsHubBaseSchema):
+class ProjectCreateRequest(CygnusXBaseSchema):
     """创建项目请求"""
     name: str = Field(
         ...,
@@ -1560,7 +1560,7 @@ class ProjectCreateRequest(OmicsHubBaseSchema):
         return v.strip()
 
 
-class ProjectUpdateRequest(OmicsHubBaseSchema):
+class ProjectUpdateRequest(CygnusXBaseSchema):
     """更新项目请求"""
     name: Optional[str] = Field(default=None, min_length=1, max_length=200)
     description: Optional[str] = Field(default=None, max_length=2000)
@@ -1569,7 +1569,7 @@ class ProjectUpdateRequest(OmicsHubBaseSchema):
     is_active: Optional[bool] = Field(default=None)
 
 
-class ProjectResponse(OmicsHubBaseSchema):
+class ProjectResponse(CygnusXBaseSchema):
     """项目响应"""
     id: str
     name: str
@@ -1589,7 +1589,7 @@ class ProjectDetailResponse(ProjectResponse):
     recent_tasks: List["TaskListItem"] = Field(default_factory=list, description="最近任务")
 
 
-class SampleCreateRequest(OmicsHubBaseSchema):
+class SampleCreateRequest(CygnusXBaseSchema):
     """创建样本请求"""
     name: str = Field(..., min_length=1, max_length=200)
     description: Optional[str] = Field(default=None, max_length=2000)
@@ -1599,7 +1599,7 @@ class SampleCreateRequest(OmicsHubBaseSchema):
     )
 
 
-class SampleResponse(OmicsHubBaseSchema):
+class SampleResponse(CygnusXBaseSchema):
     """样本响应"""
     id: str
     name: str
@@ -1611,13 +1611,13 @@ class SampleResponse(OmicsHubBaseSchema):
     updated_at: datetime
 
 
-class FileUploadResponse(OmicsHubBaseSchema):
+class FileUploadResponse(CygnusXBaseSchema):
     """文件上传响应"""
     uploaded_files: List["FileInfo"] = Field(description="已上传文件列表")
     failed_files: List[dict] = Field(default_factory=list, description="上传失败的文件及原因")
 
 
-class FileInfo(OmicsHubBaseSchema):
+class FileInfo(CygnusXBaseSchema):
     """文件信息"""
     id: str
     filename: str
@@ -1639,7 +1639,7 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 
 
-class FlowListItem(OmicsHubBaseSchema):
+class FlowListItem(CygnusXBaseSchema):
     """流程列表项"""
     id: str
     name: str
@@ -1652,7 +1652,7 @@ class FlowListItem(OmicsHubBaseSchema):
     created_at: datetime
 
 
-class FlowParameter(OmicsHubBaseSchema):
+class FlowParameter(CygnusXBaseSchema):
     """流程参数定义（用于流程详情）"""
     name: str = Field(description="参数名（英文标识符）")
     label: str = Field(description="参数显示名（中文）")
@@ -1674,7 +1674,7 @@ class FlowParameter(OmicsHubBaseSchema):
     )
 
 
-class FlowStepInfo(OmicsHubBaseSchema):
+class FlowStepInfo(CygnusXBaseSchema):
     """流程步骤信息"""
     name: str
     order: int
@@ -1684,7 +1684,7 @@ class FlowStepInfo(OmicsHubBaseSchema):
     outputs: List[str] = Field(default_factory=list)
 
 
-class FlowDetailResponse(OmicsHubBaseSchema):
+class FlowDetailResponse(CygnusXBaseSchema):
     """流程详情响应"""
     id: str
     name: str
@@ -1701,7 +1701,7 @@ class FlowDetailResponse(OmicsHubBaseSchema):
     updated_at: datetime
 
 
-class FlowCreateRequest(OmicsHubBaseSchema):
+class FlowCreateRequest(CygnusXBaseSchema):
     """创建流程请求（管理员上传YAML）"""
     name: str = Field(..., min_length=1, max_length=200)
     description: Optional[str] = Field(default=None, max_length=2000)
@@ -1721,7 +1721,7 @@ class FlowCreateRequest(OmicsHubBaseSchema):
         return v
 
 
-class FlowUpdateRequest(OmicsHubBaseSchema):
+class FlowUpdateRequest(CygnusXBaseSchema):
     """更新流程请求"""
     name: Optional[str] = Field(default=None, min_length=1, max_length=200)
     description: Optional[str] = Field(default=None, max_length=2000)
@@ -1743,7 +1743,7 @@ class FlowUpdateRequest(OmicsHubBaseSchema):
         return v
 
 
-class ValidationResult(OmicsHubBaseSchema):
+class ValidationResult(CygnusXBaseSchema):
     """参数校验结果"""
     valid: bool = Field(description="是否全部通过")
     errors: List[dict] = Field(default_factory=list, description="错误列表: [{field, message, type}]")
@@ -1761,7 +1761,7 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 
 
-class TaskCreateRequest(OmicsHubBaseSchema):
+class TaskCreateRequest(CygnusXBaseSchema):
     """提交任务请求（核心接口）"""
     flow_id: str = Field(..., description="流程定义 UUID")
     project_id: Optional[str] = Field(
@@ -1792,7 +1792,7 @@ class TaskCreateRequest(OmicsHubBaseSchema):
         return self
 
 
-class TaskResponse(OmicsHubBaseSchema):
+class TaskResponse(CygnusXBaseSchema):
     """任务响应（基本信息）"""
     id: str = Field(description="任务 UUID")
     name: str
@@ -1836,7 +1836,7 @@ class TaskDetailResponse(TaskResponse):
     )
 
 
-class TaskLogEntry(OmicsHubBaseSchema):
+class TaskLogEntry(CygnusXBaseSchema):
     """单条日志条目"""
     timestamp: datetime
     level: LogLevelEnum
@@ -1844,7 +1844,7 @@ class TaskLogEntry(OmicsHubBaseSchema):
     message: str
 
 
-class TaskLogResponse(OmicsHubBaseSchema):
+class TaskLogResponse(CygnusXBaseSchema):
     """日志查询响应"""
     entries: List[TaskLogEntry]
     total: int = Field(description="日志总条数")
@@ -1852,7 +1852,7 @@ class TaskLogResponse(OmicsHubBaseSchema):
     limit: int
 
 
-class ResultFileInfo(OmicsHubBaseSchema):
+class ResultFileInfo(CygnusXBaseSchema):
     """结果文件信息"""
     path: str = Field(description="相对于任务工作目录的路径")
     name: str
@@ -1861,13 +1861,13 @@ class ResultFileInfo(OmicsHubBaseSchema):
     modified_at: datetime
 
 
-class ResultFileListResponse(OmicsHubBaseSchema):
+class ResultFileListResponse(CygnusXBaseSchema):
     """结果文件列表响应"""
     files: List[ResultFileInfo]
     total_size: int = Field(description="总大小（字节）")
 
 
-class PreviewResponse(OmicsHubBaseSchema):
+class PreviewResponse(CygnusXBaseSchema):
     """文件预览响应"""
     file_type: str = Field(description="检测到的文件类型")
     file_size: int
@@ -1889,7 +1889,7 @@ class PreviewResponse(OmicsHubBaseSchema):
     text_content: Optional[str] = Field(default=None, description="文本内容预览")
 
 
-class TaskCancelResponse(OmicsHubBaseSchema):
+class TaskCancelResponse(CygnusXBaseSchema):
     """任务取消响应"""
     id: str
     previous_status: TaskStatusEnum = Field(description="取消前的状态")
@@ -1897,7 +1897,7 @@ class TaskCancelResponse(OmicsHubBaseSchema):
     cancelled_at: datetime
 
 
-class TaskCompleteCallback(OmicsHubBaseSchema):
+class TaskCompleteCallback(CygnusXBaseSchema):
     """任务完成回调（内部接口，Master 节点调用）"""
     task_id: str = Field(..., description="任务 UUID")
     status: str = Field(..., pattern="^(success|failed)$", description="最终状态")
@@ -1910,7 +1910,7 @@ class TaskCompleteCallback(OmicsHubBaseSchema):
     exit_code: Optional[int] = Field(default=None, description="Snakemake 进程退出码")
 
 
-class TaskProgressCallback(OmicsHubBaseSchema):
+class TaskProgressCallback(CygnusXBaseSchema):
     """任务进度回调（内部接口，备用）"""
     task_id: str
     percent: int = Field(ge=0, le=100)
@@ -1932,7 +1932,7 @@ from typing import Optional, List, Dict, Any, Literal
 from datetime import datetime
 
 
-class ChatSessionCreateRequest(OmicsHubBaseSchema):
+class ChatSessionCreateRequest(CygnusXBaseSchema):
     """创建会话请求"""
     title: Optional[str] = Field(
         default=None,
@@ -1946,7 +1946,7 @@ class ChatSessionCreateRequest(OmicsHubBaseSchema):
     )
 
 
-class ChatSessionResponse(OmicsHubBaseSchema):
+class ChatSessionResponse(CygnusXBaseSchema):
     """会话响应"""
     id: str
     title: str
@@ -1971,7 +1971,7 @@ class ChatSessionDetailResponse(ChatSessionResponse):
     recent_messages: List["ChatMessageResponse"] = Field(default_factory=list)
 
 
-class ChatMessageResponse(OmicsHubBaseSchema):
+class ChatMessageResponse(CygnusXBaseSchema):
     """消息响应"""
     id: str
     session_id: str
@@ -1992,7 +1992,7 @@ class ChatMessageResponse(OmicsHubBaseSchema):
     created_at: datetime
 
 
-class ChatRequest(OmicsHubBaseSchema):
+class ChatRequest(CygnusXBaseSchema):
     """发送消息请求"""
     session_id: str = Field(..., description="会话 UUID")
     message: str = Field(..., min_length=1, max_length=20000, description="用户消息")
@@ -2011,7 +2011,7 @@ class ChatRequest(OmicsHubBaseSchema):
         return v
 
 
-class ToolConfirmRequest(OmicsHubBaseSchema):
+class ToolConfirmRequest(CygnusXBaseSchema):
     """工具确认请求"""
     session_id: str
     call_id: str = Field(..., description="tool_call 的 call_id")
@@ -2024,7 +2024,7 @@ class ToolConfirmRequest(OmicsHubBaseSchema):
 
 # ============ SSE 流式事件 DTO ============
 
-class ChatStreamEvent(OmicsHubBaseSchema):
+class ChatStreamEvent(CygnusXBaseSchema):
     """SSE 流式事件基类"""
     type: str = Field(description="事件类型")
 
@@ -2089,7 +2089,7 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 
 
-class MCPServerCreateRequest(OmicsHubBaseSchema):
+class MCPServerCreateRequest(CygnusXBaseSchema):
     """注册 MCP Server 请求"""
     name: str = Field(..., min_length=1, max_length=100, description="Server 名称")
     description: Optional[str] = Field(default=None, max_length=1000)
@@ -2118,7 +2118,7 @@ class MCPServerCreateRequest(OmicsHubBaseSchema):
         return self
 
 
-class MCPServerResponse(OmicsHubBaseSchema):
+class MCPServerResponse(CygnusXBaseSchema):
     """MCP Server 响应"""
     id: str
     name: str
@@ -2145,7 +2145,7 @@ class MCPServerDetailResponse(MCPServerResponse):
     error_log: Optional[str] = Field(default=None)
 
 
-class MCPToolInfo(OmicsHubBaseSchema):
+class MCPToolInfo(CygnusXBaseSchema):
     """MCP 工具信息"""
     name: str = Field(description="工具名")
     description: Optional[str]
@@ -2154,7 +2154,7 @@ class MCPToolInfo(OmicsHubBaseSchema):
     input_schema: dict = Field(description="工具输入参数的 JSON Schema")
 
 
-class MCPInvokeRequest(OmicsHubBaseSchema):
+class MCPInvokeRequest(CygnusXBaseSchema):
     """调用 MCP 工具请求"""
     server_id: str
     tool_name: str = Field(..., min_length=1)
@@ -2162,7 +2162,7 @@ class MCPInvokeRequest(OmicsHubBaseSchema):
     timeout_seconds: Optional[int] = Field(default=None, ge=1, le=300)
 
 
-class MCPInvokeResponse(OmicsHubBaseSchema):
+class MCPInvokeResponse(CygnusXBaseSchema):
     """MCP 工具调用响应"""
     server_id: str
     tool_name: str
@@ -2172,7 +2172,7 @@ class MCPInvokeResponse(OmicsHubBaseSchema):
     error_message: Optional[str] = Field(default=None)
 
 
-class HealthCheckResponse(OmicsHubBaseSchema):
+class HealthCheckResponse(CygnusXBaseSchema):
     """健康检查响应"""
     server_id: str
     status: ServerStatusEnum
@@ -2216,7 +2216,7 @@ WebSocket 用于三个场景：任务实时监控、AI 对话、全局通知。�
 
 **JWT 传递方式**：WebSocket 连接时通过 Query 参数传递 Token：
 ```
-wss://omicshub.hzau.edu.cn/ws/v1/tasks/{task_id}?token=eyJhbGciOiJIUzI1NiIs...
+wss://cygnusx.hzau.edu.cn/ws/v1/tasks/{task_id}?token=eyJhbGciOiJIUzI1NiIs...
 ```
 
 ---
@@ -3117,4 +3117,4 @@ def run_snakemake_task(self, task_id: str, work_dir: str, snakefile: str, config
 ---
 
 > **文档结束**  
-> 本文档定义了 OmicsHub 平台完整的 REST API 接口（46 个端点）和 WebSocket 实时通信协议（3 个端点、20+ 事件类型），所有 DTO 模型均使用 Pydantic v2 严格类型定义，配合 `field_validator` 和 `model_validator` 进行业务级校验。
+> 本文档定义了 CygnusX 平台完整的 REST API 接口（46 个端点）和 WebSocket 实时通信协议（3 个端点、20+ 事件类型），所有 DTO 模型均使用 Pydantic v2 严格类型定义，配合 `field_validator` 和 `model_validator` 进行业务级校验。

@@ -9,7 +9,7 @@ meta:
   category: transcriptomics
   version: "2.3.0"
   description: "基于已搭建好的 RNAFlow 流程（STAR + RSEM + DESeq2）的标准 RNA-seq 差异表达分析。提交后自动生成 RNAFlow 所需 config.yaml、samples.csv、contrasts.csv。"
-  author: "OmicsHub Team"
+  author: "CygnusX Team"
   tags: ["rnaseq", "differential-expression", "STAR", "RSEM", "DESeq2", "RNAFlow"]
   icon: "🧬"
   color: "chart-1"
@@ -76,7 +76,7 @@ parameters:
     label: "项目名称"
     type: string
     required: true
-    default: "OmicsHub_RNA_seq"
+    default: "CygnusX_RNA_seq"
     help_text: "为该 RNA-seq 项目命名"
     placeholder: "PRJNA1224991"
     order: 1

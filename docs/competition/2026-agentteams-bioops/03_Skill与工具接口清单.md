@@ -56,7 +56,7 @@
 
 ## 4. 等价 MCP 工具集成契约
 
-本项目当前以独立 REST Bridge 作为 AgentTeams 与 OmicHub 的工具连接层。为满足工具可迁移性，每个端点遵循下列 MCP 等价约束：
+本项目当前以独立 REST Bridge 作为 AgentTeams 与 CygnusX 的工具连接层。为满足工具可迁移性，每个端点遵循下列 MCP 等价约束：
 
 | 契约维度 | 设计 |
 | --- | --- |

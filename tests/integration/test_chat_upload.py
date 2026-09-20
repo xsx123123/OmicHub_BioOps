@@ -7,15 +7,15 @@ from pathlib import Path
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from omichub.core.security import create_access_token
-from omichub.infrastructure.config.storage_config import StorageConfig
-from omichub.infrastructure.storage import reset_storage_backend
-from omichub.infrastructure.storage.path_factory import get_path_factory
+from cygnusx.core.security import create_access_token
+from cygnusx.infrastructure.config.storage_config import StorageConfig
+from cygnusx.infrastructure.storage import reset_storage_backend
+from cygnusx.infrastructure.storage.path_factory import get_path_factory
 
 
 @pytest.fixture
 def storage_path(tmp_path: Path, monkeypatch) -> Path:
-    """把存储根目录指向临时目录，避免测试写 /data/omichub。"""
+    """把存储根目录指向临时目录，避免测试写 /data/cygnusx。"""
     root = tmp_path / "data"
 
     def _fake_config():
@@ -23,9 +23,9 @@ def storage_path(tmp_path: Path, monkeypatch) -> Path:
 
     # get_storage_config 被多个模块 import 到局部命名空间，需同步 patch 才能生效
     targets = [
-        "omichub.infrastructure.config.storage_config.get_storage_config",
-        "omichub.infrastructure.storage.path_factory.get_storage_config",
-        "omichub.infrastructure.storage.backend.get_storage_config",
+        "cygnusx.infrastructure.config.storage_config.get_storage_config",
+        "cygnusx.infrastructure.storage.path_factory.get_storage_config",
+        "cygnusx.infrastructure.storage.backend.get_storage_config",
     ]
     for target in targets:
         monkeypatch.setattr(target, _fake_config)
@@ -38,7 +38,7 @@ def storage_path(tmp_path: Path, monkeypatch) -> Path:
 @pytest.fixture
 async def client(storage_path: Path) -> AsyncIterator[AsyncClient]:
     """在临时存储目录配置就绪后再创建 ASGI 客户端。"""
-    from omichub.main import app
+    from cygnusx.main import app
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:

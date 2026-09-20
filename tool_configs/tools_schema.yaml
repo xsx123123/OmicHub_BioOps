@@ -1,11 +1,11 @@
 # ============================================
-# OmicHub AI 助手可调用的工具 Schema 注册表
+# CygnusX AI 助手可调用的工具 Schema 注册表
 # ============================================
 # 与 tools_setting.yaml 解耦：前者供 LLM 消费，后者供前端工具箱展示。
 # 改完即生效：加载器按文件 mtime 自动热重载，无需重启后端。
 #
 # 命名约定：
-#   - name 统一以 omichub_ 开头，避免与 MCP preset / web_search 撞名。
+#   - name 统一以 cygnusx_ 开头，避免与 MCP preset / web_search 撞名。
 #   - input_schema 遵循 JSON Schema Draft 7（转 OpenAI functions 时自动调整）。
 #   - invocation_mode 决定执行方式：
 #       backend_sync   进程内同步调 service
@@ -36,7 +36,7 @@ tool_selection:
 
 tools:
   - key: toolbox-search
-    name: omichub_toolbox_search
+    name: cygnusx_toolbox_search
     description: 检索未在当前上下文展示的生信工具，返回工具名称与用途摘要。适用于“有没有能做某分析的工具”“找共线性或富集功能”等请求；已明确可调用工具时不要先检索。输入 query 为自然语言任务或数据类型，不支持文件内容和 upload://file_id。
     keywords: [toolbox, tool search, 工具检索, 工具箱, 查找工具, discover tools]
     category: toolbox
@@ -57,7 +57,7 @@ tools:
     description: 将当前会话交接给白名单中的下一位专业 Agent。必须提供已完成工作、用户诉求和工作区产物摘要；不能用于绕过 Agent 授权。
     category: agent-handoff
     invocation_mode: backend_sync
-    service: omichub.application.services.agent_handoff_tool_service.AgentHandoffToolService
+    service: cygnusx.application.services.agent_handoff_tool_service.AgentHandoffToolService
     method: transfer_to_agent
     requires_confirm: false
     annotations: {readOnlyHint: false, destructiveHint: false, openWorld: false, idempotent: false}
@@ -83,7 +83,7 @@ tools:
       长耗时管道或需要用户确认的任务应改用 MAS 计划。不得用于需要向用户澄清的场景。
     category: agent-orchestration
     invocation_mode: backend_sync
-    service: omichub.application.services.parallel_subagent_tool_service.ParallelSubAgentToolService
+    service: cygnusx.application.services.parallel_subagent_tool_service.ParallelSubAgentToolService
     method: run_parallel_subagents
     requires_confirm: false
     annotations: {readOnlyHint: false, destructiveHint: false, openWorld: true, idempotent: false}
@@ -114,7 +114,7 @@ tools:
       不得用于普通问答、轻量并行或意图不明确的请求。
     category: agent-orchestration
     invocation_mode: backend_sync
-    service: omichub.application.services.agentteams_case_tool_service.AgentTeamsCaseToolService
+    service: cygnusx.application.services.agentteams_case_tool_service.AgentTeamsCaseToolService
     method: run
     requires_confirm: true
     annotations: {readOnlyHint: false, destructiveHint: false, openWorld: false, idempotent: true}
@@ -151,7 +151,7 @@ tools:
     description: 读取当前用户任务的状态、flow、参数快照、产物清单、QC metrics 与失败摘录。
     category: agentteams-evidence
     invocation_mode: backend_sync
-    service: omichub.application.services.agentteams_data_tool_service.AgentTeamsDataToolService
+    service: cygnusx.application.services.agentteams_data_tool_service.AgentTeamsDataToolService
     method: task_result_summary
     requires_confirm: false
     annotations: {readOnlyHint: true, destructiveHint: false, openWorld: false, idempotent: true}
@@ -164,12 +164,54 @@ tools:
     llm_result_fields: [task_id, status, flow_id, parameters, metrics, artifacts, file_records, error_excerpt, success, error]
     ui_result_fields: []
 
+  - key: agentteams-room-messages-read
+    name: room_messages_read
+    description: 读取当前绑定协作室的用户与 Agent 回复正文。仅可读取当前房间；需要翻查更早消息或按需查看已持久化思考过程时调用。
+    category: agentteams-evidence
+    invocation_mode: backend_sync
+    service: cygnusx.application.services.agentteams_data_tool_service.AgentTeamsDataToolService
+    method: room_messages_read
+    requires_confirm: false
+    annotations: {readOnlyHint: true, destructiveHint: false, openWorld: false, idempotent: true}
+    extra: {user_scoped: true, room_scoped: true}
+    input_schema:
+      type: object
+      properties:
+        room_id: {type: string, description: 当前协作室 ID；建议省略，省略时自动使用调用上下文绑定的房间；如填写必须是绑定房间（room- 前缀的命名空间形式亦可）}
+        limit: {type: integer, minimum: 1, maximum: 100, default: 20}
+        before: {type: string, description: 可选 ISO 时间游标，仅返回该时间之前的消息}
+        after: {type: string, description: 可选 ISO 时间游标，仅返回该时间之后的消息}
+        include_thinking: {type: boolean, default: false, description: 是否按需返回 MinIO 已持久化的 Agent 思考过程}
+      required: []
+    llm_result_fields: [room_id, messages, count, next_before, next_after, success, error]
+    ui_result_fields: [room_id, messages, count, next_before, next_after]
+
+  - key: agentteams-room-facts-query
+    name: room_facts_query
+    description: 查询当前协作室未立项或已立项前的房间事件时间线；不替代 case_facts_query，且不会计入 Case 运营指标。
+    category: agentteams-evidence
+    invocation_mode: backend_sync
+    service: cygnusx.application.services.agentteams_data_tool_service.AgentTeamsDataToolService
+    method: room_facts_query
+    requires_confirm: false
+    annotations: {readOnlyHint: true, destructiveHint: false, openWorld: false, idempotent: true}
+    extra: {user_scoped: true, room_scoped: true}
+    input_schema:
+      type: object
+      properties:
+        room_id: {type: string, description: 当前协作室 ID；建议省略，省略时自动使用调用上下文绑定的房间；如填写必须是绑定房间（room- 前缀的命名空间形式亦可）}
+        template: {type: string, enum: [event_timeline, messages], default: event_timeline}
+        limit: {type: integer, minimum: 1, maximum: 100, default: 50}
+      required: []
+    llm_result_fields: [room_id, template, rows, messages, row_count, total_count, count, truncated, next_cursor, success, error]
+    ui_result_fields: [room_id, template, rows, messages, row_count, total_count, count, truncated, next_cursor]
+
   - key: agentteams-task-file-preview
     name: task_file_preview
     description: 预览当前用户任务目录内的文本产物头部；拒绝绝对路径、路径穿越和符号链接。
     category: agentteams-evidence
     invocation_mode: backend_sync
-    service: omichub.application.services.agentteams_data_tool_service.AgentTeamsDataToolService
+    service: cygnusx.application.services.agentteams_data_tool_service.AgentTeamsDataToolService
     method: task_file_preview
     requires_confirm: false
     annotations: {readOnlyHint: true, destructiveHint: false, openWorld: false, idempotent: true}
@@ -189,7 +231,7 @@ tools:
     description: 按 requester_ref 隔离，预览当前用户 workspace 内的文本文件头部。
     category: agentteams-evidence
     invocation_mode: backend_sync
-    service: omichub.application.services.agentteams_data_tool_service.AgentTeamsDataToolService
+    service: cygnusx.application.services.agentteams_data_tool_service.AgentTeamsDataToolService
     method: workspace_file_preview
     requires_confirm: false
     annotations: {readOnlyHint: true, destructiveHint: false, openWorld: false, idempotent: true}
@@ -208,7 +250,7 @@ tools:
     description: 拉取 Case 内上游产物到当前工作目录；大文件走私有 MinIO，不向 Agent 暴露预签名 URL。
     category: agentteams-evidence
     invocation_mode: backend_sync
-    service: omichub.application.services.agentteams_data_tool_service.AgentTeamsDataToolService
+    service: cygnusx.application.services.agentteams_data_tool_service.AgentTeamsDataToolService
     method: artifact_fetch
     requires_confirm: false
     annotations: {readOnlyHint: true, destructiveHint: false, openWorld: false, idempotent: true}
@@ -228,7 +270,7 @@ tools:
     description: 对比当前用户多个任务的指定 QC metrics 字段。
     category: agentteams-evidence
     invocation_mode: backend_sync
-    service: omichub.application.services.agentteams_data_tool_service.AgentTeamsDataToolService
+    service: cygnusx.application.services.agentteams_data_tool_service.AgentTeamsDataToolService
     method: task_compare_metrics
     requires_confirm: false
     annotations: {readOnlyHint: true, destructiveHint: false, openWorld: false, idempotent: true}
@@ -247,7 +289,7 @@ tools:
     description: 查询 FlowRegistry 中指定 QC metric 的确定性硬规则阈值与规则版本。
     category: agentteams-evidence
     invocation_mode: backend_sync
-    service: omichub.application.services.agentteams_data_tool_service.AgentTeamsDataToolService
+    service: cygnusx.application.services.agentteams_data_tool_service.AgentTeamsDataToolService
     method: rule_threshold_lookup
     requires_confirm: false
     annotations: {readOnlyHint: true, destructiveHint: false, openWorld: false, idempotent: true}
@@ -261,12 +303,41 @@ tools:
     llm_result_fields: [flow_id, metric_name, threshold, rule_version, success, error]
     ui_result_fields: []
 
+  - key: agentteams-case-facts-query
+    name: case_facts_query
+    description: >-
+      自省查询（F4）：查当前 Case 的已登记产物及版本、事件时间线、待办审批、产物血缘一级展开。
+      处理"这个产物是哪来的/上次判了什么/还有什么没批"类问题前先查这里，不要凭上下文记忆回答。
+      scope 强制限定当前 Case，越权与受限关键词查询会被拒并记审计。
+      template=schema 可取表/列说明文档正文（渐进暴露）。
+    category: agentteams-evidence
+    invocation_mode: backend_sync
+    service: cygnusx.application.services.agentteams_introspection_service.AgentTeamsIntrospectionService
+    method: query_case_facts_tool
+    requires_confirm: false
+    annotations: {readOnlyHint: true, destructiveHint: false, openWorld: false, idempotent: true}
+    extra: {user_scoped: true}
+    input_schema:
+      type: object
+      properties:
+        case_id: {type: string, description: 当前协作 Case ID（必须是本房间绑定的 Case）}
+        template:
+          type: string
+          enum: [artifact_versions, event_timeline, pending_approvals, artifact_lineage, schema]
+          description: 预置查询模板；与 sql 二选一
+        sql: {type: string, maxLength: 2000, description: 受限 SQL（单表 SELECT，表白名单 case_artifact_versions/case_artifact_dependencies/qc_verification_checks，服务端强制注入 case_id 过滤）；与 template 二选一}
+        params: {type: object, description: 模板参数（如 artifact_id / work_item_id / event_type / since）}
+        limit: {type: integer, minimum: 1, maximum: 200, default: 50}
+      required: [case_id]
+    llm_result_fields: [rows, row_count, total_count, truncated, aggregate, document, success, error]
+    ui_result_fields: []
+
   - key: agent-memory-save
-    name: omichub_save_memory
+    name: cygnusx_save_memory
     description: 保存用户明确透露、跨会话仍有价值的研究偏好或项目事实。禁止保存密钥、密码、Token、原始数据内容或临时细节。
     category: agent-memory
     invocation_mode: backend_sync
-    service: omichub.application.services.agent_memory_tool_service.AgentMemoryToolService
+    service: cygnusx.application.services.agent_memory_tool_service.AgentMemoryToolService
     method: save_memory
     requires_confirm: false
     annotations: {readOnlyHint: false, destructiveHint: false, openWorld: false, idempotent: true}
@@ -282,11 +353,11 @@ tools:
     ui_result_fields: []
 
   - key: agent-memory-update
-    name: omichub_update_memory
+    name: cygnusx_update_memory
     description: 修正或更新一条已有的跨会话用户记忆。
     category: agent-memory
     invocation_mode: backend_sync
-    service: omichub.application.services.agent_memory_tool_service.AgentMemoryToolService
+    service: cygnusx.application.services.agent_memory_tool_service.AgentMemoryToolService
     method: update_memory
     requires_confirm: false
     annotations: {readOnlyHint: false, destructiveHint: false, openWorld: false, idempotent: true}
@@ -302,11 +373,11 @@ tools:
     ui_result_fields: []
 
   - key: agent-memory-forget
-    name: omichub_forget_memory
+    name: cygnusx_forget_memory
     description: 遗忘用户明确要求删除的一条跨会话记忆。
     category: agent-memory
     invocation_mode: backend_sync
-    service: omichub.application.services.agent_memory_tool_service.AgentMemoryToolService
+    service: cygnusx.application.services.agent_memory_tool_service.AgentMemoryToolService
     method: forget_memory
     requires_confirm: false
     annotations: {readOnlyHint: false, destructiveHint: false, openWorld: false, idempotent: true}
@@ -320,11 +391,11 @@ tools:
     ui_result_fields: []
 
   - key: agent-memory-search
-    name: omichub_search_memory
+    name: cygnusx_search_memory
     description: 在当前用户自己的跨会话记忆中检索与当前任务相关的信息。
     category: agent-memory
     invocation_mode: backend_sync
-    service: omichub.application.services.agent_memory_tool_service.AgentMemoryToolService
+    service: cygnusx.application.services.agent_memory_tool_service.AgentMemoryToolService
     method: search_memory
     requires_confirm: false
     annotations: {readOnlyHint: true, destructiveHint: false, openWorld: false, idempotent: true}
@@ -340,11 +411,11 @@ tools:
     ui_result_fields: []
 
   - key: agent-memory-block-update
-    name: omichub_update_memory_block
+    name: cygnusx_update_memory_block
     description: 使用乐观锁更新当前 Agent 的命名记忆块。调用前必须先读取当前块内容和 version，并只提交增量修改。
     category: agent-memory
     invocation_mode: backend_sync
-    service: omichub.application.services.agent_memory_tool_service.AgentMemoryToolService
+    service: cygnusx.application.services.agent_memory_tool_service.AgentMemoryToolService
     method: update_memory_block
     requires_confirm: false
     annotations: {readOnlyHint: false, destructiveHint: false, openWorld: false, idempotent: true}
@@ -361,12 +432,12 @@ tools:
 
 
   - key: kegg-enrichment
-    name: omichub_run_kegg_enrichment
+    name: cygnusx_run_kegg_enrichment
     description: 对无排序基因列表做 GO/KEGG 富集，返回分来源通路表和气泡图。适用于“这些基因富集到什么通路”“做 GO 或 KEGG 注释”；全基因按 log2FC 等分数排序时请改用 GSEA，原始 counts 请改用 DEG。输入 species_id 和每行一个 gene_text，gene_text 也支持 upload://file_id。
     keywords: [enrichment, GO, KEGG, ORA, over representation, 基因富集, 通路富集, 功能富集]
     category: enrichment
     invocation_mode: backend_sync
-    service: omichub.tools.enrichments.service.EnrichmentService
+    service: cygnusx.tools.enrichments.service.EnrichmentService
     method: submit
     extra: {celery_service: true, user_scoped: true}
     requires_confirm: false
@@ -389,12 +460,12 @@ tools:
     ui_result_fields: [plotly_figure, table_data, download_urls]
 
   - key: volcano
-    name: omichub_plot_volcano
+    name: cygnusx_plot_volcano
     description: 根据差异表达结果绘制交互式火山图，返回显著上下调统计和 Plotly 图。适用于“画火山图”“可视化 DEG 的 log2FC 和 padj”；自由探索多种图形请改用绘图工坊，原始 counts 分析请改用 DEG。输入含 log2FC、p-value 的 CSV/TSV data_text，也支持 upload://file_id 或 file://UUID。
     keywords: [volcano, DEG plot, differential expression plot, 差异表达图, 火山图, log2FC]
     category: visualization
     invocation_mode: backend_shim
-    shim_module: omichub.tools.shims.volcano
+    shim_module: cygnusx.tools.shims.volcano
     runtime_profile: analysis-plot
     mas_execution_policy: plot.deg_volcano
     required_capabilities: [python, plotting, tabular]
@@ -423,7 +494,7 @@ tools:
     ui_result_fields: [plotly_figure, result_ref]
 
   - key: deg-analysis
-    name: omichub_run_deg_analysis
+    name: cygnusx_run_deg_analysis
     description: 对原始 counts 矩阵做 DEG 差异表达分析，打开可提交 DESeq2 或 edgeR 任务的工作台。适用于“比较两组找差异基因”“RNA-seq counts 差异分析”；已有 log2FC 和 padj 时请画火山图，只有基因列表时请做 GO/KEGG 富集。输入 method 选择 auto、deseq2 或 edger；矩阵和分组文件在页面上传，不支持 upload://file_id。
     keywords: [DEG, DESeq2, edgeR, differential expression, counts matrix, 差异表达, 转录组差异]
     category: analysis
@@ -445,36 +516,38 @@ tools:
     llm_result_fields: [route, message, success, error]
     ui_result_fields: [route, arguments]
 
-  - key: phylogenetic-tree
-    name: omichub_build_phylogenetic_tree
-    description: 根据多序列比对构建系统发育树，打开可配置 NJ、UPGMA、最大似然或贝叶斯任务的工作台。适用于“建系统发育树”“比较序列亲缘关系”；序列清洗、翻译或 ORF 搜索请改用序列魔术师。输入 layout 为 rectangular、circular 或 radial；FASTA 和参数在页面上传，不支持 upload://file_id。
-    keywords: [phylogeny, phylogenetic tree, NJ, UPGMA, maximum likelihood, 系统发育树, 建树]
-    category: sequence
-    invocation_mode: open_page
-    route: /tools/phylogenetic-tree
-    requires_confirm: false
-    annotations:
-      readOnlyHint: false
-      destructiveHint: false
-      openWorld: false
-      idempotent: true
-    input_schema:
-      type: object
-      properties:
-        layout:
-          type: string
-          enum: [rectangular, circular, radial]
-          description: 希望在页面中使用的树布局；页面仍允许用户随时切换
-    llm_result_fields: [route, message, success, error]
-    ui_result_fields: [route, arguments]
+  # —— 系统发育树构建工具暂时下线（phylo-worker 镜像已停止构建，2026-09）——
+  # 恢复时取消下方注释，并将 tools_setting.yaml 中 phylogenetic-tree 的 enabled 改回 true。
+  # - key: phylogenetic-tree
+  #   name: cygnusx_build_phylogenetic_tree
+  #   description: 根据多序列比对构建系统发育树，打开可配置 NJ、UPGMA、最大似然或贝叶斯任务的工作台。适用于“建系统发育树”“比较序列亲缘关系”；序列清洗、翻译或 ORF 搜索请改用序列魔术师。输入 layout 为 rectangular、circular 或 radial；FASTA 和参数在页面上传，不支持 upload://file_id。
+  #   keywords: [phylogeny, phylogenetic tree, NJ, UPGMA, maximum likelihood, 系统发育树, 建树]
+  #   category: sequence
+  #   invocation_mode: open_page
+  #   route: /tools/phylogenetic-tree
+  #   requires_confirm: false
+  #   annotations:
+  #     readOnlyHint: false
+  #     destructiveHint: false
+  #     openWorld: false
+  #     idempotent: true
+  #   input_schema:
+  #     type: object
+  #     properties:
+  #       layout:
+  #         type: string
+  #         enum: [rectangular, circular, radial]
+  #         description: 希望在页面中使用的树布局；页面仍允许用户随时切换
+  #   llm_result_fields: [route, message, success, error]
+  #   ui_result_fields: [route, arguments]
 
   - key: manhattan
-    name: omichub_plot_manhattan
+    name: cygnusx_plot_manhattan
     description: 根据 GWAS 或 QTL 汇总统计表绘制交互式曼哈顿图，返回显著位点统计和 Plotly 图。适用于“画 GWAS 曼哈顿图”“查看关联位点”；差异表达数据请改用火山图，通用散点或热图请改用绘图工坊。输入含 SNP、Chromosome、Position、P-value 的 CSV/TSV data_text，也支持 upload://file_id 或 file://UUID。
     keywords: [manhattan, GWAS, QTL, association plot, SNP, 曼哈顿图, 关联分析]
     category: visualization
     invocation_mode: backend_shim
-    shim_module: omichub.tools.shims.manhattan
+    shim_module: cygnusx.tools.shims.manhattan
     runtime_profile: analysis-plot
     required_capabilities: [python, plotting, tabular]
     requires_confirm: false
@@ -502,12 +575,12 @@ tools:
     ui_result_fields: [plotly_figure, result_ref]
 
   - key: gsea-enrichment
-    name: omichub_run_gsea
+    name: cygnusx_run_gsea
     description: 对全基因排序列表执行 GO/KEGG GSEA，返回 Top term 的 NES、校正 P 值和任务进度。适用于“按 log2FC 做 GSEA”“看富集曲线”“ranked gene list enrichment”；无排序基因列表请改用 GO/KEGG 富集，原始 counts 请改用 DEG。输入 gene_ranking 为 gene_id 与 score 两列文本，也支持 upload://file_id，并指定 species_id、gene_set 与 cutoff。
     keywords: [GSEA, gene set enrichment, ranked genes, NES, running score, 富集曲线, 排序基因列表, log2FC]
     category: enrichment
     invocation_mode: backend_async
-    service: omichub.tools.gsea.service.GseaService
+    service: cygnusx.tools.gsea.service.GseaService
     method: submit
     extra: {celery_service: true, user_scoped: true}
     requires_confirm: false
@@ -525,12 +598,12 @@ tools:
     ui_result_fields: [task_id, progress_url, result_url]
 
   - key: synteny
-    name: omichub_run_synteny
+    name: cygnusx_run_synteny
     description: 根据 GFF3 注释与 BLASTP outfmt6 结果识别基因组共线性区块，返回区块数量、最大区块和染色体对摘要。适用于“两个基因组有没有共线性”“画 synteny dot plot”；先做同源序列检索时请用 BLAST，其 outfmt6 结果可直接作为输入。输入 gff3_text 和 blastp_text 支持 upload://file_id，chromosome_filter 可选用于超过五万基因对时筛选。
     keywords: [synteny, collinearity, MCScanX, dot plot, 共线性, 基因组共线性, BLASTP outfmt6]
     category: genome
     invocation_mode: backend_async
-    service: omichub.tools.synteny.service.SyntenyService
+    service: cygnusx.tools.synteny.service.SyntenyService
     method: submit
     extra: {celery_service: true, user_scoped: true}
     requires_confirm: false
@@ -546,7 +619,7 @@ tools:
     ui_result_fields: [task_id, progress_url, result_url]
 
   - key: fastq-qc
-    name: omichub_open_fastq_qc
+    name: cygnusx_open_fastq_qc
     description: 打开 FASTQ 质控与清洗工作台，配置 Phred 过滤、接头去除和长度截断后提交质量控制任务。适用于“FASTQ 质控”“清理测序接头”“检查 reads 质量”；序列比对请改用 BLAST，原始 counts 差异分析请改用 DEG。输入无必填参数，FASTQ 文件和质控阈值在页面上传设置，不支持 upload://file_id。
     keywords: [FASTQ, QC, FastQC, quality control, 接头去除, 测序质控, reads]
     category: sequence
@@ -559,7 +632,7 @@ tools:
     ui_result_fields: [route, arguments]
 
   - key: jbrowse
-    name: omichub_open_jbrowse
+    name: cygnusx_open_jbrowse
     description: 打开 JBrowse 基因组浏览器，浏览 BAM、BigWig、VCF 和 GFF3 轨道并定位基因组区域。适用于“看测序覆盖”“浏览变异”“查看基因注释”；共线性区块请改用共线性分析，序列同源检索请改用 BLAST。输入无必填参数，参考基因组和轨道在页面选择或上传，不支持 upload://file_id。
     keywords: [JBrowse, genome browser, BAM, BigWig, VCF, GFF3, 基因组浏览器]
     category: genome
@@ -572,7 +645,7 @@ tools:
     ui_result_fields: [route, arguments]
 
   - key: blast
-    name: omichub_open_blast
+    name: cygnusx_open_blast
     description: 打开本地 BLAST 序列检索工作台，对核酸或蛋白序列查询自定义数据库并返回命中列表。适用于“找同源基因”“比对一段 FASTA 序列”“BLASTP 检索”；基因组区块关系请改用共线性分析，序列清洗或翻译请改用序列魔术师。输入无必填参数，FASTA 与数据库在页面选择或上传，不支持 upload://file_id。
     keywords: [BLAST, blastn, blastp, homology search, 同源检索, 序列比对, FASTA]
     category: sequence
@@ -585,7 +658,7 @@ tools:
     ui_result_fields: [route, arguments]
 
   - key: plot
-    name: omichub_open_plot_workshop
+    name: cygnusx_open_plot_workshop
     description: 打开组学绘图工坊，自由配置散点图、热图、箱线图和其他数据可视化并导出结果。适用于“探索数据怎么画”“画热图或箱线图”“自定义组学图”；含 log2FC 与 padj 的差异表达结果请改用火山图，GWAS 数据请改用曼哈顿图。输入无必填参数，表格和绘图参数在页面上传设置，不支持 upload://file_id。
     keywords: [plot workshop, heatmap, scatter plot, boxplot, 绘图工坊, 组学绘图, 可视化]
     category: visualization
@@ -598,7 +671,7 @@ tools:
     ui_result_fields: [route, arguments]
 
   - key: gene-expression-explorer
-    name: omichub_open_expression_explorer
+    name: cygnusx_open_expression_explorer
     description: 打开基因表达矩阵 Explorer，生成 PCA、样本分布和基因方差等交互式质量探索结果。适用于“检查表达矩阵”“做 PCA”“看样本分布”；原始 counts 的组间统计检验请改用 DEG，单个差异结果图请改用火山图。输入无必填参数，表达矩阵和样本信息在页面上传，不支持 upload://file_id。
     keywords: [expression matrix, PCA, sample distribution, variance, 表达矩阵, 表达 Explorer, 质控]
     category: visualization
@@ -611,7 +684,7 @@ tools:
     ui_result_fields: [route, arguments]
 
   - key: seq-manipulator
-    name: omichub_open_seq_manipulator
+    name: cygnusx_open_seq_manipulator
     description: 打开序列魔术师，进行 FASTA 清洗、IUPAC 转换、六框翻译、ORF/Motif 搜索和基础统计。适用于“翻译 DNA”“找 ORF”“清洗 FASTA 序列”；文件格式互转请改用格式轻量转换器，序列同源检索请改用 BLAST。输入无必填参数，序列内容和处理选项在页面粘贴或上传，不支持 upload://file_id。
     keywords: [FASTA, ORF, motif, translation, IUPAC, 序列处理, 六框翻译]
     category: sequence
@@ -624,7 +697,7 @@ tools:
     ui_result_fields: [route, arguments]
 
   - key: primer-forge
-    name: omichub_open_primer_forge
+    name: cygnusx_open_primer_forge
     description: 打开 PrimerForge 引物设计工作台，设计 PCR、qPCR 或 TaqMan 探针并导出序列定位与订单信息。适用于“设计 PCR 引物”“做 qPCR 引物”“设计探针”；普通 DNA 翻译请改用序列魔术师，序列同源查找请改用 BLAST。输入无必填参数，模板序列与反应约束在页面输入，不支持 upload://file_id。
     keywords: [primer, PCR, qPCR, TaqMan, probe, 引物设计, 探针]
     category: sequence
@@ -637,7 +710,7 @@ tools:
     ui_result_fields: [route, arguments]
 
   - key: format-converter
-    name: omichub_open_format_converter
+    name: cygnusx_open_format_converter
     description: 打开格式轻量转换器，在浏览器内转换 GFF、GTF、BED，提取 FASTA 序列或生成 ID 映射表。适用于“GFF 转 BED”“GTF 和 GFF 互转”“提取注释序列”；序列翻译或 ORF 处理请改用序列魔术师，基因组共线性请改用共线性分析。输入无必填参数，文件和转换规则在页面上传设置，不支持 upload://file_id。
     keywords: [GFF, GTF, BED, format converter, ID mapping, 格式转换, 注释转换]
     category: genome
@@ -650,7 +723,7 @@ tools:
     ui_result_fields: [route, arguments]
 
   - key: id-converter
-    name: omichub_open_id_converter
+    name: cygnusx_open_id_converter
     description: 打开 ID 转换器，在浏览器内转换 Symbol、Ensembl、Entrez、UniProt 等基因标识并进行集合运算。适用于“基因 ID 转换”“Symbol 转 Ensembl”“比较两个基因列表”；通路富集请改用 GO/KEGG 富集，原始 counts 分析请改用 DEG。输入无必填参数，基因列表和目标 ID 类型在页面粘贴，不支持 upload://file_id。
     keywords: [gene ID, Symbol, Ensembl, Entrez, UniProt, ID conversion, 基因 ID 转换]
     category: sequence
@@ -663,7 +736,7 @@ tools:
     ui_result_fields: [route, arguments]
 
   - key: wetlab-calculators
-    name: omichub_open_wetlab_calculators
+    name: cygnusx_open_wetlab_calculators
     description: 打开湿实验计算器，完成 PCR、克隆、NGS 建库、序列处理和溶液配制等常用计算。适用于“配制缓冲液”“算 PCR 体系”“计算 NGS 建库用量”；需要实际测序数据质控请改用 FASTQ 质控，生信统计分析请改用相应分析工具。输入无必填参数，数值和单位在页面填写，不支持 upload://file_id。
     keywords: [wet lab, PCR calculator, NGS library, solution, 湿实验, 溶液配制, 建库计算]
     category: sequence
@@ -676,7 +749,7 @@ tools:
     ui_result_fields: [route, arguments]
 
   - key: venn-upset
-    name: omichub_open_venn_upset
+    name: cygnusx_open_venn_upset
     description: 打开韦恩图与 UpSet 图工作台，比较 2 至 6 个基因列表的交集、特异集合和组合数量。适用于“画韦恩图”“比较多个基因集”“做 UpSet 图”；通路功能解释请改用 GO/KEGG 富集，ID 格式整理请先用 ID 转换器。输入无必填参数，多个基因列表在页面粘贴或上传，不支持 upload://file_id。
     keywords: [venn, upset, set intersection, gene list overlap, 韦恩图, 集合交集]
     category: visualization
@@ -689,14 +762,123 @@ tools:
     ui_result_fields: [route, arguments]
 
   - key: terminal
-    name: omichub_open_terminal
+    name: cygnusx_open_terminal
     description: 打开云端沙盒终端，在隔离环境中运行 samtools、bedtools、Python 或 R 并管理工作目录文件。适用于“运行命令行生信工具”“检查 BAM 或 BED”“写小型分析脚本”；有固定页面流程时优先用对应工具，不能把终端当作高计算工作流的替代。输入无必填参数，命令与文件在终端页面操作，不支持 upload://file_id。
     keywords: [terminal, sandbox, samtools, bedtools, command line, 云端终端, 生信命令行]
     category: environment
     invocation_mode: open_page
     route: /tools/terminal
-    requires_confirm: false
+    # 终端执行类：打开即获得沙盒 shell，需用户二次确认
+    requires_confirm: true
     annotations: {readOnlyHint: false, destructiveHint: false, openWorld: false, idempotent: true}
     input_schema: {type: object, properties: {}}
     llm_result_fields: [route, message, success, error]
     ui_result_fields: [route, arguments]
+
+  - key: schedule-create
+    name: cygnusx_schedule_create
+    description: 创建日程或提醒。支持明确的 ISO 时间，也支持“明天下午3点”“48小时后”等自然语言时间。涉及创建操作时必须先取得用户确认。
+    keywords: [schedule, reminder, calendar, 日程, 提醒, 会议]
+    category: productivity
+    invocation_mode: backend_sync
+    service: cygnusx.application.services.schedule_tool_service.ScheduleToolService
+    method: create
+    requires_confirm: true
+    annotations: {readOnlyHint: false, destructiveHint: false, openWorld: false, idempotent: false}
+    input_schema:
+      type: object
+      properties:
+        title: {type: string, description: 日程标题}
+        start_at: {type: string, format: date-time}
+        natural_time: {type: string, description: 自然语言时间}
+        timezone: {type: string, default: Asia/Shanghai}
+        description: {type: string}
+        recurrence_rule: {type: string, description: RFC 5545 RRULE}
+        reminder_offsets_minutes: {type: array, items: {type: integer, minimum: 0}}
+      required: [title]
+    llm_result_fields: [schedule_id, status, summary]
+    ui_result_fields: [schedule_id, status]
+
+  - key: schedule-list
+    name: cygnusx_schedule_list
+    description: 查询当前用户的日程列表，所有权由调用上下文注入。
+    keywords: [schedule list, calendar, 日程列表, 我的提醒]
+    category: productivity
+    invocation_mode: backend_sync
+    service: cygnusx.application.services.schedule_tool_service.ScheduleToolService
+    method: list
+    requires_confirm: false
+    annotations: {readOnlyHint: true, destructiveHint: false, openWorld: false, idempotent: true}
+    input_schema: {type: object, properties: {status: {type: string}}}
+    llm_result_fields: [schedules, count]
+    ui_result_fields: [schedules, count]
+
+  - key: schedule-update
+    name: cygnusx_schedule_update
+    description: 修改当前用户拥有的日程。涉及修改操作时必须先取得用户确认。
+    keywords: [schedule update, calendar edit, 修改日程]
+    category: productivity
+    invocation_mode: backend_sync
+    service: cygnusx.application.services.schedule_tool_service.ScheduleToolService
+    method: update
+    requires_confirm: true
+    annotations: {readOnlyHint: false, destructiveHint: false, openWorld: false, idempotent: true}
+    input_schema:
+      type: object
+      properties:
+        schedule_id: {type: string}
+        title: {type: string}
+        start_at: {type: string, format: date-time}
+        timezone: {type: string}
+        recurrence_rule: {type: string}
+        status: {type: string}
+      required: [schedule_id]
+    llm_result_fields: [schedule_id, status, summary]
+    ui_result_fields: [schedule_id, status]
+
+  - key: schedule-cancel
+    name: cygnusx_schedule_cancel
+    description: 取消当前用户拥有的日程，并抑制尚未发送的提醒。必须先取得用户确认。
+    keywords: [schedule cancel, cancel reminder, 取消日程, 取消提醒]
+    category: productivity
+    invocation_mode: backend_sync
+    service: cygnusx.application.services.schedule_tool_service.ScheduleToolService
+    method: cancel
+    requires_confirm: true
+    annotations: {readOnlyHint: false, destructiveHint: true, openWorld: false, idempotent: true}
+    input_schema: {type: object, properties: {schedule_id: {type: string}}, required: [schedule_id]}
+    llm_result_fields: [schedule_id, status, summary]
+    ui_result_fields: [schedule_id, status]
+
+  - key: reminder-snooze
+    name: cygnusx_reminder_snooze
+    description: 将当前用户的一条提醒推迟指定分钟数。
+    keywords: [snooze, reminder, 推迟提醒, 稍后提醒]
+    category: productivity
+    invocation_mode: backend_sync
+    service: cygnusx.application.services.schedule_tool_service.ScheduleToolService
+    method: snooze
+    requires_confirm: false
+    annotations: {readOnlyHint: false, destructiveHint: false, openWorld: false, idempotent: true}
+    input_schema:
+      type: object
+      properties:
+        delivery_id: {type: string}
+        minutes: {type: integer, minimum: 1, maximum: 43200}
+      required: [delivery_id, minutes]
+    llm_result_fields: [delivery_id, status, due_at]
+    ui_result_fields: [delivery_id, status, due_at]
+
+  - key: reminder-complete
+    name: cygnusx_reminder_complete
+    description: 将当前用户的一条提醒标记为完成。
+    keywords: [complete reminder, done, 完成提醒, 已完成]
+    category: productivity
+    invocation_mode: backend_sync
+    service: cygnusx.application.services.schedule_tool_service.ScheduleToolService
+    method: complete
+    requires_confirm: false
+    annotations: {readOnlyHint: false, destructiveHint: false, openWorld: false, idempotent: true}
+    input_schema: {type: object, properties: {delivery_id: {type: string}}, required: [delivery_id]}
+    llm_result_fields: [delivery_id, status]
+    ui_result_fields: [delivery_id, status]

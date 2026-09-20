@@ -9,7 +9,7 @@ model: deepseek-v4-flash
 prompt_file: prompts/skill_builder.md
 welcome_message: "你好！请给我一段对话、代码、执行记录或任务描述，我会把它沉淀成一个符合 OSDP 的 Skill 候选包，写入 /workspace/skill-candidates/{skill_id}/。我不会自动挂载它，生成后需要管理员确认才能晋升。"
 temperature: 0.3
-max_tokens: 32768
+max_tokens: 65536
 mcp_ids: []
 skill_ids: []
 features:

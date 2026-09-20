@@ -5,15 +5,15 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from omichub.application.services.agent_handoff_service import (
+from cygnusx.application.services.agent_handoff_service import (
     MAX_HANDOFF_PACKET_BYTES,
     AgentHandoffService,
     extract_handoff_directive,
 )
-from omichub.application.services.agent_service import AgentService, render_persona_system_prompt
-from omichub.core.exceptions import BusinessError
-from omichub.infrastructure.database.models.agent import AgentTemplateModel
-from omichub.infrastructure.database.models.chat import ChatSessionModel
+from cygnusx.application.services.agent_service import AgentService, render_persona_system_prompt
+from cygnusx.core.exceptions import BusinessError
+from cygnusx.infrastructure.database.models.agent import AgentTemplateModel
+from cygnusx.infrastructure.database.models.chat import ChatSessionModel
 
 
 def test_runtime_communication_contract_applies_to_every_standard_agent() -> None:
@@ -141,6 +141,49 @@ def test_handoff_directive_is_extracted_from_toolbridge_envelope() -> None:
     )
 
 
+def test_handoff_directive_survives_llm_payload_compaction() -> None:
+    """llm_payload 超 3KB 被压缩成摘要后，envelope 顶层的 handoff 仍可提取。"""
+    directive = {"target_agent_id": "agent-rnaseq", "hop_index": 1, "packet": "x" * 2000}
+    compacted_envelope = {
+        "success": True,
+        "is_error": False,
+        "llm_payload": {"summary": "工具执行结果较大，已省略细节。", "success": True},
+        "ui_payload": {},
+        "handoff": directive,
+    }
+    assert (
+        extract_handoff_directive({"success": True, "result": compacted_envelope}) == directive
+    )
+    assert extract_handoff_directive(compacted_envelope) == directive
+
+
+def test_package_preserves_handoff_directive_when_payload_oversized() -> None:
+    """_package 截断 llm_payload 时必须把 handoff 指令透传到 envelope 顶层。"""
+    from cygnusx.application.services.tool_bridge_service import ToolBridgeService
+    from cygnusx.tools.schema_loader import ToolSchema
+
+    schema = ToolSchema(
+        key="agent-handoff-transfer",
+        name="transfer_to_agent",
+        description="交接",
+        invocation_mode="backend_sync",
+        llm_result_fields=["summary", "handoff", "success", "error"],
+    )
+    directive = {
+        "target_agent_id": "agent-rnaseq",
+        "handoff_summary": "已完成差异分析指导。" * 200,
+        "packet": "p" * 2000,
+    }
+    raw = {"success": True, "handoff": directive, "summary": "已准备转交给 RNA-seq 分析师。"}
+
+    bridge = ToolBridgeService.__new__(ToolBridgeService)
+    envelope = bridge._package(schema, raw)
+
+    assert envelope["handoff"] == directive
+    assert "handoff" not in envelope["llm_payload"]
+    assert envelope["llm_payload"]["summary"] == "已准备转交给 RNA-seq 分析师。"
+
+
 @pytest.mark.asyncio
 async def test_prepare_handoff_enforces_agent_whitelist_and_builds_packet() -> None:
     db = AsyncMock()
@@ -240,8 +283,11 @@ async def test_dynamic_handoff_catalog_includes_current_active_agents_only() -> 
     entries = json.loads(payload)
 
     assert [entry["agent_id"] for entry in entries] == ["agent-custom-qc"]
-    assert entries[0]["capabilities"] == []
     assert entries[0]["chat_entry"] is True
+    # F5 渐进暴露：handoff 派单目录只注入 summary 层，四段契约不进派单上下文。
+    assert entries[0]["description"] == "自定义质量控制流程"
+    for detail_key in ("capabilities", "not_suitable_for", "handoff_when", "preferred_inputs"):
+        assert detail_key not in entries[0]
 
 
 @pytest.mark.asyncio
@@ -267,17 +313,15 @@ async def test_dynamic_handoff_catalog_enriches_builtin_agent_from_ability_yaml(
     catalog_prompt = await AgentService(db)._build_handoff_catalog(source)
     entries = json.loads(catalog_prompt.split("\n\n")[1])
 
+    # F5 渐进暴露：description 为 summary 层触发分类器；四段契约已下沉 detail 层，
+    # 不在派单（handoff）目录中展开。
     assert entries == [
         {
             "agent_id": "agent-viz",
             "name": "可视化助手",
-            "description": "负责科研图形选型、脚本、版式、美化和导出规范。",
+            "description": "科研图形：图形选型、绘图脚本、版式美化与出版级导出。原始数据质控裁决、复杂统计推断或大规模工作流执行不属于它——转交对应专家，它只在结果数据就绪后接图。",
             "category": "analysis",
             "chat_entry": True,
-            "capabilities": ["科研绘图", "ggplot2", "热图", "火山图", "UMAP", "系统发育树", "图注", "出版级导出"],
-            "not_suitable_for": ["原始数据质控裁决", "复杂统计推断", "大规模工作流执行"],
-            "handoff_when": ["需要领域统计分析", "需要文件预处理或代码调试", "需要组学结果解释"],
-            "preferred_inputs": ["数据表或对象", "图形目标", "分组字段", "配色限制", "期刊或尺寸要求"],
         }
     ]
 
@@ -311,7 +355,7 @@ async def test_dynamic_handoff_catalog_exposes_chat_entry_from_ability_yaml() ->
 
 @pytest.mark.asyncio
 async def test_record_handoff_anchor_commits_in_independent_session(monkeypatch) -> None:
-    import omichub.application.services.agent_handoff_service as handoff_module
+    import cygnusx.application.services.agent_handoff_service as handoff_module
 
     class FakeDb:
         def __init__(self) -> None:
@@ -348,3 +392,81 @@ async def test_record_handoff_anchor_commits_in_independent_session(monkeypatch)
     assert event.target_agent_id == "agent-b"
     assert db.added == [event]
     db.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_prepare_handoff_unknown_target_error_lists_valid_agent_ids() -> None:
+    db = AsyncMock()
+    source = AgentTemplateModel(
+        agent_id="agent-general",
+        name="通用助手",
+        features={"handoff": {"allowed_targets": ["*"]}},
+        is_active=True,
+    )
+    viz = AgentTemplateModel(agent_id="agent-viz", name="可视化助手", is_active=True)
+    router = AgentTemplateModel(
+        agent_id="agent-router", name="星尘 AI", features={"router": True}, is_active=True
+    )
+    db.scalar.side_effect = [
+        ChatSessionModel(session_id="session-1", user_id="user-1", status="active"),
+        source,
+        None,
+    ]
+    candidates = MagicMock()
+    candidates.all.return_value = [source, viz, router]
+    db.scalars.return_value = candidates
+
+    with pytest.raises(BusinessError) as exc_info:
+        await AgentHandoffService(db).prepare_handoff(
+            user_id="user-1",
+            session_id="session-1",
+            source_agent_id="agent-general",
+            target_agent_id="可视化助手",
+            reason="需要科研绘图能力",
+            handoff_summary="尚未执行分析。",
+            user_intent="画样本间相关性热图",
+        )
+
+    message = str(exc_info.value)
+    assert "agent_id" in message
+    assert "agent-viz（可视化助手）" in message
+    # 路由 Agent 与源 Agent 自身不出现在可转交清单中
+    assert "agent-router" not in message
+    assert "agent-general（通用助手）" not in message
+
+
+@pytest.mark.asyncio
+async def test_prepare_handoff_whitelist_error_lists_allowed_targets_only() -> None:
+    db = AsyncMock()
+    source = AgentTemplateModel(
+        agent_id="agent-scrna",
+        name="单细胞分析师",
+        features={"handoff": {"allowed_targets": ["agent-rnaseq"]}},
+        is_active=True,
+    )
+    rnaseq = AgentTemplateModel(agent_id="agent-rnaseq", name="RNA-seq 分析师", is_active=True)
+    viz = AgentTemplateModel(agent_id="agent-viz", name="可视化助手", is_active=True)
+    db.scalar.side_effect = [
+        ChatSessionModel(session_id="session-1", user_id="user-1", status="active"),
+        source,
+        viz,
+    ]
+    candidates = MagicMock()
+    candidates.all.return_value = [source, rnaseq, viz]
+    db.scalars.return_value = candidates
+
+    with pytest.raises(BusinessError) as exc_info:
+        await AgentHandoffService(db).prepare_handoff(
+            user_id="user-1",
+            session_id="session-1",
+            source_agent_id="agent-scrna",
+            target_agent_id="agent-viz",
+            reason="需要科研绘图能力",
+            handoff_summary="尚未执行分析。",
+            user_intent="画样本间相关性热图",
+        )
+
+    message = str(exc_info.value)
+    assert "白名单" in message
+    assert "agent-rnaseq（RNA-seq 分析师）" in message
+    assert "agent-viz（可视化助手）" not in message

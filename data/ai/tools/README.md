@@ -7,7 +7,7 @@
 id: my-analysis-pack
 description: 给 RNA-seq Agent 使用的工具集合。
 builtin_tools:
-  - omichub_run_kegg_enrichment
+  - cygnusx_run_kegg_enrichment
 platform_tools:
   - list_workspace_files
   - search_workspace_files
@@ -20,8 +20,8 @@ skill_ids:
   - my-skill-id
 ```
 
-- `builtin_tools`：来自 `tool_configs/tools_schema.yaml` 的 OmicHub 内置函数名。
-- `platform_tools`：来自内置 `omichub-platform` MCP 的受限平台工具名。
+- `builtin_tools`：来自 `tool_configs/tools_schema.yaml` 的 CygnusX 内置函数名。
+- `platform_tools`：来自内置 `cygnusx-platform` MCP 的受限平台工具名。
 - `mcp_ids` / `mcp_tools`：绑定已注册 MCP Server；提供 `mcp_tools` 时只暴露白名单中的函数。
 - `skill_ids`：绑定已启用的 Skill。
 

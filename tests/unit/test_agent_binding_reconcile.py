@@ -2,7 +2,7 @@
 
 核心断言：ensure_builtin_agents 对内置 Agent 以 YAML 声明集合重建 mcp_ids，
 历史残留（外部 ensmbl/go-server、已失效的旧 platform 随机 ID、conda 全局注入）
-一律清除，仅保留声明集合 + 核心 builtin 预设（omichub-tools / platform）。
+一律清除，仅保留声明集合 + 核心 builtin 预设（cygnusx-tools / platform）。
 """
 
 from __future__ import annotations
@@ -11,12 +11,12 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from omichub.application.services.agent_service import AgentService
-from omichub.infrastructure.database.models.agent import AgentTemplateModel
-from omichub.infrastructure.mcp.conda_meta_preset import CONDA_META_MCP_SERVER_ID
-from omichub.infrastructure.mcp.presets import (
-    OMICHUB_PLATFORM_SERVER_ID,
-    OMICHUB_TOOLS_SERVER_ID,
+from cygnusx.application.services.agent_service import AgentService
+from cygnusx.infrastructure.database.models.agent import AgentTemplateModel
+from cygnusx.infrastructure.mcp.conda_meta_preset import CONDA_META_MCP_SERVER_ID
+from cygnusx.infrastructure.mcp.presets import (
+    CYGNUSX_PLATFORM_SERVER_ID,
+    CYGNUSX_TOOLS_SERVER_ID,
 )
 
 # 历史漂移场景里的陈旧 ID
@@ -27,8 +27,8 @@ _STALE_OLD_PLATFORM = "d4bbaf4d-e831-4571-b86f-b6e5093ea21b"
 _STALE_OLD_CONDA = "73d0f808-9b74-5933-be24-22f686ff86d1"
 
 _DECLARED_RNASEQ = [
-    str(OMICHUB_TOOLS_SERVER_ID),
-    str(OMICHUB_PLATFORM_SERVER_ID),
+    str(CYGNUSX_TOOLS_SERVER_ID),
+    str(CYGNUSX_PLATFORM_SERVER_ID),
     _STALE_PIPELINES,
     _STALE_ENSMBL,
     _STALE_GO,
@@ -60,7 +60,7 @@ async def test_builtin_agent_drops_stale_mcp_ids(monkeypatch):
         mcp_ids=[
             _STALE_OLD_PLATFORM,
             _STALE_OLD_CONDA,
-            str(OMICHUB_TOOLS_SERVER_ID),
+            str(CYGNUSX_TOOLS_SERVER_ID),
             _STALE_PIPELINES,
             _STALE_ENSMBL,
             _STALE_GO,
@@ -69,7 +69,7 @@ async def test_builtin_agent_drops_stale_mcp_ids(monkeypatch):
         features={},
     )
     monkeypatch.setattr(
-        "omichub.application.services.agent_service.load_agent_configs",
+        "cygnusx.application.services.agent_service.load_agent_configs",
         lambda: [
             {
                 "agent_id": "agent-rnaseq",
@@ -87,8 +87,8 @@ async def test_builtin_agent_drops_stale_mcp_ids(monkeypatch):
     assert _STALE_OLD_CONDA not in result, "全局注入的 conda 应被清除"
     assert _STALE_ENSMBL in result, "声明集合内的 ensmbl 应保留"
     assert _STALE_GO in result, "声明集合内的 go-server 应保留"
-    assert str(OMICHUB_PLATFORM_SERVER_ID) in result, "核心 platform 预设应保留"
-    assert str(OMICHUB_TOOLS_SERVER_ID) in result, "核心 omichub-tools 预设应保留"
+    assert str(CYGNUSX_PLATFORM_SERVER_ID) in result, "核心 platform 预设应保留"
+    assert str(CYGNUSX_TOOLS_SERVER_ID) in result, "核心 cygnusx-tools 预设应保留"
     # 声明集合的确定性常量 ID 应顶替旧随机 ID
     assert CONDA_META_MCP_SERVER_ID not in result
     # skill 同样以声明为准

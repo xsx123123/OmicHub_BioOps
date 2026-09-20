@@ -1,4 +1,4 @@
-# OmicHub phylogenetic analysis Worker image.
+# CygnusX phylogenetic analysis Worker image.
 # Purpose: consume phylo_tree queues in an isolated Conda environment.
 # Build context: repository root
 # Build command: make docker-build-worker
@@ -17,6 +17,13 @@ RUN sed -i -e "s|http://archive.ubuntu.com/ubuntu/|${APT_MIRROR}/ubuntu/|g" -e "
     apt-get update && apt-get install -y --no-install-recommends \
     build-essential gcc g++ gfortran make cmake \
     libopenmpi-dev libgomp1 && rm -rf /var/lib/apt/lists/*
+
+# 构建期切换中科大 apt 源，加速 apt-get（兼容 debian.sources 与旧版 sources.list）
+RUN if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
+        sed -i 's@//deb.debian.org@//mirrors.ustc.edu.cn@g; s@//security.debian.org@//mirrors.ustc.edu.cn@g' /etc/apt/sources.list.d/debian.sources; \
+    else \
+        sed -i 's@//deb.debian.org@//mirrors.ustc.edu.cn@g; s@//security.debian.org@//mirrors.ustc.edu.cn@g' /etc/apt/sources.list; \
+    fi
 
 # 预置中科大镜像源，加速容器内 mamba/conda 环境安装（见 Protocol/镜像构建国内加速规范_v1.md §4）
 RUN printf '%s\n' \
@@ -65,4 +72,4 @@ RUN /opt/conda/envs/phylo/bin/pip install --no-cache-dir \
     -i https://pypi.mirrors.ustc.edu.cn/simple .
 
 # 运行 worker：需在编排中覆盖 command
-# celery -A omichub.infrastructure.celery_app.celery worker -Q phylo_tree -n phylo@%h
+# celery -A cygnusx.infrastructure.celery_app.celery worker -Q phylo_tree -n phylo@%h

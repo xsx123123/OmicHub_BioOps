@@ -1,5 +1,5 @@
 <template>
-  <div class="register-page" role="main" aria-label="注册 OmicHub 账户">
+  <div class="register-page" role="main" aria-label="注册 CygnusX 账户">
     <StarField />
     <LoginPageQuote />
 
@@ -9,7 +9,7 @@
           <LogoAnimation size="small" />
           <div class="register-header">
             <h2 class="register-title gradient-text">注册账户</h2>
-            <p class="register-subtitle">加入 OmicHub 多组学分析平台</p>
+            <p class="register-subtitle">加入 CygnusX 多组学分析平台</p>
           </div>
 
           <n-alert v-if="registrationClosed" type="warning" :show-icon="true" class="error-alert">
@@ -90,7 +90,7 @@
               <n-checkbox v-model:checked="agreed" class="agreement-checkbox" />
               <span class="agreement-text">
                 我已阅读并同意
-                <a class="agreement-link" @click="showAgreementDrawer = true">《OmicHub 平台服务协议》</a>
+                <a class="agreement-link" @click="showAgreementDrawer = true">《CygnusX 平台服务协议》</a>
               </span>
             </div>
 

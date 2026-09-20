@@ -10,12 +10,13 @@
  */
 import { ref, reactive, computed, watch, onMounted, onUnmounted, provide, nextTick, type Component } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
-import { NButton, NCheckbox, NIcon, NInput, NSelect, NSwitch, NTag, NTooltip, NModal, NSpin, useMessage } from 'naive-ui'
+import { NButton, NCheckbox, NIcon, NInput, NSelect, NSwitch, NTag, NTooltip, NModal, NSpin, useDialog, useMessage } from 'naive-ui'
 import {
   ArrowBackOutline, RefreshOutline, FileTrayStackedOutline, ShareSocialOutline,
   PrintOutline, CloseCircleOutline, ConstructOutline, ChevronBackOutline, ChevronForwardOutline,
   AnalyticsOutline, ChatbubbleEllipsesOutline, CodeSlashOutline, DocumentTextOutline,
-  FlaskOutline, GridOutline, PowerOutline, TimeOutline,
+  FlaskOutline, GridOutline, PowerOutline, TimeOutline, TrashOutline, SettingsOutline,
+  SpeedometerOutline,
 } from '@vicons/ionicons5'
 import KimiMessageList from '@/components/ai-chat/KimiMessageList.vue'
 import AskUserModal from '@/components/ai-chat/AskUserModal.vue'
@@ -25,6 +26,8 @@ import PendingApprovalBar, {
   type PendingApprovalItem,
   type PendingAskItem,
 } from '@/components/ai-chat/PendingApprovalBar.vue'
+import StudioPlanTimeline from '@/components/studio/StudioPlanTimeline.vue'
+import ResearchModeSettingsModal from '@/components/studio/ResearchModeSettingsModal.vue'
 import FilePickerModal from '@/components/FilePickerModal.vue'
 import StudioFileTree from '@/components/studio/StudioFileTree.vue'
 import StudioArtifactsPanel from '@/components/studio/StudioArtifactsPanel.vue'
@@ -32,7 +35,7 @@ import StudioWorkspaceEditor from '@/components/studio/StudioWorkspaceEditor.vue
 import SessionHistoryDrawer from '@/components/agent-workspace/SessionHistoryDrawer.vue'
 import OverdriveToggle from '@/components/agent-workspace/OverdriveToggle.vue'
 import { StudioContextKey } from '@/components/studio/context'
-import { studioApi, type StudioSessionDTO, type SandboxStatus } from '@/api/studio'
+import { studioApi, type StudioSessionDTO, type SandboxStatus, type StudioSessionDetail } from '@/api/studio'
 import { shouldApplyServerUi, shouldApplyServerViewMode } from '@/utils/studioViewGuard'
 import { useAgentHubStore } from '@/stores/agentHub'
 import { useAuthStore } from '@/stores/auth'
@@ -44,14 +47,32 @@ import {
   inferStudioTaskStatus,
   parseTaskUnderstanding,
 } from '@/utils/studioPresentation'
+import {
+  loadTokenPricing,
+  summarizeUsage,
+  formatTokensInM,
+  resolvePricing,
+} from '@/utils/tokenCost'
 
 const route = useRoute()
 const router = useRouter()
 const store = useAgentHubStore()
 const authStore = useAuthStore()
 const message = useMessage()
+const dialog = useDialog()
 
 const sessionId = computed(() => (route.params.sessionId as string) || '')
+
+// 环境还原失败提示去重：同一失败身份（会话+文件+原因）只 toast 一次
+const envRestoreNotified = new Set<string>()
+
+function notifyEnvRestore(envRestore: StudioSessionDetail['env_restore']) {
+  if (!envRestore || envRestore.status !== 'failed' || !envRestore.reason) return
+  const key = `${sessionId.value}:${envRestore.file || ''}:${envRestore.reason}`
+  if (envRestoreNotified.has(key)) return
+  envRestoreNotified.add(key)
+  message.warning(`环境还原失败，已回退基础环境：${envRestore.reason}`)
+}
 
 const loading = ref(true)
 const studioSessions = ref<StudioSessionDTO[]>([])
@@ -93,11 +114,13 @@ const extractSkillForm = reactive({
 const fileTreeKey = ref(0)
 const artifactsKey = ref(0)
 
-const leftCollapsed = ref(false)
-const rightCollapsed = ref(false)
-const rightSections = reactive({ artifacts: true, sandbox: true })
+// 左右栏默认折叠：中间对话/代码列获得更大宽度（问题②），顶部按钮可展开并记忆。
+const leftCollapsed = ref(true)
+const rightCollapsed = ref(true)
+// 研究结果默认展开；沙盒状态信息密度低，默认折叠（问题③），点击手风琴头可展开。
+const rightSections = reactive({ artifacts: true, sandbox: false })
 const leftWidth = ref(260)
-const RIGHT_WIDTH_KEY = 'omichub:studio:right-width-v2'
+const RIGHT_WIDTH_KEY = 'cygnusx:studio:right-width-v2'
 function loadRightWidth(): number {
   const saved = Number(localStorage.getItem(RIGHT_WIDTH_KEY))
   return Number.isFinite(saved) && saved >= 200 && saved <= 320 ? saved : 232
@@ -114,6 +137,8 @@ const viewModeTouched = ref(false)
 const splitRatio = ref(40)
 const chatDrawerOpen = ref(false)
 const historyOpen = ref(false)
+/** 科研模式设置弹窗（WP3 任务 3 入口） */
+const researchSettingsOpen = ref(false)
 const workspaceEditorRef = ref<InstanceType<typeof StudioWorkspaceEditor> | null>(null)
 const followAi = ref(true)
 const terminalCollapsed = ref(false)
@@ -132,20 +157,26 @@ const switchingPermissions = ref(false)
 async function handlePermissionChange(mode: 'supervised' | 'plan' | 'auto') {
   if (switchingPermissions.value) return
   switchingPermissions.value = true
-  try {
-    await store.setStudioPermissions(mode)
-    if (mode === 'auto') {
-      message.warning('已切换到放权模式：所有工具将自动执行，不再等待批准')
-    } else if (mode === 'plan') {
-      message.info('已切换到计划模式：先批准完整计划，再自动执行本轮步骤')
-    } else {
-      message.success('已切换到监督模式：关键操作需你批准后执行')
-    }
-  } catch {
-    message.error('权限模式切换失败，请重试')
-  } finally {
-    switchingPermissions.value = false
-  }
+  // 乐观切换立即生效（store 先置本地态）。流式执行期间聊天事务持有
+  // chat_sessions 行锁，本请求会排队到本轮结束才落库（实测可长达数分钟），
+  // 因此不 await 阻塞选择器：spinner 短暂展示，结果经 toast 反馈，
+  // 与 PATCH /ui 的"本地优先、服务端延迟落库"策略一致。
+  void store.setStudioPermissions(mode)
+    .then(() => {
+      if (mode === 'auto') {
+        message.warning('已切换到放权模式：所有工具将自动执行，不再等待批准')
+      } else if (mode === 'plan') {
+        message.info('已切换到计划模式：先批准完整计划，再自动执行本轮步骤')
+      } else {
+        message.success('已切换到监督模式：关键操作需你批准后执行')
+      }
+    })
+    .catch(() => {
+      message.error('权限模式切换失败，已还原为原来的模式')
+    })
+    .finally(() => {
+      switchingPermissions.value = false
+    })
 }
 
 function toggleRightSection(section: keyof typeof rightSections) {
@@ -162,7 +193,7 @@ function persistUiState() {
   }).catch(() => {})
 }
 
-function modeStorageKey(id = sessionId.value) { return `omichub:studio:${id}:view-mode` }
+function modeStorageKey(id = sessionId.value) { return `cygnusx:studio:${id}:view-mode` }
 function handleTerminalCollapsedChanged(collapsed: boolean) {
   terminalCollapsed.value = collapsed
   persistUiState()
@@ -220,6 +251,7 @@ async function refreshStatus() {
     sandboxStatus.value = detail.sandbox_status
     sandboxMetrics.value = detail.sandbox_metrics || { cpu_percent: 0, memory_percent: 0, memory_used: 0, memory_limit: 0 }
     workspaceId.value = detail.workspace_id
+    notifyEnvRestore(detail.env_restore)
     if (!wasRunning && detail.sandbox_status === 'running' && store.isStreaming) message.success('沙盒已点火，工作区准备就绪 🚀')
     // 流式进行中服务端的 plan 可能尚未提交（聊天事务末尾才 commit），
     // 此时空值不覆盖面板上的实时计划，避免待办"出现一下就消失"
@@ -251,6 +283,44 @@ async function refreshStudioSessions() {
   }
 }
 
+// ---------- 会话删除 ----------
+function confirmDeleteSession(s: StudioSessionDTO) {
+  if (s.session_id === sessionId.value && store.isStreaming) {
+    message.warning('会话正在执行，请等待完成后再删除')
+    return
+  }
+  dialog.warning({
+    title: '删除会话',
+    content: `确定删除“${s.title}”吗？删除后无法恢复。`,
+    positiveText: '删除',
+    negativeText: '取消',
+    onPositiveClick: () => deleteStudioSession(s.session_id),
+  })
+}
+
+async function deleteStudioSession(id: string) {
+  try {
+    await studioApi.deleteSession(id)
+  } catch (err) {
+    const status = (err as { response?: { status?: number } })?.response?.status
+    message.error(status === 409 ? '会话正在执行任务，请稍后再试' : '删除会话失败，请稍后重试')
+    return
+  }
+  studioSessions.value = studioSessions.value.filter((s) => s.session_id !== id)
+  // 同步移除 agentHub 编排缓存，避免已删会话残留在历史抽屉里
+  const storeIdx = store.sessions.findIndex((s) => s.id === id)
+  if (storeIdx >= 0) store.sessions.splice(storeIdx, 1)
+  message.success('会话已删除')
+  if (sessionId.value === id) {
+    // 删的是当前会话：跳到列表下一个，没有则回工作台空态
+    if (studioSessions.value.length) {
+      router.replace({ name: 'studio', params: { sessionId: studioSessions.value[0].session_id } })
+    } else {
+      router.replace({ name: 'studio' })
+    }
+  }
+}
+
 // ---------- 会话进入 ----------
 async function enterSession(id: string) {
   try {
@@ -259,6 +329,7 @@ async function enterSession(id: string) {
     sandboxStatus.value = detail.sandbox_status
     sandboxMetrics.value = detail.sandbox_metrics || { cpu_percent: 0, memory_percent: 0, memory_used: 0, memory_limit: 0 }
     workspaceId.value = detail.workspace_id
+    notifyEnvRestore(detail.env_restore)
     if (!wasRunning && detail.sandbox_status === 'running' && store.isStreaming) message.success('沙盒已点火，工作区准备就绪 🚀')
     // 同 refreshStatus：流式中服务端 plan 未提交时用空值覆盖会清掉面板实时计划
     if (detail.plan?.steps?.length) store.currentPlan = detail.plan.steps
@@ -335,6 +406,18 @@ watch(
       return
     }
     await enterSession(id)
+    // 从 AI 助手「进入工作台」携带的未发送草稿：回填到工作台输入框，避免进入后内容丢失需重新输入
+    const draft = store.pendingStudioDraft
+    if (draft && draft.sessionId === id) {
+      store.pendingStudioDraft = null
+      input.value = draft.content
+      await nextTick()
+      composerRef.value?.setDraftAttachments(draft.attachments || [])
+      if (draft.content.trim() || draft.attachments?.length) {
+        message.info('已从 AI 助手带入未发送的内容，确认后点击发送即可开始')
+        composerRef.value?.focusWithCursorAtEnd()
+      }
+    }
     loading.value = false
   },
   { immediate: true },
@@ -359,7 +442,7 @@ onMounted(async () => {
   if (!store.availableModels.length) await store.fetchAvailableModels()
   statusTimer = setInterval(refreshStatus, 10_000)
   longRunTimer = setInterval(() => { if (store.isStreaming) longRunSeconds.value += 1; else longRunSeconds.value = 0 }, 1000)
-  window.addEventListener('omichub:studio-file-changed', handleStudioFileChanged)
+  window.addEventListener('cygnusx:studio-file-changed', handleStudioFileChanged)
 })
 
 async function hibernateCurrentSandbox(showFeedback = false) {
@@ -385,7 +468,7 @@ onUnmounted(() => {
   statusTimer = null
   if (longRunTimer) clearInterval(longRunTimer)
   longRunTimer = null
-  window.removeEventListener('omichub:studio-file-changed', handleStudioFileChanged)
+  window.removeEventListener('cygnusx:studio-file-changed', handleStudioFileChanged)
   void hibernateCurrentSandbox(false)
 })
 
@@ -404,6 +487,35 @@ watch(
 // ---------- 顶栏信息 ----------
 const session = computed(() => store.currentSession)
 const agent = computed(() => (session.value ? store.getAgent(session.value.agent_id) : null))
+
+// ---------- 会话 token 用量 / 费用 ----------
+// 单价取模型级配置（AI 配置中心，随 /chat/models 下发），未配置回退到
+// 设置 → 偏好设置 的全局单价（localStorage）；设置页保存后广播
+// 'token-pricing-changed'，此处热更新，无需刷新页面
+const tokenPricing = ref(loadTokenPricing())
+const sessionUsage = computed(() => {
+  if (!session.value) return null
+  const model = store.availableModels.find((m) => m.id === session.value?.model_id)
+  return summarizeUsage(
+    session.value.messages,
+    resolvePricing(tokenPricing.value, {
+      input: model?.input_price,
+      output: model?.output_price,
+      inputCache: model?.input_cache_price,
+      outputCache: model?.output_cache_price,
+    }),
+  )
+})
+function refreshTokenPricing() {
+  tokenPricing.value = loadTokenPricing()
+}
+window.addEventListener('token-pricing-changed', refreshTokenPricing)
+window.addEventListener('storage', refreshTokenPricing)
+onUnmounted(() => {
+  window.removeEventListener('token-pricing-changed', refreshTokenPricing)
+  window.removeEventListener('storage', refreshTokenPricing)
+})
+
 const overdriveEnabled = computed({
   get: () => Boolean(session.value?.overdrive),
   set: (value: boolean) => {
@@ -413,6 +525,7 @@ const overdriveEnabled = computed({
 
 // ---------- Studio HITL：待审批 / 待澄清浮动条 ----------
 const messageListRef = ref<InstanceType<typeof KimiMessageList> | null>(null)
+const composerRef = ref<InstanceType<typeof KimiChatInput> | null>(null)
 
 /** 当前会话所有待审批的工具调用（状态源为消息的 tool.approval，此处仅派生） */
 const pendingApprovals = computed<PendingApprovalItem[]>(() => {
@@ -616,13 +729,24 @@ function handleDeleteMessage(messageId: string) {
 }
 
 function handleCreateCaseFromConsultation(summary: string, consultationId?: string) {
-  window.dispatchEvent(new CustomEvent('omichub:agentteams-create', {
+  window.dispatchEvent(new CustomEvent('cygnusx:agentteams-create', {
     detail: { summary, consultationId },
   }))
 }
 
 function handleCorrectCollaborationRoute(route: CollaborationRouteInfo) {
   input.value = `我不想走“${route.label}”这条路径。请改为：`
+}
+
+/** 建议追问 Chips：send 直接走与输入框回车完全相同的发送链路 */
+function handleSuggestionSend(prompt: string) {
+  void handleSend(prompt)
+}
+
+/** 建议追问 Chips：prefill 只写入输入框并聚焦、光标置于文末，不发送 */
+function handleSuggestionPrefill(prompt: string) {
+  input.value = prompt
+  nextTick(() => composerRef.value?.focusWithCursorAtEnd())
 }
 
 function handleInsertArtifact(path: string) {
@@ -762,17 +886,29 @@ async function goSession(id: string) {
   }
 }
 
-function handleHistorySelect(session: { id: string }, messageId?: string) {
+function handleHistorySelect(session: { id: string; workspace_archive?: unknown }, messageId?: string) {
   if (session.id === sessionId.value) return
-  router.push({
-    name: 'studio',
-    params: { sessionId: session.id },
-    query: messageId ? { message: messageId } : {},
-  })
+  const enter = () => {
+    router.push({
+      name: 'studio',
+      params: { sessionId: session.id },
+      query: messageId ? { message: messageId } : {},
+    })
+  }
+  // 已归档休眠的工作台会话：先调恢复端点，成功后再路由进入加载
+  if (session.workspace_archive) {
+    store.restoreArchivedSession(session.id)
+      .then(enter)
+      .catch((e) => {
+        message.error(e instanceof Error ? e.message : '恢复会话工作区失败，请稍后重试')
+      })
+    return
+  }
+  enter()
 }
 
 // ---------- 文件预览（按类型分流，未知二进制绝不按文本读取） ----------
-type PreviewKind = 'image' | 'table' | 'unsupported'
+type PreviewKind = 'image' | 'table' | 'html' | 'unsupported'
 const showFilePreview = ref(false)
 const previewPath = ref('')
 const previewLoading = ref(false)
@@ -793,7 +929,8 @@ function parseDelimited(content: string, delimiter: string) {
 
 async function handleSelectFile(path: string) {
   const ext = path.split('.').pop()?.toLowerCase() || ''
-  if (editableExtensions.has(ext)) {
+  // HTML 文件直接渲染预览（iframe），不进编辑器看源码；编辑可右键另行打开
+  if (ext !== 'html' && editableExtensions.has(ext)) {
     await openFileInEditor(path)
     return
   }
@@ -804,7 +941,10 @@ async function handleSelectFile(path: string) {
   previewRows.value = []
   showFilePreview.value = true
   try {
-    if (imageExtensions.has(ext)) {
+    if (ext === 'html') {
+      previewKind.value = 'html'
+      previewUrl.value = await studioApi.fetchWorkspaceBlob(sessionId.value, path)
+    } else if (imageExtensions.has(ext)) {
       previewKind.value = 'image'
       previewUrl.value = await studioApi.fetchWorkspaceBlob(sessionId.value, path)
     } else if (tableExtensions.has(ext)) {
@@ -924,8 +1064,21 @@ function formatSessionTime(iso: string): string {
         <n-tag v-else size="small" round :bordered="false" class="model-tag">{{ modelName }}</n-tag>
       </div>
       <div class="bar-right">
+        <n-tooltip v-if="sessionUsage && sessionUsage.total > 0" trigger="hover">
+          <template #trigger>
+            <span class="token-usage-chip">
+              <n-icon size="13"><SpeedometerOutline /></n-icon>
+              <span>↑{{ formatTokensInM(sessionUsage.input) }}</span>
+              <span v-if="sessionUsage.cached > 0" title="缓存命中的输入 tokens">⚡{{ formatTokensInM(sessionUsage.cached) }}</span>
+              <span>↓{{ formatTokensInM(sessionUsage.output) }}</span>
+              <span class="usage-cost">¥{{ sessionUsage.cost < 0.01 ? sessionUsage.cost.toFixed(4) : sessionUsage.cost.toFixed(2) }}</span>
+            </span>
+          </template>
+          本会话累计：输入 {{ sessionUsage.input.toLocaleString() }} tokens（缓存命中 {{ sessionUsage.cached.toLocaleString() }}），输出 {{ sessionUsage.output.toLocaleString() }} tokens；按模型单价（AI 配置中心）或设置页全局单价估算费用 ¥{{ sessionUsage.cost.toFixed(4) }}
+        </n-tooltip>
         <OverdriveToggle v-model="overdriveEnabled" :disabled="store.isStreaming" compact />
-        <n-tooltip v-if="sessionId" trigger="hover">
+        <!-- 仅 studio 会话展示权限切换器：普通聊天会话后端一律 404，避免"切换失败"死按钮 -->
+        <n-tooltip v-if="sessionId && store.currentSession?.mode === 'studio'" trigger="hover">
           <template #trigger>
             <span class="perm-switch" :class="{ auto: isAutoMode }">
               <span class="perm-label">{{ permissionMode === 'auto' ? '放权' : permissionMode === 'plan' ? '计划' : '监督' }}</span>
@@ -941,6 +1094,7 @@ function formatSessionTime(iso: string): string {
             </span>
           </template>
           {{ permissionMode === 'auto' ? '放权模式：工具自动执行，仍受循环护栏保护' : permissionMode === 'plan' ? '计划模式：先批准完整计划，再自动执行本轮步骤' : '监督模式：关键操作需逐步批准' }}
+          <br />执行中切换会排队到本轮结束才落库，下一轮起完全生效
         </n-tooltip>
         <span class="sandbox-light" :title="`沙盒状态：${statusInfo.label}`">
           <span class="light-icon" :class="{ pulsing: store.isStreaming && sandboxStatus === 'running' }">{{ statusInfo.icon }}</span> {{ statusInfo.label }}
@@ -952,6 +1106,14 @@ function formatSessionTime(iso: string): string {
             </n-button>
           </template>
           将工作区脚本提炼为 Skill
+        </n-tooltip>
+        <n-tooltip v-if="sessionId" trigger="hover">
+          <template #trigger>
+            <n-button text aria-label="会话设置" @click="researchSettingsOpen = true">
+              <n-icon size="16"><SettingsOutline /></n-icon>
+            </n-button>
+          </template>
+          会话设置（科研模式）
         </n-tooltip>
         <n-tooltip trigger="hover">
           <template #trigger>
@@ -997,7 +1159,7 @@ function formatSessionTime(iso: string): string {
           <template #trigger>
             <n-button text @click="leftCollapsed = !leftCollapsed">
               <n-icon size="16">
-                <ChevronBackOutline v-if="!leftCollapsed" />
+                <ChevronBackOutline v-if="leftCollapsed" />
                 <ChevronForwardOutline v-else />
               </n-icon>
             </n-button>
@@ -1008,7 +1170,7 @@ function formatSessionTime(iso: string): string {
           <template #trigger>
             <n-button text @click="rightCollapsed = !rightCollapsed">
               <n-icon size="16">
-                <ChevronForwardOutline v-if="!rightCollapsed" />
+                <ChevronForwardOutline v-if="rightCollapsed" />
                 <ChevronBackOutline v-else />
               </n-icon>
             </n-button>
@@ -1067,6 +1229,16 @@ function formatSessionTime(iso: string): string {
                 :class="`is-${inferStudioTaskStatus(s, sessionId, store.isStreaming)}`"
                 :title="inferStudioTaskStatus(s, sessionId, store.isStreaming)"
               />
+              <n-button
+                text
+                size="tiny"
+                class="session-delete-btn"
+                title="删除会话"
+                :aria-label="`删除会话：${s.title}`"
+                @click.stop="confirmDeleteSession(s)"
+              >
+                <n-icon><TrashOutline /></n-icon>
+              </n-button>
             </div>
             <div v-if="!studioSessions.length" class="block-empty">暂无工作台会话</div>
           </div>
@@ -1120,7 +1292,7 @@ function formatSessionTime(iso: string): string {
               :session-id="sessionId"
               :target-message-id="String(route.query.message || '')"
               :task-understanding="taskUnderstanding"
-              :plan-steps="store.currentPlan"
+              suggestions-enabled
               @copy="handleCopy"
               @feedback="(id, type) => store.submitMessageFeedback(id, type)"
               @regenerate="handleRegenerate"
@@ -1129,6 +1301,8 @@ function formatSessionTime(iso: string): string {
               @edit="handleEditMessage"
               @create-case-from-consultation="handleCreateCaseFromConsultation"
               @correct-collaboration-route="handleCorrectCollaborationRoute"
+              @suggestion-send="handleSuggestionSend"
+              @suggestion-prefill="handleSuggestionPrefill"
             />
             <PendingApprovalBar
               :approvals="pendingApprovals"
@@ -1140,8 +1314,10 @@ function formatSessionTime(iso: string): string {
               :ask="pendingAskModal?.ask || null"
               @submit="handleAskModalSubmit"
             />
+            <StudioPlanTimeline v-if="store.currentPlan.length" :steps="store.currentPlan" />
             <div class="input-area">
               <KimiChatInput
+                ref="composerRef"
                 v-model="input"
                 :is-streaming="store.isStreaming"
                 :placeholder="longRunPlaceholder"
@@ -1223,6 +1399,9 @@ function formatSessionTime(iso: string): string {
 
     <SessionHistoryDrawer v-model:show="historyOpen" mode="studio" @select="handleHistorySelect" />
 
+    <!-- 科研模式三开关（WP3 任务 3）：渲染形态 / 工作区协议 / PTC 白名单 -->
+    <ResearchModeSettingsModal v-model:show="researchSettingsOpen" />
+
     <n-modal
       v-model:show="showExtractSkill"
       preset="card"
@@ -1258,6 +1437,14 @@ function formatSessionTime(iso: string): string {
       <div class="preview-wrap">
         <n-spin v-if="previewLoading" size="medium" />
         <img v-else-if="previewKind === 'image' && previewUrl" :src="previewUrl" :alt="previewPath" class="workspace-image-preview">
+        <iframe
+          v-else-if="previewKind === 'html' && previewUrl"
+          :src="previewUrl"
+          :title="previewPath"
+          sandbox="allow-scripts"
+          referrerpolicy="no-referrer"
+          class="workspace-html-preview"
+        />
         <div v-else-if="previewKind === 'table'" class="workspace-table-wrap">
           <table><thead><tr><th v-for="(header, index) in previewHeaders" :key="index">{{ header }}</th></tr></thead><tbody><tr v-for="(row, rowIndex) in previewRows" :key="rowIndex"><td v-for="(cell, cellIndex) in row" :key="cellIndex">{{ cell }}</td></tr></tbody></table>
           <small>仅展示前 50 行</small>
@@ -1325,6 +1512,25 @@ function formatSessionTime(iso: string): string {
   align-items: center;
   gap: 6px;
   flex-shrink: 0;
+}
+.token-usage-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1px solid var(--studio-border, #e8e8f2);
+  border-radius: 999px;
+  background: var(--studio-primary-soft, #f0edff);
+  color: var(--studio-text-sub, #8a8aa3);
+  font-size: 11px;
+  line-height: 18px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  cursor: default;
+}
+.token-usage-chip .usage-cost {
+  color: var(--studio-primary, #6c5ce7);
+  font-weight: 600;
 }
 .sandbox-light {
   font-size: 12px;
@@ -1461,10 +1667,28 @@ function formatSessionTime(iso: string): string {
   padding: 0 8px 8px;
 }
 .session-item {
+  position: relative;
   padding: 7px 10px;
   border-radius: 8px;
   cursor: pointer;
   transition: background 0.15s ease;
+}
+.session-delete-btn {
+  position: absolute;
+  top: 5px;
+  right: 7px;
+  z-index: 1;
+  padding: 2px;
+  color: var(--text-tertiary, var(--chat-text-muted));
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease;
+}
+.session-item:hover .session-delete-btn,
+.session-delete-btn:focus-visible {
+  opacity: 1;
+}
+.session-delete-btn:hover {
+  color: var(--error-color, #d03050);
 }
 .task-card { display: grid; grid-template-columns: 30px minmax(0, 1fr) 10px; align-items: center; gap: 8px; min-height: 52px; border: 1px solid transparent; border-radius: 12px; }
 .task-icon { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 10px; color: var(--studio-primary); background: var(--surface-highlight, var(--chat-surface-hover)); }
@@ -1524,8 +1748,15 @@ function formatSessionTime(iso: string): string {
 }
 .input-area {
   flex-shrink: 0;
-  padding: 12px 20px;
+  /* 左右 16px 与待处理条、分析计划卡的 calc(100% - 32px) 一致，三者任意栏宽都对齐 */
+  padding: 12px 16px;
   border-top: 1px solid var(--chat-border);
+}
+/* 与上方消息列同宽居中（消息列受 --chat-content-max-width 约束） */
+.input-area > * {
+  max-width: var(--chat-content-max-width, 860px);
+  margin-left: auto;
+  margin-right: auto;
 }
 @keyframes task-status-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
 
@@ -1685,7 +1916,7 @@ function formatSessionTime(iso: string): string {
 .chat-pane.drawer { position:absolute; right:16px; bottom:16px; z-index:8; width:min(460px,calc(100% - 32px)); height:min(70%,620px); border:1px solid var(--studio-border,#e8e8f2); border-radius:16px; background:rgba(255,255,255,.94); box-shadow:0 18px 50px rgba(43,43,61,.16); }.chat-fab { position:absolute; right:20px; bottom:20px; z-index:9; display:grid; place-items:center; width:44px; height:44px; border:0; border-radius:50%; color:#fff; background:var(--studio-primary,#6c5ce7); box-shadow:0 8px 22px rgba(108,92,231,.28); cursor:pointer; }.chat-fab.open { opacity:0; pointer-events:none; }.unread-dot { position:absolute; top:2px; right:2px; width:9px; height:9px; border:2px solid #fff; border-radius:50%; background:#e45470; }
 .col-left,.col-right { background:color-mix(in srgb, var(--studio-card) 82%, transparent); border-color:var(--studio-border,#e8e8f2); }.session-item:hover { background:var(--studio-primary-soft,#f0edff); }.session-item.active { position:relative; background:var(--studio-primary-soft,#f0edff); }.session-item.active::before { position:absolute; inset:7px auto 7px 0; width:3px; border-radius:0 2px 2px 0; background:var(--studio-primary); content:''; }.session-item.active .s-title { color:var(--studio-primary,#6c5ce7); }.resize-handle:hover { background:rgba(76,111,255,.26); }
 .plan-item.is-done { color:var(--studio-text-sub,#8a8aa3); background:rgba(108,92,231,.06); opacity:.78; }.plan-item.is-done .plan-title { text-decoration:line-through; text-decoration-thickness:1px; }.plan-item.is-done .plan-status { color:var(--studio-primary,#6c5ce7); font-weight:700; }.plan-item.is-in_progress { color:var(--studio-primary,#6c5ce7); background:var(--studio-primary-soft,#f0edff); }
-.workspace-image-preview { max-width:100%; max-height:70vh; object-fit:contain; border-radius:12px; box-shadow:0 12px 36px rgba(43,43,61,.12); }.workspace-table-wrap { width:100%; max-height:65vh; overflow:auto; }.workspace-table-wrap table { width:100%; border-collapse:collapse; font-size:12px; }.workspace-table-wrap th,.workspace-table-wrap td { padding:7px 9px; border-bottom:1px solid var(--studio-border,#e8e8f2); text-align:left; white-space:nowrap; }.workspace-table-wrap th { position:sticky; top:0; background:var(--studio-primary-soft,#f0edff); }.workspace-table-wrap small { display:block; margin-top:8px; color:var(--studio-text-sub,#8a8aa3); }.unsupported-preview { display:grid; justify-items:center; gap:8px; padding:46px 20px; text-align:center; }.unsupported-preview h3 { margin:0; }.unsupported-preview p { max-width:460px; margin:0 0 10px; color:var(--studio-text-sub,#8a8aa3); font-size:12px; }.unsupported-icon { color:var(--studio-primary,#6c5ce7); font-size:42px; }
+.workspace-image-preview { max-width:100%; max-height:70vh; object-fit:contain; border-radius:12px; box-shadow:0 12px 36px rgba(43,43,61,.12); }.workspace-html-preview { width:100%; height:65vh; border:1px solid var(--studio-border,#e8e8f2); border-radius:12px; background:#fff; }.workspace-table-wrap { width:100%; max-height:65vh; overflow:auto; }.workspace-table-wrap table { width:100%; border-collapse:collapse; font-size:12px; }.workspace-table-wrap th,.workspace-table-wrap td { padding:7px 9px; border-bottom:1px solid var(--studio-border,#e8e8f2); text-align:left; white-space:nowrap; }.workspace-table-wrap th { position:sticky; top:0; background:var(--studio-primary-soft,#f0edff); }.workspace-table-wrap small { display:block; margin-top:8px; color:var(--studio-text-sub,#8a8aa3); }.unsupported-preview { display:grid; justify-items:center; gap:8px; padding:46px 20px; text-align:center; }.unsupported-preview h3 { margin:0; }.unsupported-preview p { max-width:460px; margin:0 0 10px; color:var(--studio-text-sub,#8a8aa3); font-size:12px; }.unsupported-icon { color:var(--studio-primary,#6c5ce7); font-size:42px; }
 @media (prefers-reduced-motion: reduce) { .studio-modebar button,.node-caret { transition:none !important; }.task-status-light.is-running { animation:none; } }
 
 .accordion-header { width:100%; border:0; background:transparent; text-align:left; cursor:pointer; }.accordion-header:hover { background:var(--studio-primary-soft,#f0edff); }.accordion-chevron { margin-left:auto; color:var(--studio-text-sub,#8a8aa3); transition:transform .18s ease; }.accordion-chevron.open { transform:rotate(180deg); }

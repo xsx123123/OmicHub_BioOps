@@ -2,7 +2,7 @@
 
 import pytest
 
-from omichub.core.security import create_access_token
+from cygnusx.core.security import create_access_token
 
 
 @pytest.fixture

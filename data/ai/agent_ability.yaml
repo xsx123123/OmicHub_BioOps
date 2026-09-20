@@ -1,138 +1,201 @@
 version: 1
 
-# 可热重载的 Agent 能力目录。运行时 handoff 目录只会向模型公开当前 Agent
-# handoff.allowed_targets 白名单内、且数据库处于 active 状态的条目。
+# 可热重载的 Agent 能力目录（F5 渐进暴露：summary / detail 两层）。
+#
+# 分层契约：
+#   summary  —— 触发分类器（一句话：适用场景 + 不适用场景），常驻注入 Manager
+#               派单/路由/handoff 上下文；措辞可以强势（"Stop and consult"式）
+#               当它防止真实误派。不写空泛能力吹嘘。
+#   detail   —— 四段契约全文（capabilities / not_suitable_for / handoff_when /
+#               preferred_inputs）+ 输入示例（input_examples），只在组队会诊 /
+#               派单确认时按选中候选加载（见 chat_service 会诊分支与
+#               AgentTeamsCapabilityRegistry.capability_detail_context）。
+#   chat_entry / requires_formal_delivery 保持顶层，不参与分层。
+#
+# 运行时 handoff 目录只会向模型公开当前 Agent handoff.allowed_targets 白名单内、
+# 且数据库处于 active 状态的条目。
+#
+# 派单上下文 token 量（scripts/measure_capability_catalog_tokens.py 可复测）：
+#   依据: 实测 — 改造前 router 目录 4131 tokens、handoff 目录 3058 tokens（合计 7189）
+#   → 改造后 router 目录 2801 tokens、handoff 目录 1715 tokens（合计 4516，下降约 37%）
+#   （口径: tiktoken cl100k_base，注入 prompt 的目录 JSON 文本，13 个候选，日期 2026-08-21）。
 agents:
   agent-router:
-    summary: 识别任务意图，选择合适专家并组织受控转交。
-    capabilities: [任务分诊, 专家选择, 转交上下文整理, 协作路径判定]
-    not_suitable_for: [领域分析执行, 文件内容解读, 直接生成正式交付物]
-    handoff_when: [任务领域明确, 需要多步骤专业分析, 需要正式交付]
-    preferred_inputs: [用户目标, 数据类型, 已知文件路径, 物种与研究约束]
+    summary: 平台分派入口：识别任务意图、选择专家并组织受控转交。不适用任何领域分析执行、文件内容解读或直接生成正式交付物——它只分派，不执行。
+    detail:
+      capabilities: [任务分诊, 专家选择, 转交上下文整理, 协作路径判定]
+      not_suitable_for: [领域分析执行, 文件内容解读, 直接生成正式交付物]
+      handoff_when: [任务领域明确, 需要多步骤专业分析, 需要正式交付]
+      preferred_inputs: [用户目标, 数据类型, 已知文件路径, 物种与研究约束]
+      input_examples: ["用户原始诉求文本（可含糊），由它决定分派目标与协作路径"]
 
   agent-general:
-    summary: 平台默认入口，负责通用咨询、输入澄清、文件定位和专家分诊。
-    capabilities: [通用生信咨询, 平台使用指导, 工作区文件检索, 任务澄清, 专家分诊, 轻量协作]
-    not_suitable_for: [完整组学分析执行, 专业统计建模, 出版级图形设计]
-    handoff_when: [需要三个以上专业步骤, 需要正式分析交付, 已识别明确专业领域]
-    preferred_inputs: [研究目标, 数据类型, 工作区文件, 物种, 分组信息]
+    summary: 通用与未定域任务的入口：通用咨询、输入澄清、文件定位与专家分诊。已明确领域的完整组学分析、专业统计建模或出版级绘图不属于它——Stop and consult，转交对应领域专家，不要由通用入口硬接。
+    detail:
+      capabilities: [通用生信咨询, 平台使用指导, 工作区文件检索, 任务澄清, 专家分诊, 轻量协作]
+      not_suitable_for: [完整组学分析执行, 专业统计建模, 出版级图形设计]
+      handoff_when: [需要三个以上专业步骤, 需要正式分析交付, 已识别明确专业领域]
+      preferred_inputs: [研究目标, 数据类型, 工作区文件, 物种, 分组信息]
+      input_examples: ["“我想比较两组小鼠的表达差异，数据还没上传”——研究目标 + 数据类型 + 物种"]
 
   agentteams-manager:
-    summary: AgentTeams 协作室的部门经理，负责接单、选规划专家、审核计划、协调专家与汇总交付。
+    summary: AgentTeams 协作室的部门经理：接单、选规划专家、审核计划、协调专家与汇总交付。不亲自执行 Work Item、不做多步分析计算、不绕过闸门写入或审批——这类诉求派给领域专家与正式流程。
     chat_entry: false
-    capabilities: [需求接单, 规划协调, 计划审核, 进度跟踪, 结果点评, 汇总交付]
-    not_suitable_for: [Work Item 执行, 多步分析流程的实际计算, 未经闸门的写入与审批]
-    handoff_when: [需要领域专家执行专项分析, 需要正式流程交付与质量闸门]
-    preferred_inputs: [研究目标, 数据类型, 样本分组, 物种, 期望交付物]
+    detail:
+      capabilities: [需求接单, 规划协调, 计划审核, 进度跟踪, 结果点评, 汇总交付]
+      not_suitable_for: [Work Item 执行, 多步分析流程的实际计算, 未经闸门的写入与审批]
+      handoff_when: [需要领域专家执行专项分析, 需要正式流程交付与质量闸门]
+      preferred_inputs: [研究目标, 数据类型, 样本分组, 物种, 期望交付物]
+      input_examples: ["研究目标 + 样本分组 + 期望交付物的立项请求"]
 
   agent-rnaseq:
-    summary: 负责 Bulk RNA-seq 的方案、质控、差异表达、富集和结果解释。
-    capabilities: [Bulk RNA-seq, FASTQ质控, 比对与定量, 差异表达, 富集分析, 共表达与结果解释]
-    not_suitable_for: [单细胞专属流程, ATAC-seq峰分析, 出版级图形细节优化]
-    handoff_when: [输入为单细胞数据, 需要染色质可及性分析, 需要专项绘图或代码调试]
-    preferred_inputs: [FASTQ或计数矩阵, 样本表, 分组, 物种, 参考基因组, 研究问题]
+    summary: Bulk RNA-seq 全流程：FASTQ 质控、比对定量、差异表达、富集与结果解释。输入是单细胞对象或 ATAC 数据、或需求只是专项绘图/代码调试时，Stop and consult——转交对应专家，不要用 Bulk RNA 流程硬接。
+    detail:
+      capabilities: [Bulk RNA-seq, FASTQ质控, 比对与定量, 差异表达, 富集分析, 共表达与结果解释]
+      not_suitable_for: [单细胞专属流程, ATAC-seq峰分析, 出版级图形细节优化]
+      handoff_when: [输入为单细胞数据, 需要染色质可及性分析, 需要专项绘图或代码调试]
+      preferred_inputs: [FASTQ或计数矩阵, 样本表, 分组, 物种, 参考基因组, 研究问题]
+      input_examples: ["6 例 vs 6 例小鼠 FASTQ + 样本分组表，做两组差异表达与富集"]
     # L2→L4 升级规则（愿景 Phase D）：命中本领域即建议升级协作室正式交付。
     requires_formal_delivery: true
 
   agent-atacseq:
-    summary: 负责 Bulk ATAC-seq 的质控、峰分析、差异可及性和调控解释。
-    capabilities: [Bulk ATAC-seq, TSS与FRiP质控, peak calling, 差异可及性, motif, footprinting, 多组学整合]
-    not_suitable_for: [scATAC-seq专属流程, Bulk RNA-seq全流程, 通用代码工程]
-    handoff_when: [输入为单细胞染色质数据, 需要转录组专项执行, 需要复杂脚本调试]
-    preferred_inputs: [FASTQ或BAM, fragments, peak文件, 样本表, 物种, 参考组装]
+    summary: Bulk ATAC-seq：TSS/FRiP 质控、peak calling、差异可及性、motif/footprinting 与调控解释。输入是 scATAC/单细胞染色质数据、Bulk RNA-seq 或通用代码工程时，Stop and consult——转交对应专家。
+    detail:
+      capabilities: [Bulk ATAC-seq, TSS与FRiP质控, peak calling, 差异可及性, motif, footprinting, 多组学整合]
+      not_suitable_for: [scATAC-seq专属流程, Bulk RNA-seq全流程, 通用代码工程]
+      handoff_when: [输入为单细胞染色质数据, 需要转录组专项执行, 需要复杂脚本调试]
+      preferred_inputs: [FASTQ或BAM, fragments, peak文件, 样本表, 物种, 参考组装]
+      input_examples: ["两组 ATAC FASTQ + 参考组装，做差异可及性与 motif 分析"]
     requires_formal_delivery: true
 
   agent-scrna:
-    summary: 负责单细胞转录组的全流程规划、质控、分析和生物学解释。
-    capabilities: [scRNA-seq, 质控, 归一化, 降维聚类, 注释, 差异表达, 轨迹, 细胞通讯]
-    not_suitable_for: [原始FASTQ上游细节审计, 批次整合专项复核, 复杂高级单细胞专项]
-    handoff_when: [需要上游样本QC审计, 需要整合聚类专项, 需要轨迹或通讯等高级分析]
-    preferred_inputs: [h5ad或Seurat对象, 计数矩阵, 元数据, 物种, 批次与分组]
+    summary: 单细胞转录组全流程规划与执行：质控、归一化、降维聚类、注释、差异、轨迹、细胞通讯及生物学解释。Cell Ranger 上游审计或批次整合专项复核等深度子项，先会诊对应 scrna 子专家再派单。
+    detail:
+      capabilities: [scRNA-seq, 质控, 归一化, 降维聚类, 注释, 差异表达, 轨迹, 细胞通讯]
+      not_suitable_for: [原始FASTQ上游细节审计, 批次整合专项复核, 复杂高级单细胞专项]
+      handoff_when: [需要上游样本QC审计, 需要整合聚类专项, 需要轨迹或通讯等高级分析]
+      preferred_inputs: [h5ad或Seurat对象, 计数矩阵, 元数据, 物种, 批次与分组]
+      input_examples: ["10X h5ad + 样本元数据，做聚类注释与组间差异"]
     requires_formal_delivery: true
 
   agent-scrna-upstream:
-    summary: 审查单细胞上游输入、样本级质控和可追溯风险，不直接执行分析。
-    capabilities: [Cell Ranger输入审查, 样本QC判读, barcode rank, 双细胞风险, 上游交接建议]
-    not_suitable_for: [下游整合聚类, 细胞注释, 直接修改过滤阈值或重跑流程]
-    handoff_when: [上游输入可用且需要下游分析, 需要批次整合, 需要高级生物学解释]
-    preferred_inputs: [metrics_summary.csv, web_summary.html, 样本表, chemistry与文库信息]
+    summary: 审查单细胞上游输入与样本级质控：Cell Ranger 输出、barcode rank、双细胞风险与可追溯风险，并给交接建议。不做下游整合聚类与细胞注释，也不直接改阈值或重跑流程——只审查，不执行。
+    detail:
+      capabilities: [Cell Ranger输入审查, 样本QC判读, barcode rank, 双细胞风险, 上游交接建议]
+      not_suitable_for: [下游整合聚类, 细胞注释, 直接修改过滤阈值或重跑流程]
+      handoff_when: [上游输入可用且需要下游分析, 需要批次整合, 需要高级生物学解释]
+      preferred_inputs: [metrics_summary.csv, web_summary.html, 样本表, chemistry与文库信息]
+      input_examples: ["metrics_summary.csv / web_summary.html + 样本与文库信息"]
 
   agent-scrna-integration:
-    summary: 负责单细胞批次校正、整合、降维、聚类与稳定性复核。
-    capabilities: [批次效应评估, Harmony, scVI, Scanvi, HVG, UMAP, Leiden聚类, 整合质量复核]
-    not_suitable_for: [原始FASTQ质控, 细胞通讯与轨迹等高级下游解释, Bulk组学流程]
-    handoff_when: [上游QC未完成, 需要细胞注释或高级下游, 需要通用单细胞汇总]
-    preferred_inputs: [过滤后的对象, 批次标签, 样本元数据, 归一化策略, 预期生物学结构]
+    summary: 单细胞批次校正与整合：批次效应评估、Harmony/scVI 整合、降维聚类与稳定性复核。原始 FASTQ 质控、轨迹/通讯等高级下游解释或 Bulk 组学需求不属于它——转交对应专家。
+    detail:
+      capabilities: [批次效应评估, Harmony, scVI, Scanvi, HVG, UMAP, Leiden聚类, 整合质量复核]
+      not_suitable_for: [原始FASTQ质控, 细胞通讯与轨迹等高级下游解释, Bulk组学流程]
+      handoff_when: [上游QC未完成, 需要细胞注释或高级下游, 需要通用单细胞汇总]
+      preferred_inputs: [过滤后的对象, 批次标签, 样本元数据, 归一化策略, 预期生物学结构]
+      input_examples: ["过滤后的对象 + 批次标签 + 归一化策略与预期生物学结构"]
 
   agent-scrna-advanced:
-    summary: 负责单细胞注释、pseudobulk、轨迹、velocity、通讯及高级解释。
-    capabilities: [细胞注释, marker验证, pseudobulk, 轨迹, 拟时序, RNA velocity, 细胞通讯, 高级可视化]
-    not_suitable_for: [原始上游QC, 批次整合底层调参, 未完成聚类的对象]
-    handoff_when: [上游输入或整合尚未完成, 需要基础单细胞全流程, 需要通用平台协调]
-    preferred_inputs: [已整合对象, 聚类结果, marker列表, 元数据, 研究假设, 分组信息]
+    summary: 已整合单细胞对象的高级分析：细胞注释、pseudobulk 差异、轨迹/velocity、细胞通讯与高级解释。上游 QC 未完成、批次整合未就绪或对象尚未聚类时，Stop and consult——先回上游或整合专家，不在半成品对象上做高级解释。
+    detail:
+      capabilities: [细胞注释, marker验证, pseudobulk, 轨迹, 拟时序, RNA velocity, 细胞通讯, 高级可视化]
+      not_suitable_for: [原始上游QC, 批次整合底层调参, 未完成聚类的对象]
+      handoff_when: [上游输入或整合尚未完成, 需要基础单细胞全流程, 需要通用平台协调]
+      preferred_inputs: [已整合对象, 聚类结果, marker列表, 元数据, 研究假设, 分组信息]
+      input_examples: ["已整合对象 + 聚类结果 + 研究假设与分组信息"]
 
   agent-code:
-    summary: 负责 Python/R/Bash 代码设计、调试、可复现脚本与工具集成。
-    capabilities: [Python, R, Bash, 调试, 环境排错, 脚本重构, 可复现工作流, 数据格式转换]
-    not_suitable_for: [无数据证据的生物学结论, 专项组学方法选择, 出版级图形审美决策]
-    handoff_when: [需要领域分析方案, 需要专项可视化设计, 需要平台运维权限]
-    preferred_inputs: [报错日志, 最小复现代码, 输入样例, 预期输出, 环境与依赖信息]
+    summary: 代码工程：Python/R/Bash 设计、调试、环境排错、可复现脚本与数据格式转换。脱离数据证据的生物学结论、组学方法选型或出版级图形审美决策不属于它——转交领域或可视化专家。
+    detail:
+      capabilities: [Python, R, Bash, 调试, 环境排错, 脚本重构, 可复现工作流, 数据格式转换]
+      not_suitable_for: [无数据证据的生物学结论, 专项组学方法选择, 出版级图形审美决策]
+      handoff_when: [需要领域分析方案, 需要专项可视化设计, 需要平台运维权限]
+      preferred_inputs: [报错日志, 最小复现代码, 输入样例, 预期输出, 环境与依赖信息]
+      input_examples: ["报错日志 + 最小复现代码 + 环境与依赖信息"]
 
   agent-viz:
-    summary: 负责科研图形选型、脚本、版式、美化和导出规范。
-    capabilities: [科研绘图, ggplot2, 热图, 火山图, UMAP, 系统发育树, 图注, 出版级导出]
-    not_suitable_for: [原始数据质控裁决, 复杂统计推断, 大规模工作流执行]
-    handoff_when: [需要领域统计分析, 需要文件预处理或代码调试, 需要组学结果解释]
-    preferred_inputs: [数据表或对象, 图形目标, 分组字段, 配色限制, 期刊或尺寸要求]
+    summary: 科研图形：火山图、热图、UMAP、系统发育树等图形选型、绘图脚本、版式美化与出版级导出。原始数据质控裁决、复杂统计推断或大规模工作流执行不属于它——转交对应专家，它只在结果数据就绪后接图。
+    detail:
+      capabilities: [科研绘图, ggplot2, 热图, 火山图, UMAP, 系统发育树, 图注, 出版级导出]
+      not_suitable_for: [原始数据质控裁决, 复杂统计推断, 大规模工作流执行]
+      handoff_when: [需要领域统计分析, 需要文件预处理或代码调试, 需要组学结果解释]
+      preferred_inputs: [数据表或对象, 图形目标, 分组字段, 配色限制, 期刊或尺寸要求]
+      input_examples: ["差异结果表 + 目标图形（如火山图）+ 期刊尺寸与配色要求"]
+
+  agent-explorer:
+    chat_entry: false
+    summary: 代码库只读侦察：扫描指定范围、索引文件、读取关键入口与配置并整理依赖关系。它不修改文件、不执行命令、不替代代码实现或领域分析——调查完成后把证据报告交给下游专家。
+    detail:
+      capabilities: [代码库探索, 文件索引, 关键文件调查, 配置链梳理, 依赖关系识别, 结构化调查报告]
+      not_suitable_for: [文件修改, 命令执行, 依赖安装, 代码实现, 生物学分析结论]
+      handoff_when: [需要代码修改或调试, 需要领域分析方案, 需要正式交付或质量审计]
+      preferred_inputs: [目录路径, 文件模式, 调查目标, 关注模块]
+      input_examples: ["项目根目录 + 目标问题 + 重点调查范围"]
 
   agent-data:
-    summary: 负责数据契约、元数据预检、输入完整性与产物引用核验。
+    summary: 分析前的数据预检：数据契约、样本表/元数据审查、输入完整性与产物引用核验。不执行实际组学分析、不下统计结论、不生成图形——预检通过后转交领域专家，发现质量风险转独立审计。
     chat_entry: false
-    capabilities: [数据契约, 样本表审查, 元数据验证, 输入预检, Artifact引用核验]
-    not_suitable_for: [实际组学分析执行, 统计结论, 图形生成]
-    handoff_when: [输入契约通过且需要专项分析, 发现数据质量风险需独立审计]
-    preferred_inputs: [样本表, 分组定义, 文件清单, 数据模态, Artifact引用]
+    detail:
+      capabilities: [数据契约, 样本表审查, 元数据验证, 输入预检, Artifact引用核验]
+      not_suitable_for: [实际组学分析执行, 统计结论, 图形生成]
+      handoff_when: [输入契约通过且需要专项分析, 发现数据质量风险需独立审计]
+      preferred_inputs: [样本表, 分组定义, 文件清单, 数据模态, Artifact引用]
+      input_examples: ["样本表 + 分组定义 + 文件清单与数据模态"]
 
   agent-qc:
-    summary: 负责跨数据类型的独立质量审计、风险分级和质量闸门建议。
+    summary: 独立质量审计：跨数据类型的 QC 判读、风险分级与质量闸门建议。不做完整下游统计分析与生物学机制定论；证据不足时 Stop and consult——判 fail/ inconclusive 并要求补证据，绝不经证据自动放行。
     chat_entry: false
-    capabilities: [测序QC, 比对质量, 变异与区间文件审计, 批次风险, 质量决策, 证据链]
-    not_suitable_for: [完整下游统计分析, 生物学机制定论, 未经证据的自动放行]
-    handoff_when: [质量证据足够且需要专项分析, 发现输入契约问题, 需要结果解释]
-    preferred_inputs: [QC报告, 比对统计, 样本表, 参考版本, 任务日志, 结果文件]
+    detail:
+      capabilities: [测序QC, 比对质量, 变异与区间文件审计, 批次风险, 质量决策, 证据链]
+      not_suitable_for: [完整下游统计分析, 生物学机制定论, 未经证据的自动放行]
+      handoff_when: [质量证据足够且需要专项分析, 发现输入契约问题, 需要结果解释]
+      preferred_inputs: [QC报告, 比对统计, 样本表, 参考版本, 任务日志, 结果文件]
+      input_examples: ["QC 报告 + 比对统计 + 样本表 + 任务日志"]
 
   agent-delivery:
-    summary: 负责汇总已验证产物、质量结论、参数与风险，形成可审计交付物。
+    summary: 交付汇总：把已验证产物、质量结论、参数与风险整理成可审计交付包。不生成未经验证的结果、不重跑分析、不替代质量闸门——缺质量结论或关键产物时先回补，不硬凑交付。
     chat_entry: false
-    capabilities: [交付清单, 证据汇总, 运行说明, 风险说明, Artifact整理]
-    not_suitable_for: [生成未经验证的结果, 重新执行分析, 替代质量闸门]
-    handoff_when: [缺少质量结论, 缺少关键产物, 需要补充专项分析或审计]
-    preferred_inputs: [Artifact引用, 质量结论, 运行参数, 证据链接, 交付目标]
+    detail:
+      capabilities: [交付清单, 证据汇总, 运行说明, 风险说明, Artifact整理]
+      not_suitable_for: [生成未经验证的结果, 重新执行分析, 替代质量闸门]
+      handoff_when: [缺少质量结论, 缺少关键产物, 需要补充专项分析或审计]
+      preferred_inputs: [Artifact引用, 质量结论, 运行参数, 证据链接, 交付目标]
+      input_examples: ["Artifact 引用清单 + 质量结论 + 运行参数与交付目标"]
 
   agent-cloud-ops:
-    summary: 负责 OmicHub 与云基础设施的只读巡检、故障分诊和变更方案审查。
-    capabilities: [平台健康检查, 云服务器, 存储, 容器仓库, 网络, Terraform, Slurm, 容量与故障分诊]
-    not_suitable_for: [未经审批的基础设施变更, 生物学分析结论, 直接修改生产资源]
-    handoff_when: [需要平台内数据分析, 需要应用代码修复, 需要人工批准变更]
-    preferred_inputs: [告警, 日志, 资源清单, 指标, Terraform计划, 集群状态]
+    summary: CygnusX 与云基础设施的只读巡检、故障分诊、容量评估与变更方案审查。未经审批的基础设施变更、直接修改生产资源或生物学分析结论不属于它——Stop and consult，变更必须走人工批准。
+    detail:
+      capabilities: [平台健康检查, 云服务器, 存储, 容器仓库, 网络, Terraform, Slurm, 容量与故障分诊]
+      not_suitable_for: [未经审批的基础设施变更, 生物学分析结论, 直接修改生产资源]
+      handoff_when: [需要平台内数据分析, 需要应用代码修复, 需要人工批准变更]
+      preferred_inputs: [告警, 日志, 资源清单, 指标, Terraform计划, 集群状态]
+      input_examples: ["告警/日志 + 资源清单 + 指标或 Terraform 计划"]
 
   shania:
-    summary: 提供带角色人格的通用咨询与平台协作入口，保持专业内核和边界。
-    capabilities: [通用咨询, 平台引导, 轻量任务澄清, 风格化交互, 专家分诊]
-    not_suitable_for: [正式专业分析执行, 未验证的科学结论, 替代领域专家]
-    handoff_when: [任务已识别为专项组学、代码、绘图、质控或运维问题]
-    preferred_inputs: [用户目标, 数据类型, 文件位置, 研究约束]
+    summary: 带角色人格的通用咨询与平台协作入口：轻量任务澄清与专家分诊。正式专业分析执行与未验证的科学结论不属于它——识别出专项组学、代码、绘图、质控或运维需求即转交对应专家。
+    detail:
+      capabilities: [通用咨询, 平台引导, 轻量任务澄清, 风格化交互, 专家分诊]
+      not_suitable_for: [正式专业分析执行, 未验证的科学结论, 替代领域专家]
+      handoff_when: [任务已识别为专项组学、代码、绘图、质控或运维问题]
+      preferred_inputs: [用户目标, 数据类型, 文件位置, 研究约束]
+      input_examples: ["用户目标 + 数据类型 + 研究约束的轻量咨询"]
 
   agent-mcp-builder:
-    summary: 负责受控设计、生成、测试、登记 MCP Server 与工具集成。
-    capabilities: [MCP设计, 工具Schema, Python服务生成, AST安全检查, 沙箱测试, 文档与注册]
-    not_suitable_for: [未经批准的外网访问, 直接部署未审查代码, 领域分析替代]
-    handoff_when: [需求是领域分析而非工具构建, 需要云运维变更, 需要专项代码审查]
-    preferred_inputs: [工具目标, API文档, 认证方式, 输入输出Schema, 允许域名, 安全约束]
+    summary: 受控构建 MCP Server 与工具集成：设计、生成、测试、登记。领域分析本身、未经批准的外网访问或直接部署未审查代码不属于它——Stop and consult，安全约束不满足时不生成、不注册。
+    detail:
+      capabilities: [MCP设计, 工具Schema, Python服务生成, AST安全检查, 沙箱测试, 文档与注册]
+      not_suitable_for: [未经批准的外网访问, 直接部署未审查代码, 领域分析替代]
+      handoff_when: [需求是领域分析而非工具构建, 需要云运维变更, 需要专项代码审查]
+      preferred_inputs: [工具目标, API文档, 认证方式, 输入输出Schema, 允许域名, 安全约束]
+      input_examples: ["工具目标 + API 文档 + 输入输出 Schema + 允许域名与安全约束"]
 
   agent-skill-builder:
-    summary: 把可复用任务样例沉淀成符合 OSDP 的 Skill 候选包，不直接提交或挂载。
-    capabilities: [Skill设计, OSDP合规, 触发条件提炼, 输入输出契约, 依赖分级, 候选包生成]
-    not_suitable_for: [直接修改 Agent 配置, 自动挂载技能, 未经评审的发布, 源码级复杂改造]
-    handoff_when: [需要写 wrapper 或环境排错, 需求仍模糊需要通用澄清, 任务超出 Skill 能力范围]
-    preferred_inputs: [任务样例, 对话或执行记录, 代码片段, 触发条件, 输入输出示例, 失败模式]
+    summary: 把可复用任务样例沉淀为符合 OSDP 的 Skill 候选包：触发条件提炼、输入输出契约、依赖分级与候选包生成。不直接改 Agent 配置、不自动挂载技能、不做未经评审的发布或源码级复杂改造。
+    detail:
+      capabilities: [Skill设计, OSDP合规, 触发条件提炼, 输入输出契约, 依赖分级, 候选包生成]
+      not_suitable_for: [直接修改 Agent 配置, 自动挂载技能, 未经评审的发布, 源码级复杂改造]
+      handoff_when: [需要写 wrapper 或环境排错, 需求仍模糊需要通用澄清, 任务超出 Skill 能力范围]
+      preferred_inputs: [任务样例, 对话或执行记录, 代码片段, 触发条件, 输入输出示例, 失败模式]
+      input_examples: ["任务样例 + 对话/执行记录 + 触发条件与输入输出示例"]

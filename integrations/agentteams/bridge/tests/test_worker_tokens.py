@@ -11,13 +11,13 @@ import httpx
 import pytest
 from fastapi import HTTPException
 
-from omichub_agentteams_bridge.app import create_app
-from omichub_agentteams_bridge.config import BridgeSettings
-from omichub_agentteams_bridge.security import require_identity
-from omichub_agentteams_bridge.worker_tokens import WorkerTokenStore
+from cygnusx_agentteams_bridge.app import create_app
+from cygnusx_agentteams_bridge.config import BridgeSettings
+from cygnusx_agentteams_bridge.security import require_identity
+from cygnusx_agentteams_bridge.worker_tokens import WorkerTokenStore
 
 
-class FixtureOmicHubClient:
+class FixtureCygnusXClient:
     async def aclose(self) -> None:
         return None
 
@@ -32,7 +32,7 @@ class LoopLocalASGIClient:
     def _client(self) -> httpx.AsyncClient:
         loop = asyncio.get_running_loop()
         if loop not in self._clients:
-            bridge = create_app(self._settings, FixtureOmicHubClient())
+            bridge = create_app(self._settings, FixtureCygnusXClient())
             self._clients[loop] = httpx.AsyncClient(
                 transport=httpx.ASGITransport(app=bridge), base_url="http://bridge.test"
             )
@@ -51,8 +51,8 @@ class LoopLocalASGIClient:
 @pytest.fixture
 def settings(tmp_path):
     return BridgeSettings(
-        omichub_base_url="http://omic.test",
-        omichub_service_token="service-token",
+        cygnusx_base_url="http://omic.test",
+        cygnusx_service_token="service-token",
         approval_signing_secret="test-signing-secret",
         identities="bioops-manager:manager,agent-code:code,agent-viz:viz",
         allowed_flow_ids="rna_seq",
@@ -208,7 +208,7 @@ REDIS_URL = os.getenv("AGENTTEAMS_TEST_REDIS_URL")
 @pytest.mark.skipif(not REDIS_URL, reason="set AGENTTEAMS_TEST_REDIS_URL to run Redis integration tests")
 @pytest.mark.asyncio
 async def test_token_store_shared_across_replicas_via_redis(tmp_path) -> None:
-    key_prefix = f"omichub:agentteams:test:{uuid4().hex}:worker-tokens"
+    key_prefix = f"cygnusx:agentteams:test:{uuid4().hex}:worker-tokens"
     first = WorkerTokenStore(str(tmp_path / "first.json"), REDIS_URL or "", key_prefix)
     second = WorkerTokenStore(str(tmp_path / "second.json"), REDIS_URL or "", key_prefix)
     try:

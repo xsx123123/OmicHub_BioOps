@@ -5,7 +5,7 @@
 - Skill：SKILL.md 指令约定脚本位于 /workspace/.skills/<skill_id>/，
   本脚本将技能目录物化到沙箱容器同一路径，再用与平台 sandbox_execute
   相同的解释器入口（python/r/bash）执行每个脚本的冒烟命令。
-- MCP：在 omichub-web 容器内用平台自己的 MCPService/MCPClient 代码路径
+- MCP：在 cygnusx-web 容器内用平台自己的 MCPService/MCPClient 代码路径
   （等价于前端 POST /mcp/servers/{id}/test + invoke），并对 use_skill
   依赖的 skill_store 读取链路做全量验证。
 - 镜像：对所有被调用的运行时镜像做包/工具清单盘点，并与各技能声明的
@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shlex
 import subprocess
@@ -30,8 +31,8 @@ from datetime import datetime
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
-SKILLS_DIR = Path("/data/omichub/skills")
-WEB_CONTAINER = "omichub-web"
+SKILLS_DIR = Path(os.environ.get("SKILLS_DIR", "/data/omichub/skills"))
+WEB_CONTAINER = "cygnusx-web"
 
 # ---------------------------------------------------------------------------
 # 镜像注册表：image + exec 前缀（与平台实际执行入口保持一致）
@@ -39,39 +40,39 @@ WEB_CONTAINER = "omichub-web"
 IMAGES: dict[str, dict] = {
     # Studio 默认运行时（micromamba base，等价 sandbox-agent 的 CMD 环境）
     "core": {
-        "image": "omichub-analysis:core-2026.07",
+        "image": "cygnusx-analysis:core-v0.0.2dev",
         "prefix": ["micromamba", "run", "-n", "base"],
         "desc": "Studio 默认分析运行时",
     },
     "plot": {
-        "image": "omichub-analysis:plot-2026.07",
+        "image": "cygnusx-analysis:plot-v0.0.2dev",
         "prefix": ["micromamba", "run", "-n", "base"],
         "desc": "科研绘图运行时",
     },
     "scrna": {
-        "image": "omichub-analysis:scrna-2026.07",
+        "image": "cygnusx-analysis:scrna-v0.0.3dev",
         "prefix": ["micromamba", "run", "-n", "base"],
         "desc": "单细胞分析运行时",
     },
     # 聊天沙箱池镜像（conda env 直接在 PATH）
     "base": {
-        "image": "omichub/sandbox-base:latest",
+        "image": "cygnusx-sandbox-copilot:v0.0.2dev",
         "prefix": [],
-        "desc": "聊天沙箱池 sandbox-base",
+        "desc": "聊天沙箱池 sandbox-copilot",
     },
     # 工具箱专属镜像
     "deg": {
-        "image": "omichub-r-deg:v1",
+        "image": "cygnusx-r-deg:v1",
         "prefix": [],
         "desc": "DEG 工具箱镜像",
     },
     "enr": {
-        "image": "omichub-r-enrichment:v1",
+        "image": "cygnusx-r-enrichment:v1",
         "prefix": [],
         "desc": "富集工具箱镜像",
     },
     "term": {
-        "image": "omichub/sandbox-terminal:latest",
+        "image": "cygnusx-sandbox-terminal:v0.0.2dev",
         "prefix": [],
         "desc": "终端工具镜像",
     },
@@ -119,7 +120,7 @@ SKILL_PRIMARY_IMAGE: dict[str, str] = {
     "data-deliver": "base",
     "logger-plugin": "base",
     # 纯提示词技能
-    "omichub-frontend-design": None,
+    "cygnusx-frontend-design": None,
     "scrna-quarto-report": None,
 }
 # 额外旁证镜像（工具链技能顺带在 core 试一次；deg/enrichments 在工具箱镜像试一次）
@@ -401,12 +402,12 @@ def smoke_skill_on_image(skill_id: str, image_key: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# MCP 验证（平台代码路径：omichub-web 容器内 MCPService/MCPClient）
+# MCP 验证（平台代码路径：cygnusx-web 容器内 MCPService/MCPClient）
 # ---------------------------------------------------------------------------
 MCP_SAFE_CALLS = {
-    "omichub-platform": ("platform_list_flows", {}),
-    "omichub-pipelines": ("list_available_pipelines", {}),
-    "omichub-tools": ("omichub_search_memory", {"query": "smoke-test"}),
+    "cygnusx-platform": ("platform_list_flows", {}),
+    "cygnusx-pipelines": ("list_available_pipelines", {}),
+    "cygnusx-tools": ("cygnusx_search_memory", {"query": "smoke-test"}),
     "ensmbl": ("translate_sequence", {"sequence": "ATGGCC", "genetic_code": 1}),
     "go-server": ("get_go_term", {"id": "GO:0008150"}),
 }
@@ -419,8 +420,8 @@ TOOL = sys.argv[2] if len(sys.argv) > 2 and sys.argv[2] else ""
 ARGS = json.loads(sys.argv[3]) if len(sys.argv) > 3 else {}
 
 async def main():
-    from omichub.infrastructure.database.session import get_session_factory
-    from omichub.application.services.mcp_service import MCPService
+    from cygnusx.infrastructure.database.session import get_session_factory
+    from cygnusx.application.services.mcp_service import MCPService
     out = {"server": NAME}
     factory = get_session_factory()
     async with factory() as db:
@@ -457,8 +458,8 @@ asyncio.run(main())
 
 USE_SKILL_SNIPPET = r"""
 import json
-from omichub.infrastructure.skills import skill_store
-from omichub.core.config import get_settings
+from cygnusx.infrastructure.skills import skill_store
+from cygnusx.core.config import get_settings
 from pathlib import Path
 
 settings = get_settings()
@@ -514,7 +515,7 @@ def use_skill_chain_test() -> dict:
 
 def mcp_servers_from_db() -> list[str]:
     rc, out = run(
-        ["docker", "exec", "omichub-db", "psql", "-U", "omichub", "-d", "omichub",
+        ["docker", "exec", "cygnusx-db", "psql", "-U", "cygnusx", "-d", "cygnusx",
          "-t", "-A", "-c", "SELECT name FROM mcp_servers WHERE is_enabled ORDER BY name;"],
         timeout=30,
     )

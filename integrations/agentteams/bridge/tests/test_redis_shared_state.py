@@ -6,25 +6,25 @@ from uuid import uuid4
 
 import pytest
 
-from omichub_agentteams_bridge.audit import AuditStore
-from omichub_agentteams_bridge.case_store import CaseStore
-from omichub_agentteams_bridge.config import BridgeSettings
-from omichub_agentteams_bridge.models import CaseCreateRequest, ContextRef, WorkItemCreateRequest
-from omichub_agentteams_bridge.service import BridgeService
+from cygnusx_agentteams_bridge.audit import AuditStore
+from cygnusx_agentteams_bridge.case_store import CaseStore
+from cygnusx_agentteams_bridge.config import BridgeSettings
+from cygnusx_agentteams_bridge.models import CaseCreateRequest, ContextRef, WorkItemCreateRequest
+from cygnusx_agentteams_bridge.service import BridgeService
 
 
 REDIS_URL = os.getenv("AGENTTEAMS_TEST_REDIS_URL")
 pytestmark = pytest.mark.skipif(not REDIS_URL, reason="set AGENTTEAMS_TEST_REDIS_URL to run Redis integration tests")
 
 
-class FakeOmicHubClient:
+class FakeCygnusXClient:
     async def aclose(self) -> None:
         return None
 
 
 def make_service(tmp_path, suffix: str, key_prefix: str) -> BridgeService:
     settings = BridgeSettings(
-        omichub_service_token="service-token",
+        cygnusx_service_token="service-token",
         approval_signing_secret="test-signing-secret",
         identities="bioops-manager:manager,agent-code:code",
         audit_log_path=str(tmp_path / f"{suffix}.audit.jsonl"),
@@ -35,7 +35,7 @@ def make_service(tmp_path, suffix: str, key_prefix: str) -> BridgeService:
     )
     return BridgeService(
         settings,
-        FakeOmicHubClient(),
+        FakeCygnusXClient(),
         AuditStore(settings.audit_log_path, settings.state_store_url, f"{settings.state_store_key_prefix}:audit"),
         CaseStore(settings.case_store_path, settings.state_store_url, f"{settings.state_store_key_prefix}:cases"),
     )
@@ -43,7 +43,7 @@ def make_service(tmp_path, suffix: str, key_prefix: str) -> BridgeService:
 
 @pytest.mark.asyncio
 async def test_redis_state_is_visible_and_claim_is_atomic_across_bridge_replicas(tmp_path) -> None:
-    key_prefix = f"omichub:agentteams:test:{uuid4().hex}"
+    key_prefix = f"cygnusx:agentteams:test:{uuid4().hex}"
     first = make_service(tmp_path, "first", key_prefix)
     second = make_service(tmp_path, "second", key_prefix)
     try:

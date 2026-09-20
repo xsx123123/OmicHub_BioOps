@@ -8,4 +8,4 @@ platform_tools:
   # 查询任意 Agent 当前绑定的技能列表（默认查自己），回答「你绑定了哪些技能」必须走它
   - platform_list_agent_skills
 builtin_tools:
-  - omichub_run_kegg_enrichment
+  - cygnusx_run_kegg_enrichment

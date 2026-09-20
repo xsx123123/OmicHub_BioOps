@@ -13,15 +13,15 @@ from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import quote, unquote
 
-from omichub.application.services.knowledge_asset_service import KnowledgeAssetService
-from omichub.application.services.knowledge_index_service import KnowledgeIndexService
-from omichub.infrastructure.database.models.knowledge_base import KnowledgeBaseModel
-from omichub.infrastructure.database.models.knowledge_chunk import KbChunkModel
-from omichub.infrastructure.database.models.knowledge_document import KbDocumentModel
-from omichub.infrastructure.database.models.knowledge_editor import DocEditorModel
-from omichub.infrastructure.database.models.knowledge_revision import DocRevisionModel
-from omichub.infrastructure.database.models.user import UserModel
-from omichub.infrastructure.database.session import get_engine, get_session_factory
+from cygnusx.application.services.knowledge_asset_service import KnowledgeAssetService
+from cygnusx.application.services.knowledge_index_service import KnowledgeIndexService
+from cygnusx.infrastructure.database.models.knowledge_base import KnowledgeBaseModel
+from cygnusx.infrastructure.database.models.knowledge_chunk import KbChunkModel
+from cygnusx.infrastructure.database.models.knowledge_document import KbDocumentModel
+from cygnusx.infrastructure.database.models.knowledge_editor import DocEditorModel
+from cygnusx.infrastructure.database.models.knowledge_revision import DocRevisionModel
+from cygnusx.infrastructure.database.models.user import UserModel
+from cygnusx.infrastructure.database.session import get_engine, get_session_factory
 from rich.console import Console
 from rich.progress import (
     BarColumn,
@@ -248,7 +248,7 @@ async def import_cloud_knowledge(
                 session.add(knowledge_base)
             knowledge_base.name = KNOWLEDGE_BASE_NAME
             knowledge_base.description = (
-                "云计算、OmicHub 平台运维、存储、网络、容器仓库、Terraform 与 Slurm 资料"
+                "云计算、CygnusX 平台运维、存储、网络、容器仓库、Terraform 与 Slurm 资料"
             )
             knowledge_base.ai_searchable = True
             knowledge_base.is_enabled = True

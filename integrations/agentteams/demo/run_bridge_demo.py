@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Run repeatable AgentTeams Bridge demos against a separately deployed environment.
 
-This driver never reads OmicHub data volumes or credentials.  It calls the public Bridge API
+This driver never reads CygnusX data volumes or credentials.  It calls the public Bridge API
 with the six service identities supplied through environment variables.  The default modes stop
 after preflight; workflow submission requires an explicit staging-only approval opt-in.
 """
@@ -164,7 +164,7 @@ def run_staging_success(
         {
             "work_item_id": "submit-01",
             "target": "workflow-operator",
-            "objective": "Submit the approved RNA-seq workflow through OmicHub.",
+            "objective": "Submit the approved RNA-seq workflow through CygnusX.",
             "skill_name": "workflow-submit",
             "approval_required": True,
         },
@@ -183,7 +183,7 @@ def run_staging_success(
     )
     task_id = receipt.get("omic_task_id") or receipt.get("task_id")
     if not isinstance(task_id, str):
-        raise RuntimeError("Bridge submission receipt did not include an OmicHub task ID")
+        raise RuntimeError("Bridge submission receipt did not include an CygnusX task ID")
     task = wait_for_task(demo, task_id, timeout)
     if task.get("status") != "success":
         raise RuntimeError(f"Submitted task ended as {task.get('status')!r}; inspect Case evidence")

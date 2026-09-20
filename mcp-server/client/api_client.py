@@ -1,4 +1,4 @@
-"""OmicHub 平台 REST API 客户端"""
+"""CygnusX 平台 REST API 客户端"""
 
 from __future__ import annotations
 
@@ -8,15 +8,15 @@ import httpx
 from core.config import settings
 
 
-class OmicHubAPIError(Exception):
+class CygnusXAPIError(Exception):
     def __init__(self, status_code: int, detail: str):
         self.status_code = status_code
         self.detail = detail
         super().__init__(f"[{status_code}] {detail}")
 
 
-class OmicHubAPIClient:
-    """通过 HTTP 调用 OmicHub 平台 REST API，使用 API Key 认证。"""
+class CygnusXAPIClient:
+    """通过 HTTP 调用 CygnusX 平台 REST API，使用 API Key 认证。"""
 
     def __init__(self) -> None:
         self._base_url = f"{settings.base_url.rstrip('/')}/api/v1"
@@ -30,20 +30,25 @@ class OmicHubAPIClient:
         try:
             resp = await self._client.request(method, path, **kwargs)
         except httpx.ConnectError as e:
-            raise OmicHubAPIError(0, f"无法连接到平台: {settings.base_url} ({e})") from e
+            raise CygnusXAPIError(0, f"无法连接到平台: {settings.base_url} ({e})") from e
         except httpx.TimeoutException as e:
-            raise OmicHubAPIError(0, f"请求超时 ({settings.request_timeout}s)") from e
+            raise CygnusXAPIError(0, f"请求超时 ({settings.request_timeout}s)") from e
 
         if resp.status_code >= 400:
             try:
                 detail = resp.json().get("detail", resp.text)
             except Exception:
                 detail = resp.text
-            raise OmicHubAPIError(resp.status_code, str(detail))
+            raise CygnusXAPIError(resp.status_code, str(detail))
 
         if resp.status_code == 204:
             return None
-        return resp.json()
+        # 平台部分端点（如 /reports/{id}/preview）返回 PlainText HTML，
+        # 不能无条件 resp.json()，否则抛未捕获的 JSONDecodeError。
+        content_type = (resp.headers.get("content-type") or "").lower()
+        if "json" in content_type:
+            return resp.json()
+        return resp.text
 
     async def get(self, path: str, **kwargs: Any) -> Any:
         return await self._request("GET", path, **kwargs)
@@ -101,9 +106,11 @@ class OmicHubAPIClient:
         return await self.post(f"/pipelines/{pipeline_type}/prepare", json=payload)
 
     async def submit_pipeline(self, pipeline_type: str, prepared_params: dict[str, Any]) -> dict:
+        # 确认门在 MCP 工具层（user_confirmed=True 才会走到这里），
+        # 平台侧据此字段放行提交。
         return await self.post(
             f"/pipelines/{pipeline_type}/submit",
-            json={"prepared_params": prepared_params},
+            json={"prepared_params": prepared_params, "user_confirmed": True},
         )
 
     async def get_pipeline_status(self, pipeline_type: str, task_id: str) -> dict:
@@ -188,8 +195,5 @@ class OmicHubAPIClient:
     async def get_me(self) -> dict:
         return await self.get("/auth/me")
 
-    async def get_stats(self) -> dict:
-        return await self.get("/stats/overview")
 
-
-api = OmicHubAPIClient()
+api = CygnusXAPIClient()

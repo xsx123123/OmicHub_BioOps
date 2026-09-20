@@ -1,4 +1,4 @@
-#!/opt/conda/envs/scrna/bin/Rscript
+#!/home/zj/.local/share/mamba/envs/scrna/bin/Rscript
 # Author  : JZHANG
 # Date    : 2025-12-19
 #-----------------------------------####---------------------------------------#
@@ -26,7 +26,7 @@ get_optimal_max_size <- function(default_mb = 8000) {
 TOTAL_MEM_MB <- get_optimal_max_size()
 options(future.globals.maxSize = TOTAL_MEM_MB * 1024^2)
 
-ScriptsVersion <- 'v4.1.1-alpha'
+ScriptsVersion <- 'v4.1.2-alpha'
 YAML_PATH <- 'scRNAseqMulticommand.yaml'
 #-----------------------------------####---------------------------------------#
 # pre-loading pacakges

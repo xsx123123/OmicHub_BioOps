@@ -17,6 +17,15 @@
 | log4r | ≥ 0.4 | DrawCellTypePropDEGGene / CalculationPercentAverageExp 日志 | deg-prop/pct-exp |
 | crayon | ≥ 1.5 | log4r 日志配色 | deg-prop/pct-exp |
 
+安装参考（Studio 沙盒 CRAN/GitHub 不可达，一律走 conda 通道）：
+
+```bash
+micromamba install -y -n base r-seurat r-tidyverse r-ggplot2 r-optparse r-jsonlite r-gt r-ggrepel r-log4r r-crayon
+```
+
+> scCustomize 为 GitHub 独占包（conda 通道无），白名单下无法现场安装，需管理员预装进
+> scrna 镜像；未预装时仅 pct-exp 模式不可用，其余 mode 不受影响，应如实告知用户。
+
 ## 说明
 
 - 输入对象：Seurat 5.x 创建的 RDS（assay `RNA` 可用；pct-exp 内部固定调 `AverageExpression(assays = 'RNA')`）。

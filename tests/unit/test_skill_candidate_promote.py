@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from omichub.infrastructure.skills.skillmd import SkillParseError
+from cygnusx.infrastructure.skills.skillmd import SkillParseError
 
 PROMOTE_SCRIPT = Path("scripts/promote_skill_candidate.py")
 

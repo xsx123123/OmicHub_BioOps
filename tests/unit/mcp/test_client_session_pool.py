@@ -12,9 +12,9 @@ from __future__ import annotations
 import mcp
 import pytest
 
-from omichub.domain.mcp.entities import MCPServer
-from omichub.domain.mcp.value_objects import ServerStatus, Transport
-from omichub.infrastructure.mcp import client as client_module
+from cygnusx.domain.mcp.entities import MCPServer
+from cygnusx.domain.mcp.value_objects import ServerStatus, Transport
+from cygnusx.infrastructure.mcp import client as client_module
 
 
 class _FakeStreamPair:

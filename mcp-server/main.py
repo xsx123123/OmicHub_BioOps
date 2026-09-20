@@ -1,4 +1,4 @@
-"""OmicHub MCP Server — 多组学分析平台统一 AI 助手操作接口
+"""CygnusX MCP Server — 多组学分析平台统一 AI 助手操作接口
 
 启动方式:
   stdio (默认): python main.py
@@ -6,7 +6,7 @@
 
 配置:
   编辑 config.yaml 修改连接、工具组开关等设置
-  环境变量 (OMICSHUB_*) 优先级高于 config.yaml
+  环境变量 (CYGNUSX_*) 优先级高于 config.yaml
 """
 
 import sys
@@ -45,9 +45,15 @@ def main() -> None:
             port = int(args[idx + 1])
 
     if not settings.api_key:
-        logger.warning("未设置 OMICSHUB_API_KEY，API 调用将会失败")
+        logger.warning("未设置 CYGNUSX_API_KEY，API 调用将会失败")
 
-    logger.info(f"OmicHub MCP Server 启动 (transport={transport}, base_url={settings.base_url})")
+    if transport == "sse" and settings.host != "127.0.0.1":
+        logger.warning(
+            f"SSE 传输无鉴权且绑定 {settings.host}:{port}，任何可达者都能使用本服务配置的 API Key；"
+            "请确保处于可信内网，或改绑 127.0.0.1 并经由带鉴权的反向代理暴露。"
+        )
+
+    logger.info(f"CygnusX MCP Server 启动 (transport={transport}, base_url={settings.base_url})")
 
     if transport == "sse":
         mcp.run(transport="sse", host=settings.host, port=port)

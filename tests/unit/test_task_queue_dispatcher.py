@@ -4,13 +4,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from omichub.infrastructure.task_queue.dispatcher import enqueue_task
+from cygnusx.infrastructure.task_queue.dispatcher import enqueue_task
 
 
 @pytest.fixture
 def task() -> MagicMock:
     task = MagicMock()
-    task.name = "omichub.tools.blast.tasks.run_blast_search"
+    task.name = "cygnusx.tools.blast.tasks.run_blast_search"
     task.queue = "blast_search"
     return task
 
@@ -19,7 +19,7 @@ def test_enqueue_uses_celery_when_backend_is_celery(
     task: MagicMock, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(
-        "omichub.infrastructure.task_queue.dispatcher.get_settings",
+        "cygnusx.infrastructure.task_queue.dispatcher.get_settings",
         lambda: MagicMock(task_queue_backend="celery", rocketmq_task_routes=[]),
     )
 
@@ -34,13 +34,13 @@ def test_enqueue_uses_rocketmq_when_backend_is_rocketmq(
     task: MagicMock, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(
-        "omichub.infrastructure.task_queue.dispatcher.get_settings",
+        "cygnusx.infrastructure.task_queue.dispatcher.get_settings",
         lambda: MagicMock(task_queue_backend="rocketmq", rocketmq_task_routes=[]),
     )
 
     with (
-        patch("omichub.infrastructure.task_queue.dispatcher.publish_task") as publish,
-        patch("omichub.infrastructure.task_queue.dispatcher.store_task_state") as store,
+        patch("cygnusx.infrastructure.task_queue.dispatcher.publish_task") as publish,
+        patch("cygnusx.infrastructure.task_queue.dispatcher.store_task_state") as store,
     ):
         result = enqueue_task(task, "task-1", task_id="task-1", queue="blast_search")
 
@@ -61,15 +61,15 @@ def test_hybrid_routes_only_matching_tasks_to_rocketmq(
     task: MagicMock, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(
-        "omichub.infrastructure.task_queue.dispatcher.get_settings",
+        "cygnusx.infrastructure.task_queue.dispatcher.get_settings",
         lambda: MagicMock(
-            task_queue_backend="hybrid", rocketmq_task_routes=["omichub.tools.blast.tasks.*"]
+            task_queue_backend="hybrid", rocketmq_task_routes=["cygnusx.tools.blast.tasks.*"]
         ),
     )
 
     with (
-        patch("omichub.infrastructure.task_queue.dispatcher.publish_task") as publish,
-        patch("omichub.infrastructure.task_queue.dispatcher.store_task_state"),
+        patch("cygnusx.infrastructure.task_queue.dispatcher.publish_task") as publish,
+        patch("cygnusx.infrastructure.task_queue.dispatcher.store_task_state"),
     ):
         enqueue_task(task, "task-1", task_id="task-1")
 
@@ -79,11 +79,11 @@ def test_hybrid_routes_only_matching_tasks_to_rocketmq(
 def test_hybrid_leaves_unmatched_tasks_on_celery(
     task: MagicMock, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    task.name = "omichub.infrastructure.celery_app.tasks.analysis.run_snakemake"
+    task.name = "cygnusx.infrastructure.celery_app.tasks.analysis.run_snakemake"
     monkeypatch.setattr(
-        "omichub.infrastructure.task_queue.dispatcher.get_settings",
+        "cygnusx.infrastructure.task_queue.dispatcher.get_settings",
         lambda: MagicMock(
-            task_queue_backend="hybrid", rocketmq_task_routes=["omichub.tools.blast.tasks.*"]
+            task_queue_backend="hybrid", rocketmq_task_routes=["cygnusx.tools.blast.tasks.*"]
         ),
     )
 

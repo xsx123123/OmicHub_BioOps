@@ -1,4 +1,4 @@
-# 6.5 OmicsHub 前端路由、页面结构与 AI 对话面板架构
+# 6.5 CygnusX 前端路由、页面结构与 AI 对话面板架构
 
 > **文档版本**: v1.0  
 > **技术栈**: Vue 3.4+ / TypeScript 5.0+ / Vite 5+ / Naive UI 2.38+ / Element Plus 2.5+ / Pinia 2.1+ / Vue Router 4+ / Axios 1.6+  
@@ -153,7 +153,7 @@ export const routes: RouteRecordRaw[] = [
     path: '/',
     component: MainLayout,
     meta: {
-      title: 'OmicsHub',
+      title: 'CygnusX',
       requiresAuth: true,
       layout: 'main',
     },
@@ -411,7 +411,7 @@ export function setupRouterGuard(router: Router) {
       const themeStore = useThemeStore()
 
       // 1. 动态设置页面标题
-      const baseTitle = 'OmicsHub'
+      const baseTitle = 'CygnusX'
       document.title = to.meta.title
         ? `${to.meta.title} | ${baseTitle}`
         : baseTitle
@@ -522,8 +522,8 @@ export default router
               <!-- 左侧品牌展示区（仅宽屏） -->
               <div class="blank-layout__brand" v-if="!isMobile">
                 <div class="brand-content">
-                  <img src="/logo.svg" alt="OmicsHub" class="brand-logo" />
-                  <h1 class="brand-title">OmicsHub</h1>
+                  <img src="/logo.svg" alt="CygnusX" class="brand-logo" />
+                  <h1 class="brand-title">CygnusX</h1>
                   <p class="brand-subtitle">多组学智能分析平台</p>
                   <div class="brand-features">
                     <div class="feature-item">
@@ -927,7 +927,7 @@ watch(
                 <!-- Logo -->
                 <div class="admin-logo">
                   <img src="/logo.svg" alt="" class="admin-logo__icon" />
-                  <span v-if="!collapsed" class="admin-logo__text">OmicsHub Admin</span>
+                  <span v-if="!collapsed" class="admin-logo__text">CygnusX Admin</span>
                 </div>
 
                 <!-- 管理菜单 -->
@@ -1089,8 +1089,8 @@ function handleMenuSelect(key: string) {
   <div class="app-sidebar">
     <!-- Logo 区 -->
     <div class="app-sidebar__logo" @click="$router.push('/')">
-      <img src="/logo.svg" alt="OmicsHub" class="logo-img" />
-      <span v-if="!collapsed" class="logo-text">OmicsHub</span>
+      <img src="/logo.svg" alt="CygnusX" class="logo-img" />
+      <span v-if="!collapsed" class="logo-text">CygnusX</span>
     </div>
 
     <!-- 主导航菜单 -->
@@ -6033,7 +6033,7 @@ const themeStore = useThemeStore()
     <meta charset="UTF-8" />
     <link rel="icon" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>OmicsHub</title>
+    <title>CygnusX</title>
 
     <!-- 主题防闪烁脚本（必须在最前面执行） -->
     <script>
@@ -6581,5 +6581,5 @@ export interface MCPTool {
 
 ---
 
-> **本文档结束** — 以上涵盖了 OmicsHub 前端架构的完整路由设计、三种布局系统、核心页面组件（动态表单、任务详情/日志/结果）、9 个 Pinia Store 模块、AI 对话面板的完整组件树与交互协议、以及暗黑模式实现方案。
+> **本文档结束** — 以上涵盖了 CygnusX 前端架构的完整路由设计、三种布局系统、核心页面组件（动态表单、任务详情/日志/结果）、9 个 Pinia Store 模块、AI 对话面板的完整组件树与交互协议、以及暗黑模式实现方案。
 

@@ -5,23 +5,23 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from omichub.application.services.file_service import (
+from cygnusx.application.services.file_service import (
     FileService,
     _append_dedupe_suffix,
     canonical_original_name,
 )
-from omichub.core.exceptions import ValidationError
-from omichub.domain.file.entities import DataFile, Directory
-from omichub.domain.file.value_objects import FileType
-from omichub.infrastructure.config.storage_config import StorageConfig
-from omichub.infrastructure.mcp.presets import (
+from cygnusx.core.exceptions import ValidationError
+from cygnusx.domain.file.entities import DataFile, Directory
+from cygnusx.domain.file.value_objects import FileType
+from cygnusx.infrastructure.config.storage_config import StorageConfig
+from cygnusx.infrastructure.mcp.presets import (
     PLATFORM_HANDLERS,
     PLATFORM_PRESET_TOOLS,
     WORKSPACE_FILES_SYSTEM_PROMPT_SUFFIX,
     _list_workspace_files,
 )
-from omichub.infrastructure.storage.backend import LocalStorageBackend
-from omichub.infrastructure.storage.path_factory import StoragePathFactory
+from cygnusx.infrastructure.storage.backend import LocalStorageBackend
+from cygnusx.infrastructure.storage.path_factory import StoragePathFactory
 
 
 def _attach_test_factory(service: FileService, tmp_path: Path) -> None:

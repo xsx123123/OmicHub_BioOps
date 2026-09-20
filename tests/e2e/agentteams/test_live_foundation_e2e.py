@@ -1,4 +1,4 @@
-"""Live（真实服务）AgentTeams 地基 e2e 验收套件：E2E-7 / E2E-2 / E2E-9。
+"""Live（真实服务）AgentTeams 地基 e2e 验收套件：E2E-7 / E2E-2 / E2E-9 / E2E-10。
 
 与进程内默认用例（test_hi_no_case_e2e.py 等）互补：本文件直接打真实 HTTP 栈
 （主后端 + Bridge + MinIO + Redis + PG），禁止 mock Bridge/MinIO。
@@ -6,8 +6,8 @@
 门控（与 test_acceptance_profile.py 风格一致，默认 skip，不影响 CI）：
 
     AGENTTEAMS_LIVE_E2E=1 \
-    OMICHUB_E2E_BASE_URL=http://localhost:8000 \
-    OMICHUB_E2E_TOKEN=<平台 JWT access token> \
+    CYGNUSX_E2E_BASE_URL=http://localhost:8000 \
+    CYGNUSX_E2E_TOKEN=<平台 JWT access token> \
     uv run pytest tests/e2e/agentteams/test_live_foundation_e2e.py -v
 
 可选 Bridge 侧直查（E2E-9 事件计数对账）：
@@ -28,8 +28,8 @@ import httpx
 import pytest
 
 RUN_LIVE = os.environ.get("AGENTTEAMS_LIVE_E2E") == "1"
-BASE_URL = os.environ.get("OMICHUB_E2E_BASE_URL", "http://localhost:8000").rstrip("/")
-TOKEN = os.environ.get("OMICHUB_E2E_TOKEN", "")
+BASE_URL = os.environ.get("CYGNUSX_E2E_BASE_URL", "http://localhost:8000").rstrip("/")
+TOKEN = os.environ.get("CYGNUSX_E2E_TOKEN", "")
 BRIDGE_URL = os.environ.get("AGENTTEAMS_E2E_BRIDGE_URL", "").rstrip("/")
 MANAGER_TOKEN = os.environ.get("AGENTTEAMS_E2E_MANAGER_TOKEN", "")
 
@@ -37,7 +37,7 @@ pytestmark = [
     pytest.mark.e2e,
     pytest.mark.skipif(
         not (RUN_LIVE and TOKEN),
-        reason="set AGENTTEAMS_LIVE_E2E=1 with OMICHUB_E2E_TOKEN to run against a live stack",
+        reason="set AGENTTEAMS_LIVE_E2E=1 with CYGNUSX_E2E_TOKEN to run against a live stack",
     ),
 ]
 
@@ -74,6 +74,43 @@ def _wait_manager_reply(client: httpx.Client, room_id: str, since: float, timeou
             return events
         time.sleep(3)
     pytest.fail(f"Manager did not reply within {timeout_s}s in room {room_id}")
+
+
+def _wait_multi_expert_summary(
+    client: httpx.Client, room_id: str, timeout_s: float = 120
+) -> list[dict]:
+    """Wait for two worker replies followed by one Manager terminal reply."""
+    deadline = time.monotonic() + timeout_s
+    while time.monotonic() < deadline:
+        events = _fetch_all_room_events(client, room_id)
+        worker_replies = [
+            event
+            for event in events
+            if event.get("event_type") == "room.agent_message"
+            and (event.get("payload") or {}).get("payload", {}).get("role") == "worker"
+        ]
+        manager_replies = [
+            event
+            for event in events
+            if event.get("event_type") == "room.agent_message"
+            and (event.get("payload") or {}).get("payload", {}).get("role")
+            in {"bioops-manager", "manager"}
+        ]
+        if len(worker_replies) >= 2 and manager_replies:
+            return events
+        time.sleep(3)
+    pytest.fail(
+        f"two expert replies and a Manager summary were not observed within {timeout_s}s "
+        f"in room {room_id}"
+    )
+
+
+def _event_content(event: dict) -> str:
+    payload = event.get("payload") or {}
+    nested = payload.get("payload") if isinstance(payload, dict) else {}
+    if isinstance(nested, dict):
+        return str(nested.get("content") or "")
+    return ""
 
 
 def _fetch_all_room_events(client: httpx.Client, room_id: str, page_limit: int = 100) -> list[dict]:
@@ -122,6 +159,40 @@ def test_live_e2e7_hi_creates_no_case() -> None:
             e for e in events if e.get("event_type") in {"room.ask_user", "room.agent_message"}
         ]
         assert len(manager_replies) == 1, f"应仅一条 Manager 回复，实际 {len(manager_replies)}"
+
+
+def test_live_multi_expert_consultation_is_summarized_by_manager() -> None:
+    """真实栈回放用户原话：两位专家先答，Manager 再汇总且不发执行澄清卡。"""
+    content = "@单细胞分析师 @可视化助手 你们两个可以搭配干活吗"
+    with _client() as client:
+        room_id = _create_room(client, f"live-multi-expert-{uuid.uuid4().hex[:8]}")
+        sent = client.post(f"{API}/rooms/{room_id}/messages", json={"content": content})
+        sent.raise_for_status()
+
+        events = _wait_multi_expert_summary(client, room_id)
+        worker_replies = [
+            event
+            for event in events
+            if event.get("event_type") == "room.agent_message"
+            and (event.get("payload") or {}).get("payload", {}).get("role") == "worker"
+        ]
+        manager_replies = [
+            event
+            for event in events
+            if event.get("event_type") == "room.agent_message"
+            and (event.get("payload") or {}).get("payload", {}).get("role")
+            in {"bioops-manager", "manager"}
+        ]
+        manager_reply = _event_content(manager_replies[-1])
+
+        print("\n=== Manager replay ===\n" + manager_reply)
+        assert len(worker_replies) >= 2
+        assert manager_reply
+        assert not [event for event in events if event.get("event_type") == "room.ask_user"]
+        assert "收到你的执行请求" not in manager_reply
+        assert "请上传文件或填写工作区路径" not in manager_reply
+        assert "单细胞" in manager_reply
+        assert "可视化" in manager_reply
 
 
 def test_live_e2e2_events_limit_boundary() -> None:
@@ -176,9 +247,50 @@ def test_live_e2e9_cursor_pagination_no_dup_no_missing() -> None:
         # 与 Bridge 侧事实源计数对账（可选：需 Bridge 凭证）
         if BRIDGE_URL and MANAGER_TOKEN:
             with _bridge_client() as bridge:
-                resp = bridge.get(f"/v1/cases/room-{room_id}/events", params={"limit": 100})
+                resp = bridge.get(f"/cases/room-{room_id}/events", params={"limit": 100})
                 resp.raise_for_status()
                 bridge_events = resp.json().get("events", [])
                 assert len(seen) == len(bridge_events), (
                     f"房间视图 {len(seen)} 条 vs Bridge 事实源 {len(bridge_events)} 条，存在丢失"
                 )
+
+
+def test_live_e2e10_flow_report_export_and_controlled_download() -> None:
+    """E2E-10：真实 Case 可生成离线报告，并经 JWT 受控通道下载可打开 HTML。"""
+    with _client() as client:
+        created = client.post(
+            f"{API}/cases",
+            json={"intent": f"live flow report export {uuid.uuid4().hex[:8]}"},
+        )
+        assert created.status_code == 201, (
+            f"create case failed: {created.status_code} {created.text[:300]}"
+        )
+        case_id = str(created.json()["case_id"])
+        try:
+            exported = client.post(f"{API}/cases/{case_id}/reports/flow")
+            assert exported.status_code == 201, (
+                f"flow report failed: {exported.status_code} {exported.text[:300]}"
+            )
+            report = exported.json()
+            assert report["artifact_path"].startswith("reports/flow-")
+            assert report["artifact_path"].endswith(".html")
+            assert len(report["checksum_sha256"]) == 64
+            assert report["size_bytes"] > 0
+
+            downloaded = client.get(
+                f"{API}/cases/{case_id}/artifacts/{report['artifact_path']}",
+                params={"download": "true"},
+            )
+            downloaded.raise_for_status()
+            assert "text/html" in downloaded.headers.get("content-type", "")
+            html = downloaded.text
+            assert "协作流程报告" in html
+            assert case_id in html
+            assert "环境快照" in html
+            assert "content_checksum_sha256" in html
+        finally:
+            cancelled = client.post(
+                f"{API}/cases/{case_id}/cancel",
+                json={"reason": "live flow report acceptance completed"},
+            )
+            assert cancelled.status_code in {200, 409}, cancelled.text[:300]

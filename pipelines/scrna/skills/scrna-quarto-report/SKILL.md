@@ -2,7 +2,7 @@
 name: 单细胞分析结果 Quarto HTML 报告
 description: 当用户已有 scRNAseqMulticommand 主流程跑完的 *-scRNA-seq-result 结果目录、要求生成或更新可交付的 HTML 分析报告时触发。输入为结果目录路径，输出为 report/_site/ 静态网站（QC/整合/聚类/注释/差异表达/方法学 7 页）。结果目录尚不存在时不适用——需先经 scrna-pipeline-overview 跑主流程。
 skill_id: scrna-quarto-report
-version: 0.9.0
+version: 0.9.1
 author: "zj"
 icon: 📊
 category: analysis
@@ -18,7 +18,7 @@ category: analysis
 
 ## 输入契约（Input）
 
-脚本：`tools/build_quarto_report.R`，Rscript 执行，参数风格 `--key value` 或 `--key=value` 均可。
+脚本：`build_quarto_report.R`（随主流程仓库分发，**不进技能包**——它依赖仓库内 `src/core/99.report_manifest.r` 与 `report/` Quarto 模板，模板约 3MB 超技能包红线）。平台沙盒内路径为 `ref/scRNAseqMulticommand/tools/build_quarto_report.R`（主流程仓库由管理员预置，见 `references/provisioning.md`）；本地运行时为仓库根下 `tools/build_quarto_report.R`。Rscript 执行，参数风格 `--key value` 或 `--key=value` 均可；脚本按自身位置推导仓库根，与 CWD 无关。
 
 | 参数 | 必填 | 说明 |
 |---|---|---|
@@ -36,15 +36,18 @@ category: analysis
 
 ## 执行步骤（Workflow）
 
-1. **前置校验**：确认 `--result-dir` 存在且是主流程结果目录（有 `output/scrna_seq.rds` 等核心产物）；确认 `quarto` CLI 在 PATH 中（`which quarto`）；仅想补 JSON 时跳过 quarto 检查并加 `--no-render`。
-2. **执行**（在仓库根目录下）：
+1. **前置校验**：确认 `--result-dir` 存在且是主流程结果目录（有 `output/scrna_seq.rds` 等核心产物）；确认 `quarto` CLI 在 PATH 中（`which quarto`，沙盒镜像由管理员预装）；确认报告脚本存在（沙盒内 `ref/scRNAseqMulticommand/tools/build_quarto_report.R`，缺失时向管理员上报，见 `references/provisioning.md`）；仅想补 JSON 时跳过 quarto 检查并加 `--no-render`。
+2. **执行**：
 
 ```bash
-Rscript tools/build_quarto_report.R \
+# 平台沙盒内（主流程仓库预置在 ref/scRNAseqMulticommand/）
+Rscript ref/scRNAseqMulticommand/tools/build_quarto_report.R \
   --result-dir {结果目录} \
   --project-name {项目名} \
   --species-tax-id {9606|10090} \
   --integration-method {Harmony|...}
+
+# 本地仓库运行：在仓库根执行 Rscript tools/build_quarto_report.R，参数同上
 ```
 
 3. **脚本内部逻辑**（排障时需要知道）：

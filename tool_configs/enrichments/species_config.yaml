@@ -1,5 +1,5 @@
 # ============================================
-# OmicHub 富集分析物种配置（KEGG / GO）
+# CygnusX 富集分析物种配置（KEGG / GO）
 # ============================================
 # 修改本文件后由配置加载器基于 mtime 自动热重载，无需重启后端。
 #
@@ -31,9 +31,9 @@ species_list:
     kegg_code: "sly"
     org_db: ""
     id_type: "ITAG4.1"
-    go_annotation: "/data/omichub/omichub_data/reference/ITAG4.1/ITAG4.1_blast2go_annot.annot_deal"
-    go_obo: "/data/omichub/omichub_data/reference/ITAG4.1/go-basic.obo"
-    kegg_id_map: "/data/omichub/omichub_data/reference/ITAG4.1/ITAG4.1.kegg.id"
+    go_annotation: "/data/cygnusx/cygnusx_data/reference/ITAG4.1/ITAG4.1_blast2go_annot.annot_deal"
+    go_obo: "/data/cygnusx/cygnusx_data/reference/ITAG4.1/go-basic.obo"
+    kegg_id_map: "/data/cygnusx/cygnusx_data/reference/ITAG4.1/ITAG4.1.kegg.id"
     kegg_key_type: "kegg"
     p_value_cutoff: 0.05
     q_value_cutoff: 0.1

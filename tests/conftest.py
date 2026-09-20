@@ -6,7 +6,7 @@ from collections.abc import AsyncIterator
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from omichub.main import app
+from cygnusx.main import app
 
 
 @pytest.fixture(scope="session")

@@ -7,13 +7,13 @@ from unittest.mock import AsyncMock
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from omichub.application.schemas.tool_invocation import ToolInvocationContext
-from omichub.application.services.flow_service import FlowService
-from omichub.application.services.managed_file_resolver import (
+from cygnusx.application.schemas.tool_invocation import ToolInvocationContext
+from cygnusx.application.services.flow_service import FlowService
+from cygnusx.application.services.managed_file_resolver import (
     FileMetadata,
     ManagedFileResolver,
 )
-from omichub.domain.flow.submission_validator import FlowSubmissionValidator
+from cygnusx.domain.flow.submission_validator import FlowSubmissionValidator
 
 
 class _FakeAsyncSession(AsyncSession):

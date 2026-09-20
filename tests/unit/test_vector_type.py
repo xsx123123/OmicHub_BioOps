@@ -2,7 +2,7 @@
 
 import pytest
 
-from omichub.infrastructure.database.vector import Vector
+from cygnusx.infrastructure.database.vector import Vector
 
 
 def test_vector_binds_and_reads_pgvector_literals() -> None:

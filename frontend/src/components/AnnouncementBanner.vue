@@ -31,7 +31,7 @@ const props = withDefaults(defineProps<{
 const banner = ref<Announcement | null>(null)
 const visible = ref(false)
 
-const STORAGE_PREFIX = 'omichub_banner_dismissed_'
+const STORAGE_PREFIX = 'cygnusx_banner_dismissed_'
 const isStatic = computed(() => Boolean(props.title))
 const staticStorageKey = computed(() => `${STORAGE_PREFIX}${props.dismissKey || props.title}`)
 const displayTitle = computed(() => props.title || banner.value?.title || '')

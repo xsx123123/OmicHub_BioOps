@@ -1,4 +1,4 @@
-# OmicHub AI 助手最终框架基线
+# CygnusX AI 助手最终框架基线
 
 > **基线日期**：2026-07-26  
 > **最近更新**：2026-07-29 — ask_user 全执行器中断语义、会话隔离与数据缺失澄清契约（§5.5）、工作区工具包白名单扩至读取类工具（§5.1）。  
@@ -9,7 +9,7 @@
 
 ## 1. 架构结论
 
-OmicHub 当前采用的是**配置驱动的 Tool Agent 架构**：每个 Agent 有独立身份、提示词、模型、工具白名单、Skill 绑定、Studio 运行时能力和审计上下文；模型可在 ReAct 循环中调用工具，再根据结果继续回答。
+CygnusX 当前采用的是**配置驱动的 Tool Agent 架构**：每个 Agent 有独立身份、提示词、模型、工具白名单、Skill 绑定、Studio 运行时能力和审计上下文；模型可在 ReAct 循环中调用工具，再根据结果继续回答。
 
 它不是仅靠 System Prompt 区分角色的普通聊天系统，已具备：
 
@@ -26,7 +26,7 @@ OmicHub 当前采用的是**配置驱动的 Tool Agent 架构**：每个 Agent �
 ## 2. 配置、发布与运行时来源
 
 ```text
-data/OmicHub.yaml                启用哪些内置 Agent
+data/CygnusX.yaml                启用哪些内置 Agent
           │
           ▼
 data/ai/<agent>.yaml             Agent 声明：模型、prompt_file、工具包、功能开关、Studio
@@ -60,7 +60,7 @@ ChatService → 手写 ReAct 或 LangGraph ReAct → 模型 / 工具 / SSE
 
 ## 3. 当前 Agent 清单
 
-`data/OmicHub.yaml` 默认启用以下七个 Agent：
+`data/CygnusX.yaml` 默认启用以下七个 Agent：
 
 | Agent ID | YAML | 角色 | 默认执行形态 | 主要能力 |
 | --- | --- | --- | --- | --- |
@@ -216,7 +216,7 @@ MAS_ENABLED=true   → 加载 orchestrator；仍需部署 Celery/outbox 与目�
 ### 8.1 修改现有提示词
 
 1. 编辑 `data/ai/prompts/<agent>.md`；
-2. 同步更新 `docs/26.7.26/ai_agent/OmicHub-Agent系统提示词优化版.md` 中对应代码块；
+2. 同步更新 `docs/26.7.26/ai_agent/CygnusX-Agent系统提示词优化版.md` 中对应代码块；
 3. 对照该 Agent 的 `tool_packs`、`skill_ids`、Studio 能力和 `handoff.allowed_targets` 检查每个工具声明；
 4. 运行提示词和 Agent Loader 测试；
 5. 在管理端保存 Agent 或调用更新 API 发布到数据库；
@@ -234,7 +234,7 @@ MAS_ENABLED=true   → 加载 orchestrator；仍需部署 Celery/outbox 与目�
 ### 8.3 新增 Agent
 
 1. 创建 `data/ai/<name>.yaml` 和 `data/ai/prompts/<name>.md`；
-2. 在 `data/OmicHub.yaml` 的 `agents.enabled` 加入名称；
+2. 在 `data/CygnusX.yaml` 的 `agents.enabled` 加入名称；
 3. 选择最小工具包、模型、Studio runtime profile 和 Handoff 白名单；
 4. 在 `data/ai/prompts/registry.yaml` 登记提示词；
 5. 验证加载、数据库发布、真实工具调用和前端入口。
@@ -291,18 +291,18 @@ LangGraph 运行时测试在当前本地环境中曾出现首项通过后无法�
 
 | 责任 | 文件 |
 | --- | --- |
-| 启用 Agent 与站点配置 | `data/OmicHub.yaml` |
+| 启用 Agent 与站点配置 | `data/CygnusX.yaml` |
 | Agent YAML / 工具包 / 提示词 | `data/ai/` |
-| Agent YAML 加载与工具包展开 | `src/omichub/infrastructure/config/agent_loader.py` |
-| 内置 Agent 同步与运行时上下文装配 | `src/omichub/application/services/agent_service.py` |
-| 聊天调度、路由、预搜索、Handoff | `src/omichub/application/services/chat_service.py` |
-| LangGraph ReAct | `src/omichub/infrastructure/execution/langgraph_runtime.py` |
-| LangGraph 节点 | `src/omichub/infrastructure/execution/langgraph_nodes.py` |
-| LangGraph 状态（handoff / ask_request） | `src/omichub/domain/execution/agent_state.py` |
-| ask_user schema 与 Studio 工具 | `src/omichub/application/services/studio_tools.py` |
-| 工作区平台 MCP 工具与会话隔离兜底 | `src/omichub/infrastructure/mcp/presets.py` |
+| Agent YAML 加载与工具包展开 | `src/cygnusx/infrastructure/config/agent_loader.py` |
+| 内置 Agent 同步与运行时上下文装配 | `src/cygnusx/application/services/agent_service.py` |
+| 聊天调度、路由、预搜索、Handoff | `src/cygnusx/application/services/chat_service.py` |
+| LangGraph ReAct | `src/cygnusx/infrastructure/execution/langgraph_runtime.py` |
+| LangGraph 节点 | `src/cygnusx/infrastructure/execution/langgraph_nodes.py` |
+| LangGraph 状态（handoff / ask_request） | `src/cygnusx/domain/execution/agent_state.py` |
+| ask_user schema 与 Studio 工具 | `src/cygnusx/application/services/studio_tools.py` |
+| 工作区平台 MCP 工具与会话隔离兜底 | `src/cygnusx/infrastructure/mcp/presets.py` |
 | 工作区文件提示词（澄清与会话隔离规则） | `data/ai/mcp/workspace_files_prompt.md` |
-| Skill 渐进式披露 | `src/omichub/domain/skill/services.py` |
-| MAS 功能开关 | `src/omichub/core/config.py` |
+| Skill 渐进式披露 | `src/cygnusx/domain/skill/services.py` |
+| MAS 功能开关 | `src/cygnusx/core/config.py` |
 | MAS 能力与产物契约 | `data/ai/mas/` |
 

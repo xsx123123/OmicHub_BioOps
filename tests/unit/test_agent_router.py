@@ -6,9 +6,9 @@ from typing import Any
 
 import pytest
 
-import omichub.application.services.chat_service as chat_service_module
-from omichub.application.schemas.agent import AgentTemplateDTO
-from omichub.application.services.chat_service import (
+import cygnusx.application.services.chat_service as chat_service_module
+from cygnusx.application.schemas.agent import AgentTemplateDTO
+from cygnusx.application.services.chat_service import (
     ChatService,
     _extract_route_json,
     _is_route_execution_confirmation,
@@ -109,10 +109,10 @@ def _fake_chat_stream(text: str):
 @pytest.fixture
 def service(monkeypatch: pytest.MonkeyPatch) -> ChatService:
     monkeypatch.setattr(
-        "omichub.application.services.agent_service.AgentService", _FakeAgentService
+        "cygnusx.application.services.agent_service.AgentService", _FakeAgentService
     )
     monkeypatch.setattr(
-        "omichub.application.services.agentteams_capability_registry"
+        "cygnusx.application.services.agentteams_capability_registry"
         ".get_agentteams_capability_registry",
         lambda: _FakeCapabilityRegistry(),
     )

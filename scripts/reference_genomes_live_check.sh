@@ -1,15 +1,15 @@
 #!/bin/sh
-# 实栈验证：在 omichub-web 容器内生成合法 token 并调全部关键端点。
+# 实栈验证：在 cygnusx-web 容器内生成合法 token 并调全部关键端点。
 # 用法：sh scripts/reference_genomes_live_check.sh
 set -e
-docker exec omichub-web sh -c '
+docker exec cygnusx-web sh -c '
 TOKEN=$(PYTHONPATH=/app/src python -c "
 import logging
 logging.disable(logging.CRITICAL)  # 静音 SQLAlchemy echo 日志，避免污染 stdout
 import asyncio
 from sqlalchemy import text
-from omichub.infrastructure.database.session import get_session_factory
-from omichub.core.security import create_access_token
+from cygnusx.infrastructure.database.session import get_session_factory
+from cygnusx.core.security import create_access_token
 async def main():
     factory = get_session_factory()
     async with factory() as db:

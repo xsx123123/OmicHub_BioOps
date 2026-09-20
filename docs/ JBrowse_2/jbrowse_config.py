@@ -42,7 +42,7 @@ class TrackConfig(BaseModel):
 class AutoScanConfig(BaseModel):
     """自动扫描配置"""
     enabled: bool = True
-    scan_paths: List[str] = ["/data/omichub/users/{user_id}/bam/"]
+    scan_paths: List[str] = ["/data/cygnusx/users/{user_id}/bam/"]
     extensions: List[str] = [".bam", ".bw", ".bigwig", ".vcf.gz", ".bed.gz"]
     interval: int = 5  # 分钟
     auto_index: bool = True
@@ -50,7 +50,7 @@ class AutoScanConfig(BaseModel):
 
 class UploadConfig(BaseModel):
     """上传配置"""
-    upload_dir: str = "/data/omichub/users/{user_id}/uploads/"
+    upload_dir: str = "/data/cygnusx/users/{user_id}/uploads/"
     max_file_size: int = 10  # GB
     allowed_types: List[str] = [".bam", ".bw", ".vcf.gz", ".fasta"]
     auto_index_after_upload: bool = True
@@ -80,7 +80,7 @@ class ConfigManager:
     def __init__(self, config_path: str = None):
         self.config_path = config_path or os.getenv(
             "JBROWSE_CONFIG_PATH",
-            "/data/omichub/config/jbrowse_config.yaml"
+            "/data/cygnusx/config/jbrowse_config.yaml"
         )
         self._config: Optional[JBrowseConfig] = None
         self._mtime: float = 0

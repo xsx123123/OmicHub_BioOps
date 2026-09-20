@@ -14,6 +14,7 @@ export const agentTeamsStatusLabel: Record<AgentTeamsCaseStatus, string | AgentT
     }
     return '等待修正'
   },
+  planning_failed: '规划失败',
   approval_pending: '待审批',
   approved: '已批准',
   executing: '执行中',
@@ -53,6 +54,7 @@ export const agentTeamsNextActor: Partial<Record<AgentTeamsCaseStatus, string>> 
   preflight_running: '数据管理员',
   preflight_blocked: '请求人',
   waiting_for_correction: '请求人',
+  planning_failed: '请求人',
   approval_pending: '审批人',
   approved: '流程执行者',
   executing: '流程执行者',
@@ -73,6 +75,7 @@ export const agentTeamsCaseStageMap: Record<AgentTeamsCaseStatus, AgentTeamsCase
   preflight_running: 'plan',
   preflight_blocked: 'plan',
   waiting_for_correction: 'plan',
+  planning_failed: 'plan',
   approval_pending: 'approval',
   approved: 'approval',
   executing: 'execution',
@@ -89,6 +92,7 @@ export const agentTeamsCaseStageMap: Record<AgentTeamsCaseStatus, AgentTeamsCase
 export const agentTeamsFailedStatuses: ReadonlySet<AgentTeamsCaseStatus> = new Set([
   'preflight_blocked',
   'waiting_for_correction',
+  'planning_failed',
   'execution_failed',
   'quality_blocked',
   'remediation_pending',
@@ -142,6 +146,7 @@ export function buildAgentTeamsStageView(
 export const agentTeamsTerminalStatuses: ReadonlySet<AgentTeamsCaseStatus> = new Set([
   'closed',
   'cancelled',
+  'planning_failed',
 ])
 
 /** 房间输入框可发送条件：已选中 Case 即可发言（含终态——取消/关闭后仍可继续提问）。 */

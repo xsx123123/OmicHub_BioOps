@@ -64,19 +64,19 @@ def main() -> int:
     )
     parser.add_argument(
         "--identities",
-        default="omichub-user,bioops-manager",
+        default="cygnusx-user,bioops-manager",
         help="Comma-separated Matrix identities to include in the disposable room",
     )
     parser.add_argument(
         "--wait-external-seconds",
         type=int,
         default=0,
-        help="After posting the OmicHub message, wait for an Element-originated response",
+        help="After posting the CygnusX message, wait for an Element-originated response",
     )
     parser.add_argument(
         "--confirm-write",
         action="store_true",
-        help="Required: permits disposable room creation and an OmicHub test message",
+        help="Required: permits disposable room creation and an CygnusX test message",
     )
     args = parser.parse_args()
 
@@ -108,17 +108,17 @@ def main() -> int:
         print(f"Created disposable room: {room_id}")
         print(f"Element room URL: {element_url or '(Gateway did not provide one)'}")
 
-        marker = f"OmicHub Matrix smoke {session_id}"
+        marker = f"CygnusX Matrix smoke {session_id}"
         request_json(
             args.gateway_url,
             args.manager_token,
             "POST",
             f"/rooms/{room_id}/messages",
             {
-                "sender_identity": "omichub-user",
+                "sender_identity": "cygnusx-user",
                 "content": marker,
-                "source": "omichub",
-                "sender": {"name": "OmicHub smoke test"},
+                "source": "cygnusx",
+                "sender": {"name": "CygnusX smoke test"},
             },
         )
         messages = request_json(
@@ -128,11 +128,11 @@ def main() -> int:
             f"/rooms/{room_id}/messages?{urlencode({'limit': 100})}",
         )
         if not any(event.get("content") == marker for event in messages.get("events", [])):
-            raise RuntimeError("OmicHub test message was not visible in the Matrix room timeline")
-        print("Verified OmicHub → Matrix room message delivery.")
+            raise RuntimeError("CygnusX test message was not visible in the Matrix room timeline")
+        print("Verified CygnusX → Matrix room message delivery.")
 
         if args.wait_external_seconds:
-            print("Send a message from Element now; waiting for Matrix → OmicHub sync…")
+            print("Send a message from Element now; waiting for Matrix → CygnusX sync…")
             deadline = time.monotonic() + args.wait_external_seconds
             since = messages.get("next_batch")
             while time.monotonic() < deadline:
@@ -145,7 +145,7 @@ def main() -> int:
                 )
                 external = [event for event in events.get("events", []) if event.get("origin") == "external"]
                 if external:
-                    print(f"Verified Matrix → OmicHub event return: {external[-1].get('event_id')}")
+                    print(f"Verified Matrix → CygnusX event return: {external[-1].get('event_id')}")
                     break
                 since = events.get("next_batch") or since
                 time.sleep(2)

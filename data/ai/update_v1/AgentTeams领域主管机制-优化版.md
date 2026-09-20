@@ -35,7 +35,7 @@
 
 ### 1.1 问题
 
-单细胞在 OmicHub 被合理地切成三个专家：
+单细胞在 CygnusX 被合理地切成三个专家：
 
 | 专家 | 阶段 | 主要产物 |
 | --- | --- | --- |
@@ -153,10 +153,10 @@ Case 建单并完成入口路由后：
 | 改动 | 位置 | 要点 |
 | --- | --- | --- |
 | Agent YAML 声明 | `data/ai/scrna.yaml` 优先；未来可扩 `rnaseq.yaml` / `atacseq.yaml` / `cloud_ops.yaml` | 加 `features.agentteams.can_act_as_domain_manager_for: [<domain_tag>]` |
-| registry 聚合 | `src/omichub/application/services/agentteams_capability_registry.py` | 暴露 `domain_manager_map() -> dict[domain_tag, agent_id]`；加载时校验：声明 `can_act_as_domain_manager_for` 的 Agent 必须同时满足 `recruitable=true && planner_eligible=true`，否则报错 |
-| Bridge 消费 | `integrations/agentteams/bridge/omichub_agentteams_bridge/service.py` | Case 建单后：① router 产出 `domain_tag`；② 命中 `domain_manager_map` 则指派 Domain Manager 并落审计事件 `manager_appointed`；③ 从本 Case 的 `role_agent_map` 屏蔽 Manager 所在 `agent_id`；④ 删除旧的硬编码 `data-steward` 等本地映射（§4.1 要求） |
+| registry 聚合 | `src/cygnusx/application/services/agentteams_capability_registry.py` | 暴露 `domain_manager_map() -> dict[domain_tag, agent_id]`；加载时校验：声明 `can_act_as_domain_manager_for` 的 Agent 必须同时满足 `recruitable=true && planner_eligible=true`，否则报错 |
+| Bridge 消费 | `integrations/agentteams/bridge/cygnusx_agentteams_bridge/service.py` | Case 建单后：① router 产出 `domain_tag`；② 命中 `domain_manager_map` 则指派 Domain Manager 并落审计事件 `manager_appointed`；③ 从本 Case 的 `role_agent_map` 屏蔽 Manager 所在 `agent_id`；④ 删除旧的硬编码 `data-steward` 等本地映射（§4.1 要求） |
 | Gateway 消费 | `integrations/agentteams/gateway/service.py` | `agent_policies` 从 registry 加载；对被屏蔽 `agent_id` 的工单派发请求直接拒绝，返回 `manager_self_dispatch_forbidden` |
-| Projector 消费 | `src/omichub/application/services/case_room_projector.py` | Domain Manager 的 `room_speech` 用领域主管头像与 status_lines；与普通 Manager（general）头像区隔 |
+| Projector 消费 | `src/cygnusx/application/services/case_room_projector.py` | Domain Manager 的 `room_speech` 用领域主管头像与 status_lines；与普通 Manager（general）头像区隔 |
 | 入口路由 | `agent-router` / `agent-general` 提示词与 `chat_service.py` | 出 `domain_tag`；命中触发条件且 tag 命中 domain_manager_map 才启用；否则默认 general Manager |
 
 **风险与回退**：

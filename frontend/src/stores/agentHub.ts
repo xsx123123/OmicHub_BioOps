@@ -56,9 +56,11 @@ import {
   type StudioPlanStep,
   type TokenUsage,
 } from '@/composables/useAgentChatStream'
-import { studioApi, type StudioPermissionMode } from '@/api/studio'
+import { studioApi, type StudioPermissionMode, type StudioRuntimeProfile } from '@/api/studio'
+import { isApprovalGone } from '@/components/ai-chat/approvalErrors'
 import { useChatStore } from '@/stores/chat'
 import { sortPersistedChatMessages } from '@/utils/chatMessageOrder'
+import { normalizeSuggestions } from '@/utils/nextStepSuggestions'
 import { resolveRoleIdentity } from '@/utils/roleIdentity'
 import { filterUserVisibleMessages, isUserVisibleMessage } from '@/utils/userVisibleMessage'
 import type {
@@ -67,6 +69,7 @@ import type {
   PipelineTaskStatus,
   PipelineType,
 } from '@/types/pipeline'
+import type { ResearchModeSettings } from '@/types/chat'
 
 const STUDIO_OUTPUT_CAP = 20_000
 
@@ -123,11 +126,33 @@ export interface AgentSession {
   updated_at: string
   /** 当前会话使用的模型配置 ID（覆盖 Agent 默认模型） */
   model_id?: string
+  /** 会话所属项目 ID（新建时由用户选择，创建后固定） */
+  project_id?: string | null
   mcp_mode?: 'off' | 'auto' | 'manual'
   extra_mcp_servers?: string[]
   /** 当前会话启用 AgentTeams multi-agent 协作运行时 */
   multi_agent?: boolean
   overdrive?: boolean
+  /** 用户为下一条消息选择的沙箱运行时 ID（null/undefined = 跟随 Agent 默认；会话创建后固定） */
+  runtime_profile?: string | null
+  /** 工作区已归档休眠（WP1；与 status='archived' 软删语义无关，仍可点击恢复） */
+  workspace_archive?: WorkspaceArchiveInfo | null
+  /** 科研模式设置（WP3 任务 3；null/undefined = 未开启，旧数据兼容） */
+  research_mode?: ResearchModeSettings | null
+}
+
+/** 会话工作区归档休眠信息（WP1；null/undefined = 正常会话） */
+export interface WorkspaceArchiveInfo {
+  package_id: string
+  created_at: string
+  expires_at: string
+}
+
+/** 恢复会话工作区的响应（POST /studio/sessions/{id}/restore） */
+export interface WorkspaceRestoreResult {
+  restored: boolean
+  idempotent?: boolean
+  reason?: string
 }
 
 /** 可用模型选项（来自 /api/v1/chat/models） */
@@ -139,6 +164,11 @@ export interface AvailableModel {
   is_default: boolean
   temperature?: number
   max_tokens?: number
+  /** 输入/输出/输入缓存/输出缓存单价（元 / M tokens），null = 未配置 */
+  input_price?: number | null
+  output_price?: number | null
+  input_cache_price?: number | null
+  output_cache_price?: number | null
 }
 
 export const useAgentHubStore = defineStore('agentHub', () => {
@@ -158,6 +188,15 @@ export const useAgentHubStore = defineStore('agentHub', () => {
   const contextCompressedNotice = ref<number | null>(null)
   /** 路由/交接命中 default_mode=studio 的 Agent 时置位，聊天界面据此自动跳转 AI 工作台 */
   const studioRedirect = ref<{ agentId: string; agentName: string } | null>(null)
+  /**
+   * 从 AI 助手「进入工作台」时携带的未发送草稿：正文 + 附件。
+   * StudioView 进入对应会话后回填到工作台输入框并清空，避免"进工作台草稿全丢、重新输入"。
+   */
+  const pendingStudioDraft = ref<{
+    sessionId: string
+    content: string
+    attachments: FileAttachment[]
+  } | null>(null)
 
   /** 目标 Agent 声明默认工作台模式且当前是普通聊天会话时，发起工作台跳转 */
   function maybeRedirectToStudio(agentId: string, agentName: string): void {
@@ -976,6 +1015,8 @@ export const useAgentHubStore = defineStore('agentHub', () => {
         is_default: m.is_default,
         temperature: m.temperature,
         max_tokens: m.max_tokens,
+        input_price: m.input_price ?? null,
+        output_price: m.output_price ?? null,
       }))
     } catch (e) {
       console.error('加载模型列表失败:', e)
@@ -990,12 +1031,15 @@ export const useAgentHubStore = defineStore('agentHub', () => {
         title: string
         title_locked?: boolean
         agent_id: string | null
+        project_id?: string | null
         model_id: string
         mode?: 'chat' | 'studio'
         mcp_mode?: 'off' | 'auto' | 'manual'
         extra_mcp_servers?: string[]
         multi_agent?: boolean
         overdrive?: boolean
+        workspace_archive?: WorkspaceArchiveInfo | null
+        research_mode?: ResearchModeSettings | null
         created_at: string
         updated_at: string
       }>>('/chat/sessions')
@@ -1006,6 +1050,7 @@ export const useAgentHubStore = defineStore('agentHub', () => {
           title: s.title,
           title_locked: s.title_locked ?? false,
           agent_id: s.agent_id as string,
+          project_id: s.project_id ?? null,
           mode: s.mode || 'chat',
           messages: [] as ChatMessage[],
           created_at: s.created_at,
@@ -1015,6 +1060,8 @@ export const useAgentHubStore = defineStore('agentHub', () => {
           extra_mcp_servers: s.extra_mcp_servers || [],
           multi_agent: Boolean(s.multi_agent),
           overdrive: Boolean(s.overdrive),
+          workspace_archive: s.workspace_archive ?? null,
+          research_mode: s.research_mode ?? null,
         }))
       // 合并正在流式中的临时会话，避免刷新时丢失
       const tempSessions = sessions.value.filter((s) => s.id.startsWith('sess-'))
@@ -1037,6 +1084,21 @@ export const useAgentHubStore = defineStore('agentHub', () => {
   /** 新建 Studio 会话后登记 ID，无需整表刷新 */
   function markStudioSession(id: string): void {
     studioSessionIds.value = new Set([...studioSessionIds.value, id])
+  }
+
+  /** 可用沙箱运行时列表（输入框运行时选择器数据源；失败时保持空数组，选择器隐藏降级） */
+  const runtimeProfiles = ref<StudioRuntimeProfile[]>([])
+  let runtimeProfilesRequested = false
+
+  /** 拉取沙箱运行时列表；静默失败（未登录/接口不可用时不阻塞聊天） */
+  async function fetchRuntimeProfiles(): Promise<void> {
+    if (runtimeProfilesRequested) return
+    runtimeProfilesRequested = true
+    try {
+      runtimeProfiles.value = await studioApi.listRuntimeProfiles()
+    } catch {
+      runtimeProfiles.value = []
+    }
   }
 
   /** 一次性初始化全部资产（前台页面挂载时调用） */
@@ -1220,11 +1282,15 @@ export const useAgentHubStore = defineStore('agentHub', () => {
   }
 
   /** 一键安装市场技能 */
-  async function installMarketplaceSkill(skillId: string, overwrite = false): Promise<void> {
+  async function installMarketplaceSkill(
+    skillId: string,
+    overwrite = false,
+    refresh = true,
+  ): Promise<void> {
     await apiClient.post(`/admin/skills/marketplace/${skillId}/install`, null, {
       params: { overwrite },
     })
-    await fetchSkills(true)
+    if (refresh) await fetchSkills(true)
   }
 
   /** 阿里云官方技能源：同步状态（不触网） */
@@ -1244,11 +1310,15 @@ export const useAgentHubStore = defineStore('agentHub', () => {
   }
 
   /** 一键安装阿里云官方技能（走统一预览校验入库） */
-  async function installAliyunMarketSkill(skillId: string, overwrite = false): Promise<void> {
+  async function installAliyunMarketSkill(
+    skillId: string,
+    overwrite = false,
+    refresh = true,
+  ): Promise<void> {
     await apiClient.post(`/admin/skills/marketplace/aliyun/${skillId}/install`, null, {
       params: { overwrite },
     })
-    await fetchSkills(true)
+    if (refresh) await fetchSkills(true)
   }
 
   /** 检查上游更新（GitHub 来源） */
@@ -1381,6 +1451,40 @@ export const useAgentHubStore = defineStore('agentHub', () => {
     }
   }
 
+  /** 恢复已归档休眠的会话工作区（幂等响应按成功处理，成功后清除本地归档标记） */
+  async function restoreArchivedSession(id: string): Promise<WorkspaceRestoreResult> {
+    let result: WorkspaceRestoreResult
+    try {
+      const res = await apiClient.post<WorkspaceRestoreResult>(`/studio/sessions/${id}/restore`)
+      result = res.data
+    } catch (e: any) {
+      // 配额不足等场景后端返回 409 + detail，透传给上层展示
+      const detail = e?.response?.data?.detail
+      throw new Error(typeof detail === 'string' && detail ? detail : '恢复会话工作区失败，请稍后重试')
+    }
+    if (result?.restored) {
+      const session = sessions.value.find((s) => s.id === id)
+      if (session) session.workspace_archive = null
+    }
+    return result
+  }
+
+  /**
+   * 打开会话；工作区已归档休眠时先走恢复端点再走正常打开流程（selectSession → loadSessionMessages）。
+   * 「not_archived」视为已被其他端恢复，按成功继续。恢复失败（如 409 配额不足）抛错，由调用方提示。
+   */
+  async function openSessionWithRestore(id: string): Promise<void> {
+    const session = sessions.value.find((s) => s.id === id)
+    if (session?.workspace_archive) {
+      const result = await restoreArchivedSession(id)
+      if (!result.restored && result.reason !== 'not_archived') {
+        throw new Error('会话工作区恢复失败，请稍后重试')
+      }
+      session.workspace_archive = null
+    }
+    await selectSession(id)
+  }
+
   function newChat() {
     stopStreaming()
     stopAgentTeamsCaseEvents()
@@ -1433,6 +1537,25 @@ export const useAgentHubStore = defineStore('agentHub', () => {
     }
   }
 
+  /**
+   * 科研模式设置（WP3 任务 3）：乐观更新当前会话的 research_mode，
+   * PUT 失败时回滚并抛出错误，由调用方提示用户。
+   */
+  async function updateResearchMode(id: string, settings: ResearchModeSettings): Promise<void> {
+    const session = sessions.value.find((s) => s.id === id)
+    if (!session) return
+    const previous = session.research_mode ?? null
+    session.research_mode = { ...settings }
+    try {
+      const applied = await chatApi.updateResearchMode(id, settings)
+      session.research_mode = applied ?? { ...settings }
+    } catch (e) {
+      session.research_mode = previous
+      console.error('保存科研模式设置失败:', e)
+      throw e
+    }
+  }
+
   async function generateSessionTitle(id: string): Promise<void> {
     if (!id || id.startsWith('sess-')) return
     const session = sessions.value.find((s) => s.id === id)
@@ -1464,6 +1587,7 @@ export const useAgentHubStore = defineStore('agentHub', () => {
         created_at: s.created_at,
         updated_at: s.updated_at,
         model_id: s.model_id || undefined,
+        workspace_archive: s.workspace_archive ?? null,
       }))
     return {
       title_matches,
@@ -1495,13 +1619,14 @@ export const useAgentHubStore = defineStore('agentHub', () => {
         message_id: string
         role: string
         content: string
+        status?: string
         metadata_json?: Record<string, unknown>
         type?: string
         message_type?: string
         visible?: boolean
         agent_name?: string
         created_at: string
-        tokens?: { input: number; output: number; total: number }
+        tokens?: { input: number; output: number; total: number; cached?: number }
       }>>(`/chat/sessions/${sessionId}/messages`)
       const session = sessions.value.find((s) => s.id === sessionId)
       if (!session) return
@@ -1513,10 +1638,13 @@ export const useAgentHubStore = defineStore('agentHub', () => {
           role: m.role as 'user' | 'assistant' | 'system',
           content: m.content,
           createdAt: m.created_at,
+          // 只透传 error 态：中断残留的 streaming 行按普通消息展示，避免永久加载态
+          status: m.status === 'error' ? 'error' : undefined,
+          error: typeof m.metadata_json?.error === 'string' ? m.metadata_json.error : undefined,
           modelName: (m.metadata_json?.model as string) || undefined,
           // usage is response metadata; keep it off user/system messages even if an old
           // backend row contains a stale tokens payload.
-          tokens: m.role === 'assistant' ? (m.tokens || { input: 0, output: 0, total: 0 }) : undefined,
+          tokens: m.role === 'assistant' ? (m.tokens || { input: 0, output: 0, total: 0, cached: 0 }) : undefined,
           visible: m.visible !== false && m.metadata_json?.visible !== false,
           type: typeof m.type === 'string'
             ? m.type
@@ -1611,6 +1739,11 @@ export const useAgentHubStore = defineStore('agentHub', () => {
         }
         if (m.role === 'assistant' && typeof m.metadata_json?.thought === 'string') {
           msg.thought = m.metadata_json.thought
+        }
+        // 建议追问 Chips：恢复随消息落库的结构化 suggestions（刷新后历史消息 chips 仍在）
+        if (m.role === 'assistant') {
+          const restoredSuggestions = normalizeSuggestions(m.metadata_json?.suggestions)
+          if (restoredSuggestions.length) msg.suggestions = restoredSuggestions
         }
         if (m.role === 'assistant' && typeof m.metadata_json?.summary === 'string') {
           msg.overdriveSummary = m.metadata_json.summary
@@ -1726,6 +1859,13 @@ export const useAgentHubStore = defineStore('agentHub', () => {
               mcpServer: (inv.mcp_server as string) || 'studio',
               status: inv.success ? 'success' : 'error',
               checkpointId: typeof inv.checkpoint_id === 'string' ? inv.checkpoint_id : undefined,
+              // 200KB 落库截断标记（信封层级）：存在时卡片显示"内容已截断"提示；
+              // 旧数据无此字段则保持原有降级渲染
+              uiPayloadTruncation: inv.ui_payload_truncation as ToolCall['uiPayloadTruncation'],
+              resultTruncation: inv.result_truncation as ToolCall['resultTruncation'],
+              // 科研模式信封字段（WP3 任务 1）：与 result/ui_payload 平级，旧数据无此字段
+              cellIndex: typeof inv.cell_index === 'number' ? inv.cell_index : null,
+              language: typeof inv.language === 'string' ? inv.language : undefined,
             }
             if (so || se) tc.output = so + se
             return tc
@@ -1893,6 +2033,11 @@ export const useAgentHubStore = defineStore('agentHub', () => {
       messageMetadata?: Record<string, unknown>
       /** 工具轮次触顶后用户确认继续：本次请求上限扩展到 1000 轮 */
       extendMaxRounds?: boolean
+      /**
+       * AI 助手页面专用：本轮需确认的操作（代码执行/写入文件/网络访问）由后端直接执行，
+       * 不再逐次弹审批卡。AI 工作台页面不传，维持逐次审批语义。
+       */
+      autoApprove?: boolean
     } = {},
   ): Promise<void> {
     const session = currentSession.value
@@ -1942,6 +2087,9 @@ export const useAgentHubStore = defineStore('agentHub', () => {
     session.messages.push(userMsg)
 
     const effectiveOverdrive = options.overdrive ?? session.overdrive ?? false
+    const selectedModelName = session.model_id
+      ? availableModels.value.find((model) => model.id === session.model_id)?.name
+      : undefined
     // 助手占位消息（流式填充；超频发言由 room_speech 逐条创建）
     const aiId = `msg-ai-${Date.now()}`
     const aiMsgSeed: ChatMessage = {
@@ -1949,11 +2097,11 @@ export const useAgentHubStore = defineStore('agentHub', () => {
       role: 'assistant',
       content: '',
       status: 'streaming',
-      modelName: agent.model_engine || agent.name,
+      modelName: selectedModelName || agent.model_engine || agent.name,
       toolCalls: [],
       timeline: [],
       createdAt: new Date().toISOString(),
-      tokens: { input: 0, output: 0, total: 0 },
+      tokens: { input: 0, output: 0, total: 0, cached: 0 },
     }
     if (!effectiveOverdrive) session.messages.push(aiMsgSeed)
     // 必须使用响应式数组返回的代理对象继续写入。
@@ -2011,12 +2159,42 @@ export const useAgentHubStore = defineStore('agentHub', () => {
     // 新会话首次发消息时加锁，直到 onSessionCreated 回填真实 ID
     if (session.id.startsWith('sess-')) createSessionIdLock()
 
+    // 用户选择了沙箱运行时：仅对运行时未固定的会话生效（已是 studio 的会话由选择器禁用兜底）
+    const runtimeProfile = session.runtime_profile || undefined
+    if (runtimeProfile && session.mode !== 'studio') {
+      if (session.id.startsWith('sess-')) {
+        // 临时会话：首次请求即按 studio + 指定运行时创建，沙箱镜像随会话固定
+        session.mode = 'studio'
+      } else {
+        // 已落库的普通会话：先升级为 Studio 并固定运行时，失败则中止本轮发送
+        try {
+          const promoted = await studioApi.promoteSession(session.id, {
+            agent_id: agent.id,
+            runtime_profile: runtimeProfile,
+          })
+          session.mode = 'studio'
+          session.agent_id = promoted.agent_id || session.agent_id
+          markStudioSession(session.id)
+        } catch (e: any) {
+          aiMsg.content = `切换沙箱运行时失败: ${e?.response?.data?.detail || e?.message || '未知错误'}`
+          aiMsg.status = 'error'
+          isStreaming.value = false
+          streamingContent.value = ''
+          streamingThought.value = ''
+          releaseSessionIdLock()
+          return
+        }
+      }
+    }
+
     await streamChat(
       {
         agentId: agent.id,
         messages: apiMessages,
         sessionId: backendSessionId,
         mode: session.mode,
+        runtimeProfile,
+        projectId: session.project_id || undefined,
         modelId: session.model_id,
         temperature: chatStore.conversationSettings.temperature,
         maxTokens: chatStore.conversationSettings.maxTokens,
@@ -2029,6 +2207,7 @@ export const useAgentHubStore = defineStore('agentHub', () => {
         multiAgent: options.multiAgent ?? session.multi_agent ?? false,
         overdrive: effectiveOverdrive,
         extendMaxRounds: options.extendMaxRounds ?? false,
+        autoApprove: options.autoApprove ?? false,
       },
       {
         onText: (text, isReasoning) => {
@@ -2060,6 +2239,7 @@ export const useAgentHubStore = defineStore('agentHub', () => {
             session.id = sessionId
             session.agent_id = agent.id
             currentSessionId.value = sessionId
+            if (session.mode === 'studio') markStudioSession(sessionId)
             syncAgentTeamsEventSubscriptions(session)
             if (messageId) aiMsg.backendMessageId = messageId
             releaseSessionIdLock()
@@ -2075,7 +2255,7 @@ export const useAgentHubStore = defineStore('agentHub', () => {
             id: `mode-overdrive-${Date.now()}`,
             role: 'system',
             content: degraded
-              ? '协作服务出现可恢复降级，已继续使用 OmicHub 内置协作。'
+              ? '协作服务出现可恢复降级，已继续使用 CygnusX 内置协作。'
               : enabled
                 ? '已进入超频模式：Manager 将组织专家协作。'
                 : '已退出超频模式：恢复普通对话。',
@@ -2316,6 +2496,8 @@ export const useAgentHubStore = defineStore('agentHub', () => {
             status: 'running',
             mcpServer: event.mcp_server,
             purpose: event.purpose,
+            cellIndex: event.cell_index ?? null,
+            language: event.language ?? undefined,
           })
           // 交错时间线：记录这次工具调用的位置，正文段在其后另起
           toolMessage.timeline ||= []
@@ -2355,7 +2537,7 @@ export const useAgentHubStore = defineStore('agentHub', () => {
             if (event.success && (tc.name === 'workspace_write' || tc.name === 'workspace_edit')) {
               const changedPath = String(tc.arguments.path || uiPayload?.path || '')
               if (changedPath) {
-                window.dispatchEvent(new CustomEvent('omichub:studio-file-changed', {
+                window.dispatchEvent(new CustomEvent('cygnusx:studio-file-changed', {
                   detail: { sessionId: session.id, path: changedPath, tool: tc.name },
                 }))
               }
@@ -2390,7 +2572,7 @@ export const useAgentHubStore = defineStore('agentHub', () => {
               // 交错时间线：技能卡片渲染在发生位置的正文之后
               aiMsg.timeline?.push({ kind: 'skill', skillCardId: card.id })
               // 首次调用通知：宿主组件监听后按 localStorage 去重弹轻提示
-              window.dispatchEvent(new CustomEvent('omichub:skill-invoked', {
+              window.dispatchEvent(new CustomEvent('cygnusx:skill-invoked', {
                 detail: { skill_id: event.skill_id, name: card.name, version: card.version },
               }))
             }
@@ -2549,15 +2731,18 @@ export const useAgentHubStore = defineStore('agentHub', () => {
           aiMsg.collaborationRoute = event
         },
         onToolOutput: (tool, _stream, data, toolCallId) => {
-          // 优先按 tool_call_id 精确匹配；无 id（旧事件）时回退为最后一个同名 running 工具
+          // 严格定向（research_loop WP3）：tool_output 必须携带 tool_call_id,
+          // 无 id 的旧事件直接丢弃并告警,不再回退匹配"最后一个同名 running 工具"
+          if (!toolCallId) {
+            console.warn('[agentHub] 丢弃无 tool_call_id 的 tool_output 事件', tool)
+            return
+          }
           const toolMessage = effectiveOverdrive
             ? [...session.messages].reverse().find((item) => item.role === 'assistant' && item.senderAgent)
               || aiMsg
             : aiMsg
           const tcs = toolMessage.toolCalls || []
-          const tc = toolCallId
-            ? tcs.find((t) => t.id === toolCallId)
-            : [...tcs].reverse().find((t) => t.status === 'running' && (!tool || t.name === tool))
+          const tc = tcs.find((t) => t.id === toolCallId)
           if (tc) tc.output = appendBoundedStudioOutput(tc.output || '', data)
         },
         onRetry: (attempt, maxAttempts) => {
@@ -2580,7 +2765,8 @@ export const useAgentHubStore = defineStore('agentHub', () => {
             releaseSessionIdLock()
             return
           }
-          aiMsg.content = streamingContent.value || `生成失败: ${error}`
+          aiMsg.content = streamingContent.value
+          aiMsg.error = error
           aiMsg.thought = streamingThought.value || undefined
           aiMsg.status = 'error'
           aiMsg.toolCalls = (aiMsg.toolCalls || []).map((t) =>
@@ -2591,13 +2777,21 @@ export const useAgentHubStore = defineStore('agentHub', () => {
           streamingThought.value = ''
           releaseSessionIdLock()
         },
-        onDone: (_, messageId, usage, finishReason, finalContent, finalReasoning) => {
+        onDone: (_, messageId, usage, finishReason, finalContent, finalReasoning, suggestions) => {
           cleanupStreamRetryNotices(session)
           if (session.overdrive || effectiveOverdrive) {
             finalizeRoomSpeeches()
             isStreaming.value = false
             releaseSessionIdLock()
             return
+          }
+          if (suggestions?.length) {
+            // 结构化建议追问落到消息模型（与 tokens 相同的定位策略）
+            const targetId = messageId || aiMsg.backendMessageId || aiMsg.id
+            const target = session.messages.find(
+              (item) => (item.id === targetId || item.backendMessageId === targetId) && item.role === 'assistant',
+            )
+            ;(target || aiMsg).suggestions = suggestions
           }
           if (!streamingContent.value && finalContent) {
             streamingContent.value = finalContent
@@ -2612,12 +2806,13 @@ export const useAgentHubStore = defineStore('agentHub', () => {
             const input = usage.prompt_tokens ?? usage.input_tokens ?? usage.input ?? 0
             const output = usage.completion_tokens ?? usage.output_tokens ?? usage.output ?? 0
             const total = usage.total_tokens ?? usage.total ?? input + output
+            const cached = usage.cached_tokens ?? 0
             // 以服务端返回的 assistant message_id 定位，避免流期间对象被替换后写入旧引用。
             const targetId = messageId || aiMsg.backendMessageId || aiMsg.id
             const target = session.messages.find(
               (item) => (item.id === targetId || item.backendMessageId === targetId) && item.role === 'assistant',
             )
-            ;(target || aiMsg).tokens = { input, output, total }
+            ;(target || aiMsg).tokens = { input, output, total, cached }
           }
           if (finishReason === 'length' && aiMsg.content.trim()) {
             aiMsg.content += '\n\n---\n⚠️ *回答因达到最大长度限制而截断，可尝试缩短提问或分步追问。*'
@@ -2721,25 +2916,31 @@ export const useAgentHubStore = defineStore('agentHub', () => {
     return null
   }
 
-  /** 批准待审批工具；带 modifiedArgs 即"编辑后批准"（乐观更新，后端决议经 approval_resolved 回写） */
+  /** 批准待审批工具；带 modifiedArgs 即"编辑后批准"，always 即"本会话不再询问"（乐观更新，后端决议经 approval_resolved 回写） */
   async function approveToolCall(
     approvalId: string,
     modifiedArgs?: Record<string, unknown>,
+    always?: boolean,
   ): Promise<void> {
-    if (!isStreaming.value) {
-      throw new Error('APPROVAL_STREAM_INACTIVE')
-    }
+    // 不以前端 isStreaming 预判：刷新页面后执行流仍在后端等待审批，
+    // 此时 REST + Redis 决议通道依然有效，误判会挡住合法批准；以服务端响应为准。
     const tc = findApprovalTool(approvalId)
     if (tc?.approval && tc.approval.status === 'pending') {
       tc.approval.status = modifiedArgs ? 'edited' : 'approved'
       tc.status = 'running'
     }
     try {
-      await studioApi.approveApproval(approvalId, modifiedArgs)
+      await studioApi.approveApproval(approvalId, modifiedArgs, always)
     } catch (e) {
       if (tc?.approval) {
-        tc.approval.status = 'pending'
-        tc.status = 'awaiting_approval'
+        if (isApprovalGone(e)) {
+          // 记录已过期/被消费：转入终态，卡片显示"已超时"并离开待处理列表
+          tc.approval.status = 'timeout'
+          tc.status = 'timed_out'
+        } else {
+          tc.approval.status = 'pending'
+          tc.status = 'awaiting_approval'
+        }
       }
       throw e
     }
@@ -2747,9 +2948,6 @@ export const useAgentHubStore = defineStore('agentHub', () => {
 
   /** 退回待审批工具（理由回灌 LLM 让其修改后重试） */
   async function rejectToolCall(approvalId: string, reason?: string): Promise<void> {
-    if (!isStreaming.value) {
-      throw new Error('APPROVAL_STREAM_INACTIVE')
-    }
     const tc = findApprovalTool(approvalId)
     if (tc?.approval && tc.approval.status === 'pending') {
       tc.approval.status = 'rejected'
@@ -2759,8 +2957,13 @@ export const useAgentHubStore = defineStore('agentHub', () => {
       await studioApi.rejectApproval(approvalId, reason)
     } catch (e) {
       if (tc?.approval) {
-        tc.approval.status = 'pending'
-        tc.status = 'awaiting_approval'
+        if (isApprovalGone(e)) {
+          tc.approval.status = 'timeout'
+          tc.status = 'timed_out'
+        } else {
+          tc.approval.status = 'pending'
+          tc.status = 'awaiting_approval'
+        }
       }
       throw e
     }
@@ -2789,7 +2992,7 @@ export const useAgentHubStore = defineStore('agentHub', () => {
         return
       }
       if (approval.caseId) {
-        const resolved = await agentTeamsApi.submitCase(approval.caseId, { task_name: approval.toolName || 'OmicHub 分析任务' })
+        const resolved = await agentTeamsApi.submitCase(approval.caseId, { task_name: approval.toolName || 'CygnusX 分析任务' })
         Object.assign(approval, { status: resolved.status === 'submitted' ? 'completed' : 'executing' })
         return
       }
@@ -2966,7 +3169,10 @@ export const useAgentHubStore = defineStore('agentHub', () => {
   /** 切换当前 Studio 会话权限模式（调 API 后更新本地态） */
   async function setStudioPermissions(mode: StudioPermissionMode): Promise<void> {
     const sessionId = currentSessionId.value
-    if (!sessionId || sessionId.startsWith('sess-')) return
+    // 后端 _get_studio_session 只接受 studio 会话（否则 404）：
+    // 临时会话与非 studio 会话直接不发起请求
+    const session = sessions.value.find((item) => item.id === sessionId)
+    if (!sessionId || sessionId.startsWith('sess-') || session?.mode !== 'studio') return
     const prev = studioPermissions.value.mode
     studioPermissions.value = { mode }
     try {
@@ -2985,9 +3191,11 @@ export const useAgentHubStore = defineStore('agentHub', () => {
     roundLimitPrompt,
     contextCompressedNotice,
     studioRedirect,
+    pendingStudioDraft,
     maybeRedirectToStudio,
     clearStudioRedirect,
     studioSessionIds, currentPlan, studioPermissions,
+    runtimeProfiles, fetchRuntimeProfiles,
     // getters
     activeAgents, currentSession, currentAgent, effectiveAgent, groupedSessions,
     // lookups
@@ -3005,9 +3213,10 @@ export const useAgentHubStore = defineStore('agentHub', () => {
     fetchSkillVersions, rollbackSkill, fetchSkillVersionDetail, fetchSkillReferences,
     toggleSkill, deleteSkill,
     // session actions
-    startSessionFromAgent, selectSession, newChat, deleteSession, renameSession, generateSessionTitle,
+    startSessionFromAgent, selectSession, openSessionWithRestore, restoreArchivedSession,
+    newChat, deleteSession, renameSession, generateSessionTitle,
     searchSessions, switchSessionModel, loadSessionMessages, sendMessage, stopStreaming, pauseStreaming,
-    submitMessageFeedback,
+    submitMessageFeedback, updateResearchMode,
     approveToolCall, rejectToolCall, approveOverdriveApproval, rejectOverdriveApproval, answerAskRequest,
     decideOverdrivePlan,
     initStudioPermissions, setStudioPermissions,

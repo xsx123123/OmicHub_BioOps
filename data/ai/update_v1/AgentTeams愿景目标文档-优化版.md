@@ -41,7 +41,7 @@
 
 ## 1. 一句话定位
 
-**AgentTeams 是 OmicHub 里“用户参与的单窗口多专家群聊”背后的编排框架。**
+**AgentTeams 是 CygnusX 里“用户参与的单窗口多专家群聊”背后的编排框架。**
 
 用户只在当前 AI 助手 / Studio 聊天窗口里发任务、看进展、做决策；多个平台真实 Agent 以各自头像和人格在同一窗口里轮流发言、协作把任务做完；AgentTeams 负责这些专家之间的状态机、工作项派发、审批、审计和跨角色上下文传递。
 
@@ -86,7 +86,7 @@
 └────────────────────────────┬────────────────────────────────────┘
                              │ execute-readonly / workspace_execution
 ┌────────────────────────────▼────────────────────────────────────┐
-│  执行大脑：OmicHub 平台真实 Agent（data/ai/*.yaml 定义）           │
+│  执行大脑：CygnusX 平台真实 Agent（data/ai/*.yaml 定义）           │
 │  - consultation 端点调用 ParallelSubAgentService                 │
 │  - 携带该 Agent 自己的提示词 / Persona / Skill / MCP / 工具白名单   │
 │  - 以 requester_ref 对应的真实用户身份运行                        │
@@ -95,7 +95,7 @@
 
 ### 3.1 关键边界
 
-- **AgentTeams 不运行 LLM，只编排工单。** 所有“思考”都发生在 OmicHub 平台 Agent 的 consultation 回合里。
+- **AgentTeams 不运行 LLM，只编排工单。** 所有“思考”都发生在 CygnusX 平台 Agent 的 consultation 回合里。
 - **AgentTeams 不替代平台 Agent 权限体系。** 每个专家能调用什么工具，仍由 `data/ai/*.yaml` 和 Tool Pack 决定。
 - **AgentTeams 不新建虚构角色。** 用户看到的每个头像都对应平台上一个真实、已启用的 Agent。
 - **用户是群聊成员。** 计划确认、高风险审批、澄清提问都发生在同一条对话流里。

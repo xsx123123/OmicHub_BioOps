@@ -1,11 +1,11 @@
-# OmicHub 知识库实现说明
+# CygnusX 知识库实现说明
 
 > 本文说明当前代码真实采用的知识库路径、目录与数据库的关系、检索入口，以及 PDF/图片混合检索的实现边界。
 > 26.8.8
 
 ## 1. 先给结论
 
-OmicHub 的 AI 知识库检索**不是每次提问时扫描 `docs/knowledge` 目录**。实际流程是：
+CygnusX 的 AI 知识库检索**不是每次提问时扫描 `docs/knowledge` 目录**。实际流程是：
 
 ```text
 用户问题
@@ -135,13 +135,13 @@ python scripts/reindex_knowledge_vectors.py
 模型调用 `knowledge_search`，执行器位于：
 
 ```text
-src/omichub/application/services/studio_tools.py::_knowledge_search
+src/cygnusx/application/services/studio_tools.py::_knowledge_search
 ```
 
 该执行器只负责校验参数并委托：
 
 ```text
-src/omichub/application/services/vector_retrieval_service.py::VectorRetrievalService.search_knowledge
+src/cygnusx/application/services/vector_retrieval_service.py::VectorRetrievalService.search_knowledge
 ```
 
 它不会根据文件夹名称在运行时分支；所有已经发布且可搜索的知识库会进入同一检索候选集。
@@ -175,7 +175,7 @@ src/omichub/application/services/vector_retrieval_service.py::VectorRetrievalSer
 新增的：
 
 ```text
-src/omichub/application/services/knowledge_asset_service.py
+src/cygnusx/application/services/knowledge_asset_service.py
 ```
 
 会在 `KnowledgeIndexService.index_document()` 中运行。它不会改变数据库表结构，而是把附件内容转换成带标题的文本块，然后复用原有的分块、embedding 和关键词索引：

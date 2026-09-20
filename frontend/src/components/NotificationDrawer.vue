@@ -11,6 +11,7 @@ import {
 import { useNotificationStore } from '@/stores/notification'
 import { useAuthStore } from '@/stores/auth'
 import type { Notification, NotificationLevel } from '@/types'
+import { agentTeamsApi } from '@/api/agentTeams'
 
 const props = defineProps<{
   show: boolean
@@ -73,6 +74,13 @@ function formatTime(iso: string): string {
   })
 }
 
+function roomInvitationDecision(n: Notification): 'accept' | 'decline' | null {
+  const decision = String(n.payload?.decision || '')
+  if (decision === 'accepted') return 'accept'
+  if (decision === 'declined') return 'decline'
+  return null
+}
+
 async function handleMarkRead(n: Notification) {
   // 已读 / 正在标记中：直接跳过，避免重复请求
   if (store.isRead(n) || store.isMarking(n.id)) return
@@ -80,6 +88,22 @@ async function handleMarkRead(n: Notification) {
     await store.markRead(n.id)
   } catch (e: any) {
     message.error(e.response?.data?.detail || '标记已读失败，请稍后重试')
+  }
+}
+
+async function handleRoomInvitation(n: Notification, decision: 'accept' | 'decline') {
+  const invitationId = String(n.payload?.invitation_id || '')
+  if (!invitationId) return
+  try {
+    await agentTeamsApi.respondRoomInvitation(invitationId, decision)
+    await store.markRead(n.id)
+    try {
+      await store.fetchNotifications()
+    } catch {}
+    window.dispatchEvent(new Event('agentteams-room-membership-changed'))
+    message.success(decision === 'accept' ? '已加入协作室' : '已拒绝邀请')
+  } catch (error) {
+    message.error(error instanceof Error ? error.message : '处理邀请失败')
   }
 }
 
@@ -203,6 +227,15 @@ async function handleDelete(id: string) {
               <span class="notification-time">{{ formatTime(n.created_at) }}</span>
             </div>
             <p class="notification-content">{{ n.content }}</p>
+            <div v-if="n.type === 'agentteams_room_invite'" class="notification-actions">
+              <NTag v-if="roomInvitationDecision(n)" :type="roomInvitationDecision(n) === 'accept' ? 'success' : 'default'" size="small">
+                {{ roomInvitationDecision(n) === 'accept' ? '已接受' : '已拒绝' }}
+              </NTag>
+              <template v-else>
+                <NButton size="small" type="primary" @click="handleRoomInvitation(n, 'accept')">接受邀请</NButton>
+                <NButton size="small" @click="handleRoomInvitation(n, 'decline')">拒绝</NButton>
+              </template>
+            </div>
             <div class="notification-actions">
               <NButton
                 v-if="!store.isRead(n)"

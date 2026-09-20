@@ -1,32 +1,32 @@
 schema_version: "1.0"
 policies:
   - tool_key: scrna.scanpy-qc
-    allowed_images: ["omichub-analysis:scrna-2026.07"]
+    allowed_images: ["cygnusx-analysis:scrna-v0.0.3dev"]
     allowed_write_roots: ["/workspace/results", "/workspace/logs"]
     network_enabled: false
     allow_privileged: false
     docker_socket_allowed: false
   - tool_key: ebi_download.run
-    allowed_images: ["omichub/ebi-download:latest"]
+    allowed_images: ["cygnusx/ebi-download:latest"]
     allowed_write_roots: ["/workspace/staging", "/workspace/input"]
     network_enabled: true
     allow_privileged: false
     docker_socket_allowed: false
   - tool_key: rnaflow.validate
-    allowed_images: ["omichub/rnaflow:latest"]
+    allowed_images: ["cygnusx/rnaflow:latest"]
     allowed_write_roots: ["/workspace/workflow", "/workspace/logs"]
     network_enabled: false
     allow_privileged: false
     docker_socket_allowed: false
   - tool_key: rnaflow.run
-    allowed_images: ["omichub/rnaflow:latest"]
+    allowed_images: ["cygnusx/rnaflow:latest"]
     allowed_write_roots: ["/workspace/workflow", "/workspace/results", "/workspace/logs"]
     network_enabled: false
     allow_privileged: false
     docker_socket_allowed: false
     apptainer_compute_only: true
   - tool_key: plot.deg_volcano
-    allowed_images: ["omichub/analysis-plot:latest"]
+    allowed_images: ["cygnusx/analysis-plot:latest"]
     allowed_write_roots: ["/workspace/plots", "/workspace/logs"]
     network_enabled: false
     allow_privileged: false

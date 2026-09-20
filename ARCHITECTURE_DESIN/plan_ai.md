@@ -1,4 +1,4 @@
-# OmicHub 多智能体编排、共享工作区与 A2A 架构实施方案（评审稿）
+# CygnusX 多智能体编排、共享工作区与 A2A 架构实施方案（评审稿）
 
 > **状态：实施中（基础能力已落地，未完成生产验收）。**
 >
@@ -14,7 +14,7 @@
 >
 > 所有 MAS API 仍受 `mas_enabled=false`（默认值）保护，因此不会改变现有单 Agent Chat/Studio 的默认路径。
 >
-> 本文将当前 OmicHub 的“单 Agent + MCP 工具调用闭环”逐步升级为可审计的多智能体系统（MAS）。目标是让用户在一个会话内发起跨数据下载、RNA-seq 流程和绘图等复合任务，由 Orchestrator 生成 DAG、各领域 Agent 在共享工作区内交付文件指针，并以 A2A 事件协议可靠协作。
+> 本文将当前 CygnusX 的“单 Agent + MCP 工具调用闭环”逐步升级为可审计的多智能体系统（MAS）。目标是让用户在一个会话内发起跨数据下载、RNA-seq 流程和绘图等复合任务，由 Orchestrator 生成 DAG、各领域 Agent 在共享工作区内交付文件指针，并以 A2A 事件协议可靠协作。
 >
 > 本方案坚持增量演进：保留现有 Studio、MCP、Celery、Redis、任务中心和工作流监控；不在本阶段替换现有聊天链路，也不把大文件、完整日志或完整矩阵放进模型上下文。
 
@@ -50,13 +50,13 @@
 
 | 当前能力 | 现有位置 | 本方案中的定位 |
 | --- | --- | --- |
-| Agent 配置、模型/Prompt/MCP 组装 | `src/omichub/application/services/agent_service.py`、`data/ai/*.yaml` | 保留为 Agent 注册中心；新增“可执行角色/能力声明”。 |
-| 单 Agent 流式 Tool-call 闭环 | `src/omichub/application/services/chat_service.py` | 保留为每个领域 Agent 的局部执行循环；MAS 在其外层增加 DAG 调度。 |
-| MCP Server 注册表和客户端 | `src/omichub/infrastructure/database/models/mcp.py`、`src/omichub/infrastructure/mcp/` | 作为受控工具目录；扩展为管道/容器工具的统一入口。 |
-| Studio 沙盒与长任务 | `src/omichub/application/services/studio_tools.py`、`src/omichub/infrastructure/celery_app/tasks/studio.py` | 复用用于代码探查、脚本与绘图；不作为重型流程的唯一执行器。 |
+| Agent 配置、模型/Prompt/MCP 组装 | `src/cygnusx/application/services/agent_service.py`、`data/ai/*.yaml` | 保留为 Agent 注册中心；新增“可执行角色/能力声明”。 |
+| 单 Agent 流式 Tool-call 闭环 | `src/cygnusx/application/services/chat_service.py` | 保留为每个领域 Agent 的局部执行循环；MAS 在其外层增加 DAG 调度。 |
+| MCP Server 注册表和客户端 | `src/cygnusx/infrastructure/database/models/mcp.py`、`src/cygnusx/infrastructure/mcp/` | 作为受控工具目录；扩展为管道/容器工具的统一入口。 |
+| Studio 沙盒与长任务 | `src/cygnusx/application/services/studio_tools.py`、`src/cygnusx/infrastructure/celery_app/tasks/studio.py` | 复用用于代码探查、脚本与绘图；不作为重型流程的唯一执行器。 |
 | Redis、Celery 和计算 Worker | `deploy/docker/docker-compose.worker.yml`、Celery 配置 | 复用为状态缓存、事件流和异步执行底座。 |
-| 共享数据卷 | Worker 中的 `/data/omichub` 挂载 | 规范为 MAS 的唯一服务端工作区根；容器内映射到 `/workspace`。 |
-| 工作流任务/事件监控 | `src/omichub/application/services/workflow_monitor_service.py`、`workflow_monitor_pubsub.py` | 复用前端可观测入口；新增 MAS Run/Node 的投影数据。 |
+| 共享数据卷 | Worker 中的 `/data/cygnusx` 挂载 | 规范为 MAS 的唯一服务端工作区根；容器内映射到 `/workspace`。 |
+| 工作流任务/事件监控 | `src/cygnusx/application/services/workflow_monitor_service.py`、`workflow_monitor_pubsub.py` | 复用前端可观测入口；新增 MAS Run/Node 的投影数据。 |
 | RNAFlow/EBIDownload 仓库 | `pipelines/RNAFlow/`、`pipelines/EBIDownload/` | 首批 MCP 化的领域工具。 |
 
 ### 2.2 当前缺口
@@ -77,7 +77,7 @@
 5. **容器执行经由受控执行器。** MCP Tool 只声明意图与参数，后端根据白名单镜像、挂载策略和资源限制生成容器任务；严禁向 Agent、Studio 沙盒或 RNAFlow 容器挂载 Docker socket。
 6. **嵌套流程统一使用 Apptainer。** RNAFlow 中需要额外镜像的 Snakemake 规则通过专用计算节点上的 Apptainer 无特权运行；控制面 Docker 容器只提交受控任务，不能形成 Docker-in-Docker 权限链。
 7. **公共原始数据采用内容寻址缓存。** 可复用 FASTQ 只在受控只读缓存中保存一份，Run 工作区通过经过校验的只读链接引用；缓存命中、并发下载和清理均由服务端管理。
-6. **先采用单仓库模块化实现。** 首版不拆独立微服务；以 `src/omichub/domain/mas`、`application/services/mas_*`、Celery 任务和 API 路由组织，降低运维复杂度。
+6. **先采用单仓库模块化实现。** 首版不拆独立微服务；以 `src/cygnusx/domain/mas`、`application/services/mas_*`、Celery 任务和 API 路由组织，降低运维复杂度。
 
 ---
 
@@ -110,7 +110,7 @@
 │  受控计算面                                                         │
 │  MCP 工具 → Container Execution Gateway → Celery Workers            │
 │  EBIDownload | RNAFlow | Studio Python/R | 图表渲染                   │
-│  共享卷：host `/data/omichub/runs/<run_id>` ↔ container `/workspace` │
+│  共享卷：host `/data/cygnusx/runs/<run_id>` ↔ container `/workspace` │
 └───────────────────┬────────────────────────────────────────────────┘
                     │ 产物与日志落盘；事件/索引回传
 ┌───────────────────▼────────────────────────────────────────────────┐
@@ -139,7 +139,7 @@
 服务端真实根路径使用既有共享卷：
 
 ```text
-/data/omichub/runs/<run_id>/
+/data/cygnusx/runs/<run_id>/
 ├── input/                 # 用户上传或数据管理软链接；默认只读
 ├── staging/               # 下载/解压的临时目录；可清理
 ├── workflow/              # RNAFlow 配置、样本表、Snakemake 元数据
@@ -153,13 +153,13 @@
 所有容器仅看到该 Run 的目录，统一挂载为：
 
 ```text
-host: /data/omichub/runs/<run_id>
+host: /data/cygnusx/runs/<run_id>
 container: /workspace
 ```
 
 规则：
 
-1. 禁止模型生成 `/data/omichub`、`/etc`、用户 home 等宿主机路径；Prompt 中只暴露 `/workspace`。
+1. 禁止模型生成 `/data/cygnusx`、`/etc`、用户 home 等宿主机路径；Prompt 中只暴露 `/workspace`。
 2. API/执行器将容器路径映射回服务端路径，且必须使用 `Path.resolve()` 校验其仍位于 Run 根目录内。
 3. `input/` 挂载为只读；工具写入 `staging/`、`workflow/`、`results/`、`plots/` 或节点专属 `scratch/`。
 4. 不同用户/Run 绝不共享可写路径；跨 Run 仅可引用经过授权的只读 Artifact，禁止共享可写目录。
@@ -170,13 +170,13 @@ container: /workspace
 原始 FASTQ 不应复制到每一个 Run。新增由 `WorkspaceManager` 控制的内容寻址缓存，物理数据与 Run 工作区分离：
 
 ```text
-/data/omichub/artifact-cache/raw/sha256/<digest>/
+/data/cygnusx/artifact-cache/raw/sha256/<digest>/
 ├── payload.fastq.gz
 ├── source.json            # URI、来源版本/ETag、下载时间、授权范围
 ├── checksum.json          # SHA-256、大小、验证工具与结果
 └── cache_state.json       # writing | ready | quarantined | expired
 
-/data/omichub/runs/<run_id>/input/raw_data/
+/data/cygnusx/runs/<run_id>/input/raw_data/
 └── sample_01_R1.fastq.gz -> 受控只读链接至 artifact-cache/raw/sha256/<digest>/payload.fastq.gz
 ```
 
@@ -305,7 +305,7 @@ PENDING → READY → DISPATCHED → RUNNING → VALIDATING → SUCCEEDED
 第一阶段采用 Redis Stream：
 
 ```text
-Stream: omichub:mas:events
+Stream: cygnusx:mas:events
 Consumer groups:
   - mas-scheduler
   - mas-monitor-projection
@@ -531,7 +531,7 @@ Orchestrator 不负责：执行 shell、读取大文件、生成最终统计结�
 | 策略项 | 示例 |
 | --- | --- |
 | `executor` | `celery_container`、`studio_sandbox`、`remote_api`。 |
-| `image_allowlist` | `omichub-rnaflow:<immutable-tag>`、`omichub-analysis-plot:<immutable-tag>`。 |
+| `image_allowlist` | `cygnusx-rnaflow:<immutable-tag>`、`cygnusx-analysis-plot:<immutable-tag>`。 |
 | `command_template` | 服务端固定模板；模型不能提交任意 shell。 |
 | `input_mounts` / `output_mounts` | 显式声明 `/workspace/input:ro`、`/workspace/results:rw`。 |
 | `network_mode` | `none`、`restricted-egress`；仅下载工具允许受限外网。 |
@@ -586,7 +586,7 @@ Orchestrator 不负责：执行 shell、读取大文件、生成最终统计结�
 1. 使用不可变镜像 tag 或 digest；禁止在生产节点运行 `latest`。
 2. 默认非 root 用户、只读根文件系统、`no-new-privileges`、capability drop、PID/内存/CPU 限制。
 3. **禁止 Docker-in-Docker。** 不挂载 `/var/run/docker.sock`，不使用 `--privileged`，不允许任何 Agent/Studio/RNAFlow 容器调用宿主 Docker API。
-4. **嵌套工作流统一走 Apptainer。** 在专用计算节点（裸机或受控 VM）部署 Apptainer；执行网关通过受限作业接口提交任务，Snakemake 规则使用 Apptainer/Singularity profile 和固定镜像来源。Apptainer 进程以非 root 身份运行，仅 bind 当前 Run 的 `/data/omichub/runs/<run_id>` 到 `/workspace`，不 bind 宿主根目录、Docker socket 或其他 Run。
+4. **嵌套工作流统一走 Apptainer。** 在专用计算节点（裸机或受控 VM）部署 Apptainer；执行网关通过受限作业接口提交任务，Snakemake 规则使用 Apptainer/Singularity profile 和固定镜像来源。Apptainer 进程以非 root 身份运行，仅 bind 当前 Run 的 `/data/cygnusx/runs/<run_id>` 到 `/workspace`，不 bind 宿主根目录、Docker socket 或其他 Run。
 5. 若 RNAFlow 本体由 Docker Worker 启动，Docker Worker 只负责控制/提交；实际需要嵌套镜像的规则必须路由到上述 Apptainer 计算节点，不在 Docker 容器内再启动 Docker 或伪装的特权 Apptainer。
 6. `input` 只读、输出目录最小可写；不允许 host network、host PID、任意宿主路径挂载。
 7. 下载工具独立网络策略；分析/绘图容器及 Apptainer 作业默认无网络，避免数据外泄和不可重现依赖下载。
@@ -724,9 +724,9 @@ Orchestrator 不负责：执行 shell、读取大文件、生成最终统计结�
 
 **目标：** 固化边界和 schema，不改变用户默认路径。
 
-1. 建立 `src/omichub/domain/mas/`：Plan、Node、Artifact、Event、Approval 的 Pydantic/domain 模型与状态转移规则。
+1. 建立 `src/cygnusx/domain/mas/`：Plan、Node、Artifact、Event、Approval 的 Pydantic/domain 模型与状态转移规则。
 2. 定义 JSON Schema/Pydantic 校验：Plan、A2A 信封、各事件类型、Artifact 元数据、错误码。
-3. 确定 `/data/omichub/runs/<run_id>` 工作区布局、容器 `/workspace` 映射、内容寻址缓存与路径安全工具。
+3. 确定 `/data/cygnusx/runs/<run_id>` 工作区布局、容器 `/workspace` 映射、内容寻址缓存与路径安全工具。
 4. 在工具 schema 中定义首批 MCP 执行策略，完成只读 preflight，不执行下载/流程；明确 Docker socket 禁用和 Apptainer 专用计算节点契约。
 5. 编写架构决策记录（ADR）：Redis Stream、Transactional Outbox、Artifact 版本化/缓存生命周期、Apptainer 嵌套执行、QC 质量门与覆盖审计。
 
@@ -854,20 +854,20 @@ Orchestrator 不负责：执行 shell、读取大文件、生成最终统计结�
 ### 新增
 
 ```text
-src/omichub/domain/mas/
-src/omichub/application/services/mas_orchestrator_service.py
-src/omichub/application/services/mas_scheduler_service.py
-src/omichub/application/services/artifact_service.py
-src/omichub/application/services/workspace_service.py
-src/omichub/application/services/a2a_event_service.py
-src/omichub/application/schemas/mas.py
-src/omichub/api/v1/mas.py
-src/omichub/infrastructure/database/models/mas.py
-src/omichub/infrastructure/database/repositories/mas_repository.py
-src/omichub/infrastructure/celery_app/tasks/mas.py
-src/omichub/infrastructure/mas/redis_streams.py
-src/omichub/infrastructure/mas/outbox_publisher.py
-src/omichub/infrastructure/execution/container_gateway.py
+src/cygnusx/domain/mas/
+src/cygnusx/application/services/mas_orchestrator_service.py
+src/cygnusx/application/services/mas_scheduler_service.py
+src/cygnusx/application/services/artifact_service.py
+src/cygnusx/application/services/workspace_service.py
+src/cygnusx/application/services/a2a_event_service.py
+src/cygnusx/application/schemas/mas.py
+src/cygnusx/api/v1/mas.py
+src/cygnusx/infrastructure/database/models/mas.py
+src/cygnusx/infrastructure/database/repositories/mas_repository.py
+src/cygnusx/infrastructure/celery_app/tasks/mas.py
+src/cygnusx/infrastructure/mas/redis_streams.py
+src/cygnusx/infrastructure/mas/outbox_publisher.py
+src/cygnusx/infrastructure/execution/container_gateway.py
 data/ai/orchestrator.yaml
 data/ai/prompts/orchestrator.md
 data/ai/prompts/mas/common_guardrails.md
@@ -880,13 +880,13 @@ tests/e2e/test_mas_rnaflow_volcano.py
 ### 修改
 
 ```text
-src/omichub/application/services/agent_service.py
-src/omichub/application/services/chat_service.py
-src/omichub/application/services/workflow_monitor_service.py
-src/omichub/infrastructure/celery_app/celery.py
-src/omichub/api/v1/router.py
-src/omichub/core/config.py
-src/omichub/tools/schema_loader.py
+src/cygnusx/application/services/agent_service.py
+src/cygnusx/application/services/chat_service.py
+src/cygnusx/application/services/workflow_monitor_service.py
+src/cygnusx/infrastructure/celery_app/celery.py
+src/cygnusx/api/v1/router.py
+src/cygnusx/core/config.py
+src/cygnusx/tools/schema_loader.py
 data/ai/code.yaml
 data/ai/rnaseq.yaml
 data/ai/viz.yaml
@@ -979,7 +979,7 @@ MAS_HITL_REQUIRED_FOR_EXTERNAL_DOWNLOAD=true
 
 ## 16. 评审决策点（实施前需确认）
 
-1. **工作区根路径：** 是否确认服务端统一采用 `/data/omichub/runs/<run_id>`，容器统一投影为 `/workspace`？
+1. **工作区根路径：** 是否确认服务端统一采用 `/data/cygnusx/runs/<run_id>`，容器统一投影为 `/workspace`？
 2. **运行确认：** 是否确认外部下载、长时间 RNAFlow 和超过资源阈值的任务必须由用户点击计划卡后执行？
 3. **消息底座：** 是否同意第一阶段使用现有 Redis + PostgreSQL Outbox，而不新增 NATS/Kafka？
 4. **持久化边界：** 是否同意新增独立 `mas_*` 表，而不是复用/过载现有任务表的 JSON 参数字段？

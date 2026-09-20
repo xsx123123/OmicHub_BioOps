@@ -31,6 +31,16 @@ const languageBadge = computed(() => LANG_BADGES[language.value] || language.val
 
 const code = computed(() => String(props.tool.arguments?.code ?? ''))
 
+/** ui_payload/result 被 200KB 落库护栏截断：优先读信封层级标记，兼容载荷本身即截断标记的旧数据 */
+const payloadTruncated = computed(() => {
+  if (props.tool.uiPayloadTruncation?.payload_truncated || props.tool.resultTruncation?.payload_truncated) {
+    return true
+  }
+  return props.tool.uiPayload?._cygnusx_payload_truncated === true
+    || (props.tool.result && typeof props.tool.result === 'object'
+      && (props.tool.result as Record<string, unknown>)._cygnusx_payload_truncated === true)
+})
+
 // 代码超过折叠高度（约 5 行）时提供展开/收起，避免长代码被静默截断
 const COLLAPSED_LINES = 5
 const codeLineCount = computed(() => (code.value ? code.value.split('\n').length : 0))
@@ -98,6 +108,10 @@ const hasOutput = computed(() => stdoutText.value || stderrText.value || props.t
 
     <div class="editor-wrap" :class="{ expanded: codeExpanded }">
       <CodeEditor :model-value="code" readonly />
+    </div>
+
+    <div v-if="payloadTruncated" class="truncation-notice">
+      内容已截断，完整结果见产物/归档
     </div>
 
     <div v-if="hasOutput || tool.status === 'running'" class="output-block">
@@ -184,6 +198,14 @@ const hasOutput = computed(() => stdoutText.value || stderrText.value || props.t
 
 .output-block {
   padding: 8px 12px;
+}
+
+.truncation-notice {
+  padding: 6px 12px;
+  border-top: 1px solid var(--chat-border, #e8ecf1);
+  background: rgba(240, 156, 60, 0.08);
+  color: var(--chat-text-secondary, #8a6d3b);
+  font-size: 11px;
 }
 
 .output-section {

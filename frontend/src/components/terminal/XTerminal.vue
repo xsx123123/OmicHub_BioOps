@@ -128,7 +128,7 @@ watch(connected, (val) => {
   if (val && term) {
     send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }))
     term.write(
-      '\r\n\x1b[36m[OmicHub 沙盒] 已挂载 workspace 等工作目录；删除类操作（如 rm）将弹出确认，防止误删数据。\x1b[0m\r\n',
+      '\r\n\x1b[36m[CygnusX 沙盒] 已挂载 workspace 等工作目录；删除类操作（如 rm）将弹出确认，防止误删数据。\x1b[0m\r\n',
     )
   }
 })

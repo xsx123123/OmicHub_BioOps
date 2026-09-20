@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from omichub.infrastructure.config.prompt_loader import PromptRegistry
+from cygnusx.infrastructure.config.prompt_loader import PromptRegistry
 
 
 def _registry(tmp_path: Path, content: str, variables: list[str] | None = None) -> PromptRegistry:
@@ -26,7 +26,7 @@ def _registry(tmp_path: Path, content: str, variables: list[str] | None = None) 
 
 def test_prompt_registry_reads_and_renders(tmp_path: Path):
     registry = _registry(tmp_path, "Hello {{name}}", ["name"])
-    assert registry.render("sample", name="OmicHub") == "Hello OmicHub"
+    assert registry.render("sample", name="CygnusX") == "Hello CygnusX"
 
 
 def test_prompt_registry_rejects_missing_or_unknown_variables(tmp_path: Path):

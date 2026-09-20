@@ -95,4 +95,13 @@ describe('KimiChatInput roomMode 发送链路', () => {
     expect(highlight!.innerHTML).toContain('mention-chip')
     expect(highlight!.textContent).toContain('@workspace/chat-uploads/a.treefile')
   })
+
+  it('普通文字输入不创建高亮覆盖层，避免每个字符触发覆盖层重绘', async () => {
+    const { el } = mountComposer({ roomMode: true }, () => undefined)
+    await nextTick()
+    await typeText(el, '解卷积解卷积')
+
+    expect(el.querySelector('.input-highlight')).toBeNull()
+    expect(el.querySelector('.input-wrapper')?.classList.contains('has-highlight')).toBe(false)
+  })
 })

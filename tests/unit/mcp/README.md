@@ -19,7 +19,7 @@
 ### 运行所有 MCP Builder 测试
 
 ```bash
-cd /home/zj/zj_code_libarary/OmicHub
+cd /home/zj/zj_code_libarary/CygnusX
 PYTHONPATH=src python -m pytest tests/unit/mcp/ -v --noconftest
 ```
 
@@ -50,7 +50,7 @@ PYTHONPATH=src python -m pytest "tests/unit/mcp/test_builder_safety.py::test_for
 
 ### 1. test_builder_safety.py（29 cases）
 
-测试 `omichub.infrastructure.mcp.builder.safety.StaticSafetyChecker` 的 AST 安全检查逻辑。
+测试 `cygnusx.infrastructure.mcp.builder.safety.StaticSafetyChecker` 的 AST 安全检查逻辑。
 
 #### 测试覆盖
 
@@ -112,7 +112,7 @@ assert len(report.warnings) > 0
 
 ### 2. test_builder_versioning.py（20 cases）
 
-测试 `omichub.infrastructure.mcp.builder.versioning` 的 SemVer 版本管理工具。
+测试 `cygnusx.infrastructure.mcp.builder.versioning` 的 SemVer 版本管理工具。
 
 #### 测试覆盖
 
@@ -132,7 +132,7 @@ assert len(report.warnings) > 0
     ("abc", False),
 ])
 def test_is_valid_semver(version, expected):
-    from omichub.infrastructure.mcp.builder.versioning import is_valid_semver
+    from cygnusx.infrastructure.mcp.builder.versioning import is_valid_semver
     assert is_valid_semver(version) is expected
 ```
 
@@ -174,7 +174,7 @@ def test_is_valid_semver(version, expected):
 
 ### 为什么需要 `--noconftest`？
 
-项目根目录的 `tests/conftest.py` 会导入完整的 `omichub.main.app`，这需要安装所有生产依赖（bcrypt、litellm 等）。
+项目根目录的 `tests/conftest.py` 会导入完整的 `cygnusx.main.app`，这需要安装所有生产依赖（bcrypt、litellm 等）。
 
 MCP Builder 的核心模块（safety、versioning）是独立的，不需要这些重依赖，因此使用 `--noconftest` 标志跳过 conftest.py 的加载。
 
@@ -228,16 +228,16 @@ PYTHONPATH=src python -m pytest tests/unit/mcp/ -v --noconftest --tb=short
 
 # 生成覆盖率报告（可选）
 pip install pytest-cov
-PYTHONPATH=src python -m pytest tests/unit/mcp/ --cov=omichub.infrastructure.mcp.builder --cov-report=term-missing --noconftest
+PYTHONPATH=src python -m pytest tests/unit/mcp/ --cov=cygnusx.infrastructure.mcp.builder --cov-report=term-missing --noconftest
 ```
 
 ## 故障排查
 
-### 问题：ModuleNotFoundError: No module named 'omichub'
+### 问题：ModuleNotFoundError: No module named 'cygnusx'
 
 **解决方案**：设置 PYTHONPATH
 ```bash
-export PYTHONPATH=/home/zj/zj_code_libarary/OmicHub/src
+export PYTHONPATH=/home/zj/zj_code_libarary/CygnusX/src
 # 或在命令中指定
 PYTHONPATH=src python -m pytest tests/unit/mcp/ -v --noconftest
 ```
@@ -261,11 +261,11 @@ python -m pytest tests/unit/mcp/ -v --noconftest
 ## 相关文档
 
 - [MCP Builder 系统架构](../../../docs/mcp_builder/ARCHITECTURE.md)
-- [AST 安全检查器规范](../../../src/omichub/infrastructure/mcp/builder/safety.py)
-- [版本管理工具](../../../src/omichub/infrastructure/mcp/builder/versioning.py)
+- [AST 安全检查器规范](../../../src/cygnusx/infrastructure/mcp/builder/safety.py)
+- [版本管理工具](../../../src/cygnusx/infrastructure/mcp/builder/versioning.py)
 - [Agent 配置指南](../../../data/ai/mcp_builder.yaml)
 
 ## 维护者
 
-- OmicHub 开发团队
+- CygnusX 开发团队
 - 最后更新：2026-07-29

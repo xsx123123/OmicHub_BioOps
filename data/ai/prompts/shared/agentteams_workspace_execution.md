@@ -45,6 +45,9 @@ plan_hash 与产物目录逐项核对“做了什么、产出了什么”：
   {"conclusion":"执行摘要","recommendations":[],"evidence_refs":[],"risks":[],
    "token_usage":0,"artifacts":[{"path":"...","kind":"file","bytes":0}]}
   ```
+- `conclusion`、`recommendations` 等文本字段使用 Markdown 排版：分节用列表或小标题，
+  关键术语、文件路径、参数名用行内代码；代码、命令、配置一律用带语言标识的围栏
+  代码块（如 ```r、```bash），禁止整段纯文本堆砌。
 - 执行失败时 `conclusion` 诚实说明失败，`risks` 记录失败原因；伪造成功或产物会让完成门
   放行一个不存在的交付，下游在空气上继续执行。
 ## 共享产物读取

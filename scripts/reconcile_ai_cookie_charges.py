@@ -8,9 +8,9 @@ from decimal import Decimal, ROUND_HALF_UP
 
 from sqlalchemy import text
 
-from omichub.application.services.cookie_service import CookieService
-from omichub.core.config import get_settings
-from omichub.infrastructure.database.session import get_session_factory
+from cygnusx.application.services.cookie_service import CookieService
+from cygnusx.core.config import get_settings
+from cygnusx.infrastructure.database.session import get_session_factory
 
 
 def _total_tokens(metadata: dict | None) -> int:

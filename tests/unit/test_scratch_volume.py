@@ -6,11 +6,11 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from omichub.domain.file.value_objects import FileSource
-from omichub.infrastructure.config.storage_config import StorageConfig
-from omichub.infrastructure.storage.backend import LocalStorageBackend
-from omichub.infrastructure.storage.path_factory import StoragePathFactory
-from omichub.infrastructure.storage.scratch_volume import ScratchVolumeManager
+from cygnusx.domain.file.value_objects import FileSource
+from cygnusx.infrastructure.config.storage_config import StorageConfig
+from cygnusx.infrastructure.storage.backend import LocalStorageBackend
+from cygnusx.infrastructure.storage.path_factory import StoragePathFactory
+from cygnusx.infrastructure.storage.scratch_volume import ScratchVolumeManager
 
 
 def _manager(tmp_path: Path, user_id: UUID | None = None):

@@ -5,11 +5,12 @@ description: 把数据变成 publication-ready 的图表。
 avatar: "\U0001F4CA"
 color: "#f97316"
 category: visualization
-model: qwen3.7-plus
+model: qdoubao-seed-evolving
 prompt_file: prompts/visualization.md
 welcome_message: "你好！我是可视化助手，搭载 Code Sandbox 与 BioDB，并配备图表绘制技能。想把哪份数据画出来？"
 temperature: 0.7
-max_tokens: 32768
+max_tokens: 65536
+package_catalogs: [visualization, io]
 mcp_ids: []
 skill_ids:
   # 绘图工具技能（来源：pipelines/tools/skills/）
@@ -63,5 +64,11 @@ studio:
   enabled: true
   # 绘图/可视化属于分析交付任务：选中该 Agent（含路由/转介进入）时默认进入 AI 工作台会话
   default_mode: studio
+  # 这是可视化助手的专用运行时绑定，不是提示词装饰：
+  # agent_loader 会校验 profile 并解析为 cygnusx-analysis:plot-* 镜像，Studio
+  # 会话创建接口在未收到用户显式 runtime_profile/能力覆盖时必须沿用该镜像。
+  # 不要改成 analysis-core，也不要为了获得 browser/document 能力把默认能力列表
+  # 写回请求；需要浏览器或文档时应由用户明确提出，再走能力覆盖分支。任何改动前
+  # 必须先向用户说明将影响绘图包（ggplot2/patchwork/ggtree 等）并询问确认。
   runtime_profile: analysis-plot
   required_capabilities: [python, r, plotting]

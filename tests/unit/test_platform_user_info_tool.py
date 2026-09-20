@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from omichub.infrastructure.mcp.presets import PLATFORM_HANDLERS, PLATFORM_PRESET_TOOLS
+from cygnusx.infrastructure.mcp.presets import PLATFORM_HANDLERS, PLATFORM_PRESET_TOOLS
 
 
 @pytest.mark.unit
@@ -13,7 +13,7 @@ def test_platform_get_user_info_tool_is_registered() -> None:
         (item for item in PLATFORM_PRESET_TOOLS if item["name"] == "platform_get_user_info"),
         None,
     )
-    assert tool is not None, "platform_get_user_info 必须注册进 omichub-platform 预设"
+    assert tool is not None, "platform_get_user_info 必须注册进 cygnusx-platform 预设"
     # 余额查询无需入参；确保模型可零参调用
     assert tool["inputSchema"]["type"] == "object"
     assert tool["inputSchema"].get("properties") == {}
@@ -32,7 +32,7 @@ def test_platform_get_user_info_description_forbids_guessing() -> None:
 
 @pytest.mark.unit
 def test_strip_tool_artifacts_removes_tool_messages_and_fields() -> None:
-    from omichub.infrastructure.ai_provider.openai_compatible import _strip_tool_artifacts
+    from cygnusx.infrastructure.ai_provider.openai_compatible import _strip_tool_artifacts
 
     messages = [
         {"role": "user", "content": "我还有多少饼干？"},

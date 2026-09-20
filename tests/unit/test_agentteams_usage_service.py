@@ -9,12 +9,12 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from omichub.application.services import agentteams_usage_service as usage_service
-from omichub.application.services.agentteams_usage_service import record_consultation_usage
-from omichub.application.services.cookie_service import CookieService
-from omichub.domain.cookie.entities import CookieAccount
-from omichub.domain.cookie.value_objects import TransactionType
-from omichub.infrastructure.database.models.chat import ChatMessageModel, ChatSessionModel
+from cygnusx.application.services import agentteams_usage_service as usage_service
+from cygnusx.application.services.agentteams_usage_service import record_consultation_usage
+from cygnusx.application.services.cookie_service import CookieService
+from cygnusx.domain.cookie.entities import CookieAccount
+from cygnusx.domain.cookie.value_objects import TransactionType
+from cygnusx.infrastructure.database.models.chat import ChatMessageModel, ChatSessionModel
 
 
 class _FakeNested:

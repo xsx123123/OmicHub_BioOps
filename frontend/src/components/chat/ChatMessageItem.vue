@@ -86,6 +86,7 @@ async function copyMessage() {
           <MarkdownRenderer :content="message.content || ''" />
           <span v-if="isStreaming" class="cursor-blink">▊</span>
         </template>
+        <div v-if="isError && message.error" class="error-reason">{{ message.error }}</div>
       </div>
 
       <div v-if="!isStreaming && !isUser && message.content" class="message-actions">
@@ -175,6 +176,11 @@ async function copyMessage() {
 }
 .error-content {
   background: var(--arco-danger-light) !important;
+  color: var(--arco-danger);
+}
+.error-reason {
+  margin-top: 6px;
+  font-size: 13px;
   color: var(--arco-danger);
 }
 .reasoning-block {

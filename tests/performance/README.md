@@ -3,8 +3,8 @@
 ## 50 并发查询
 
 ```bash
-OMICHUB_ACCESS_TOKEN=<access-token> \
-OMICHUB_BLAST_DB_ID=<optional-db-uuid> \
+CYGNUSX_ACCESS_TOKEN=<access-token> \
+CYGNUSX_BLAST_DB_ID=<optional-db-uuid> \
 uvx locust -f tests/performance/locust_blast.py \
   --host http://localhost:8000 \
   --headless --users 50 --spawn-rate 5 --run-time 10m \

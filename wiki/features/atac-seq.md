@@ -16,7 +16,7 @@ ATAC-seq 用于研究染色质开放区域，是表观遗传学研究的重要�
 - 每个样本 20M ~ 50M reads
 - 生物学重复 ≥ 3
 
-## OmicHub ATAC-seq 流程
+## CygnusX ATAC-seq 流程
 
 基于 ATACFlow，主要步骤：
 

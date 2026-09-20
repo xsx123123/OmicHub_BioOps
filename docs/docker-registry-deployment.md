@@ -1,4 +1,4 @@
-# OmicHub 镜像仓库与快速部署方案
+# CygnusX 镜像仓库与快速部署方案
 
 > 目标：把构建好的镜像推送到镜像仓库（ACR / Docker Hub / Harbor），部署方 `docker compose pull` 即可启动，省去本地 30+ 分钟的 `uv sync` / conda 构建。
 
@@ -25,8 +25,8 @@
 | 镜像 | Dockerfile | 当前本地名 | 服务 |
 |------|-----------|-----------|------|
 | Web | `deploy/docker/Dockerfile` | `docker-web` | web / beat / flower |
-| Worker | `deploy/docker/Dockerfile.worker` | `omichub-worker:dev` | worker |
-| Phylo Worker | `deploy/docker/Dockerfile.phylo` | `omichub-phylo-worker:dev` | phylo-worker |
+| Worker | `deploy/docker/Dockerfile.worker` | `cygnusx-worker:dev` | worker |
+| Phylo Worker | `deploy/docker/Dockerfile.phylo` | `cygnusx-phylo-worker:dev` | phylo-worker |
 
 > 这三个镜像包含业务代码，每次发版需重建。
 
@@ -34,19 +34,19 @@
 
 | 镜像 | Dockerfile | 当前本地名 | 用途 |
 |------|-----------|-----------|------|
-| Analysis Core | `deploy/runtime-images/core.Dockerfile` | `omichub-analysis:core-2026.07` | Studio Python 运行时 |
-| Analysis Plot | `deploy/runtime-images/plot.Dockerfile` | `omichub-analysis:plot-2026.07` | 绑图工具链 |
-| Analysis scRNA | `deploy/runtime-images/scrna.Dockerfile` | `omichub-analysis:scrna-2026.07` | Scanpy 单细胞 |
+| Analysis Core | `deploy/runtime-images/core.Dockerfile` | `cygnusx-analysis:core-2026.07` | Studio Python 运行时 |
+| Analysis Plot | `deploy/runtime-images/plot.Dockerfile` | `cygnusx-analysis:plot-2026.07` | 绑图工具链 |
+| Analysis scRNA | `deploy/runtime-images/scrna.Dockerfile` | `cygnusx-analysis:scrna-2026.07` | Scanpy 单细胞 |
 
 ### 1.3 工具镜像（几乎不变）
 
 | 镜像 | Dockerfile | 当前本地名 | 用途 |
 |------|-----------|-----------|------|
-| Enrichment | `deploy/docker/Dockerfile.enrichment` | `omichub-r-enrichment:<ver>` | GO/KEGG R 分析 |
-| DEG | `deploy/docker/Dockerfile.deg` | `omichub-r-deg:<ver>` | 差异表达 R 分析 |
-| Sandbox Terminal | `deploy/sandbox/Dockerfile` + `tool_configs/terminal/docker/` | `omichub/sandbox-terminal:latest` | 终端沙盒 |
+| Enrichment | `deploy/docker/Dockerfile.enrichment` | `cygnusx-r-enrichment:<ver>` | GO/KEGG R 分析 |
+| DEG | `deploy/docker/Dockerfile.deg` | `cygnusx-r-deg:<ver>` | 差异表达 R 分析 |
+| Sandbox Terminal | `deploy/sandbox/Dockerfile` + `tool_configs/terminal/docker/` | `cygnusx-sandbox-terminal:v0.0.2dev` | 终端沙盒 |
 | Studio Egress Proxy | `deploy/studio/proxy.Dockerfile` | `docker-studio-egress-proxy` | Studio 出站代理 |
-| Phylo Toolkit | `deploy/docker/Dockerfile.phylo` | `omichub/phylo-toolkit:1.0.0` | 系统发育树工具 |
+| Phylo Toolkit | `deploy/docker/Dockerfile.phylo` | `cygnusx/phylo-toolkit:1.0.0` | 系统发育树工具 |
 
 ### 1.4 第三方基础镜像（无需推送）
 
@@ -74,13 +74,13 @@
 
 ```bash
 # 1. 登录阿里云容器镜像服务
-# https://cr.console.aliyun.com → 创建命名空间（如 omichub）
+# https://cr.console.aliyun.com → 创建命名空间（如 cygnusx）
 
 # 2. 本地登录
 docker login --username=<aliyun-account> registry.cn-hangzhou.aliyuncs.com
 
 # 3. 命名空间建议
-# registry.cn-hangzhou.aliyuncs.com/omichub/<image-name>:<tag>
+# registry.cn-hangzhou.aliyuncs.com/cygnusx/<image-name>:<tag>
 ```
 
 ---
@@ -93,10 +93,10 @@ docker login --username=<aliyun-account> registry.cn-hangzhou.aliyuncs.com
 <registry>/<namespace>/<image>:<tag>
 
 例：
-registry.cn-hangzhou.aliyuncs.com/omichub/web:26.8.7
-registry.cn-hangzhou.aliyuncs.com/omichub/worker:26.8.7
-registry.cn-hangzhou.aliyuncs.com/omichub/r-enrichment:1.2.0
-registry.cn-hangzhou.aliyuncs.com/omichub/analysis-core:2026.07
+registry.cn-hangzhou.aliyuncs.com/cygnusx/web:26.8.7
+registry.cn-hangzhou.aliyuncs.com/cygnusx/worker:26.8.7
+registry.cn-hangzhou.aliyuncs.com/cygnusx/r-enrichment:1.2.0
+registry.cn-hangzhou.aliyuncs.com/cygnusx/analysis-core:2026.07
 ```
 
 ### 3.2 Tag 策略
@@ -115,19 +115,19 @@ compose 已支持通过 `.env` 覆盖镜像名。建议的完整变量清单：
 
 ```bash
 # .env（新增镜像仓库段）
-OMICHUB_REGISTRY=registry.cn-hangzhou.aliyuncs.com/omichub
-OMICHUB_VERSION=26.8.7
+CYGNUSX_REGISTRY=registry.cn-hangzhou.aliyuncs.com/cygnusx
+CYGNUSX_VERSION=26.8.7
 
 # 各镜像引用
-OMICHUB_WEB_IMAGE=${OMICHUB_REGISTRY}/web:${OMICHUB_VERSION}
-OMICHUB_WORKER_IMAGE=${OMICHUB_REGISTRY}/worker:${OMICHUB_VERSION}
-OMICHUB_PHYLO_WORKER_IMAGE=${OMICHUB_REGISTRY}/phylo-worker:${OMICHUB_VERSION}
-OMICHUB_ENRICHMENT_IMAGE=${OMICHUB_REGISTRY}/r-enrichment:1.2.0
-OMICHUB_DEG_IMAGE=${OMICHUB_REGISTRY}/r-deg:1.0.0
-OMICHUB_SANDBOX_IMAGE=${OMICHUB_REGISTRY}/sandbox-terminal:2026.07
-OMICHUB_ANALYSIS_CORE=${OMICHUB_REGISTRY}/analysis-core:2026.07
-OMICHUB_ANALYSIS_PLOT=${OMICHUB_REGISTRY}/analysis-plot:2026.07
-OMICHUB_ANALYSIS_SCRNA=${OMICHUB_REGISTRY}/analysis-scrna:2026.07
+CYGNUSX_WEB_IMAGE=${CYGNUSX_REGISTRY}/web:${CYGNUSX_VERSION}
+CYGNUSX_WORKER_IMAGE=${CYGNUSX_REGISTRY}/worker:${CYGNUSX_VERSION}
+CYGNUSX_PHYLO_WORKER_IMAGE=${CYGNUSX_REGISTRY}/phylo-worker:${CYGNUSX_VERSION}
+CYGNUSX_ENRICHMENT_IMAGE=${CYGNUSX_REGISTRY}/r-enrichment:1.2.0
+CYGNUSX_DEG_IMAGE=${CYGNUSX_REGISTRY}/r-deg:1.0.0
+CYGNUSX_SANDBOX_IMAGE=${CYGNUSX_REGISTRY}/sandbox-terminal:2026.07
+CYGNUSX_ANALYSIS_CORE=${CYGNUSX_REGISTRY}/analysis-core:2026.07
+CYGNUSX_ANALYSIS_PLOT=${CYGNUSX_REGISTRY}/analysis-plot:2026.07
+CYGNUSX_ANALYSIS_SCRNA=${CYGNUSX_REGISTRY}/analysis-scrna:2026.07
 ```
 
 ---
@@ -140,8 +140,8 @@ OMICHUB_ANALYSIS_SCRNA=${OMICHUB_REGISTRY}/analysis-scrna:2026.07
 #!/usr/bin/env bash
 set -euo pipefail
 
-REGISTRY="${OMICHUB_REGISTRY:?请设置 OMICHUB_REGISTRY}"
-VERSION="${OMICHUB_VERSION:?请设置 OMICHUB_VERSION}"
+REGISTRY="${CYGNUSX_REGISTRY:?请设置 CYGNUSX_REGISTRY}"
+VERSION="${CYGNUSX_VERSION:?请设置 CYGNUSX_VERSION}"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
@@ -158,18 +158,18 @@ build_and_push() {
 
 log "=== 推送代码镜像 ==="
 build_and_push "docker-web"                    "$REGISTRY/web:$VERSION"
-build_and_push "omichub-worker:dev"            "$REGISTRY/worker:$VERSION"
-build_and_push "omichub-phylo-worker:dev"      "$REGISTRY/phylo-worker:$VERSION"
+build_and_push "cygnusx-worker:dev"            "$REGISTRY/worker:$VERSION"
+build_and_push "cygnusx-phylo-worker:dev"      "$REGISTRY/phylo-worker:$VERSION"
 
 log "=== 推送运行时镜像（变动少，首次推送后跳过）==="
-build_and_push "omichub-analysis:core-2026.07" "$REGISTRY/analysis-core:2026.07"
-build_and_push "omichub-analysis:plot-2026.07" "$REGISTRY/analysis-plot:2026.07"
-build_and_push "omichub-analysis:scrna-2026.07" "$REGISTRY/analysis-scrna:2026.07"
+build_and_push "cygnusx-analysis:core-2026.07" "$REGISTRY/analysis-core:2026.07"
+build_and_push "cygnusx-analysis:plot-2026.07" "$REGISTRY/analysis-plot:2026.07"
+build_and_push "cygnusx-analysis:scrna-2026.07" "$REGISTRY/analysis-scrna:2026.07"
 
 log "=== 推送工具镜像（变动极少，首次推送后跳过）==="
-build_and_push "omichub-r-enrichment:latest"   "$REGISTRY/r-enrichment:1.2.0"
-build_and_push "omichub-r-deg:latest"          "$REGISTRY/r-deg:1.0.0"
-build_and_push "omichub/sandbox-terminal:latest" "$REGISTRY/sandbox-terminal:2026.07"
+build_and_push "cygnusx-r-enrichment:latest"   "$REGISTRY/r-enrichment:1.2.0"
+build_and_push "cygnusx-r-deg:latest"          "$REGISTRY/r-deg:1.0.0"
+build_and_push "cygnusx-sandbox-terminal:v0.0.2dev" "$REGISTRY/sandbox-terminal:2026.07"
 
 # 同步 latest tag（可选）
 if [ "${UPDATE_LATEST:-0}" = "1" ]; then
@@ -190,8 +190,8 @@ log "✅ 全部推送完成"
 make docker-reload
 
 # 推送
-export OMICHUB_REGISTRY=registry.cn-hangzhou.aliyuncs.com/omichub
-export OMICHUB_VERSION=26.8.7
+export CYGNUSX_REGISTRY=registry.cn-hangzhou.aliyuncs.com/cygnusx
+export CYGNUSX_VERSION=26.8.7
 bash scripts/push-images.sh
 ```
 
@@ -199,11 +199,11 @@ bash scripts/push-images.sh
 
 ```bash
 # 只推 web/worker（每次发版）
-docker tag docker-web $OMICHUB_REGISTRY/web:$OMICHUB_VERSION
-docker push $OMICHUB_REGISTRY/web:$OMICHUB_VERSION
+docker tag docker-web $CYGNUSX_REGISTRY/web:$CYGNUSX_VERSION
+docker push $CYGNUSX_REGISTRY/web:$CYGNUSX_VERSION
 
-docker tag omichub-worker:dev $OMICHUB_REGISTRY/worker:$OMICHUB_VERSION
-docker push $OMICHUB_REGISTRY/worker:$OMICHUB_VERSION
+docker tag cygnusx-worker:dev $CYGNUSX_REGISTRY/worker:$CYGNUSX_VERSION
+docker push $CYGNUSX_REGISTRY/worker:$CYGNUSX_VERSION
 ```
 
 ---
@@ -214,30 +214,30 @@ docker push $OMICHUB_REGISTRY/worker:$OMICHUB_VERSION
 
 ```bash
 # 1. 克隆代码（只需要 compose 配置）
-git clone --depth 1 https://github.com/your-org/OmicHub.git
-cd OmicHub
+git clone --depth 1 https://github.com/your-org/CygnusX.git
+cd CygnusX
 
 # 2. 配置环境变量
 cp .env.example .env
 # 编辑 .env：
-#   - 设置 OMICHUB_REGISTRY 与 OMICHUB_VERSION
+#   - 设置 CYGNUSX_REGISTRY 与 CYGNUSX_VERSION
 #   - 配置数据库密码、JWT 密钥、AI API key 等
 #   - 所有 *_IMAGE 变量会自动指向远程镜像
 
 # 3. 拉取所有镜像（首次）
-docker compose --env-file .env -p omichub pull
+docker compose --env-file .env -p cygnusx pull
 
 # 4. 启动
-docker compose --env-file .env -p omichub up -d
+docker compose --env-file .env -p cygnusx up -d
 
 # 5. 跑迁移
-docker exec omichub-web alembic upgrade head
+docker exec cygnusx-web alembic upgrade head
 ```
 
 ### 5.2 增量升级
 
 ```bash
-# 修改 .env 中的 OMICHUB_VERSION=26.8.8
+# 修改 .env 中的 CYGNUSX_VERSION=26.8.8
 docker compose pull web worker    # 只拉变动的
 docker compose up -d web worker   # 滚动重启
 ```
@@ -246,16 +246,16 @@ docker compose up -d web worker   # 滚动重启
 
 ```bash
 # 在有网机器导出镜像
-docker save -o omichub-web-26.8.7.tar $OMICHUB_REGISTRY/web:26.8.7
-docker save -o omichub-worker-26.8.7.tar $OMICHUB_REGISTRY/worker:26.8.7
+docker save -o cygnusx-web-26.8.7.tar $CYGNUSX_REGISTRY/web:26.8.7
+docker save -o cygnusx-worker-26.8.7.tar $CYGNUSX_REGISTRY/worker:26.8.7
 # ... 其他镜像
 
 # 拷贝到离线机器
 scp *.tar user@offline-host:/tmp/
 
 # 离线机器加载
-docker load -i /tmp/omichub-web-26.8.7.tar
-docker load -i /tmp/omichub-worker-26.8.7.tar
+docker load -i /tmp/cygnusx-web-26.8.7.tar
+docker load -i /tmp/cygnusx-worker-26.8.7.tar
 
 # 启动（compose 会用本地镜像）
 docker compose up -d
@@ -337,8 +337,8 @@ jobs:
           file: deploy/docker/Dockerfile
           push: true
           tags: |
-            registry.cn-hangzhou.aliyuncs.com/omichub/web:${{ steps.meta.outputs.VERSION }}
-            registry.cn-hangzhou.aliyuncs.com/omichub/web:latest
+            registry.cn-hangzhou.aliyuncs.com/cygnusx/web:${{ steps.meta.outputs.VERSION }}
+            registry.cn-hangzhou.aliyuncs.com/cygnusx/web:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -349,7 +349,7 @@ jobs:
           file: deploy/docker/Dockerfile.worker
           push: true
           tags: |
-            registry.cn-hangzhou.aliyuncs.com/omichub/worker:${{ steps.meta.outputs.VERSION }}
+            registry.cn-hangzhou.aliyuncs.com/cygnusx/worker:${{ steps.meta.outputs.VERSION }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 ```
@@ -364,11 +364,11 @@ steps:
     inputs:
       dockerfilePath: deploy/docker/Dockerfile
       tag: ${CI_COMMIT_TAG}
-      repository: registry.cn-hangzhou.aliyuncs.com/omichub/web
+      repository: registry.cn-hangzhou.aliyuncs.com/cygnusx/web
   - step: push@docker
     name: 推送 web 镜像
     inputs:
-      repository: registry.cn-hangzhou.aliyuncs.com/omichub/web
+      repository: registry.cn-hangzhou.aliyuncs.com/cygnusx/web
       tag: ${CI_COMMIT_TAG}
 ```
 
@@ -449,41 +449,41 @@ dive $REGISTRY/web:$VERSION   # 需要安装 dive: https://github.com/wagoodman/
 
 ## 附录 A：compose 文件改造清单
 
-需要加 `${OMICHUB_XXX_IMAGE}` 变量覆盖的 compose 服务：
+需要加 `${CYGNUSX_XXX_IMAGE}` 变量覆盖的 compose 服务：
 
 | compose 文件 | 服务 | 当前 image 字段 | 改造 |
 |-------------|------|----------------|------|
-| `docker-compose.yml` | web | （无，build 默认名） | 加 `image: ${OMICHUB_WEB_IMAGE:-docker-web}` |
-| `docker-compose.yml` | beat | （同上） | 加 `image: ${OMICHUB_WEB_IMAGE:-docker-web}` |
-| `docker-compose.yml` | flower | （同上） | 加 `image: ${OMICHUB_WEB_IMAGE:-docker-web}` |
-| `docker-compose.yml` | studio-egress-proxy | （同上） | 加 `image: ${OMICHUB_PROXY_IMAGE:-docker-studio-egress-proxy}` |
-| `docker-compose.worker.yml` | worker | `${OMICHUB_WORKER_IMAGE:-omichub-worker:dev}` | ✅ 已支持 |
-| `docker-compose.worker.yml` | phylo-worker | `${OMICHUB_PHYLO_WORKER_IMAGE:-omichub-phylo-worker:dev}` | ✅ 已支持 |
+| `docker-compose.yml` | web | （无，build 默认名） | 加 `image: ${CYGNUSX_WEB_IMAGE:-docker-web}` |
+| `docker-compose.yml` | beat | （同上） | 加 `image: ${CYGNUSX_WEB_IMAGE:-docker-web}` |
+| `docker-compose.yml` | flower | （同上） | 加 `image: ${CYGNUSX_WEB_IMAGE:-docker-web}` |
+| `docker-compose.yml` | studio-egress-proxy | （同上） | 加 `image: ${CYGNUSX_PROXY_IMAGE:-docker-studio-egress-proxy}` |
+| `docker-compose.worker.yml` | worker | `${CYGNUSX_WORKER_IMAGE:-cygnusx-worker:dev}` | ✅ 已支持 |
+| `docker-compose.worker.yml` | phylo-worker | `${CYGNUSX_PHYLO_WORKER_IMAGE:-cygnusx-phylo-worker:dev}` | ✅ 已支持 |
 | Makefile | enrichment | `$(ENRICHMENT_DOCKER_IMAGE)` | ✅ 已支持 |
 | Makefile | deg | `$(DEG_DOCKER_IMAGE)` | ✅ 已支持 |
-| Makefile | sandbox-terminal | 硬编码 `omichub/sandbox-terminal:latest` | 加环境变量 |
+| Makefile | sandbox-terminal | 硬编码 `cygnusx-sandbox-terminal:v0.0.2dev` | 加环境变量 |
 
 ## 附录 B：环境变量模板（追加到 `.env.example`）
 
 ```bash
 # ===== 镜像仓库 =====
-# 镜像仓库前缀（如使用阿里云 ACR：registry.cn-hangzhou.aliyuncs.com/omichub）
+# 镜像仓库前缀（如使用阿里云 ACR：registry.cn-hangzhou.aliyuncs.com/cygnusx）
 # 留空则使用本地构建镜像（开发模式）
-OMICHUB_REGISTRY=
+CYGNUSX_REGISTRY=
 
 # 发布版本号（对应 git tag 或手动指定）
-OMICHUB_VERSION=
+CYGNUSX_VERSION=
 
-# 各镜像完整引用（OMICHUB_REGISTRY 非空时生效）
-OMICHUB_WEB_IMAGE=${OMICHUB_REGISTRY:+${OMICHUB_REGISTRY}/web:${OMICHUB_VERSION}}
-OMICHUB_WORKER_IMAGE=${OMICHUB_REGISTRY:+${OMICHUB_REGISTRY}/worker:${OMICHUB_VERSION}}
-OMICHUB_PHYLO_WORKER_IMAGE=${OMICHUB_REGISTRY:+${OMICHUB_REGISTRY}/phylo-worker:${OMICHUB_VERSION}}
-OMICHUB_ENRICHMENT_IMAGE=${OMICHUB_REGISTRY:+${OMICHUB_REGISTRY}/r-enrichment:1.2.0}
-OMICHUB_DEG_IMAGE=${OMICHUB_REGISTRY:+${OMICHUB_REGISTRY}/r-deg:1.0.0}
-OMICHUB_SANDBOX_IMAGE=${OMICHUB_REGISTRY:+${OMICHUB_REGISTRY}/sandbox-terminal:2026.07}
-OMICHUB_ANALYSIS_CORE=${OMICHUB_REGISTRY:+${OMICHUB_REGISTRY}/analysis-core:2026.07}
-OMICHUB_ANALYSIS_PLOT=${OMICHUB_REGISTRY:+${OMICHUB_REGISTRY}/analysis-plot:2026.07}
-OMICHUB_ANALYSIS_SCRNA=${OMICHUB_REGISTRY:+${OMICHUB_REGISTRY}/analysis-scrna:2026.07}
+# 各镜像完整引用（CYGNUSX_REGISTRY 非空时生效）
+CYGNUSX_WEB_IMAGE=${CYGNUSX_REGISTRY:+${CYGNUSX_REGISTRY}/web:${CYGNUSX_VERSION}}
+CYGNUSX_WORKER_IMAGE=${CYGNUSX_REGISTRY:+${CYGNUSX_REGISTRY}/worker:${CYGNUSX_VERSION}}
+CYGNUSX_PHYLO_WORKER_IMAGE=${CYGNUSX_REGISTRY:+${CYGNUSX_REGISTRY}/phylo-worker:${CYGNUSX_VERSION}}
+CYGNUSX_ENRICHMENT_IMAGE=${CYGNUSX_REGISTRY:+${CYGNUSX_REGISTRY}/r-enrichment:1.2.0}
+CYGNUSX_DEG_IMAGE=${CYGNUSX_REGISTRY:+${CYGNUSX_REGISTRY}/r-deg:1.0.0}
+CYGNUSX_SANDBOX_IMAGE=${CYGNUSX_REGISTRY:+${CYGNUSX_REGISTRY}/sandbox-terminal:2026.07}
+CYGNUSX_ANALYSIS_CORE=${CYGNUSX_REGISTRY:+${CYGNUSX_REGISTRY}/analysis-core:2026.07}
+CYGNUSX_ANALYSIS_PLOT=${CYGNUSX_REGISTRY:+${CYGNUSX_REGISTRY}/analysis-plot:2026.07}
+CYGNUSX_ANALYSIS_SCRNA=${CYGNUSX_REGISTRY:+${CYGNUSX_REGISTRY}/analysis-scrna:2026.07}
 ```
 
-> 用 `${VAR:+value}` 语法：`OMICHUB_REGISTRY` 为空时整个变量为空，compose 回退到本地镜像名，开发模式不受影响。
+> 用 `${VAR:+value}` 语法：`CYGNUSX_REGISTRY` 为空时整个变量为空，compose 回退到本地镜像名，开发模式不受影响。

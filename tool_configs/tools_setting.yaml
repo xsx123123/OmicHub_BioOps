@@ -1,5 +1,5 @@
 # ============================================
-# OmicHub 工具箱前端注册表
+# CygnusX 工具箱前端注册表
 # ============================================
 # 定义「哪些工具会被加载到前端工具箱」+ 每张工具卡片的展示元数据。
 # 前端 GET /api/v1/tools 拉取 enabled=true 的工具，按 order 升序渲染 ToolsHub 卡片。
@@ -103,7 +103,8 @@ tools:
     gradient: "linear-gradient(135deg, #1890FF 0%, #36CFC9 100%)"
     route: "/tools/phylogenetic-tree"
     group: "genome"
-    enabled: true
+    # 暂时下线：phylo-worker 镜像体积大、建树任务耗时长（2026-09 起停用，恢复时改回 true 并重建 phylo-worker）
+    enabled: false
     order: 48
     config_dir: "tool_configs/phylogenetic-tree"
 

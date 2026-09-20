@@ -5,11 +5,12 @@ description: 生信脚本编写、调试与沙盒执行一体化。
 avatar: "\U0001F4BB"
 color: "#a855f7"
 category: code
-model: qwen3.7-plus
+model: qdoubao-seed-evolving
 prompt_file: prompts/code.md
 welcome_message: "你好！我是代码助手，挂载了 Code Sandbox 与数据预处理、图表绘制技能。需要写或跑哪段代码？"
 temperature: 0.7
-max_tokens: 32768
+max_tokens: 65536
+package_catalogs: [all]
 mcp_ids: []
 skill_ids:
   # 工程类工具技能（来源：pipelines/tools/skills/）

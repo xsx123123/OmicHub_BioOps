@@ -1,4 +1,4 @@
-# OmicHub 生信工具箱 · 前端工具设计规范
+# CygnusX 生信工具箱 · 前端工具设计规范
 
 > 本文档规定「生信工具箱」(`/tools`)下所有工具页面的架构、布局、样式、交互约定。
 > 新增工具**必须遵循本规范**,以保证视觉一致、交互统一、维护成本低。
@@ -120,11 +120,11 @@ tool_configs/
 | 工具卡片元数据 | `tool_configs/tools_setting.yaml` | 标题、图标、路由、分组、排序、`config_dir`。 |
 | 工具运行配置 | `tool_configs/<tool-key>/*.yaml` | 默认参数、资源目录、算法开关、可用物种。 |
 | 前端纯展示预设 | 优先 `tool_configs/<tool-key>/presets.yaml`；无后端读取需求时可随前端模块维护 | 绘图主题、示例数据说明、表单默认预设。 |
-| 密钥与环境差异 | 环境变量 + `src/omichub/core/config.py` | API Key、密码、数据库 DSN、主机地址。 |
+| 密钥与环境差异 | 环境变量 + `src/cygnusx/core/config.py` | API Key、密码、数据库 DSN、主机地址。 |
 
 实现要求：
 
-1. 后端为每份 YAML 建立对应的 Pydantic 配置模型与加载器，建议放在 `src/omichub/tools/<tool_key>/config.py`；不要把 `dict[str, Any]` 直接传入业务逻辑。
+1. 后端为每份 YAML 建立对应的 Pydantic 配置模型与加载器，建议放在 `src/cygnusx/tools/<tool_key>/config.py`；不要把 `dict[str, Any]` 直接传入业务逻辑。
 2. 加载器必须明确默认值、必填字段和 YAML 解析失败策略。可热更新的配置应按文件 mtime 缓存/重载；不支持热更新时在文档中说明重启要求。
 3. API 只返回前端实际需要且允许公开的配置子集；不得将本地路径、访问令牌、密码或内部基础设施细节直接下发到浏览器。
 4. 配置字段改动时，同步更新 Pydantic 模型、调用服务、前端类型/API（如有）、示例 YAML 和模块设计文档。
@@ -185,17 +185,17 @@ permission denied while trying to connect to the Docker daemon socket
 4. Docker Socket、Docker CLI 和对应附加组只配置给需要启动分析容器的 Worker；Web 容器不得因为富集、BLAST 等计算任务获得该权限。
 5. Worker 重建或迁移节点后必须重新检测 GID；不得复用其他服务器生成的 Compose 环境文件。
 6. Worker 入口脚本从 root 降权到 `PUID:PGID` 时必须显式保留 Docker Socket GID。禁止使用会清空附加组的 `gosu "$PUID:$PGID"` 直接启动 Celery；应使用 `setpriv --reuid ... --regid ... --groups "$DOCKER_SOCKET_GID"`，或通过具名用户初始化等效附加组。
-7. 权限验收必须检查 Celery PID 及 prefork 子进程的 `/proc/<pid>/status`，确认 `Groups:` 包含 Socket GID。只执行 `docker exec omichub-worker docker version` 会以 root 或独立 exec 用户运行，不能证明实际 Celery 任务具备权限。
+7. 权限验收必须检查 Celery PID 及 prefork 子进程的 `/proc/<pid>/status`，确认 `Groups:` 包含 Socket GID。只执行 `docker exec cygnusx-worker docker version` 会以 root 或独立 exec 用户运行，不能证明实际 Celery 任务具备权限。
 8. Worker 健康检查必须同时验证 PID 1 附加组、非 root Docker daemon 连接和 Celery ping；任一失败时将容器标记为 unhealthy，避免任务继续被错误节点消费。
 
 部署验收至少执行：
 
 ```bash
 stat -c 'host_socket_gid=%g mode=%A' /var/run/docker.sock
-docker exec omichub-worker sh -lc 'id; stat -c "worker_socket_gid=%g mode=%A" /var/run/docker.sock'
-docker exec omichub-worker sh -lc 'grep -E "^(Uid|Gid|Groups):" /proc/1/status'
-docker exec omichub-worker docker version
-docker exec omichub-worker docker run --rm alpine:3.20 true
+docker exec cygnusx-worker sh -lc 'id; stat -c "worker_socket_gid=%g mode=%A" /var/run/docker.sock'
+docker exec cygnusx-worker sh -lc 'grep -E "^(Uid|Gid|Groups):" /proc/1/status'
+docker exec cygnusx-worker docker version
+docker exec cygnusx-worker docker run --rm alpine:3.20 true
 ```
 
 宿主机、Worker 和 Celery 进程看到的 Socket GID必须匹配，且实际非 root 运行身份必须能成功执行 `docker version` 和最小测试容器。只验证 Docker CLI 已安装不算通过，因为 CLI 存在并不代表实际 Celery 任务有权连接 Docker daemon。
@@ -283,7 +283,7 @@ const ICON_MAP: Record<string, Component> = {
 4. 无可用工具的分组不渲染；首次加载时展示五个标准分组标题，并在每个分组下显示两行骨架卡片。
 
 每个分组标题必须包含分组图标、名称、工具数量和折叠按钮。分组默认展开，用户操作后的
-折叠状态以 `localStorage` 键 `omicHub_tools_group_collapsed` 持久化；刷新或再次进入工具箱时恢复。
+折叠状态以 `localStorage` 键 `cygnusX_tools_group_collapsed` 持久化；刷新或再次进入工具箱时恢复。
 分组内继续直接复用 `components/bio-tools/ToolCard.vue`，不得修改其卡片渐变、圆角、hover 动效或路由跳转方式。
 
 推荐样式约定：
@@ -308,8 +308,8 @@ const ICON_MAP: Record<string, Component> = {
 
 ```text
 tool_configs/tools_setting.yaml
-  → src/omichub/tools/registry/config.py::ToolItem
-  → src/omichub/tools/registry/schema.py::ToolItemDTO
+  → src/cygnusx/tools/registry/config.py::ToolItem
+  → src/cygnusx/tools/registry/schema.py::ToolItemDTO
   → GET /api/v1/tools
   → frontend/src/types/tools.ts::ToolItem
   → ToolsHubView.vue
@@ -391,7 +391,7 @@ frontend/src/
 4. `NColorPicker` 仅用于允许用户覆盖默认颜色；重置后必须恢复标准色板。自定义颜色改变后，图例、hover、标注和导出图必须同步更新。
 5. 类别数超过当前色板容量时，不得静默循环复用颜色；应提示用户、要求合并/筛选类别，或使用经过设计并在模块文档中登记的扩展色板。
 
-以下色板是 OmicHub 图形绘制工具的标准默认选项。实现时可直接以同名常量放入 `<chart>Processor.ts` 或共用配色工具文件：
+以下色板是 CygnusX 图形绘制工具的标准默认选项。实现时可直接以同名常量放入 `<chart>Processor.ts` 或共用配色工具文件：
 
 ```ts
 export const PLOT_COLOR_PALETTES = {
@@ -889,7 +889,7 @@ Plotly.downloadImage(container, {
 - [ ] `onUnmounted` 清理定时器与 Plotly 实例
 - [ ] 复杂逻辑已抽到 `<tool>Processor.ts`(纯函数)
 - [ ] `npm run build` 通过(`vue-tsc` 严格类型检查)
-- [ ] 构建后 `docker restart omichub-nginx`(bind mount 换 inode 必须重启,否则跑旧产物)
+- [ ] 构建后 `docker restart cygnusx-nginx`(bind mount 换 inode 必须重启,否则跑旧产物)
 - [ ] 若是全屏工具,路由 meta 加 `fullscreen: true`,并在 `isToolsArea` 排除
 
 ---
@@ -916,7 +916,7 @@ Plotly.downloadImage(container, {
 
 ## 十五、AI 助手联动架构
 
-OmicHub 的「AI 助手」页面（Agent 调度中枢）不仅支持通用对话，还能直接调用平台生信工具箱中的工具完成计算、绘图、富集等任务。本章说明工具箱如何与 AI 助手打通，以及新增工具时需要遵守的约定。
+CygnusX 的「AI 助手」页面（Agent 调度中枢）不仅支持通用对话，还能直接调用平台生信工具箱中的工具完成计算、绘图、富集等任务。本章说明工具箱如何与 AI 助手打通，以及新增工具时需要遵守的约定。
 
 ### 15.1 总体数据流
 
@@ -932,7 +932,7 @@ LLM 决定调用工具（OpenAI function call）
     │
     ▼
 MCPClient.call_tool(server, tool_name, arguments)
-    │  _builtin transport_ → omichub-tools preset
+    │  _builtin transport_ → cygnusx-tools preset
     ▼
 ToolBridgeService.execute(user_id, tool_name, arguments)
     │ 1. 参数校验 + upload:// 解析
@@ -952,7 +952,7 @@ ToolBridgeService.execute(user_id, tool_name, arguments)
 
 | 字段 | 作用 |
 |------|------|
-| `name` | LLM 看到的 function 名，必须以 `omichub_` 开头 |
+| `name` | LLM 看到的 function 名，必须以 `cygnusx_` 开头 |
 | `description` | LLM 判断是否调用该工具的依据 |
 | `input_schema` | OpenAI functions 参数 schema |
 | `invocation_mode` | 执行方式：`backend_sync` / `backend_shim` / `backend_async` / `open_page` |
@@ -1039,7 +1039,7 @@ const plotlyCharts = computed(() => {
 
 ### 15.6 新增一个 AI 助手可用工具的步骤
 
-1. **实现工具逻辑**：在 `src/omichub/tools/` 下新增 service 或 shim，返回原始 dict（含 `success` + 可选 `plotly_figure` / `table_data` 等）。
+1. **实现工具逻辑**：在 `src/cygnusx/tools/` 下新增 service 或 shim，返回原始 dict（含 `success` + 可选 `plotly_figure` / `table_data` 等）。
 2. **注册 schema**：在 `tool_configs/tools_schema.yaml` 新增条目，写好 description、input_schema、llm_result_fields、ui_result_fields。
 3. **选择 invocation_mode**：
    - 轻量快速出图 → `backend_shim`
@@ -1059,13 +1059,13 @@ const plotlyCharts = computed(() => {
 | 提示缺少必填参数 | LLM 没传文件内容 | 确认参数 description 写了 `upload://file_id` |
 | 工具执行成功但前端没图 | `ui_payload` 里没有 `plotly_figure` / 字段名不对 | 检查 `ui_result_fields` 和工具返回值 |
 | 工具结果没关联到工具卡片 | `tool_call_id` 为空或前后端不匹配 | 检查 LLM provider 是否返回 tool_call id |
-| 图表渲染报错 | Plotly figure 结构非法 | 用 `python -m omichub.tools.shims.xxx` 单独测试返回值 |
+| 图表渲染报错 | Plotly figure 结构非法 | 用 `python -m cygnusx.tools.shims.xxx` 单独测试返回值 |
 
 ### 15.8 Description 工程规范与工具检索（2026-08-18）
 
 工具 Schema 的 `description` 是 Agent 路由与工具选择的主语义契约，不是前端营销文案。所有
 `category` 为 `toolbox`、`enrichment`、`visualization`、`analysis`、`sequence` 或 `genome`
-的 `omichub_` 工具必须满足下列规则：
+的 `cygnusx_` 工具必须满足下列规则：
 
 1. 长度为 80--300 个字符，动词开头，先描述输入到输出的能力句。
 2. 紧接“适用于”列出 2--3 个自然语言说法或任务特征，使口语请求可被稳定匹配。
@@ -1095,7 +1095,7 @@ tool_selection:
 - `full`：注入全部允许的 builtin tools，是默认兼容模式。
 - `retrieval`：工具数大于 15 时按 `name + description + keywords` 召回 Top-N，并与 Agent 明确
   pinned 的工具合并；索引/召回异常或工具数不大于 15 时必须回落 `full` 并记录结构化日志。
-- `omichub_toolbox_search(query)` 是渐进披露的发现工具，返回候选工具名和一句话摘要。当前上下文
+- `cygnusx_toolbox_search(query)` 是渐进披露的发现工具，返回候选工具名和一句话摘要。当前上下文
   已有明确工具时不得先调用它；未召回或用户只描述目标时可调用一次再选择具体工具。
 - 检索实现必须随 `tools_schema.yaml` mtime 变化重建；中文分词可使用 jieba，并保留确定性的
   无外部服务降级排序，禁止因检索失败阻断工具调用。
@@ -1124,21 +1124,21 @@ JSON。当前工作区通过 Plotly 展示英文 running-score 曲线、Top term
 300/600/1000 DPI PNG 导出；当前一次任务选择单一 gene-set 来源，跨来源分栏展示仍需在多来源提交契约
 落地后验收。任务目录遵循
 `{data_mount}/users/{user_id}/gsea/{project_slug}/{task_id}/`，任何
-查询和下载均以 JWT 用户 ID 校验归属。Agent 工具名为 `omichub_run_gsea`，采用 `backend_async`，
+查询和下载均以 JWT 用户 ID 校验归属。Agent 工具名为 `cygnusx_run_gsea`，采用 `backend_async`，
 LLM 回灌最多 Top 10 term 的 ID/NES/p.adjust，UI 回灌 `task_id` 和 `progress_url`。
 
 **基因组共线性分析**：输入 GFF3、BLASTP outfmt6（上传、`upload://file_id` 或平台 BLAST 结果）；专用
 镜像为 `deploy/docker/Dockerfile.synteny`，构建上下文为 `tool_configs/synteny/`，必须提供
 `make docker-build-synteny`。Worker 复用 BLAST 的异步任务/归属校验架构，容器只输出 block TSV/JSON，
 dot plot 由前端 Plotly `scattergl` 绘制，当前支持区块表与 JSON 下载。超过 50,000 个基因对时必须提示
-用户先按染色体过滤，而不是尝试渲染全部点。Agent 工具名为 `omichub_run_synteny`，返回区块数、最大区块与 Top 染色体对摘要；BLAST 和
+用户先按染色体过滤，而不是尝试渲染全部点。Agent 工具名为 `cygnusx_run_synteny`，返回区块数、最大区块与 Top 染色体对摘要；BLAST 和
 共线性描述必须互相说明“BLAST 结果可作为共线性输入”。
 
 > 当前仓库的 `ToolBridgeService.backend_async` 默认使用 ARQ；声明
 > `extra.celery_service: true` 的工具会经受控 service 提交对应 Celery task。新增高计算工具必须使用其中一条
 > 已验证路径，且 Agent 返回的 `task_id`、`progress_url`、`result_url` 必须真实可查询；禁止注册会返回
 > “未找到 ARQ 执行器”的伪异步工具。2026-08-18 本机仅验证了 `make -n docker-build-synteny`，
-> `omichub-synteny:v1` 和 `omichub-r-enrichment:v1` 均未在本机存在，镜像构建与真实 Worker E2E 仍是上线门禁。
+> `cygnusx-synteny:v1` 和 `cygnusx-r-enrichment:v1` 均未在本机存在，镜像构建与真实 Worker E2E 仍是上线门禁。
 
 ---
 
@@ -1525,7 +1525,7 @@ subject_coverage = align_length / hit_len * 100
 ```
 
 - `query_coverage` 由后端 XML 解析层计算并通过 `BlastHitDTO` 返回；权威实现为
-  `src/omichub/tools/blast/core.py`、`src/omichub/tools/blast/schema.py`。
+  `src/cygnusx/tools/blast/core.py`、`src/cygnusx/tools/blast/schema.py`。
 - 结果页与命中详情均消费 `query_coverage`，显示范围夹紧在 `0–100`、保留一位小数。
 - 不得用 `hit_len` / `subject_len` 计算查询 Coverage。对于全长命中（`align_length === query_len`），
   Coverage 必须为 `100.0%`；该场景必须在 `tests/unit/tools/test_blast_core.py` 保留回归断言。
@@ -1586,7 +1586,7 @@ BLAST 结果表沿用任务中心表格规范，并额外满足检索结果密�
 ### 21.1 明确工具归属，禁止按名称猜测 MCP
 
 1. 排查工具失败时，必须从 Agent 本轮绑定的 MCP Server、数据库工具快照和 `tool_call` 事件确认
-   工具实际归属，禁止仅凭“生信工具”名称认定它属于 `omichub-tools`。
+   工具实际归属，禁止仅凭“生信工具”名称认定它属于 `cygnusx-tools`。
 2. 外部数据库 MCP 与内置生信工具箱是不同故障域。例如 `translate_sequence` 可能由外部 Ensembl
    MCP 提供，但 DNA 翻译本身属于本地可计算任务，不应因为 Ensembl MCP 离线而失败。
 3. MCP Server 名称应使用准确、稳定、可搜索的拼写。历史兼容名称可以暂时保留，但新增配置不得再

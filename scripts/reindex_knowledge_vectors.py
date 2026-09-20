@@ -6,10 +6,10 @@ from __future__ import annotations
 import argparse
 import asyncio
 
-from omichub.application.services.knowledge_index_service import KnowledgeIndexService
-from omichub.infrastructure.database.models.knowledge_document import KbDocumentModel
-from omichub.infrastructure.database.models.knowledge_revision import DocRevisionModel
-from omichub.infrastructure.database.session import close_db, get_session_factory
+from cygnusx.application.services.knowledge_index_service import KnowledgeIndexService
+from cygnusx.infrastructure.database.models.knowledge_document import KbDocumentModel
+from cygnusx.infrastructure.database.models.knowledge_revision import DocRevisionModel
+from cygnusx.infrastructure.database.session import close_db, get_session_factory
 from sqlalchemy import select
 
 

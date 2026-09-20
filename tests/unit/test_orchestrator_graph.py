@@ -13,8 +13,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from omichub.core.exceptions import ValidationError
-from omichub.infrastructure.execution.orchestrator_graph import (
+from cygnusx.core.exceptions import ValidationError
+from cygnusx.infrastructure.execution.orchestrator_graph import (
     OrchestratorDeps,
     build_orchestrator_engine,
 )
@@ -45,7 +45,7 @@ def _task(
 
 def _plan_markdown() -> str:
     """生成通过 validate_plan 章节校验的最小 plan.md（12 个必备章节）。"""
-    from omichub.application.services.overdrive_run_service import PLAN_SECTIONS
+    from cygnusx.application.services.overdrive_run_service import PLAN_SECTIONS
 
     return "\n".join(
         f"## {index}. {section}\n\n- 占位\n"
@@ -150,7 +150,7 @@ async def test_plan_generate_outputs_schema_compatible_and_interrupts() -> None:
     # 未确认前绝不派发
     assert not any(call[0] == "dispatch_run" for call in calls)
     # plan_generate 产出的 task dict 与 Overdrive schema 兼容（真实 validate_plan 放行）
-    from omichub.application.services.overdrive_run_service import validate_plan
+    from cygnusx.application.services.overdrive_run_service import validate_plan
 
     validate_plan(_plan_markdown(), tasks, KNOWN_AGENTS)
     state = await engine.get_state("run-1")

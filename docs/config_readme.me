@@ -1,6 +1,6 @@
-# OmicHub YAML 配置总览
+# CygnusX YAML 配置总览
 
-本文汇总 OmicHub 当前仓库中的 YAML/YML 配置文件，帮助开发、部署和新增模块时快速定位配置入口。
+本文汇总 CygnusX 当前仓库中的 YAML/YML 配置文件，帮助开发、部署和新增模块时快速定位配置入口。
 
 ## 阅读说明
 
@@ -20,14 +20,14 @@
 | 数据集 | `dataset/` | 参考基因组清单 |
 | MCP | `mcp-server/` | MCP Server 与工具注册 |
 | 文档/站点 | `docs/`、`frontend/public/` | 文档站导航、知识库元数据、前端基因组清单 |
-| 脚本包 | `scripts/omichubtools/config/` | `omichubtools` 默认日志和软件元信息 |
+| 脚本包 | `scripts/cygnusxtools/config/` | `cygnusxtools` 默认日志和软件元信息 |
 | Skill | `skills/` | 前端设计 Skill 的 Agent 元数据 |
 
 ## `data/` 应用配置
 
 | 文件 | 内容 | 加载/生效 |
 | --- | --- | --- |
-| [`data/OmicHub.yaml`](data/OmicHub.yaml) | 首页站点名称、品牌、导航、公告、存储数据根等站点内容 | `core.config.site_content_yaml`；站点内容加载器按 mtime 读取 |
+| [`data/CygnusX.yaml`](data/CygnusX.yaml) | 首页站点名称、品牌、导航、公告、存储数据根等站点内容 | `core.config.site_content_yaml`；站点内容加载器按 mtime 读取 |
 | [`data/ai/code.yaml`](data/ai/code.yaml) | 代码助手 Agent 声明 | Agent 配置加载器；按 Agent 配置热重载 |
 | [`data/ai/general.yaml`](data/ai/general.yaml) | 通用助手 Agent 声明 | 同上 |
 | [`data/ai/orchestrator.yaml`](data/ai/orchestrator.yaml) | MAS Orchestrator Agent 声明 | MAS 开关开启且服务端显式启用时使用 |
@@ -70,7 +70,7 @@
 
 | 文件 | 内容 | 生效方式 |
 | --- | --- | --- |
-| [`tool_configs/download/download_config.yaml`](tool_configs/download/download_config.yaml) | SRA、云存储、HTTP/HTTPS/FTP 直链下载开关；EBIDownload、aria2c、ossutil 等路径；aria2 并发、重试、超时和链接上限 | `src/omichub/tools/download/config.py` 按 mtime 热重载 |
+| [`tool_configs/download/download_config.yaml`](tool_configs/download/download_config.yaml) | SRA、云存储、HTTP/HTTPS/FTP 直链下载开关；EBIDownload、aria2c、ossutil 等路径；aria2 并发、重试、超时和链接上限 | `src/cygnusx/tools/download/config.py` 按 mtime 热重载 |
 | [`tool_configs/blast/blast_config.yaml`](tool_configs/blast/blast_config.yaml) | BLAST 输入限制、执行方式、线程、队列、program 映射和默认参数 | BLAST config manager 按 mtime 热重载 |
 | [`tool_configs/blast/blast_db.yaml`](tool_configs/blast/blast_db.yaml) | BLAST 数据库声明清单和版本激活状态 | BLAST 管理端同步/写回；可从 YAML 导入数据库 |
 | [`tool_configs/enrichments/species_config.yaml`](tool_configs/enrichments/species_config.yaml) | GO/KEGG 物种、OrgDb、KEGG 三字码和 ID 类型 | Enrichment config manager 按 mtime 热重载 |
@@ -121,13 +121,13 @@
 | --- | --- | --- |
 | [`mcp-server/config.yaml`](mcp-server/config.yaml) | MCP Server 地址、端口、鉴权和环境配置 | MCP Server 启动时读取；环境变量优先 |
 | [`mcp-server/tools.yaml`](mcp-server/tools.yaml) | MCP 工具组、工具模块和描述注册 | MCP Server 启动/重载时读取 |
-| [`scripts/omichubtools/config/default.yaml`](scripts/omichubtools/config/default.yaml) | `omichubtools` 默认日志、标签和输出设置 | Python 包内默认配置 |
-| [`scripts/omichubtools/config/software.yaml`](scripts/omichubtools/config/software.yaml) | `omichubtools` 版本、软件元信息和外部工具声明 | Python 包内软件配置；支持项目级覆盖 |
-| [`skills/omichub-frontend-design/agents/openai.yaml`](skills/omichub-frontend-design/agents/openai.yaml) | Frontend Design Skill 的展示元数据 | Skill/Agent 发现时读取 |
+| [`scripts/cygnusxtools/config/default.yaml`](scripts/cygnusxtools/config/default.yaml) | `cygnusxtools` 默认日志、标签和输出设置 | Python 包内默认配置 |
+| [`scripts/cygnusxtools/config/software.yaml`](scripts/cygnusxtools/config/software.yaml) | `cygnusxtools` 版本、软件元信息和外部工具声明 | Python 包内软件配置；支持项目级覆盖 |
+| [`skills/cygnusx-frontend-design/agents/openai.yaml`](skills/cygnusx-frontend-design/agents/openai.yaml) | Frontend Design Skill 的展示元数据 | Skill/Agent 发现时读取 |
 
 ## 核心配置路径与优先级
 
-后端默认路径集中在 [`src/omichub/core/config.py`](src/omichub/core/config.py)。常见优先级如下：
+后端默认路径集中在 [`src/cygnusx/core/config.py`](src/cygnusx/core/config.py)。常见优先级如下：
 
 1. 环境变量或 `.env` 覆盖 `Settings` 中的路径、开关和密钥。
 2. `Settings` 指向仓库 YAML 或宿主机运行时 YAML。
@@ -156,7 +156,7 @@ curl -X POST http://localhost:8000/api/v1/jbrowse/config/reload
 ## 修改前检查清单
 
 - [ ] 先确认文件属于运行配置、声明清单、Compose 编排还是文档/生成资源。
-- [ ] 查对应 `core/config.py` 路径字段和 `src/omichub/**/config.py` 加载器，确认字段名和默认值。
+- [ ] 查对应 `core/config.py` 路径字段和 `src/cygnusx/**/config.py` 加载器，确认字段名和默认值。
 - [ ] YAML 使用 UTF-8、2 空格缩进、`snake_case`；不要写入密钥和机器私有绝对路径，除非该字段明确要求宿主路径。
 - [ ] 修改 Worker/Compose 前运行 `scripts/render_worker_config.py --check`；修改流程后调用流程 reload；修改工具配置后检查对应 loader 的热重载行为。
 - [ ] 修改前端静态 YAML（如 `frontend/public/genomes.yaml`）后重新执行 `npm run build`。
@@ -169,7 +169,7 @@ curl -X POST http://localhost:8000/api/v1/jbrowse/config/reload
 
 ```env
 TASK_QUEUE_BACKEND=hybrid
-ROCKETMQ_TASK_ROUTES=["omichub.tools.blast.tasks.*"]
+ROCKETMQ_TASK_ROUTES=["cygnusx.tools.blast.tasks.*"]
 ROCKETMQ_NAMESRV_ADDR=rocketmq-namesrv:9876
 ```
 

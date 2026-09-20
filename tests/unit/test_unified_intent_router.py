@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from omichub.application.services.unified_intent_router import (
+from cygnusx.application.services.unified_intent_router import (
     capability_notice,
     execution_routing_record,
     normalize_decision,
@@ -94,7 +94,7 @@ def test_low_confidence_requires_clarification() -> None:
     assert "并行" in notice["message"]
 
 
-def test_low_confidence_chat_also_requires_clarification() -> None:
+def test_low_confidence_chat_continues_without_collaboration_clarification() -> None:
     decision = normalize_decision(
         {"collaboration_intent": "chat", "agent_id": "agent-general", "confidence": 0.2},
         fallback_agent_id="agent-general",
@@ -109,8 +109,10 @@ def test_low_confidence_chat_also_requires_clarification() -> None:
         mas_enabled=True,
     )
 
-    assert notice["available"] is False
+    assert decision.needs_clarification is False
+    assert notice["available"] is True
     assert notice["degraded"] is False
+    assert notice["message"] == ""
 
 
 @pytest.mark.parametrize(

@@ -195,6 +195,8 @@ def execute_readonly_work_item(
     requested_tools: list[str] | None = None,
     execution_mode: str = "readonly_consultation",
     trace_id: str | None = None,
+    source_refs: list[dict[str, str]] | None = None,
+    execution_summary: str | None = None,
     opener: UrlOpen = urlopen,
 ) -> dict[str, Any]:
     case_id, work_item_id = _assignment_identity(assignment)
@@ -208,6 +210,12 @@ def execute_readonly_work_item(
     }
     if trace_id:
         payload["trace_id"] = trace_id
+    # 产物血缘（F1）：workspace_execution 声明的上游产物引用与执行摘要；
+    # 仅在调用方显式提供时携带（None = 未声明）。
+    if source_refs is not None:
+        payload["source_refs"] = source_refs
+    if execution_summary is not None:
+        payload["execution_summary"] = execution_summary
     return request_json(
         f"{bridge_url.rstrip('/')}/cases/{case_id}/work-items/{work_item_id}/execute-readonly",
         {"X-Bridge-Identity": identity, "X-Bridge-Token": token},
@@ -246,25 +254,34 @@ def submit_quality_gate(
     summary: str,
     evidence_refs: list[dict[str, str]] | None = None,
     artifact_hashes: dict[str, str] | None = None,
+    source_refs: list[dict[str, str]] | None = None,
+    execution_summary: str | None = None,
     remediation_request: dict[str, Any] | None = None,
     opener: UrlOpen = urlopen,
 ) -> dict[str, Any]:
     case_id, work_item_id = _assignment_identity(assignment)
+    payload: dict[str, Any] = {
+        "case_id": case_id,
+        "work_item_id": work_item_id,
+        "rule_version": "agentteams-quality-v1",
+        "decision": decision,
+        "summary": summary,
+        "evidence_refs": evidence_refs or [{"kind": "task", "id": task_id}],
+        "artifact_hashes": artifact_hashes or {},
+        "remediation_request": remediation_request,
+    }
+    # 产物血缘（F1）：上报 artifact_hashes 时必须同时携带 source_refs，
+    # 缺失会被 Bridge 拒绝登记并回写 room.artifact_rejected 审计事件。
+    if source_refs is not None:
+        payload["source_refs"] = source_refs
+    if execution_summary is not None:
+        payload["execution_summary"] = execution_summary
     return request_json(
         f"{bridge_url.rstrip('/')}/tasks/{task_id}/quality-gate",
         {"X-Bridge-Identity": identity, "X-Bridge-Token": token},
         method="POST",
         opener=opener,
-        payload={
-            "case_id": case_id,
-            "work_item_id": work_item_id,
-            "rule_version": "agentteams-quality-v1",
-            "decision": decision,
-            "summary": summary,
-            "evidence_refs": evidence_refs or [{"kind": "task", "id": task_id}],
-            "artifact_hashes": artifact_hashes or {},
-            "remediation_request": remediation_request,
-        },
+        payload=payload,
     )
 
 
@@ -336,7 +353,7 @@ def _assignment_identity(assignment: dict[str, Any]) -> tuple[str, str]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Claim one assigned OmicHub AgentTeams Work Item")
+    parser = argparse.ArgumentParser(description="Claim one assigned CygnusX AgentTeams Work Item")
     parser.add_argument("--bridge-url", default=os.environ.get("AGENTTEAMS_BRIDGE_BASE_URL", ""))
     parser.add_argument("--identity", default=os.environ.get("AGENTTEAMS_WORKER_IDENTITY", ""))
     parser.add_argument("--token", default=os.environ.get("AGENTTEAMS_BRIDGE_TOKEN", ""))

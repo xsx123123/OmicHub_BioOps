@@ -6,18 +6,18 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError
 
-from omichub.api.v1.agents import (
+from cygnusx.api.v1.agents import (
     list_user_selectable_mcps,
     reset_user_capabilities,
     update_user_capabilities,
 )
-from omichub.application.schemas.agent import (
+from cygnusx.application.schemas.agent import (
     UserAgentCapabilityDTO,
     UserAgentCapabilityRequest,
     UserSelectableMCPDTO,
 )
-from omichub.application.services.agent_service import AgentService
-from omichub.core.exceptions import BusinessError
+from cygnusx.application.services.agent_service import AgentService
+from cygnusx.core.exceptions import BusinessError
 
 
 @pytest.mark.unit

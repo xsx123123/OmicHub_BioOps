@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 
-const THEME_KEY = 'omichub-theme'
+const THEME_KEY = 'cygnusx-theme'
 export type AppTheme = 'dark' | 'light'
 
 export const useThemeStore = defineStore('theme', () => {

@@ -1,4 +1,4 @@
-# OmicHub GO / KEGG 富集（R Docker）
+# CygnusX GO / KEGG 富集（R Docker）
 
 > 工具注册 key 和路由为历史兼容的 `kegg-enrichment`，但实际分析范围为 **GO + KEGG**。
 > 工具目录架构、前后端边界和验证要求见 [`framework.md`](./framework.md)；容器运行参数见
@@ -15,7 +15,7 @@
 | `species_config.yaml` | 物种与本地参考文件路径 |
 | `go_enricher.r` | RNAFlow 批量差异表 GO 分析脚本，保留原用法 |
 | `run_enrichment.R` | 网页富集容器入口：单列 Gene ID → GO/KEGG CSV + 图 |
-| `../../deploy/docker/Dockerfile.enrichment` | 构建 `omichub-r-enrichment:v1` 的统一部署 Dockerfile |
+| `../../deploy/docker/Dockerfile.enrichment` | 构建 `cygnusx-r-enrichment:v1` 的统一部署 Dockerfile |
 | `KEGG_Docker_契约.md` | 容器参数、输出和部署契约 |
 | `examples/` | 单列 Gene ID 与 GO/KEGG 标准结果的演示 CSV |
 
@@ -24,7 +24,7 @@
 ```text
 CSV/TSV（仅一列 GeneID）
   → FastAPI 写入 gene_list.txt 并投递 Celery
-  → Worker docker run omichub-r-enrichment:v1
+  → Worker docker run cygnusx-r-enrichment:v1
   → R: GO local OBO + annotation / KEGG enrichKEGG
   → enrichment_result.csv + go/kegg_dotplot.png/pdf
   → Worker 解析 CSV，前端轮询后显示表格与气泡图
@@ -33,7 +33,7 @@ CSV/TSV（仅一列 GeneID）
 提交时需要填写项目名称。项目名称会保留在任务历史中，并转换为安全目录名；任务结果目录为：
 
 ```text
-/data/omichub/users/<user_id>/enrichments/<project_slug>/<task_id>/
+/data/cygnusx/users/<user_id>/enrichments/<project_slug>/<task_id>/
 ├── gene_list.txt
 ├── enrichment_result.csv
 ├── go_dotplot.png             # GO 有显著结果时生成
@@ -63,7 +63,7 @@ CSV/TSV（仅一列 GeneID）
 番茄 ITAG4.1 配置已指向：
 
 ```text
-/data/omichub/omichub_data/reference/ITAG4.1/
+/data/cygnusx/cygnusx_data/reference/ITAG4.1/
 ├── go-basic.obo
 ├── ITAG4.1_blast2go_annot.annot_deal
 └── ITAG4.1.kegg.id
@@ -104,4 +104,4 @@ docker compose -f deploy/docker/docker-compose.yml restart web
 Web 仅投递和查询任务。默认 R 容器不指定 `--network`，由 Docker 使用本机默认 `bridge` 网络直接访问
 KEGG REST，避免依赖可能失效的 Compose / Swarm 网络；如部署 squid 或需要访问内网服务，可设置
 `ENRICHMENT_PROXY_URL` 和 `ENRICHMENT_DOCKER_NETWORK`。参考文件和任务目录均通过
-`/data/omichub:/data/omichub` 挂载。
+`/data/cygnusx:/data/cygnusx` 挂载。

@@ -4,12 +4,12 @@ from types import SimpleNamespace
 
 from sqlalchemy.pool import NullPool
 
-from omichub.infrastructure.database import session as database_session
+from cygnusx.infrastructure.database import session as database_session
 
 
 def _settings(service_name: str) -> SimpleNamespace:
     return SimpleNamespace(
-        database_url="postgresql+asyncpg://omichub:password@db:5432/omichub",
+        database_url="postgresql+asyncpg://cygnusx:password@db:5432/cygnusx",
         app_debug=False,
         service_name=service_name,
         database_pool_size=7,

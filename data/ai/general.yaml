@@ -5,11 +5,11 @@ description: 覆盖日常问答与通用生信咨询的全能助手。
 avatar: "\U0001F916"
 color: "#4f8ef7"
 category: general
-model: qwen3.7-plus
+model: qdoubao-seed-evolving
 prompt_file: prompts/general.md
 welcome_message: "你好！我是通用助手，可以帮你解答生信分析的一般问题。今天想做点什么？"
 temperature: 0.7
-max_tokens: 32768
+max_tokens: 65536
 mcp_ids: []
 skill_ids:
   # 通用生信工具技能（来源：pipelines/tools/skills/SKILLS_REGISTRY.md，全部 24 个已挂载）
@@ -65,6 +65,7 @@ features:
   engine: langgraph
   managed_prompt: true
   subagents_spawnable: true  # 可作为并行子 Agent 被 fan-out 派生
+  ptc_enabled: true  # Studio 下挂载 tool_orchestrate（代码编排式批量工具调用）
   default_role: 任务 intake、研究目标拆解、总体研究计划与数据契约
   capability_scope: [需求澄清, 研究设计, 数据契约, 跨专家协调, 综合方案]
   capability_tags: [intake, research-design, data-contract, quality-control, synthesis]
@@ -82,7 +83,8 @@ handoff:
 
 studio:
   enabled: true
-  # 通用助手在 Studio 中直接执行文件处理与全部数值计算；避免为简单任务转交代码助手。
+  # 通用助手在 Studio 中直接执行文件处理与全部数值计算；运行时使用单细胞能力
+  # 完整的镜像，避免遇到 RDS/Seurat 任务时仍落到没有 Seurat 的 analysis-core。
   default_mode: studio
-  runtime_profile: analysis-core
-  required_capabilities: [python, r, bash]
+  runtime_profile: analysis-scrna
+  required_capabilities: [python, r, bash, single-cell, hdf5]

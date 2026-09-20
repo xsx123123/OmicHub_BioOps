@@ -2,11 +2,11 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from omichub.application.services.knowledge_base_service import (
+from cygnusx.application.services.knowledge_base_service import (
     BUILTIN_KNOWLEDGE_BASES,
     KnowledgeBaseService,
 )
-from omichub.core.exceptions import BusinessError
+from cygnusx.core.exceptions import BusinessError
 
 
 @pytest.mark.asyncio

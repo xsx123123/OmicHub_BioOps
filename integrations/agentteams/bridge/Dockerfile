@@ -16,8 +16,8 @@ RUN python -m pip install \
     --timeout 60 \
     --retries 5 \
     fastapi 'httpx>=0.27.0' 'minio>=7.2.0' 'pydantic-settings>=2.1.0' 'redis>=5.0.0' 'uvicorn[standard]>=0.27.0'
-COPY omichub_agentteams_bridge ./omichub_agentteams_bridge
+COPY cygnusx_agentteams_bridge ./cygnusx_agentteams_bridge
 RUN useradd --create-home --uid 10001 bridge
-RUN mkdir -p /var/lib/omichub-agentteams-bridge && chown bridge:bridge /var/lib/omichub-agentteams-bridge
+RUN mkdir -p /var/lib/cygnusx-agentteams-bridge && chown bridge:bridge /var/lib/cygnusx-agentteams-bridge
 USER bridge
 EXPOSE 8080

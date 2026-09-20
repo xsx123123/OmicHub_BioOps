@@ -4,7 +4,7 @@ import uuid
 
 import pytest
 
-from omichub.application.services.research_search_optimizer import ResearchSearchOptimizer
+from cygnusx.application.services.research_search_optimizer import ResearchSearchOptimizer
 
 
 @pytest.mark.asyncio
@@ -17,7 +17,7 @@ async def test_refined_queries_are_reused_from_local_cache(monkeypatch: pytest.M
             raise RuntimeError("redis unavailable")
 
     monkeypatch.setattr(
-        "omichub.application.services.research_search_optimizer.get_redis",
+        "cygnusx.application.services.research_search_optimizer.get_redis",
         lambda: BrokenRedis(),
     )
     optimizer = ResearchSearchOptimizer(cache_ttl_seconds=300)

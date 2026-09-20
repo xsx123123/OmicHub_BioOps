@@ -3,19 +3,19 @@
 ## 登录后页面空白
 
 - 浏览器强制刷新 `Ctrl+Shift+R`
-- 检查 `docker logs omichub-web`
+- 检查 `docker logs cygnusx-web`
 - 确认 nginx 挂载最新 `frontend/dist`，执行 `make docker-reload`
 
 ## 上传文件失败
 
 - 检查 Nginx/后端上传大小限制
 - 大文件建议通过服务器本地拷贝
-- 检查 `/data/omichub/uploads` 权限
+- 检查 `/data/cygnusx/uploads` 权限
 
 ## 任务一直等待中
 
 - Worker 栈是否已启动：`make docker-up-worker`
-- Redis 是否可连接：`docker logs omichub-cache`
+- Redis 是否可连接：`docker logs cygnusx-cache`
 - Worker 日志是否有报错：`make docker-logs-worker`
 
 ## 任务运行失败
@@ -39,11 +39,11 @@ make docker-build-worker
 确认镜像中的工具和 Snakemake logger 可以加载：
 
 ```bash
-docker run --rm omichub-worker:dev snakemake --version
-docker run --rm --entrypoint /bin/sh omichub-worker:dev -c 'id; getent passwd 1000'
+docker run --rm cygnusx-worker:dev snakemake --version
+docker run --rm --entrypoint /bin/sh cygnusx-worker:dev -c 'id; getent passwd 1000'
 ```
 
-预期运行身份为 `uid=1000(omichub)`。若出现 `KeyError: getpwuid(): uid not found: 1000`，说明正在使用旧镜像；重新执行 `make docker-build-worker` 后再启动 Worker：
+预期运行身份为 `uid=1000(cygnusx)`。若出现 `KeyError: getpwuid(): uid not found: 1000`，说明正在使用旧镜像；重新执行 `make docker-build-worker` 后再启动 Worker：
 
 ```bash
 make docker-up-worker
@@ -61,8 +61,8 @@ make docker-build-worker
 ## Worker 交互终端
 
 ```bash
-docker exec -it omichub-worker zsh
-docker run --rm -it omichub-worker:dev bash
+docker exec -it cygnusx-worker zsh
+docker run --rm -it cygnusx-worker:dev bash
 ```
 
 后一个命令中的交互式裸 `bash` 会自动进入 Zsh，并可使用 `btop`。若仅需执行 Bash 脚本，使用 `bash -c '...'`，入口脚本不会切换 shell。
@@ -81,11 +81,11 @@ make migrate-merge
 
 ## 权限事故
 
-如果登录页提示系统内部错误，且日志报 `/app/logs/omichub.log` 权限错误：
+如果登录页提示系统内部错误，且日志报 `/app/logs/cygnusx.log` 权限错误：
 
 ```bash
 make docker-fix-permissions
-docker restart omichub-web omichub-worker omichub-beat
+docker restart cygnusx-web cygnusx-worker cygnusx-beat
 ```
 
 ## AI 助手无法回复

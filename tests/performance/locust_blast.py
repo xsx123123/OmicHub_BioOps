@@ -1,10 +1,10 @@
 """BLAST API Locust 场景。
 
 运行：
-  OMICHUB_ACCESS_TOKEN=... uvx locust -f tests/performance/locust_blast.py \
+  CYGNUSX_ACCESS_TOKEN=... uvx locust -f tests/performance/locust_blast.py \
     --host http://localhost:8000 --users 50 --spawn-rate 5 --run-time 10m
 
-可选设置 OMICHUB_BLAST_DB_ID；未设置时自动选择第一个可用数据库。
+可选设置 CYGNUSX_BLAST_DB_ID；未设置时自动选择第一个可用数据库。
 """
 
 from __future__ import annotations
@@ -21,11 +21,11 @@ class BlastUser(HttpUser):
     wait_time = between(1, 3)
 
     def on_start(self) -> None:
-        token = os.environ.get("OMICHUB_ACCESS_TOKEN")
+        token = os.environ.get("CYGNUSX_ACCESS_TOKEN")
         if not token:
-            raise RuntimeError("OMICHUB_ACCESS_TOKEN is required")
+            raise RuntimeError("CYGNUSX_ACCESS_TOKEN is required")
         self.client.headers.update({"Authorization": f"Bearer {token}"})
-        self.db_id = os.environ.get("OMICHUB_BLAST_DB_ID")
+        self.db_id = os.environ.get("CYGNUSX_BLAST_DB_ID")
         if not self.db_id:
             response = self.client.get("/api/v1/blast/databases", name="GET databases")
             response.raise_for_status()

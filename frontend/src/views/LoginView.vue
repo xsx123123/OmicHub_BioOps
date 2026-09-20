@@ -1,5 +1,5 @@
 <template>
-  <div class="login-page" role="main" aria-label="登录 OmicHub">
+  <div class="login-page" role="main" aria-label="登录 CygnusX">
     <StarField />
     <LoginPageQuote />
     <div class="login-content">
@@ -7,17 +7,8 @@
         <div class="login-card animate-scale-in">
           <div class="login-header">
             <LogoAnimation />
-            <h2 class="login-title">OmicHub</h2>
+            <h2 class="login-title">CygnusX</h2>
             <p class="login-subtitle">欢迎登录多组学分析平台</p>
-          </div>
-          <!-- Demo 模式：演示账号提示 + 一键填入 -->
-          <div v-if="step === 'credentials'" class="demo-account-hint">
-            <span class="demo-account-text">
-              演示账号 <code>demo</code> · 密码 <code>demo_omichub</code>
-            </span>
-            <n-button text size="tiny" type="primary" @click="fillDemoAccount">
-              一键填入
-            </n-button>
           </div>
           <n-form ref="formRef" :model="formData" :rules="rules" class="login-form">
             <!-- 第一步：账号密码 -->
@@ -186,12 +177,6 @@ function resetToCredentials() {
   errorMessage.value = ''
 }
 
-// Demo 模式：一键填入演示账号（与 scripts/init_demo_user.py 的默认账号一致）
-function fillDemoAccount() {
-  formData.value.username = 'demo'
-  formData.value.password = 'demo_omichub'
-  errorMessage.value = ''
-}
 
 function redirectHome() {
   try {
@@ -300,43 +285,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.login-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
-  /* 与 Hero 同色系，但饱和度降低，更柔和 */
-  background: linear-gradient(135deg, #6b7fd4 0%, #8b7fd4 35%, #a080d4 65%, #b080c8 100%);
-  background-size: 400% 400%;
-  animation: gradientShift 12s ease infinite;
-  position: relative;
-  overflow: hidden;
-}
-
-.login-orb {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(80px);
-  opacity: 0.35;
-  pointer-events: none;
-  z-index: 1;
-}
-.login-orb--1 {
-  width: 400px;
-  height: 400px;
-  background: #c5d0ff;
-  top: -100px;
-  right: -100px;
-  animation: drift 14s ease-in-out infinite;
-}
-.login-orb--2 {
-  width: 300px;
-  height: 300px;
-  background: #e0c8ff;
-  bottom: -50px;
-  left: -50px;
-  animation: drift 16s ease-in-out infinite reverse;
-}
+/* 氛围层统一走 §32 的 canvas 活氛围层（StarField + initLoginAnimation），不再保留旧 CSS orb 光晕 */
 
 .login-card-wrapper {
   position: relative;
@@ -414,9 +363,32 @@ onUnmounted(() => {
 }
 
 :root[data-theme='dark'] .login-card {
-  background: rgba(8, 23, 53, 0.78);
-  border: 1px solid rgba(165, 192, 255, 0.14);
+  /* 暗色玻璃：对齐 §3.3.1 Surface Glass 语义（--surface-glass 为白 6% 叠加层，认证卡在此基础
+     上提亮以保证星空背景上的可读性），边框对应 --border-subtle 层级 */
+  background: var(--surface-glass);
+  border: 1px solid var(--border-subtle);
   box-shadow: 0 24px 80px rgba(0, 9, 30, 0.4), inset 0 1px rgba(196, 216, 255, 0.08);
+}
+
+/* §4.2-5：减少透明度时玻璃表面回退实色并移除模糊 */
+@media (prefers-reduced-transparency: reduce) {
+  .login-card {
+    background: var(--neutral-card);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: var(--shadow-card, 0 25px 60px rgba(7, 34, 82, 0.2));
+  }
+
+  :root[data-theme='dark'] .login-card {
+    background: var(--surface-card);
+    border: 1px solid var(--border-subtle);
+  }
+
+  /* 蓝靛边框层与光晕依赖透明叠加，一并回退 */
+  :root[data-theme='dark'] .login-card-wrapper::before,
+  :root[data-theme='dark'] .login-card-wrapper::after {
+    content: none;
+  }
 }
 
 .login-page {
@@ -453,8 +425,11 @@ onUnmounted(() => {
 }
 .login-title {
   color: var(--brand-primary);
+  /* §3.4 Display 级：28px / 36px / 600 */
   font-size: 28px;
-  font-weight: 700;
+  line-height: 36px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
   margin-bottom: 6px;
   filter: drop-shadow(0 4px 18px rgba(64, 120, 255, 0.25));
 }
@@ -463,38 +438,6 @@ onUnmounted(() => {
   color: var(--neutral-text-2);
 }
 
-/* Demo 模式：演示账号提示条 */
-.demo-account-hint {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 16px;
-  padding: 8px 12px;
-  border-radius: 8px;
-  background: rgba(77, 124, 255, 0.08);
-  border: 1px dashed rgba(77, 124, 255, 0.35);
-  font-size: 12px;
-  color: var(--neutral-text-2);
-}
-
-.demo-account-hint code {
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: rgba(77, 124, 255, 0.12);
-  color: var(--brand-primary);
-  font-size: 12px;
-}
-
-:root[data-theme='dark'] .demo-account-hint {
-  background: rgba(91, 139, 255, 0.1);
-  border-color: rgba(155, 184, 255, 0.3);
-}
-
-:root[data-theme='dark'] .demo-account-hint code {
-  background: rgba(155, 184, 255, 0.14);
-  color: #b8ccff;
-}
 .login-form {
   margin-top: 0;
 }

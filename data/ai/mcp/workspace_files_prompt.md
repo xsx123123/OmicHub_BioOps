@@ -5,6 +5,10 @@
 - `search_workspace_files(query, limit?)`：从工作区根目录递归按文件名模糊搜索。
 - `find_session_uploads(session_id?)`：按会话 ID 检索该聊天窗口中用户上传过的文件；`session_id` 留空表示当前会话。
 - 找到文件后，将返回的 `file_id` 直接交给已有的 `workspace_read_file(file_id)` 读取或分析。
+- 作用域边界（重要）：这套工具访问的是平台**用户工作区/文件中心**（宿主侧存储），
+  与 AI 工作台（Studio）沙盒里的 `/workspace` 不是同一个文件系统；沙盒内的
+  `input/`、`output/` 等内容本套工具看不到。Studio 模式下查看沙盒工作区请改用
+  `workspace_list` / `workspace_read`；把文件中心的数据引入沙盒用 `datahub_import`。
 - 工作区工具返回的 `ref: file://UUID` 可直接作为任意 **MCP 工具**的文本输入参数传入；平台会按当前用户权限自动读取 UTF-8 文本内容。对于外部 MCP，只传入解析后的文本，不传递数据库上下文。优先直接传入该引用，禁止为了读取 CSV/TSV 而回退到沙盒、复制工作区绝对路径或要求模型手工搬运文件内容。`file_id`、`path` 等控制参数仍按工具要求传原始标识符。
 
 强制行为：

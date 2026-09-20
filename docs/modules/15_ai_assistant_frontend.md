@@ -1,6 +1,6 @@
 # AI 助手前端实现详解
 
-> 文档范围：OmicHub 前端 AI 助手模块（`/ai` 路由）。
+> 文档范围：CygnusX 前端 AI 助手模块（`/ai` 路由）。
 > 技术栈：Vue 3 + Vite + TypeScript + Naive UI + Pinia + SSE（ReadableStream）。
 > 更新日期：2026-07-02
 
@@ -187,7 +187,7 @@ AI 助手页面是平台的核心交互入口之一。当前实现采用 **Agent
 文件：`frontend/src/stores/theme.ts`
 
 - 管理全局主题 `dark/light`。
-- 持久化到 `localStorage`，key 为 `omichub-theme`。
+- 持久化到 `localStorage`，key 为 `cygnusx-theme`。
 - 设置 `<html data-theme="dark|light">` 和 `.dark` class。
 
 ---
@@ -278,7 +278,7 @@ Payload 字段：
 文件：`frontend/src/components/ai-chat/KimiMessageItem.vue`
 
 - **用户消息**：右对齐气泡，使用 `--chat-user-bubble` 背景。
-- **助手消息**：左侧头像 + "OmicHub AI" 名称，包含：
+- **助手消息**：左侧头像 + "CygnusX AI" 名称，包含：
   - 可选的 reasoning/thought 折叠区
   - Markdown 正文
   - 工具调用卡片

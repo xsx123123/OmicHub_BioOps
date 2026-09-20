@@ -1,4 +1,4 @@
-# OmicHub 内置 AI Provider 模板
+# CygnusX 内置 AI Provider 模板
 # 管理员可在后台“从模板创建”快速填充 Provider 配置。
 # api_key 建议通过环境变量注入，YAML 中可写 ${ENV_VAR:-}。
 
@@ -44,7 +44,6 @@ templates:
     base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
     default_models:
       - qwen3.7-max
-      - qwen3.7-plus
       - qwen2.5-72b-instruct
     env_key: AL_API_KEY
 
@@ -53,6 +52,7 @@ templates:
     base_url: https://ark.cn-beijing.volces.com/api/coding/v3
     default_models:
       - doubao-seed-2.0-pro
+      - doubao-seed-evolving
       - deepseek-v4-pro
     env_key: ARK_API_KEY
 

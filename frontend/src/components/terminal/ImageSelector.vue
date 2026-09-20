@@ -31,7 +31,7 @@ function selectImage(id: string) {
       v-for="img in images"
       :key="img.id"
       type="button"
-      class="image-item omichub-selectable-card"
+      class="image-item cygnusx-selectable-card"
       :class="{ 'is-selected': selectedId === img.id }"
       role="radio"
       :aria-checked="selectedId === img.id"
@@ -95,7 +95,7 @@ function selectImage(id: string) {
 }
 
 /* 选中态：1px 主色边框 + 1px 主色内描边连成单一连续描边，左缘状态线由
-   全局 .omichub-selectable-card::before 提供 */
+   全局 .cygnusx-selectable-card::before 提供 */
 .image-item.is-selected {
   border-color: var(--arco-primary);
   background-color: color-mix(in srgb, var(--arco-primary) 5%, var(--neutral-card));

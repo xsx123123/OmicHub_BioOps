@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from omichub.application.schemas.task import TaskSubmitRequest
+from cygnusx.application.schemas.task import TaskSubmitRequest
 
 
 @pytest.mark.unit

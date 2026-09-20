@@ -1,4 +1,4 @@
-"""omichub-pipelines MCP 参数映射与状态转换测试。"""
+"""cygnusx-pipelines MCP 参数映射与状态转换测试。"""
 
 from __future__ import annotations
 
@@ -9,11 +9,11 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from omichub.application.schemas.pipeline import PipelinePrepareRequest
-from omichub.application.schemas.tool_invocation import ToolInvocationContext
-from omichub.application.services.pipeline_controller import PipelineController
-from omichub.application.services.pipeline_result_service import PipelineResultService
-from omichub.infrastructure.mcp.pipeline_preset import build_pipeline_preset
+from cygnusx.application.schemas.pipeline import PipelinePrepareRequest
+from cygnusx.application.schemas.tool_invocation import ToolInvocationContext
+from cygnusx.application.services.pipeline_controller import PipelineController
+from cygnusx.application.services.pipeline_result_service import PipelineResultService
+from cygnusx.infrastructure.mcp.pipeline_preset import build_pipeline_preset
 
 
 class _FakeAsyncSession(AsyncSession):
@@ -107,7 +107,7 @@ async def test_pipeline_status_normalizes_terminal_state() -> None:
         return_value={"task_id": "11111111-1111-1111-1111-111111111111", "status": "success", "progress": 1.0}
     )
     with patch(
-        "omichub.application.services.pipeline_controller.TaskService.get_task",
+        "cygnusx.application.services.pipeline_controller.TaskService.get_task",
         new_callable=AsyncMock,
         return_value=task,
     ):

@@ -44,4 +44,17 @@
 | 启动 RocketMQ 与对应 Worker | `make docker-up-rocketmq`、`make docker-up-rocketmq-worker` |
 | 启动 pgvector 验收叠加并检查 | `make docker-up-pgvector`、`make pgvector-acceptance` |
 | 启动跨机器控制面 / Worker | `make docker-up-cross-web`、`make docker-up-cross-worker` |
+| 启动 AgentTeams / 本机 Matrix 开发栈 | `make docker-up-agentteams`、`make docker-up-matrix-dev` |
 | 构建运行时和 Worker 镜像 | `make runtime-images-build`、`make docker-build-worker` |
+
+## 镜像构建
+
+| 目的 | 命令 |
+| --- | --- |
+| 富集 / DEG / 共线性 R 运行时镜像 | `make docker-build-enrichment` / `docker-build-deg` / `docker-build-synteny` |
+| 全量重建沙盒与分析运行时镜像（含核对清单） | `make docker-build-sandboxes` |
+| Studio 分析运行时三件套（core/plot/scrna） | `make runtime-images-build` |
+| 一键重建所有镜像 | `make docker-build-all-images` |
+
+镜像 tag 规范：发布产物必须打 git SHA 短号 tag（`IMAGE_TAG`），禁止 `latest` 裸推，见
+`deploy/docker/README.md`。

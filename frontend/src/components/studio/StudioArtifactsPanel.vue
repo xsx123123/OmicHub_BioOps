@@ -19,17 +19,22 @@ import {
 } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import {
+  AddOutline,
   ChatboxOutline,
   DocumentOutline,
   DownloadOutline,
   EyeOutline,
   ImageOutline,
   OpenOutline,
+  PrintOutline,
+  RefreshOutline,
+  RemoveOutline,
   SaveOutline,
 } from '@vicons/ionicons5'
 import MarkdownIt from 'markdown-it'
 import Papa from 'papaparse'
 import { studioApi, type StudioArtifact } from '@/api/studio'
+import { printBlobUrl } from '@/utils/blobPrint'
 
 const props = defineProps<{
   sessionId: string
@@ -45,11 +50,14 @@ const emit = defineEmits<{
 const message = useMessage()
 
 const IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp'])
+const PDF_EXTS = new Set(['pdf'])
 const TABLE_EXTS = new Set(['csv', 'tsv'])
 const MARKDOWN_EXTS = new Set(['md', 'markdown'])
+// HTML 报告（如 plotly 交互图表）：与左侧工作区预览一致，sandbox 隔离渲染
+const HTML_EXTS = new Set(['html', 'htm'])
 const markdown = new MarkdownIt({ html: false, linkify: true, typographer: true })
 
-type PreviewKind = 'image' | 'table' | 'markdown' | 'unsupported'
+type PreviewKind = 'image' | 'pdf' | 'html' | 'table' | 'markdown' | 'unsupported'
 type PreviewRow = Record<string, string | number>
 
 const artifacts = ref<StudioArtifact[]>([])
@@ -71,6 +79,10 @@ const previewMarkdown = ref('')
 const previewColumns = ref<DataTableColumns<PreviewRow>>([])
 const previewRows = ref<PreviewRow[]>([])
 const showPreview = ref(false)
+const previewZoom = ref(1)
+const ZOOM_MIN = 0.25
+const ZOOM_MAX = 5
+const ZOOM_STEP = 0.25
 
 const showRegister = ref(false)
 const registerArtifact = ref<StudioArtifact | null>(null)
@@ -114,6 +126,7 @@ function clearPreview() {
   previewMarkdown.value = ''
   previewColumns.value = []
   previewRows.value = []
+  previewZoom.value = 1
 }
 
 async function loadArtifacts() {
@@ -208,6 +221,18 @@ async function openPreview(artifact: StudioArtifact) {
       return
     }
 
+    if (PDF_EXTS.has(ext)) {
+      previewKind.value = 'pdf'
+      previewUrl.value = await studioApi.fetchArtifactBlob(props.sessionId, artifact.path)
+      return
+    }
+
+    if (HTML_EXTS.has(ext)) {
+      previewKind.value = 'html'
+      previewUrl.value = await studioApi.fetchArtifactBlob(props.sessionId, artifact.path)
+      return
+    }
+
     if (TABLE_EXTS.has(ext)) {
       previewKind.value = 'table'
       const result = await studioApi.readArtifactText(props.sessionId, artifact.path, 500)
@@ -234,6 +259,19 @@ async function openPreview(artifact: StudioArtifact) {
 
 function handleDownload(artifact: StudioArtifact) {
   studioApi.downloadArtifact(props.sessionId, artifact.path).catch(() => {})
+}
+
+// 隐藏浏览器 PDF 查看器自带的深色工具栏，由弹窗内的语义令牌工具条接管下载/打印
+const pdfPreviewSrc = computed(() =>
+  previewUrl.value ? `${previewUrl.value}#toolbar=0&navpanes=0` : '',
+)
+
+function zoomPreviewBy(delta: number) {
+  previewZoom.value = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round((previewZoom.value + delta) * 100) / 100))
+}
+
+function handlePrint() {
+  if (previewUrl.value) printBlobUrl(previewUrl.value)
 }
 
 function openRegister(artifact: StudioArtifact) {
@@ -382,15 +420,56 @@ function formatTime(mtime: number): string {
       :title="previewName"
       style="width: min(1000px, calc(100vw - 32px))"
     >
+      <div v-if="!previewLoading && !previewError && (previewKind === 'image' || previewKind === 'pdf' || previewKind === 'html')" class="preview-toolbar">
+        <template v-if="previewKind === 'image'">
+          <n-button text size="tiny" aria-label="缩小" :disabled="previewZoom <= ZOOM_MIN" @click="zoomPreviewBy(-ZOOM_STEP)">
+            <n-icon size="14"><RemoveOutline /></n-icon>
+          </n-button>
+          <span class="zoom-value" aria-live="polite">{{ Math.round(previewZoom * 100) }}%</span>
+          <n-button text size="tiny" aria-label="放大" :disabled="previewZoom >= ZOOM_MAX" @click="zoomPreviewBy(ZOOM_STEP)">
+            <n-icon size="14"><AddOutline /></n-icon>
+          </n-button>
+          <n-button text size="tiny" aria-label="重置缩放" @click="previewZoom = 1">
+            <n-icon size="14"><RefreshOutline /></n-icon>
+          </n-button>
+        </template>
+        <span class="toolbar-spacer" />
+        <n-button secondary size="tiny" @click="handlePrint">
+          <template #icon><n-icon size="14"><PrintOutline /></n-icon></template>
+          打印
+        </n-button>
+        <n-button v-if="previewArtifact" secondary size="tiny" @click="handleDownload(previewArtifact)">
+          <template #icon><n-icon size="14"><DownloadOutline /></n-icon></template>
+          下载
+        </n-button>
+      </div>
       <div class="preview-body">
         <n-spin v-if="previewLoading" size="medium" />
         <div v-else-if="previewError" class="preview-message">{{ previewError }}</div>
-        <img
-          v-else-if="previewKind === 'image' && previewUrl"
-          :src="previewUrl"
-          :alt="previewName"
-          class="preview-img"
+        <div v-else-if="previewKind === 'image' && previewUrl" class="preview-img-stage">
+          <img
+            :src="previewUrl"
+            :alt="previewName"
+            class="preview-img"
+            :style="{ transform: `scale(${previewZoom})` }"
+          />
+        </div>
+        <iframe
+          v-else-if="previewKind === 'pdf' && pdfPreviewSrc"
+          :src="pdfPreviewSrc"
+          :title="`${previewName} PDF 预览`"
+          class="preview-pdf"
         />
+        <div v-else-if="previewKind === 'html' && previewUrl" class="html-preview-wrap">
+          <iframe
+            :src="previewUrl"
+            :title="`${previewName} HTML 预览`"
+            sandbox="allow-scripts"
+            referrerpolicy="no-referrer"
+            class="preview-html"
+          />
+          <small class="html-preview-hint">沙盒内渲染，页面脚本可用但无法访问登录态；引用的外部本地资源可能无法加载</small>
+        </div>
         <div v-else-if="previewKind === 'table'" class="table-preview">
           <n-data-table
             v-if="previewRows.length"
@@ -548,6 +627,23 @@ function formatTime(mtime: number): string {
   justify-content: flex-end;
   gap: 8px;
 }
+.preview-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding: 4px 8px;
+  background: var(--chat-surface-hover, #f6f7f9);
+  border: 1px solid var(--chat-border, #eee);
+  border-radius: 8px;
+}
+.zoom-value {
+  min-width: 40px;
+  font-size: 11px;
+  color: var(--chat-text-muted, #888);
+  text-align: center;
+}
+.toolbar-spacer { flex: 1; }
 .preview-body {
   min-height: 200px;
   display: flex;
@@ -556,10 +652,44 @@ function formatTime(mtime: number): string {
   justify-content: center;
   gap: 12px;
 }
+.preview-img-stage {
+  width: 100%;
+  max-height: 70vh;
+  overflow: auto;
+  display: grid;
+  place-items: center;
+}
 .preview-img {
   max-width: 100%;
   max-height: 70vh;
   object-fit: contain;
+  transform-origin: top center;
+  transition: transform .14s ease-out;
+}
+.preview-pdf {
+  width: 100%;
+  height: 70vh;
+  border: 0;
+  border-radius: 8px;
+  background: var(--chat-surface, #fff);
+}
+.html-preview-wrap {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.preview-html {
+  width: 100%;
+  height: 70vh;
+  border: 1px solid var(--chat-border, #e5e7eb);
+  border-radius: 8px;
+  background: var(--chat-surface, #fff);
+}
+.html-preview-hint {
+  color: var(--chat-text-muted, #999);
+  font-size: 11px;
+  text-align: center;
 }
 .table-preview,
 .markdown-preview {
@@ -607,5 +737,5 @@ function formatTime(mtime: number): string {
 }
 @keyframes artifact-star { 0%{opacity:0;transform:translate(0,10px) scale(.6)} 35%{opacity:1} 100%{opacity:0;transform:translate(12px,-20px) scale(1.15)} }
 @keyframes artifact-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-@media (prefers-reduced-motion: reduce){.artifact-item{transition:none}.artifact-item.sparkle::after,.artifact-item.artifact-enter{animation:none;opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){.artifact-item{transition:none}.preview-img{transition:none}.artifact-item.sparkle::after,.artifact-item.artifact-enter{animation:none;opacity:1;transform:none}}
 </style>

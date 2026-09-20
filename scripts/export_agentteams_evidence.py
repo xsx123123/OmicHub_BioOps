@@ -10,7 +10,7 @@
         --output-dir ./evidence
 
 环境：
-    需要能访问 OmicHub 数据库以读取 Bridge 运行时配置（URL 与 manager token）。
+    需要能访问 CygnusX 数据库以读取 Bridge 运行时配置（URL 与 manager token）。
 """
 
 from __future__ import annotations
@@ -23,12 +23,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from omichub.application.services.agentteams_bridge_settings_service import (
+from cygnusx.application.services.agentteams_bridge_settings_service import (
     AgentTeamsBridgeSettingsService,
 )
-from omichub.application.services.agentteams_service import AgentTeamsService
-from omichub.core.config import get_settings
-from omichub.infrastructure.database.session import close_db, get_session_factory
+from cygnusx.application.services.agentteams_service import AgentTeamsService
+from cygnusx.core.config import get_settings
+from cygnusx.infrastructure.database.session import close_db, get_session_factory
 from sqlalchemy.ext.asyncio import AsyncSession
 
 

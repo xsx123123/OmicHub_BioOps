@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onUnmounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import DOMPurify from 'dompurify'
 import { NButton, NIcon, NTag, NDataTable, useMessage } from 'naive-ui'
 import {
@@ -29,12 +29,16 @@ import AskUserCard from './AskUserCard.vue'
 import PlanConfirmationCard from './PlanConfirmationCard.vue'
 import OverdriveApprovalCard from './OverdriveApprovalCard.vue'
 import OverdriveProgressCard from './OverdriveProgressCard.vue'
+import SuggestionChips from './SuggestionChips.vue'
 import ToolCallEntry from './ToolCallEntry.vue'
 import SkillInvocationCardView from './SkillInvocationCard.vue'
+import StudioCellGroup from '@/components/studio/StudioCellGroup.vue'
+import { groupToolsByCell, cellLanguageBadge } from '@/components/studio/cellTimeline'
 import { useAgentHubStore } from '@/stores/agentHub'
 import apiClient from '@/api/client'
 import { chatApi } from '@/api/chat'
 import { reportChatDiagnostic } from '@/utils/chatDiagnostics'
+import { parseNextStepSuggestions } from '@/utils/nextStepSuggestions'
 import type {
   ChatMessage,
   CollaborationRouteInfo,
@@ -62,6 +66,10 @@ interface Props {
   agentColor?: string
   modelName?: string
   sessionId?: string
+  /** 建议追问 Chips 总开关（默认关闭，页面侧显式开启，出问题时一行即可隐藏） */
+  suggestionsEnabled?: boolean
+  /** 由消息列表判定：本条是最后一条已完成的 assistant 消息且当前无流式输出 */
+  showSuggestions?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -70,11 +78,13 @@ const props = withDefaults(defineProps<Props>(), {
   streamingThought: '',
   userAvatar: '',
   userName: '我',
-  agentName: 'OmicHub AI',
+  agentName: 'CygnusX AI',
   agentAvatar: '🤖',
   agentColor: '#4f8ef7',
   modelName: 'AI 助手',
   sessionId: '',
+  suggestionsEnabled: false,
+  showSuggestions: false,
 })
 
 const emit = defineEmits<{
@@ -89,6 +99,8 @@ const emit = defineEmits<{
   openToolPage: [route: string, args: Record<string, unknown>]
   createCaseFromConsultation: [summary: string, consultationId?: string]
   correctCollaborationRoute: [route: CollaborationRouteInfo]
+  suggestionSend: [prompt: string]
+  suggestionPrefill: [prompt: string]
 }>()
 
 const router = useRouter()
@@ -195,6 +207,7 @@ async function renderPlotlyCharts() {
   try {
     const Plotly = await import('plotly.js-dist-min')
     await nextTick()
+    ensurePlotlyResizeObserver()
     for (const chart of plotlyCharts.value) {
       const el = plotlyContainers.value[chart.id]
       if (!el) continue
@@ -210,7 +223,7 @@ async function renderPlotlyCharts() {
             // 默认 600 DPI 导出（scale = 600/96）
             toImageButtonOptions: {
               format: 'png',
-              filename: 'omichub_plot_600dpi',
+              filename: 'cygnusx_plot_600dpi',
               scale: 6.25,
             } as Plotly.Config['toImageButtonOptions'],
           },
@@ -223,6 +236,46 @@ async function renderPlotlyCharts() {
     plotlyRenderError.value = `Plotly 加载失败: ${e instanceof Error ? e.message : String(e)}`
   }
 }
+
+// 历史消息刷新 / 虚拟列表项重挂后，容器尺寸可能变化（或 newPlot 时容器尚不可见），
+// 通过 ResizeObserver 触发 Plotly.Plots.resize 补绘
+const chartResultsRef = ref<HTMLElement | null>(null)
+let plotlyResizeObserver: ResizeObserver | null = null
+let plotlyResizeRaf: number | null = null
+
+async function resizePlotlyCharts() {
+  try {
+    const Plotly = await import('plotly.js-dist-min')
+    for (const el of Object.values(plotlyContainers.value)) {
+      if (el && (el as unknown as { data?: unknown }).data) {
+        Plotly.Plots.resize(el)
+      }
+    }
+  } catch {
+    /* 忽略 resize 期间的加载失败 */
+  }
+}
+
+function ensurePlotlyResizeObserver() {
+  if (typeof ResizeObserver === 'undefined') return
+  const wrap = chartResultsRef.value
+  if (!wrap) return
+  if (!plotlyResizeObserver) {
+    plotlyResizeObserver = new ResizeObserver(() => {
+      if (plotlyResizeRaf !== null) cancelAnimationFrame(plotlyResizeRaf)
+      plotlyResizeRaf = requestAnimationFrame(() => {
+        plotlyResizeRaf = null
+        void resizePlotlyCharts()
+      })
+    })
+  }
+  plotlyResizeObserver.observe(wrap)
+}
+
+onMounted(() => {
+  // 刷新加载历史消息时数据在挂载前已就绪，watcher 不会触发，需主动渲染一次
+  void nextTick(renderPlotlyCharts)
+})
 
 watch(() => [props.message.toolCalls, props.message.charts], renderPlotlyCharts, { deep: true })
 watch(
@@ -244,14 +297,14 @@ const tableData = computed(() => {
   if (!raw || !Array.isArray(raw) || !raw.length) return null
   return (raw as Record<string, unknown>[]).map((row, index) => ({
     ...row,
-    __omicHubRowKey: `${props.message.id}-${index}`,
+    __cygnusXRowKey: `${props.message.id}-${index}`,
   }))
 })
 
 const tableColumns = computed(() => {
   if (!tableData.value) return []
   return Object.keys(tableData.value[0])
-    .filter((key) => key !== '__omicHubRowKey')
+    .filter((key) => key !== '__cygnusXRowKey')
     .map((key) => ({
       title: key,
       key,
@@ -273,6 +326,18 @@ const isRoomStreaming = computed(() =>
   !props.isStreaming && !!props.message.senderAgent && props.message.status === 'streaming',
 )
 const streamingActive = computed(() => props.isStreaming || isRoomStreaming.value)
+
+/** 建议追问 Chips：仅在回复流式输出完成后展示。数据源优先级：
+ *  消息上的结构化 suggestions（后端 done 事件下发/历史持久化恢复）>
+ *  "可选下一步"编号列表正则解析兜底；两者皆空时 SuggestionChips 不渲染、不留占位。 */
+const followUpSuggestions = computed(() => {
+  if (!props.suggestionsEnabled || !props.showSuggestions) return []
+  if (props.message.role !== 'assistant' || streamingActive.value) return []
+  if (props.message.status && props.message.status !== 'complete') return []
+  const structured = props.message.suggestions
+  if (structured?.length) return structured
+  return parseNextStepSuggestions(props.message.content)
+})
 const isWorkerSpeech = computed(() => props.message.senderAgent?.role === 'worker')
 const isWorkerCollapsed = computed(() =>
   isWorkerSpeech.value && !workerExpanded.value,
@@ -315,13 +380,21 @@ const isError = computed(() =>
   || (props.message.content?.startsWith('生成失败') ?? false),
 )
 
+// 错误原因文本：优先取独立的 error 字段；兼容历史数据（错误信息曾直接写入 content）
+const errorText = computed(() => {
+  if (props.message.error) return props.message.error
+  const content = props.message.content || ''
+  return content.startsWith('生成失败') ? content : ''
+})
+
 // 错误是否属于用户无法自行处理的平台侧问题（密钥/配置/授权），用于提示联系管理员
+// 只匹配错误原因本身，避免正文叙述中的「权限/配置」等字眼造成误报
 const isAdminConfigError = computed(() =>
-  /API Key|密钥|过期|授权|权限|配置|403|permission|unauthor/i.test(props.message.content || ''),
+  /API Key|密钥|过期|授权|权限|配置|403|permission|unauthor/i.test(errorText.value),
 )
 
 const isAuthExpiredError = computed(() =>
-  /401|令牌无效|已过期|请重新登录|登录态失效|refresh/i.test(props.message.content || ''),
+  /401|令牌无效|已过期|请重新登录|登录态失效|refresh/i.test(errorText.value),
 )
 
 const hasOutputTokens = computed(() => (props.message.tokens?.output ?? 0) > 0)
@@ -659,6 +732,46 @@ const timelineView = computed<TimelineViewSegment[]>(() => {
     .filter((s): s is TimelineViewSegment => s !== null)
 })
 
+/** 科研模式（WP3 任务 1/3）：仅当当前会话开启科研模式且渲染形态为 cell 时间线时启用；
+ *  research_mode 为 null/undefined（旧会话/未开启）时恒为消息流，行为与现状一致 */
+const cellTimelineMode = computed(() => {
+  const rm = agentHubStore.currentSession?.research_mode
+  return !!rm?.enabled && rm.render_mode === 'cell_timeline'
+})
+
+type TimelineDisplaySegment =
+  | TimelineViewSegment
+  | { kind: 'cell'; cellIndex: number; language: string | null; tools: ToolCall[] }
+
+/**
+ * cell 时间线形态下的交错时间线投影：相邻且 cell_index 相同的 tool 段合并为一个
+ * cell 组（不重排顺序、不丢段，切回消息流即还原）；cell_index 为 null 的段保持原样。
+ */
+const timelineDisplay = computed<TimelineDisplaySegment[]>(() => {
+  const segs = timelineView.value
+  if (!cellTimelineMode.value) return segs
+  const out: TimelineDisplaySegment[] = []
+  for (const seg of segs) {
+    if (seg.kind !== 'tool') {
+      out.push(seg)
+      continue
+    }
+    const cellIndex = typeof seg.tool.cellIndex === 'number' ? seg.tool.cellIndex : null
+    const last = out[out.length - 1]
+    if (cellIndex !== null && last && last.kind === 'cell' && last.cellIndex === cellIndex) {
+      last.tools.push(seg.tool)
+      if (!last.language) last.language = cellLanguageBadge(seg.tool)
+      continue
+    }
+    if (cellIndex !== null) {
+      out.push({ kind: 'cell', cellIndex, language: cellLanguageBadge(seg.tool), tools: [seg.tool] })
+    } else {
+      out.push(seg)
+    }
+  }
+  return out
+})
+
 watch(
   () => [displayContent.value, webSources.value, knowledgeSources.value, props.message.timeline] as const,
   () => {
@@ -682,6 +795,12 @@ onUnmounted(() => {
     cancelAnimationFrame(renderRafId)
     renderRafId = null
   }
+  if (plotlyResizeRaf !== null) {
+    cancelAnimationFrame(plotlyResizeRaf)
+    plotlyResizeRaf = null
+  }
+  plotlyResizeObserver?.disconnect()
+  plotlyResizeObserver = null
   if (copyBtnTimer) clearTimeout(copyBtnTimer)
   Object.values(attachmentPreviewUrls.value).forEach((url) => URL.revokeObjectURL(url))
 })
@@ -697,7 +816,9 @@ function openChartPreview(chart: ChartData) {
 }
 
 function handleConfirmTool(toolName: string, args: Record<string, unknown>) {
-  emit('confirmTool', toolName, { ...args, _confirmed: true })
+  // 人类凭证写入已在 McpToolCallCard 点击时完成（approve POST），
+  // 这里仅透传参数（可能携带 _confirmation_id），不再注入 _confirmed 自证标志。
+  emit('confirmTool', toolName, args)
 }
 
 function handleOpenToolPage(route: string, args: Record<string, unknown>) {
@@ -746,6 +867,9 @@ const visibleToolCalls = computed(() => {
   if (props.message.askRequest) return tools.filter((t) => t.name !== 'ask_user')
   return tools
 })
+
+/** cell 时间线形态下的"底部工具列表"投影：cell_index 相同的相邻工具卡归入一个 cell 组 */
+const toolResultsView = computed(() => groupToolsByCell(visibleToolCalls.value))
 
 /** 气泡内是否有任何可渲染内容：消息只携带 askRequest（澄清弹窗）时正文为空，
  *  不渲染空气泡，避免弹窗卡片上方出现一条空白圆角长条 */
@@ -979,7 +1103,7 @@ function handleEdit() {
       <div v-if="isError" class="ai-empty-state error">
         <div class="empty-icon">💫</div>
         <div class="empty-title">星尘信号受到了干扰</div>
-        <div class="empty-desc">{{ message.content || '生成失败，请稍后重试或切换模型' }}</div>
+        <div class="empty-desc">{{ errorText || '生成失败，请稍后重试或切换模型' }}</div>
         <div class="error-admin-hint">
           {{ isAuthExpiredError
             ? '当前登录态已失效，请先重新登录后再重试。'
@@ -1109,36 +1233,33 @@ function handleEdit() {
           </button>
           <p v-if="isWorkerCollapsed" class="worker-result-preview">{{ workerPreview }}</p>
           <template v-else>
-          <!-- 生成中指示置于气泡内容之前：流式生成图片等大块内容时，
-               动画不会被已生成内容压到可视区之外。 -->
-          <!-- 正文尚未生成时的优雅行内指示：替代孤立的闪烁光标，
-               正文首个 token 到达后平滑淡出（不套 out-in：避免卸载竞态）。 -->
-          <transition name="gen-tail">
-            <div v-if="showGeneratingTail" class="generating-tail" role="status" aria-live="polite">
-              <span class="gen-spark" aria-hidden="true">✨</span>
-              <span class="gen-text">正在生成回复</span>
-              <span class="gen-dots" aria-hidden="true"><i /><i /><i /></span>
-            </div>
-          </transition>
-
-          <!-- 流式光标 + typing 指示：正文流式输出时显示在内容之前，结束后 200ms 淡出 -->
-          <transition name="cursor-fade">
-            <span v-if="streamingActive && streamingHasContent" class="stream-tail">
-              <span class="stream-cursor" />
-              <span class="stream-dots" aria-hidden="true"><i /><i /><i /></span>
-            </span>
-          </transition>
-
           <!-- 交错时间线：正文与工具调用按实际发生顺序渲染（内容→工具→内容），
                最终结论永远在最底部，不用翻回顶部看结果 -->
           <template v-if="timelineView.length">
-            <template v-for="(seg, segIdx) in timelineView" :key="segIdx">
+            <template v-for="(seg, segIdx) in timelineDisplay" :key="segIdx">
               <div
                 v-if="seg.kind === 'text'"
                 class="message-body markdown-body"
                 v-html="seg.html"
                 @click="handleBodyClick"
               />
+              <StudioCellGroup
+                v-else-if="seg.kind === 'cell'"
+                :cell-index="seg.cellIndex"
+                :language="seg.language"
+              >
+                <div
+                  v-for="(cellTool, cellIdx) in seg.tools"
+                  :key="cellTool.id || cellIdx"
+                  class="timeline-tool-entry"
+                >
+                  <ToolCallEntry
+                    :tool="cellTool"
+                    @confirm-tool="handleConfirmTool"
+                    @open-tool-page="handleOpenToolPage"
+                  />
+                </div>
+              </StudioCellGroup>
               <div
                 v-else-if="seg.kind === 'tool'"
                 class="timeline-tool-entry"
@@ -1157,7 +1278,7 @@ function handleEdit() {
           </template>
           <div v-else class="message-body markdown-body" v-html="renderedContent" @click="handleBodyClick" />
 
-          <div v-if="plotlyCharts.length" class="chart-results">
+          <div v-if="plotlyCharts.length" ref="chartResultsRef" class="chart-results">
             <div
               v-for="chart in plotlyCharts"
               :key="chart.id"
@@ -1191,7 +1312,7 @@ function handleEdit() {
             <n-data-table
               :data="tableData"
               :columns="tableColumns"
-              :row-key="(row) => String(row.__omicHubRowKey)"
+              :row-key="(row) => String(row.__cygnusXRowKey)"
               :max-height="300"
               size="small"
             />
@@ -1199,13 +1320,42 @@ function handleEdit() {
 
           <!-- 无时间线的历史消息：沿用旧的"底部工具列表"布局 -->
           <div v-if="!timelineView.length && visibleToolCalls.length" class="tool-results">
-            <ToolCallEntry
-              v-for="(tool, idx) in visibleToolCalls"
-              :key="idx"
-              :tool="tool"
-              @confirm-tool="handleConfirmTool"
-              @open-tool-page="handleOpenToolPage"
-            />
+            <template v-if="cellTimelineMode">
+              <template v-for="(item, idx) in toolResultsView" :key="idx">
+                <StudioCellGroup
+                  v-if="item.type === 'cell'"
+                  :cell-index="item.cellIndex"
+                  :language="item.language"
+                >
+                  <div
+                    v-for="(cellTool, cellIdx) in item.tools"
+                    :key="cellTool.id || cellIdx"
+                    class="timeline-tool-entry"
+                  >
+                    <ToolCallEntry
+                      :tool="cellTool"
+                      @confirm-tool="handleConfirmTool"
+                      @open-tool-page="handleOpenToolPage"
+                    />
+                  </div>
+                </StudioCellGroup>
+                <ToolCallEntry
+                  v-else
+                  :tool="item.tool"
+                  @confirm-tool="handleConfirmTool"
+                  @open-tool-page="handleOpenToolPage"
+                />
+              </template>
+            </template>
+            <template v-else>
+              <ToolCallEntry
+                v-for="(tool, idx) in visibleToolCalls"
+                :key="idx"
+                :tool="tool"
+                @confirm-tool="handleConfirmTool"
+                @open-tool-page="handleOpenToolPage"
+              />
+            </template>
           </div>
 
           <MessageArtifactGallery
@@ -1255,8 +1405,37 @@ function handleEdit() {
               </a>
             </div>
           </details>
+
+          <!-- 生成中/流式指示统一放在气泡内容末尾：新内容一直在底部追加，
+               指示跟着内容末尾走，始终贴在输入框上方的可视区内；
+               若放在内容之前，会被流式长正文/大图顶出可视区，
+               用户看不到"还在输出"的反馈（不套 out-in：避免卸载竞态）。 -->
+          <transition name="gen-tail">
+            <div v-if="showGeneratingTail" class="generating-tail" role="status" aria-live="polite">
+              <span class="gen-spark" aria-hidden="true">✨</span>
+              <span class="gen-text">正在生成回复</span>
+              <span class="gen-dots" aria-hidden="true"><i /><i /><i /></span>
+            </div>
+          </transition>
+
+          <!-- 流式光标 + typing 指示：跟随在已生成内容之后，结束后 200ms 淡出 -->
+          <transition name="cursor-fade">
+            <span v-if="streamingActive && streamingHasContent" class="stream-tail">
+              <span class="stream-cursor" />
+              <span class="stream-dots" aria-hidden="true"><i /><i /><i /></span>
+            </span>
+          </transition>
           </template>
         </div>
+
+        <!-- 建议追问：回复完成后展示"可选下一步"竖向卡片（行尾带 ↵ Enter 提示），独立于消息主链路，
+             出问题把父级 suggestionsEnabled 关掉即可整体隐藏 -->
+        <SuggestionChips
+          v-if="followUpSuggestions.length"
+          :suggestions="followUpSuggestions"
+          @send="(prompt) => emit('suggestionSend', prompt)"
+          @prefill="(prompt) => emit('suggestionPrefill', prompt)"
+        />
 
         <!-- Studio ask_user 澄清卡片：分页交互收集（选项/自由输入/跳过），回答后折叠为工具卡片样式 -->
         <PlanConfirmationCard
@@ -1572,6 +1751,7 @@ function handleEdit() {
 .kimi-message-item.assistant .message-content.ai-card {
   position: relative;
   width: 100%;
+  min-width: 0;
   box-sizing: border-box;
   padding: 16px 20px;
   background: var(--chat-ai-card, #ffffff);
@@ -1755,7 +1935,7 @@ function handleEdit() {
 .kimi-message-item.assistant :deep(.markdown-body table),
 .kimi-message-item.assistant :deep(.markdown-body pre) {
   overflow-x: auto;
-  min-width: 320px;
+  min-width: 0;
   max-width: 100%;
 }
 
@@ -1770,7 +1950,7 @@ function handleEdit() {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 14px;
+  margin-top: 14px;
   padding: 8px 14px;
   width: fit-content;
   max-width: 100%;
@@ -1980,6 +2160,11 @@ function handleEdit() {
   border-color: rgba(208, 48, 80, 0.25);
   background: linear-gradient(180deg, #fff8f9 0%, #ffffff 100%);
 }
+/* 深色模式：错误卡改用危险色浅底 + 卡片底色，避免白底突兀 */
+:root[data-theme="dark"] .ai-empty-state.error {
+  border-color: rgba(239, 68, 68, 0.32);
+  background: linear-gradient(180deg, var(--arco-danger-light, rgba(239, 68, 68, 0.15)) 0%, var(--chat-ai-card, #111111) 100%);
+}
 .empty-icon {
   font-size: 36px;
   margin-bottom: 10px;
@@ -2148,6 +2333,9 @@ function handleEdit() {
   flex-direction: column;
   gap: 12px;
   margin-top: 12px;
+}
+.timeline-tool-entry {
+  min-width: 0;
 }
 .timeline-tool-entry + .timeline-tool-entry {
   margin-top: 10px;

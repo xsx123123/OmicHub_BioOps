@@ -1,4 +1,4 @@
-# Lightweight Worker image: OmicHub/Celery/Snakemake/Micromamba plus Docker CLI
+# Lightweight Worker image: CygnusX/Celery/Snakemake/Micromamba plus Docker CLI
 # for isolated analysis containers. The Web image never starts enrichment containers.
 # RNAFlow, ATACFlow, reference data, and rule Conda environments are runtime resources.
 
@@ -81,8 +81,8 @@ RUN apt-get update \
         zsh \
     && rm -rf /var/lib/apt/lists/*
 
-RUN groupadd --gid 1000 omichub \
-    && useradd --uid 1000 --gid omichub --home-dir /tmp/omichub-home --shell /bin/zsh --no-create-home omichub
+RUN groupadd --gid 1000 cygnusx \
+    && useradd --uid 1000 --gid cygnusx --home-dir /tmp/cygnusx-home --shell /bin/zsh --no-create-home cygnusx
 
 RUN set -eux; \
     curl --fail --location --retry 5 --retry-all-errors \
@@ -106,8 +106,8 @@ RUN set -eux; \
       '  source "$ZSH/oh-my-zsh.sh"' \
       '  eval "$(oh-my-posh init zsh)"' \
       'fi' \
-      > /etc/zsh/zshrc.omichub; \
-    printf '%s\n' 'source /etc/zsh/zshrc.omichub' >> /etc/zsh/zshrc
+      > /etc/zsh/zshrc.cygnusx; \
+    printf '%s\n' 'source /etc/zsh/zshrc.cygnusx' >> /etc/zsh/zshrc
 
 COPY --from=micromamba /usr/bin/micromamba /usr/local/bin/micromamba
 COPY --from=docker-cli /usr/local/bin/docker /usr/local/bin/docker
@@ -119,23 +119,23 @@ RUN printf '%s\n' \
       'exec /usr/local/bin/micromamba "$@"' \
       > /usr/local/bin/conda \
     && chmod 0755 /usr/local/bin/conda /usr/local/bin/worker-entrypoint \
-    && mkdir -p /opt/omichub/pipelines /data/omichub /tmp/omichub-home \
-    && printf '%s\n' 'source /etc/zsh/zshrc.omichub' > /tmp/omichub-home/.zshrc \
-    && chmod 0644 /tmp/omichub-home/.zshrc \
-    && chmod 0777 /tmp/omichub-home
+    && mkdir -p /opt/cygnusx/pipelines /data/cygnusx /tmp/cygnusx-home \
+    && printf '%s\n' 'source /etc/zsh/zshrc.cygnusx' > /tmp/cygnusx-home/.zshrc \
+    && chmod 0644 /tmp/cygnusx-home/.zshrc \
+    && chmod 0777 /tmp/cygnusx-home
 
 WORKDIR /app
 
 ENV APP_ENV=production \
-    HOME=/tmp/omichub-home \
-    MAMBA_ROOT_PREFIX=/data/omichub/.mamba \
+    HOME=/tmp/cygnusx-home \
+    MAMBA_ROOT_PREFIX=/data/cygnusx/.mamba \
     PATH=/app/.venv/bin:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app/src \
-    SNAKEMAKE_CONDA_PREFIX=/data/omichub/.conda_envs \
+    SNAKEMAKE_CONDA_PREFIX=/data/cygnusx/.conda_envs \
     TERM=xterm-256color \
-    XDG_CACHE_HOME=/data/omichub/.cache
+    XDG_CACHE_HOME=/data/cygnusx/.cache
 
 ENTRYPOINT ["/usr/local/bin/worker-entrypoint"]
-CMD ["celery", "-A", "omichub.infrastructure.celery_app.celery", "worker", "-Q", "analysis", "--loglevel=info"]
+CMD ["celery", "-A", "cygnusx.infrastructure.celery_app.celery", "worker", "-Q", "analysis", "--loglevel=info"]

@@ -7,18 +7,19 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
+import httpx
 import pytest
 
-from omichub.api.v1.agentteams import (
+from cygnusx.api.v1.agentteams import (
     AgentTeamsCaseCreateRequest,
     _is_chat_case_flow_allowed,
     create_case,
 )
-from omichub.application.services.agentteams_intent_router import IntentRoute
-from omichub.application.services.agentteams_service import AgentTeamsService
-from omichub.application.services.project_service import ProjectService
-from omichub.core.config import Settings
-from omichub.core.exceptions import BusinessError, NotFoundError
+from cygnusx.application.services.agentteams_intent_router import IntentRoute
+from cygnusx.application.services.agentteams_service import AgentTeamsService
+from cygnusx.application.services.project_service import ProjectService
+from cygnusx.core.config import Settings
+from cygnusx.core.exceptions import BusinessError, NotFoundError
 
 
 @pytest.fixture
@@ -35,13 +36,37 @@ def service() -> AgentTeamsService:
     )
 
 
+@pytest.mark.asyncio
+async def test_request_as_surfaces_bridge_flow_allowlist_rejection(
+    service: AgentTeamsService, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    request = httpx.Request("POST", "http://bridge.test/v1/approved-submissions")
+
+    class FakeBridgeClient:
+        async def request(self, *_args, **_kwargs):
+            return httpx.Response(403, json={"detail": "Flow is not allowed"}, request=request)
+
+    monkeypatch.setattr(service, "_bridge_client", lambda: FakeBridgeClient())
+
+    with pytest.raises(BusinessError, match="流程未在 AgentTeams Bridge 中启用") as exc_info:
+        await service._request_as(
+            "approval-authority",
+            "approval-token",
+            "/v1/approved-submissions",
+            method="POST",
+            json={},
+        )
+
+    assert exc_info.value.code == "FLOW_NOT_ALLOWED"
+
+
 def test_direct_case_api_flow_guard_uses_configured_and_registry_flows(monkeypatch) -> None:
     monkeypatch.setattr(
-        "omichub.api.v1.agentteams.get_settings",
+        "cygnusx.api.v1.agentteams.get_settings",
         lambda: Settings(agentteams_chat_flow_whitelist="approved-flow"),
     )
     monkeypatch.setattr(
-        "omichub.api.v1.agentteams.get_flow_registry",
+        "cygnusx.api.v1.agentteams.get_flow_registry",
         lambda: type("Registry", (), {"bridge_flow_ids": lambda self: {"registry-flow"}})(),
     )
 
@@ -60,9 +85,9 @@ async def test_direct_case_api_rejects_project_not_owned_by_requester(monkeypatc
     )
     service = SimpleNamespace(create_case=AsyncMock())
 
-    monkeypatch.setattr("omichub.api.v1.agentteams._is_chat_case_flow_allowed", lambda _flow: True)
+    monkeypatch.setattr("cygnusx.api.v1.agentteams._is_chat_case_flow_allowed", lambda _flow: True)
     monkeypatch.setattr(
-        "omichub.api.v1.agentteams.get_agentteams_capability_registry",
+        "cygnusx.api.v1.agentteams.get_agentteams_capability_registry",
         lambda: SimpleNamespace(agent_for_flow=lambda _flow: "agent-rnaseq"),
     )
 
@@ -89,7 +114,7 @@ async def test_direct_case_api_rejects_non_whitelisted_flow_before_project_looku
     service = SimpleNamespace(create_case=AsyncMock())
     get_project = AsyncMock()
     monkeypatch.setattr(ProjectService, "get_project", get_project)
-    monkeypatch.setattr("omichub.api.v1.agentteams._is_chat_case_flow_allowed", lambda _flow: False)
+    monkeypatch.setattr("cygnusx.api.v1.agentteams._is_chat_case_flow_allowed", lambda _flow: False)
 
     with pytest.raises(BusinessError, match="白名单"):
         await create_case(request, str(uuid4()), service, SimpleNamespace())
@@ -114,9 +139,9 @@ async def test_direct_case_api_creates_case_for_owned_project(monkeypatch) -> No
     )
     get_project = AsyncMock(return_value={"id": str(project_id)})
     monkeypatch.setattr(ProjectService, "get_project", get_project)
-    monkeypatch.setattr("omichub.api.v1.agentteams._is_chat_case_flow_allowed", lambda _flow: True)
+    monkeypatch.setattr("cygnusx.api.v1.agentteams._is_chat_case_flow_allowed", lambda _flow: True)
     monkeypatch.setattr(
-        "omichub.api.v1.agentteams.get_agentteams_capability_registry",
+        "cygnusx.api.v1.agentteams.get_agentteams_capability_registry",
         lambda: SimpleNamespace(agent_for_flow=lambda _flow: "agent-rnaseq"),
     )
 
@@ -163,9 +188,9 @@ async def test_direct_case_api_binds_created_case_to_chat_session(monkeypatch) -
         provision_case_room=AsyncMock(return_value=None),
     )
     monkeypatch.setattr(ProjectService, "get_project", AsyncMock())
-    monkeypatch.setattr("omichub.api.v1.agentteams._is_chat_case_flow_allowed", lambda _flow: True)
+    monkeypatch.setattr("cygnusx.api.v1.agentteams._is_chat_case_flow_allowed", lambda _flow: True)
     monkeypatch.setattr(
-        "omichub.api.v1.agentteams.get_agentteams_capability_registry",
+        "cygnusx.api.v1.agentteams.get_agentteams_capability_registry",
         lambda: SimpleNamespace(agent_for_flow=lambda _flow: "agent-rnaseq"),
     )
 
@@ -427,7 +452,7 @@ async def test_create_general_case_uses_file_context_without_project(
 
     monkeypatch.setattr(service, "_request", fake_request)
     monkeypatch.setattr(
-        "omichub.application.services.agentteams_service.infer_intent_route",
+        "cygnusx.application.services.agentteams_service.infer_intent_route",
         lambda _intent: None,
     )
 
@@ -462,7 +487,7 @@ async def test_create_chat_case_routes_rnaseq_intent_to_flow_analyst(
 
     monkeypatch.setattr(service, "_request", fake_request)
     monkeypatch.setattr(
-        "omichub.application.services.agentteams_service.infer_intent_route",
+        "cygnusx.application.services.agentteams_service.infer_intent_route",
         lambda _intent: IntentRoute(flow_id="rna_seq", lead_planner="agent-rnaseq"),
     )
 
@@ -492,7 +517,7 @@ async def test_create_chat_case_routes_scrna_cellranger_request_without_file_nam
 
     monkeypatch.setattr(service, "_request", fake_request)
     monkeypatch.setattr(
-        "omichub.application.services.agentteams_service.infer_intent_route",
+        "cygnusx.application.services.agentteams_service.infer_intent_route",
         lambda _intent: IntentRoute(flow_id="scrna", lead_planner="agent-scrna"),
     )
 
@@ -522,7 +547,7 @@ async def test_create_chat_case_falls_back_to_agent_code_when_router_fails(
 
     monkeypatch.setattr(service, "_request", fake_request)
     monkeypatch.setattr(
-        "omichub.application.services.agentteams_service.infer_intent_route",
+        "cygnusx.application.services.agentteams_service.infer_intent_route",
         _broken_router,
     )
 
@@ -609,7 +634,7 @@ async def test_case_event_stream_checks_owner_before_connecting_to_bridge(
 
     monkeypatch.setattr(service, "_get_case_for_requester", fake_owner)
     monkeypatch.setattr(
-        "omichub.application.services.agentteams_service.httpx.AsyncClient", FakeClient
+        "cygnusx.application.services.agentteams_service.httpx.AsyncClient", FakeClient
     )
 
     events = [
@@ -706,7 +731,7 @@ async def test_health_check_merges_alias_worker_heartbeats_into_canonical_role(
     monkeypatch.setattr(service, "_request", fake_request)
     monkeypatch.setattr(service, "_request_as", fake_request_as)
     monkeypatch.setattr(
-        "omichub.application.services.agentteams_service.get_agentteams_capability_registry",
+        "cygnusx.application.services.agentteams_service.get_agentteams_capability_registry",
         lambda: SimpleNamespace(
             role_agent_map=lambda: {"agent-data": "agent-data", "agent-qc": "agent-qc"},
             role_alias_map=lambda: {
@@ -1192,15 +1217,15 @@ async def test_connection_status_reports_enabled_but_incomplete_configuration() 
 
 
 def test_matrix_identity_for_requester_mapping() -> None:
-    from omichub.application.services.agentteams_service import (
+    from cygnusx.application.services.agentteams_service import (
         matrix_identity_for_requester,
     )
 
-    assert matrix_identity_for_requester("user-1") == "omichub-user-user-1"
-    assert matrix_identity_for_requester("User@Example.com") == "omichub-user-user-example.com"
-    assert matrix_identity_for_requester(" 张三 ") == "omichub-user"
-    assert matrix_identity_for_requester("") == "omichub-user"
-    assert matrix_identity_for_requester("u" * 200) == "omichub-user-" + "u" * 48
+    assert matrix_identity_for_requester("user-1") == "cygnusx-user-user-1"
+    assert matrix_identity_for_requester("User@Example.com") == "cygnusx-user-user-example.com"
+    assert matrix_identity_for_requester(" 张三 ") == "cygnusx-user"
+    assert matrix_identity_for_requester("") == "cygnusx-user"
+    assert matrix_identity_for_requester("u" * 200) == "cygnusx-user-" + "u" * 48
 
 
 @pytest.mark.asyncio
@@ -1226,22 +1251,22 @@ async def test_provision_case_room_ensures_and_invites_requester_identity(monkey
             return {"room_id": "!room:test", "element_room_url": "http://element/#/room/!room:test"}
 
     monkeypatch.setattr(
-        "omichub.application.services.agentteams_service.AgentTeamsRoomGatewayService",
+        "cygnusx.application.services.agentteams_service.AgentTeamsRoomGatewayService",
         lambda *args, **kwargs: FakeGateway(),
     )
     service.post_case_evidence = AsyncMock(return_value={})
     monkeypatch.setattr(
-        "omichub.application.services.agentteams_room_sync_service.record_room_binding",
+        "cygnusx.application.services.agentteams_room_sync_service.record_room_binding",
         AsyncMock(),
     )
 
     room = await service.provision_case_room("case-1", requester_ref="User@Example.com")
 
     assert room is not None and room["room_id"] == "!room:test"
-    assert calls["ensured"] == ["bioops-manager", "omichub-user", "omichub-user-user-example.com"]
+    assert calls["ensured"] == ["bioops-manager", "cygnusx-user", "cygnusx-user-user-example.com"]
     assert calls["created"] == (
         "case-1",
-        ["bioops-manager", "omichub-user", "omichub-user-user-example.com"],
+        ["bioops-manager", "cygnusx-user", "cygnusx-user-user-example.com"],
     )
 
 
@@ -1265,12 +1290,12 @@ async def test_provision_case_room_survives_ensure_users_failure(monkeypatch) ->
             return {"room_id": "!room:test", "element_room_url": None}
 
     monkeypatch.setattr(
-        "omichub.application.services.agentteams_service.AgentTeamsRoomGatewayService",
+        "cygnusx.application.services.agentteams_service.AgentTeamsRoomGatewayService",
         lambda *args, **kwargs: FakeGateway(),
     )
     service.post_case_evidence = AsyncMock(return_value={})
     monkeypatch.setattr(
-        "omichub.application.services.agentteams_room_sync_service.record_room_binding",
+        "cygnusx.application.services.agentteams_room_sync_service.record_room_binding",
         AsyncMock(),
     )
 
@@ -1298,7 +1323,7 @@ async def test_provision_case_room_records_visible_failure_event(monkeypatch) ->
             raise RuntimeError("connection refused")
 
     monkeypatch.setattr(
-        "omichub.application.services.agentteams_service.AgentTeamsRoomGatewayService",
+        "cygnusx.application.services.agentteams_service.AgentTeamsRoomGatewayService",
         lambda *args, **kwargs: FailingGateway(),
     )
     evidence = AsyncMock(return_value={})
@@ -1360,10 +1385,10 @@ async def test_start_chat_planning_creates_plan01_then_transitions_state(
         return {}
 
     monkeypatch.setattr(service, "_request", fake_request)
-    # 测试环境可能真实存在用户工作区(如 /data/omichub),屏蔽文件可读性预检,
+    # 测试环境可能真实存在用户工作区(如 /data/cygnusx),屏蔽文件可读性预检,
     # 让本用例聚焦 planning 工作项的创建与状态推进。
     monkeypatch.setattr(
-        "omichub.application.services.agentteams_service.check_context_refs",
+        "cygnusx.application.services.agentteams_service.check_context_refs",
         lambda refs, **kwargs: [],
     )
 
@@ -1403,7 +1428,7 @@ async def test_start_chat_planning_uses_domain_planner_when_requested(
 
     monkeypatch.setattr(service, "_request", fake_request)
     monkeypatch.setattr(
-        "omichub.application.services.agentteams_service.check_context_refs",
+        "cygnusx.application.services.agentteams_service.check_context_refs",
         lambda refs, **kwargs: [],
     )
 

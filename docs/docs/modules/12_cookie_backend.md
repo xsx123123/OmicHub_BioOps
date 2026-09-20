@@ -1,4 +1,4 @@
-# OmicHub Cookie (饼干) 积分系统 — 完整后端架构设计
+# CygnusX Cookie (饼干) 积分系统 — 完整后端架构设计
 
 > 版本: v1.0 | 适配: Vue3 + FastAPI + PostgreSQL + Redis + Celery + Docker Compose
 > 设计目标: 原子性、并发安全、防超支、管理员灵活操作
@@ -446,7 +446,7 @@ $$ LANGUAGE plpgsql;
 
 ```python
 """
-OmicHub Cookie (饼干) 积分系统 — Pydantic v2 DTO 定义
+CygnusX Cookie (饼干) 积分系统 — Pydantic v2 DTO 定义
 """
 from __future__ import annotations
 
@@ -938,7 +938,7 @@ class AccountFrozenError(BaseModel):
 
 ```python
 """
-OmicHub Cookie (饼干) 积分系统 — 核心业务服务
+CygnusX Cookie (饼干) 积分系统 — 核心业务服务
 
 核心设计原则:
 1. 所有余额操作通过 cookie_transactions 表记录（不可篡改审计链）
@@ -2043,7 +2043,7 @@ class InvalidTransactionException(Exception):
 
 ```python
 """
-OmicHub Cookie (饼干) 积分系统 — 定价计算引擎
+CygnusX Cookie (饼干) 积分系统 — 定价计算引擎
 
 支持动态定价策略：
 1. 从数据库加载当前生效的定价策略（支持时段、优先级覆盖）
@@ -4679,7 +4679,7 @@ api_router.include_router(admin_router)
 from celery import Celery
 from celery.schedules import crontab
 
-app = Celery("omic_hub")
+app = Celery("cygnus_x")
 
 app.conf.beat_schedule = {
     # 沙盒计费心跳：每分钟执行一次
@@ -4850,4 +4850,4 @@ app.conf.timezone = "Asia/Shanghai"
 
 ---
 
-*文档结束 — OmicHub 饼干积分系统完整后端架构设计 v1.0*
+*文档结束 — CygnusX 饼干积分系统完整后端架构设计 v1.0*

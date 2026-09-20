@@ -1,12 +1,12 @@
-# OmicHub AgentTeams sidecar deployment
+# CygnusX AgentTeams sidecar deployment
 
 > 协作档位、Bridge 前置条件和专业 Worker 边界请参阅
 > `docs/configuration/多Agent协作配置指南.md`。
 
 This Compose project is deliberately independent of `deploy/docker/docker-compose.yml`.
-It deploys only the OmicHub Bridge: AgentTeams Controller, Matrix, MinIO, and optional
-Higress remain AgentTeams-owned services and should join `omichub_agentteams_control`
-through a dedicated gateway rather than the OmicHub application network.
+It deploys only the CygnusX Bridge: AgentTeams Controller, Matrix, MinIO, and optional
+Higress remain AgentTeams-owned services and should join `cygnusx_agentteams_control`
+through a dedicated gateway rather than the CygnusX application network.
 
 ## Run the Bridge
 
@@ -14,7 +14,7 @@ through a dedicated gateway rather than the OmicHub application network.
 cp bridge.env.example bridge.env
 cp gateway.env.example gateway.env
 # Replace every placeholder with deployment-managed secrets.
-docker network create omichub_bridge_gateway
+docker network create cygnusx_bridge_gateway
 docker compose -f docker-compose.agentteams.yml up --build -d
 ```
 
@@ -23,18 +23,18 @@ Bridge 镜像默认从阿里云 PyPI 镜像安装 Python 依赖。若当前网�
 
 ```bash
 PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple \
-  docker compose -f docker-compose.agentteams.yml build omichub-agentteams-bridge
+  docker compose -f docker-compose.agentteams.yml build cygnusx-agentteams-bridge
 ```
 
 For a local development-only startup, `gateway.env` may use
 `GATEWAY_ENVIRONMENT=development` with Matrix settings left empty. Production requires
 deployment-managed Gateway and Matrix credentials; do not commit either environment file.
 
-The host health port binds to `127.0.0.1:8088` by default. OmicHub reaches the Bridge over the
+The host health port binds to `127.0.0.1:8088` by default. CygnusX reaches the Bridge over the
 dedicated Docker network; do not change `AGENTTEAMS_BRIDGE_BIND_HOST` to `0.0.0.0` unless an
 approved gateway/firewall policy requires a host-facing endpoint.
 
-The Bridge starts a dedicated `omichub-agentteams-state` Redis service on a separate internal
+The Bridge starts a dedicated `cygnusx-agentteams-state` Redis service on a separate internal
 network. It owns the shared Case snapshot, atomic lease/claim lock, idempotency receipts, and
 append-only audit stream. Workers are intentionally **not** attached to that network: they can
 only call the Bridge API. Production `bridge.env` must set `BRIDGE_STATE_STORE_URL`; file-backed
@@ -92,7 +92,7 @@ export AGENTTEAMS_ANALYSIS_WORKER_TOKEN=...
 ```
 
 Workers do not load `bridge.env`. This prevents them from inheriting the Gateway Manager token,
-approval signing secret, OmicHub integration credential, or other Worker identities.
+approval signing secret, CygnusX integration credential, or other Worker identities.
 
 For the repository's integrated development reload, use:
 
@@ -133,19 +133,19 @@ the quality decision already persisted by the Bridge.
 
 Use the tracked Bridge and Worker environment examples as separately managed templates for the
 AgentTeams control plane, private object storage, and optional gateway deployment. Those services
-must not receive OmicHub database, Redis, Docker socket, or user-volume credentials.
+must not receive CygnusX database, Redis, Docker socket, or user-volume credentials.
 
-The Bridge must be given a restricted OmicHub service identity. It may call only public
-OmicHub HTTP endpoints and must not receive PostgreSQL, Redis, Docker socket, user-data
-volume, or workflow-directory access. The external `omichub_bridge_gateway` is a dedicated
-gateway network: expose only the OmicHub API gateway on it, never the database, Redis, or
+The Bridge must be given a restricted CygnusX service identity. It may call only public
+CygnusX HTTP endpoints and must not receive PostgreSQL, Redis, Docker socket, user-data
+volume, or workflow-directory access. The external `cygnusx_bridge_gateway` is a dedicated
+gateway network: expose only the CygnusX API gateway on it, never the database, Redis, or
 Worker services. The `agentteams_control` network remains internal to AgentTeams services.
 
 ## AgentTeams wiring
 
 - Team identities: `integrations/agentteams/teams/bioops-delivery.yaml`
 - Skill contracts: `integrations/agentteams/skills/contracts.yaml`
-- Bridge API: `http://omichub-agentteams-bridge:8080/v1`
+- Bridge API: `http://cygnusx-agentteams-bridge:8080/v1`
 
 ### Latency acceptance gate
 
@@ -180,7 +180,7 @@ session identifier.
 
 Keep `dual_write` enabled until the scheduled watcher reports zero mismatches for three
 consecutive days. Then set `AGENTTEAMS_CASE_CURSOR_MIGRATION_MODE=new_only` and restart the
-OmicHub web/worker processes; the next watcher/consumer pass removes the legacy fields. If an
+CygnusX web/worker processes; the next watcher/consumer pass removes the legacy fields. If an
 incident occurs during or after cutover, set the mode to `legacy_only` to read and write only the
 legacy cursor values while the issue is investigated. Do not remove the cursor migration table
 until the rollback window has expired.
@@ -190,7 +190,7 @@ professional Workers run as the scalable `agentteams-worker-professional-pool`; 
 uses the exact target identity token even though one replica can service multiple capabilities.
 Task submission and cancellation also require a short-lived, action-scoped approval token
 issued only by the separate `approval-authority` gateway after a human approval card is
-resolved. The Bridge writes its own append-only JSONL audit index; OmicHub remains
+resolved. The Bridge writes its own append-only JSONL audit index; CygnusX remains
 authoritative for task state, logs, and artifacts. The Bridge volume persists only Case
 references, approval/audit evidence, and delivery manifests—never FASTQ, BAM, reference
 genomes, or raw user files.
@@ -209,29 +209,29 @@ only after its configured deadline expires. Then use the returned `case_id` and 
 when calling the matching skill contract. Manager uses the normal Case APIs to assign work and
 cannot call the Worker inbox or claim endpoints.
 
-### OmicHub 上游身份
+### CygnusX 上游身份
 
-Bridge 调用 OmicHub 现有 HTTP API 时必须以一个专用、最小权限的 OmicHub 集成用户执行，
+Bridge 调用 CygnusX 现有 HTTP API 时必须以一个专用、最小权限的 CygnusX 集成用户执行，
 使任务归属、取消权限和审计记录可追溯。生产 `bridge.env` 在
-`BRIDGE_OMICHUB_SERVICE_TOKEN`（Bearer）和 `BRIDGE_OMICHUB_API_KEY`（`X-API-Key`）之间
-**只能配置一个**；推荐后者。通过该集成用户登录 OmicHub 后，在
+`BRIDGE_CYGNUSX_SERVICE_TOKEN`（Bearer）和 `BRIDGE_CYGNUSX_API_KEY`（`X-API-Key`）之间
+**只能配置一个**；推荐后者。通过该集成用户登录 CygnusX 后，在
 `POST /api/v1/auth/api-keys` 创建专用 Key，写入部署管理的 `bridge.env`，明文只保存到
 受控 secret store。不要复用个人用户 JWT，也不要把 Key 写入仓库、前端环境变量或
 AgentTeams Worker 配置。建议该 Key 仅声明 `flows:read`、`tasks:read`、
-`tasks:submit` 与 `tasks:cancel` 四个 scopes；OmicHub 会在对应 API 路径上执行此限制。
-此外必须设置 `BRIDGE_OMICHUB_INTEGRATION_TOKEN`，其值与 OmicHub 的
+`tasks:submit` 与 `tasks:cancel` 四个 scopes；CygnusX 会在对应 API 路径上执行此限制。
+此外必须设置 `BRIDGE_CYGNUSX_INTEGRATION_TOKEN`，其值与 CygnusX 的
 `AGENTTEAMS_INTEGRATION_TOKEN` 一致，用于启动时和热重载时读取只读能力 Registry 快照。
 
-## OmicHub 协作中心代理
+## CygnusX 协作中心代理
 
 The browser never calls the Bridge directly and must never receive a Worker or Manager secret.
-To enable the authenticated Case list, detail, event evidence, and Case creation page in OmicHub,
+To enable the authenticated Case list, detail, event evidence, and Case creation page in CygnusX,
 copy the tracked root `.env.example` block into the deployment-managed `.env`, then configure
 the following server-side environment variables:
 
 ```bash
 AGENTTEAMS_BRIDGE_ENABLED=true
-AGENTTEAMS_BRIDGE_URL=http://omichub-agentteams-bridge:8080
+AGENTTEAMS_BRIDGE_URL=http://cygnusx-agentteams-bridge:8080
 AGENTTEAMS_BRIDGE_MANAGER_TOKEN=replace-with-bioops-manager-token
 AGENTTEAMS_BRIDGE_DATA_STEWARD_TOKEN=replace-with-data-steward-token
 AGENTTEAMS_BRIDGE_APPROVAL_TOKEN=replace-with-approval-authority-token
@@ -239,28 +239,28 @@ AGENTTEAMS_BRIDGE_WORKFLOW_OPERATOR_TOKEN=replace-with-workflow-operator-token
 AGENTTEAMS_BRIDGE_TIMEOUT_SECONDS=10
 ```
 
-Then bring the main OmicHub stack up with the optional network override. Start the Bridge stack
-first so it creates `omichub_bridge_gateway`:
+Then bring the main CygnusX stack up with the optional network override. Start the Bridge stack
+first so it creates `cygnusx_bridge_gateway`:
 
 ```bash
 docker compose \
   -f deploy/docker/docker-compose.yml \
-  -f deploy/agentteams/docker-compose.omichub-proxy.yml \
+  -f deploy/agentteams/docker-compose.cygnusx-proxy.yml \
   up -d web
 ```
 
 The main `deploy/docker/docker-compose.yml` does not join this network by default, so local and
-existing deployments remain unchanged until this override is selected. OmicHub uses the Manager
+existing deployments remain unchanged until this override is selected. CygnusX uses the Manager
 token only inside its backend to filter Case records by the current authenticated user. On Case
 creation it uses the separate Data Steward token solely to assign and run the read-only
 `project-preflight` Work Item. Approval, submission, cancellation, quality decisions, and manifest
 closure remain controlled by the dedicated AgentTeams identities and approval gateway.
 
 The optional override explicitly preserves the Web service's existing app, data, Worker, and
-Sandbox networks before adding `omichub_bridge_gateway`; do not replace it with a one-network
+Sandbox networks before adding `cygnusx_bridge_gateway`; do not replace it with a one-network
 override, or the Web service will lose access to its existing dependencies.
 
-When the Case owner confirms a `approval_pending` Case in OmicHub, the backend—not the browser—
+When the Case owner confirms a `approval_pending` Case in CygnusX, the backend—not the browser—
 uses the separate approval-authority identity to mint a short-lived, case-scoped approval token and
 the separate workflow-operator identity to submit the task. The browser never receives either
 identity secret or the approval token.
@@ -274,7 +274,7 @@ Worker identities; it does not start containers or submit any tasks.
 ```bash
 python3 deploy/agentteams/preflight.py \
   --bridge-env deploy/agentteams/bridge.env \
-  --omichub-env .env \
+  --cygnusx-env .env \
   --gateway-env deploy/agentteams/gateway.env
 ```
 
@@ -284,7 +284,7 @@ internal service URL appropriate for the environment:
 ```bash
 python3 deploy/agentteams/preflight.py \
   --bridge-env deploy/agentteams/bridge.env \
-  --omichub-env .env \
+  --cygnusx-env .env \
   --gateway-env deploy/agentteams/gateway.env \
   --check-health \
   --bridge-url http://127.0.0.1:8088 \
@@ -297,7 +297,7 @@ python3 deploy/agentteams/preflight.py \
 ## Deprecated Matrix transport smoke test
 
 This optional legacy transport check is retained only for deployments that still operate Matrix.
-It is not an OmicHub product entry, and AgentTeams chat no longer depends on Element. The command
+It is not an CygnusX product entry, and AgentTeams chat no longer depends on Element. The command
 creates one disposable room and therefore still requires explicit confirmation.
 
 ```bash
@@ -321,7 +321,7 @@ python3 deploy/agentteams/matrix_gateway_smoke.py \
 For a shared or production deployment, install the official AgentTeams Helm chart into a
 separate Kubernetes namespace. Keep the Controller API, optional Matrix transport, MinIO, and
 Higress console private; expose only the authenticated Bridge/Gateway endpoints required by the
-approved network policy. OmicHub does not require an Element Web deployment.
+approved network policy. CygnusX does not require an Element Web deployment.
 
 ```bash
 helm repo add higress.io https://higress.io/helm-charts
@@ -337,14 +337,14 @@ helm install agentteams higress.io/agentteams \
 The exact Worker, Team, Manager, and Human resource schema is release-specific. Apply the
 role boundaries in `integrations/agentteams/teams/bioops-delivery.yaml` and the API contracts
 in `integrations/agentteams/skills/contracts.yaml` when creating those official resources; do
-not invent a local CRD format or mount the OmicHub Worker data volume into AgentTeams Workers.
+not invent a local CRD format or mount the CygnusX Worker data volume into AgentTeams Workers.
 
 ### Control-plane acceptance gate
 
 Before assigning a real Worker or starting the repeatable demo, apply the namespace-wide
 default-deny policy after installing the official chart. Then add release-specific allow policies
 only for Controller/Worker-to-Bridge traffic, Controller internal services, and the approved
-Matrix/MinIO gateways. Do not allow direct egress to OmicHub PostgreSQL, Redis, Docker, or data
+Matrix/MinIO gateways. Do not allow direct egress to CygnusX PostgreSQL, Redis, Docker, or data
 volumes.
 
 ```bash
@@ -356,14 +356,14 @@ python3 deploy/agentteams/verify_control_plane.py \
 ```
 
 Before applying `bridge-cluster.yaml`, replace the two image references with the built and
-signed Bridge/Worker images, create `omichub-agentteams-bridge-runtime` from the production
-Bridge secret, create `omichub-agentteams-worker-tokens` with one key per Worker role, and point
+signed Bridge/Worker images, create `cygnusx-agentteams-bridge-runtime` from the production
+Bridge secret, create `cygnusx-agentteams-worker-tokens` with one key per Worker role, and point
 `BRIDGE_STATE_STORE_URL` at managed Redis. The Worker secret must not contain Gateway, approval,
-or OmicHub integration credentials.
+or CygnusX integration credentials.
 
 `verify_control_plane.py` is read-only and controller-schema agnostic. It checks that the target
 namespace exists, that a namespace-wide ingress/egress default-deny policy is active, and that
-running Pods are non-privileged with no host-network, Docker socket, OmicHub data, database,
+running Pods are non-privileged with no host-network, Docker socket, CygnusX data, database,
 Redis, or workflow mounts. A failure is a deployment gate: fix the Helm values or explicit
 allow policies before creating Team/Worker resources. The verifier deliberately does not claim
 that a Controller release's Team CRD is valid; validate those resources with the official chart

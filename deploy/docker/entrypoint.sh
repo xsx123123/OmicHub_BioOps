@@ -1,5 +1,5 @@
 #!/bin/sh
-# OmicHub 容器启动入口
+# CygnusX 容器启动入口
 #
 # 在启动主进程前，按需自动应用数据库迁移，保证 schema 与代码同步：
 #   - 仅当 RUN_MIGRATIONS=1 时执行（只赋给 web 容器，避免多容器并发迁移竞争）；

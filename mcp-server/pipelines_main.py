@@ -1,4 +1,4 @@
-"""独立 omichub-pipelines MCP Server 入口。"""
+"""独立 cygnusx-pipelines MCP Server 入口。"""
 
 import sys
 
@@ -9,8 +9,8 @@ from fastmcp import FastMCP
 from tools.pipelines import register
 
 mcp = FastMCP(
-    "omichub-pipelines",
-    instructions="OmicHub RNA-seq 与 ATAC-seq 完整分析流程 MCP 服务",
+    "cygnusx-pipelines",
+    instructions="CygnusX RNA-seq 与 ATAC-seq 完整分析流程 MCP 服务",
 )
 register(mcp, api)
 
@@ -29,7 +29,14 @@ def main() -> None:
             port = int(args[index + 1])
 
     if not settings.api_key:
-        logger.warning("未设置 OMICSHUB_API_KEY，流水线 API 调用将失败")
+        logger.warning("未设置 CYGNUSX_API_KEY，流水线 API 调用将失败")
+
+    if transport == "sse" and settings.host != "127.0.0.1":
+        logger.warning(
+            f"SSE 传输无鉴权且绑定 {settings.host}:{port}，任何可达者都能使用本服务配置的 API Key；"
+            "请确保处于可信内网，或改绑 127.0.0.1 并经由带鉴权的反向代理暴露。"
+        )
+
     if transport == "sse":
         mcp.run(transport="sse", host=settings.host, port=port)
     else:

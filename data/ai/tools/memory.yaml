@@ -2,8 +2,8 @@
 id: memory
 description: 保存、修正、遗忘和检索当前用户自己的跨会话研究记忆。
 builtin_tools:
-  - omichub_save_memory
-  - omichub_update_memory
-  - omichub_forget_memory
-  - omichub_search_memory
-  - omichub_update_memory_block
+  - cygnusx_save_memory
+  - cygnusx_update_memory
+  - cygnusx_forget_memory
+  - cygnusx_search_memory
+  - cygnusx_update_memory_block

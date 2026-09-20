@@ -1,4 +1,4 @@
-# OmicHub GO / KEGG enrichment runtime image.
+# CygnusX GO / KEGG enrichment runtime image.
 # Purpose: run clusterProfiler inside isolated containers launched by Celery Worker.
 # Build context: tool_configs/enrichments
 # Build command: make docker-build-enrichment
@@ -11,10 +11,19 @@
 # 2. ENV PATH 钉住 conda bin，Worker `docker run <image> Rscript ...` 无需环境激活。
 FROM mambaorg/micromamba:2.0.5
 
-LABEL org.opencontainers.image.title="omichub-r-enrichment" \
-      org.opencontainers.image.description="clusterProfiler GO/KEGG enrichment runtime for OmicHub toolbox"
+LABEL org.opencontainers.image.title="cygnusx-r-enrichment" \
+      org.opencontainers.image.description="clusterProfiler GO/KEGG enrichment runtime for CygnusX toolbox"
 
 ENV PATH="${MAMBA_ROOT_PREFIX}/bin:${PATH}"
+
+USER root
+
+# 构建期切换中科大 apt 源，加速 apt-get（兼容 debian.sources 与旧版 sources.list）
+RUN if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
+        sed -i 's@//deb.debian.org@//mirrors.ustc.edu.cn@g; s@//security.debian.org@//mirrors.ustc.edu.cn@g' /etc/apt/sources.list.d/debian.sources; \
+    else \
+        sed -i 's@//deb.debian.org@//mirrors.ustc.edu.cn@g; s@//security.debian.org@//mirrors.ustc.edu.cn@g' /etc/apt/sources.list; \
+    fi
 
 # 预置中科大镜像源，加速 bioconda 包下载（见 Protocol/镜像构建国内加速规范_v1.md §4）；
 # 安装以 mambauser 执行，condarc 必须落在其 HOME。
@@ -61,7 +70,7 @@ RUN micromamba run -n base R -q -e '\
       if (length(failed)) stop("enrichment image missing required R packages: ", paste(failed, collapse = ", ")); \
       cat("enrichment runtime OK: all", length(required), "packages loadable\n")'
 
-# 运行期用 root（与 omichub-r-deg 同口径）：任务目录由 Web 服务以平台 uid 创建，
+# 运行期用 root（与 cygnusx-r-deg 同口径）：任务目录由 Web 服务以平台 uid 创建，
 # 容器内 mambauser(10001) 无写权限会导致 R 写不出结果。仅安装期使用 mambauser。
 USER root
 COPY --chmod=0555 run_enrichment.R /app/run_enrichment.R

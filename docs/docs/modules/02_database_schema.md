@@ -1,4 +1,4 @@
-# 6.2 OmicsHub 数据库 Schema 设计
+# 6.2 CygnusX 数据库 Schema 设计
 
 > **文档版本**: v1.0  
 > **数据库**: PostgreSQL 14+  
@@ -1988,7 +1988,7 @@ WHERE parsed_config ? 'params';
   },
   "singularity": {
     "enabled": true,
-    "image": "docker://evolobiorna/omicshub-rna-seq:latest"
+    "image": "docker://evolobiorna/cygnusx-rna-seq:latest"
   },
   "environment_variables": {
     "OMP_NUM_THREADS": "8"
@@ -2543,7 +2543,7 @@ tasks (1) ────────< (*) mcp_tool_invocations  一个任务可能
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                           OmicsHub ER 关系图                             │
+│                           CygnusX ER 关系图                             │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                         │
 │  ┌──────────┐       ┌──────────────┐       ┌─────────────────────┐     │
@@ -2625,7 +2625,7 @@ tasks (1) ────────< (*) mcp_tool_invocations  一个任务可能
 
 ### 6.1 策略选择：应用层过滤 + 行级安全（RLS）双重保障
 
-考虑到 OmicsHub 的使用场景（组内平台，<20 并发用户，单人生信维护），我们采用以下策略：
+考虑到 CygnusX 的使用场景（组内平台，<20 并发用户，单人生信维护），我们采用以下策略：
 
 | 层级 | 策略 | 说明 |
 |------|------|------|
@@ -2841,7 +2841,7 @@ class UserScopedService:
 ### 6.5 文件系统隔离
 
 ```
-/data/omicshub/
+/data/cygnusx/
 ├── users/
 │   ├── {user_id_1}/
 │   │   ├── projects/
@@ -2865,10 +2865,10 @@ class UserScopedService:
 
 | 存储位置 | 归属 | 说明 |
 |----------|------|------|
-| /data/omicshub/users/{user_id}/ | 用户私有 | 用户只能访问自己的目录 |
-| /data/omicshub/shared/reference_genomes/ | 共享只读 | 管理员维护，所有用户可读 |
-| /data/omicshub/shared/conda_envs/ | 共享只读 | 管理员维护的 Conda 环境 |
-| /data/omicshub/system/ | 系统 | 仅系统进程可访问 |
+| /data/cygnusx/users/{user_id}/ | 用户私有 | 用户只能访问自己的目录 |
+| /data/cygnusx/shared/reference_genomes/ | 共享只读 | 管理员维护，所有用户可读 |
+| /data/cygnusx/shared/conda_envs/ | 共享只读 | 管理员维护的 Conda 环境 |
+| /data/cygnusx/system/ | 系统 | 仅系统进程可访问 |
 
 ### 6.6 管理员权限
 
@@ -2909,10 +2909,10 @@ WHERE is_current_user_admin();
 
 ```sql
 -- 创建应用数据库用户（最小权限原则）
-CREATE ROLE omicshub_app WITH LOGIN PASSWORD 'strong_password';
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO omicshub_app;
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO omicshub_app;
-REVOKE DELETE ON users, flow_definitions, mcp_servers FROM omicshub_app;
+CREATE ROLE cygnusx_app WITH LOGIN PASSWORD 'strong_password';
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO cygnusx_app;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO cygnusx_app;
+REVOKE DELETE ON users, flow_definitions, mcp_servers FROM cygnusx_app;
 ```
 
 ---
@@ -3066,8 +3066,8 @@ $$ LANGUAGE plpgsql;
 ```bash
 #!/bin/bash
 # init_db.sh - Database initialization script
-DB_NAME="omicshub"
-DB_USER="omicshub_admin"
+DB_NAME="cygnusx"
+DB_USER="cygnusx_admin"
 
 psql -U $DB_USER -d $DB_NAME -f 1_extensions.sql
 psql -U $DB_USER -d $DB_NAME -f 2_functions.sql
@@ -3076,7 +3076,7 @@ psql -U $DB_USER -d $DB_NAME -f 4_indexes.sql
 psql -U $DB_USER -d $DB_NAME -f 5_triggers.sql
 psql -U $DB_USER -d $DB_NAME -f 6_rls_policies.sql
 
-echo "OmicsHub database initialized successfully!"
+echo "CygnusX database initialized successfully!"
 ```
 
 ---
@@ -3151,4 +3151,4 @@ class Task(Base):
 
 ---
 
-*文档结束 - OmicsHub 数据库 Schema 设计 v1.0*
+*文档结束 - CygnusX 数据库 Schema 设计 v1.0*

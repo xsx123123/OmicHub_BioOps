@@ -53,7 +53,7 @@
 | Bridge 接口契约 | `PYTHONPATH=integrations/agentteams/bridge uv run pytest integrations/agentteams/bridge/tests/test_bridge_contract.py -q` | Bridge 输入输出、鉴权/边界相关契约通过。 |
 | Bridge 共享状态 | `PYTHONPATH=integrations/agentteams/bridge uv run pytest integrations/agentteams/bridge/tests/test_redis_shared_state.py -q` | 共享状态与事件相关行为通过。 |
 | Worker 行为 | `uv run pytest integrations/agentteams/worker/tests -q` | analysis/quality/delivery 等 Worker 单测通过。 |
-| OmicHub MAS 契约 | `uv run pytest tests/unit/domain/mas/ tests/unit/test_agent_config_consistency.py -q` | MAS 域模型、能力与配置一致性通过。 |
+| CygnusX MAS 契约 | `uv run pytest tests/unit/domain/mas/ tests/unit/test_agent_config_consistency.py -q` | MAS 域模型、能力与配置一致性通过。 |
 | AgentTeams 服务集成 | `uv run pytest tests/unit/test_agentteams_service.py tests/unit/test_agentteams_case_tool_service.py tests/unit/test_agentteams_case_watch_service.py -q` | Case/工具/观察服务的单元行为通过。 |
 | Staging 演示驱动 | `integrations/agentteams/demo/README.md` 所列命令 | 验证预检成功、预检阻断和经显式批准的完整链路。 |
 
@@ -83,7 +83,7 @@ case/<case_id>/
 | --- | --- |
 | `trace_id` | 将 Manager 决策、Bridge 调用、MAS 节点、Worker 执行和交付事件串联。 |
 | `case_id` | AgentTeams 协作与审批的顶层业务边界。 |
-| `run_id` / `node_id` | OmicHub MAS 的 DAG 执行与 Artifact 生产关系。 |
+| `run_id` / `node_id` | CygnusX MAS 的 DAG 执行与 Artifact 生产关系。 |
 | `work_item_id` | 角色领取和完成的最小协作单元。 |
 | `attempt` / `dedupe_key` | 有界重试与至少一次事件投递下的幂等审计依据。 |
 | `skill_version` / `rule_version` | 解释“当时按照什么能力/规则做出了该决策”。 |
@@ -107,4 +107,4 @@ case/<case_id>/
 - 只使用脱敏数据、合成数据或明确授权的测试数据；不得在录屏中展示病人信息、原始样本名、密钥、数据库地址或宿主机路径。
 - 现场展示审批记录的元数据，不展示 approval token；token 仅由服务端短期保管和校验。
 - 完整工作流使用 staging 项目和资源配额；取消、重试、失败演示均保留审计轨迹。
-- 若 AgentTeams Gateway/Matrix 未部署，使用 OmicHub 内置 Case/进度界面进行演示，并明确标注 Matrix/Element 为可选外部协作入口。
+- 若 AgentTeams Gateway/Matrix 未部署，使用 CygnusX 内置 Case/进度界面进行演示，并明确标注 Matrix/Element 为可选外部协作入口。

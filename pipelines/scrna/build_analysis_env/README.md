@@ -1,6 +1,6 @@
 *author* : Zhang Jian
 *date*   : 2025-12-23
-*version*: v4.0.4-alpha
+*version*: v4.1.2-alpha
 
 ## Introduction
 本文档旨在指导用户搭建 `scRNAseqMulticommand` 的运行环境。您可以选择使用 `Conda/Mamba` 直接配置本地环境，或使用 `Docker` 容器进行隔离运行。

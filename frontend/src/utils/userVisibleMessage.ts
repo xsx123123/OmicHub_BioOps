@@ -50,10 +50,10 @@ export function isUserVisibleMessage(message: MessageRecord): boolean {
     ?.trim()
     .toLowerCase()
   const content = typeof message.content === 'string' ? message.content : ''
-  const isOmicHubInternalAgent = agentName === 'omichub ai'
+  const isCygnusXInternalAgent = agentName === 'cygnusx ai'
   const hasInternalSuggestion = INTERNAL_SUGGESTION_KEYWORDS.some((keyword) => content.includes(keyword))
 
-  if (role === 'system' && isOmicHubInternalAgent) return false
+  if (role === 'system' && isCygnusXInternalAgent) return false
   // 内容兜底覆盖旧实时协议：这几组短语只属于内部协作建议，且不应影响用户原话。
   if (hasInternalSuggestion && role !== 'user') return false
 

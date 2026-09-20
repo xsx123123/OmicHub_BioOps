@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from omichub.application.services.knowledge_index_service import KnowledgeIndexService
+from cygnusx.application.services.knowledge_index_service import KnowledgeIndexService
 
 
 def test_knowledge_index_splits_headings_and_long_sections() -> None:
@@ -51,7 +51,7 @@ async def test_knowledge_index_skips_unchanged_document(monkeypatch) -> None:
             return Result()
 
     monkeypatch.setattr(
-        "omichub.application.services.knowledge_index_service.get_settings",
+        "cygnusx.application.services.knowledge_index_service.get_settings",
         lambda: SimpleNamespace(agent_memory_embedding_model=""),
     )
     document = SimpleNamespace(doc_id="doc-1", file_path="/missing/source.md")

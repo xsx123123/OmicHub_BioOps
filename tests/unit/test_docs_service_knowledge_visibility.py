@@ -8,8 +8,8 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 import yaml
 
-from omichub.application.services.docs_service import DocsService
-from omichub.core.exceptions import NotFoundError
+from cygnusx.application.services.docs_service import DocsService
+from cygnusx.core.exceptions import NotFoundError
 
 
 def _scalar_result(values: list[object]) -> MagicMock:

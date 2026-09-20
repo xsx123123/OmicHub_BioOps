@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
 #
-# OmicHub 私有化部署前置校验脚本
+# CygnusX 私有化部署前置校验脚本
 #
 # 用途：在本地私有化部署前检查 Docker、bind mount、UID/GID、共享存储等前提条件，
 #      发现缺失时给出可操作的报错与修复建议。
 #
 # 运行：
 #   chmod +x deploy/docker/check-local-prerequisites.sh
-#   DATA_ROOT=/data/omichub PUID=$(id -u) PGID=$(id -g) ./deploy/docker/check-local-prerequisites.sh
+#   DATA_ROOT=/data/cygnusx PUID=$(id -u) PGID=$(id -g) ./deploy/docker/check-local-prerequisites.sh
 #
 # 多机部署时额外设置：
-#   MULTI_NODE=true DATA_ROOT=/data/omichub ./deploy/docker/check-local-prerequisites.sh
+#   MULTI_NODE=true DATA_ROOT=/data/cygnusx ./deploy/docker/check-local-prerequisites.sh
 
 set -u
 
-: "${DATA_ROOT:=/data/omichub}"
+: "${DATA_ROOT:=/data/cygnusx}"
 : "${PUID:=$(id -u)}"
 : "${PGID:=$(id -g)}"
 : "${MULTI_NODE:=false}"
@@ -42,7 +42,7 @@ ok() {
 }
 
 info ""
-info "OmicHub 私有化部署前置校验"
+info "CygnusX 私有化部署前置校验"
 info "=================================="
 info "DATA_ROOT : ${DATA_ROOT}"
 info "PUID/PGID : ${PUID}:${PGID}"
@@ -99,7 +99,7 @@ fi
 # 3. bind mount 权限：容器内以 PUID:PGID 能读写 DATA_ROOT
 # ----------------------------------------------------------------------
 if docker info >/dev/null 2>&1; then
-  TEST_FILE="${DATA_ROOT}/.omichub_precheck_$(date +%s)"
+  TEST_FILE="${DATA_ROOT}/.cygnusx_precheck_$(date +%s)"
   touch "${TEST_FILE}" || true
 
   if docker run --rm \

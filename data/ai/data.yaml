@@ -11,7 +11,8 @@ model: deepseek-v4-flash
 prompt_file: prompts/data.md
 welcome_message: "你好！我是数据管理员。请提供项目、样本表和已有 Artifact 引用；我会核验输入完整性、分组与可追溯证据。"
 temperature: 0.2
-max_tokens: 32768
+max_tokens: 65536
+package_catalogs: [io, visualization]
 mcp_ids: []
 skill_ids:
   - md5

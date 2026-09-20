@@ -1,6 +1,6 @@
 # FASTQ 极速质控配置
 
-本目录保存 FASTQ 极速质控工具的运行时默认配置。API 服务和 Celery QC Worker 都必须将仓库根目录挂载到 `OMICHUB_TOOL_CONFIGS`（默认 `/app/tool_configs`），并读取 `fastq_qc/config.yaml`。
+本目录保存 FASTQ 极速质控工具的运行时默认配置。API 服务和 Celery QC Worker 都必须将仓库根目录挂载到 `CYGNUSX_TOOL_CONFIGS`（默认 `/app/tool_configs`），并读取 `fastq_qc/config.yaml`。
 
 ## 运行链路
 
@@ -21,6 +21,6 @@
 
 Worker 启动时应依次执行 `validation.on_worker_start` 中的检查：确认 `fastp` 可执行、MultiQC 版本满足最低要求，以及 `storage.root` 对 Worker 可写。
 
-完整实现契约、Celery 流程、API 和前端图表数据路径见 `docs/26.7.18/OmicHub_FASTQ质控模块实现方案.md`。
+完整实现契约、Celery 流程、API 和前端图表数据路径见 `docs/26.7.18/CygnusX_FASTQ质控模块实现方案.md`。
 
 切换到主项目继续开发前，先阅读本目录的 `ARCHITECTURE.md`；其中列出了目标代码结构、API 契约、Worker 规则、开发顺序和验收清单。

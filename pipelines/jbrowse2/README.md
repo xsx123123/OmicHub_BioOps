@@ -1,6 +1,6 @@
-# JBrowse 2 × OmicHub 集成说明
+# JBrowse 2 × CygnusX 集成说明
 
-> 本目录是 **JBrowse 2 Web 构建产物**（v2.15.1，由 `scripts/download_jbrowse2.sh` 从 [GMOD/jbrowse-components](https://github.com/GMOD/jbrowse-components/releases) 下载解压）。本身是一个独立的 SPA（`index.html` + `static/`），OmicHub 并未修改其源码，而是通过 **iframe + 动态配置注入 + nginx 静态托管** 的方式把它「嫁接」进平台。
+> 本目录是 **JBrowse 2 Web 构建产物**（v2.15.1，由 `scripts/download_jbrowse2.sh` 从 [GMOD/jbrowse-components](https://github.com/GMOD/jbrowse-components/releases) 下载解压）。本身是一个独立的 SPA（`index.html` + `static/`），CygnusX 并未修改其源码，而是通过 **iframe + 动态配置注入 + nginx 静态托管** 的方式把它「嫁接」进平台。
 >
 > 本文档说明这套嫁接的完整架构与数据流，便于后续维护、排障与升级 JBrowse 版本。
 
@@ -10,7 +10,7 @@
 
 ```
 ┌─────────────────────────── 浏览器（用户）─────────────────────────────┐
-│  OmicHub 前端  Vue 3 + naive-ui                                         │
+│  CygnusX 前端  Vue 3 + naive-ui                                         │
 │  frontend/src/views/BioTools/JBrowseViewer.vue   （路由 /tools/jbrowse）│
 │                                                                         │
 │   ① apiClient（带 JWT）──► GET /api/v1/jbrowse/config                   │
@@ -27,13 +27,13 @@
    │  · 列参考基因组/扫描    │                │  /jbrowse2/  ─► /var/www/  │
    │  · 生成 config JSON    │                │                 jbrowse2   │
    │    （defaultSession +  │                │  /tracks/    ─► /data/     │
-   │     theme #165DFF）    │                │                 omichub    │
+   │     theme #165DFF）    │                │                 cygnusx    │
    │  · 上传 / 索引管理     │                │    （HTTP Range Request）  │
    └──────────┬─────────────┘                └─────────────┬──────────────┘
               │ ⑤ 投递 Celery 索引任务                      │ ⑥ 流式读取
               ▼                                             ▼
    ┌───────────────────────┐                ┌────────────────────────────┐
-   │  Celery worker 容器    │                │  /data/omichub/            │
+   │  Celery worker 容器    │                │  /data/cygnusx/            │
    │  samtools/bcftools/    │ ──写索引──►    │  ref/  tracks/  users/     │
    │  tabix                 │                │  （nginx :ro  web/worker 可写）│
    └───────────────────────┘                └────────────────────────────┘
@@ -48,15 +48,15 @@
 | ③ | 前端 | `<iframe src="/jbrowse2/?config=<blobUrl>&loc=<region>">` 挂载 JBrowse 2 SPA |
 | ④ | iframe（JBrowse 2） | 同源 fetch 读取 blob 配置（**无需 JWT**，因 blob 属当前 origin） |
 | ⑤ | iframe（JBrowse 2） | 按 config 中的 `uri: /tracks/...` 向 nginx 发 **HTTP Range Request** 流式拉取 FASTA/BAM/BigWig/VCF |
-| ⑥ | nginx | `/tracks/` alias 到 `/data/omichub/`，原生支持 Range，按需返回字节段 |
+| ⑥ | nginx | `/tracks/` alias 到 `/data/cygnusx/`，原生支持 Range，按需返回字节段 |
 
 ---
 
 ## 2. 为什么是 iframe + blob，而不是 React 组件？
 
-OmicHub 前端是 **Vue 3 + naive-ui**，而 JBrowse 2 官方提供的是 React 组件（`@jbrowse/react-linear-genome-view`）。引入 React 会带来双框架运行时与构建复杂度，且无法解决核心矛盾——**轨道数据的鉴权**：
+CygnusX 前端是 **Vue 3 + naive-ui**，而 JBrowse 2 官方提供的是 React 组件（`@jbrowse/react-linear-genome-view`）。引入 React 会带来双框架运行时与构建复杂度，且无法解决核心矛盾——**轨道数据的鉴权**：
 
-- JBrowse 2 的所有数据请求（FASTA/BAM/...）由其内部 `fetch` 发起，**无法携带 OmicHub 的 JWT**。
+- JBrowse 2 的所有数据请求（FASTA/BAM/...）由其内部 `fetch` 发起，**无法携带 CygnusX 的 JWT**。
 - 若数据走带鉴权的 API 路径，iframe 内的 JBrowse 会全部 401。
 - 因此数据必须走一条 **nginx 直出的无鉴权静态路径**（`/tracks/`），而鉴权/归属校验上移到「**配置生成**」这一步：后端只把用户**有权访问**的文件路径写进 config，JBrowse 拿到的 config 已是「白名单」。
 - 而配置 JSON 本身需要鉴权（`/jbrowse/config` 要 JWT），所以前端先用带 JWT 的 `apiClient` 取回 JSON，再 `createObjectURL` 交给 iframe——**blob 属当前 origin，iframe 同源可读，从而绕过 JWT**。
@@ -130,7 +130,7 @@ OmicHub 前端是 **Vue 3 + naive-ui**，而 JBrowse 2 官方提供的是 React 
   }],
   "tracks": [ /* 预设轨道 + 用户轨道，uri 均为 /tracks/... */ ],
   "defaultSession": {
-    "name": "OmicHub-rice_nipponbare",
+    "name": "CygnusX-rice_nipponbare",
     "view": { "id": "linearGenomeView", "type": "LinearGenomeView",
               "tracks": [ /* trackId 列表 */ ],
               "location": { "refName": "Chr1", "start": 1000000, "end": 2000000 } }
@@ -144,12 +144,12 @@ OmicHub 前端是 **Vue 3 + naive-ui**，而 JBrowse 2 官方提供的是 React 
 ```
 
 - **`defaultSession`** 让 JBrowse 2 打开即进入 `LinearGenomeView` 并定位到目标区域，避免停在 Logo 起始页。
-- **`configuration.theme`** 把 JBrowse 内部主题色对齐到 OmicHub 主色 `#165DFF`。
+- **`configuration.theme`** 把 JBrowse 内部主题色对齐到 CygnusX 主色 `#165DFF`。
 - **adapter 映射**（`ADAPTER_MAP`）：`.bam→BamAdapter`、`.cram→CramAdapter`（需 `sequenceAdapter`）、`.bw/.bigwig→BigWigAdapter`、`.vcf.gz→VcfTabixAdapter`、`.bed.gz→BedTabixAdapter`、`.gff3.gz→Gff3TabixAdapter`。
 
 ### URI 换算（`to_tracks_uri`）
 
-后端配置里写的是容器**绝对路径**（`/data/omichub/ref/rice/x.fasta`），生成给 JBrowse 的 `uri` 时由 `to_tracks_uri()` 换算成 `/tracks/ref/rice/x.fasta`。`data_root` 取自 `storage_config`（与 `OmicHub.yaml` 单一数据源），路径不在 `data_root` 下时退化为只保留文件名，避免泄漏目录结构。
+后端配置里写的是容器**绝对路径**（`/data/cygnusx/ref/rice/x.fasta`），生成给 JBrowse 的 `uri` 时由 `to_tracks_uri()` 换算成 `/tracks/ref/rice/x.fasta`。`data_root` 取自 `storage_config`（与 `CygnusX.yaml` 单一数据源），路径不在 `data_root` 下时退化为只保留文件名，避免泄漏目录结构。
 
 ---
 
@@ -186,7 +186,7 @@ location ^~ /jbrowse2/ {
 # 数据文件（FASTA/BAM/BigWig/VCF 等）。JBrowse 2 通过 HTTP Range Request 流式读取，
 # nginx 原生支持 Range。
 location ^~ /tracks/ {
-    alias /data/omichub/;
+    alias /data/cygnusx/;
     add_header Access-Control-Allow-Origin * always;
     add_header Access-Control-Allow-Methods "GET, HEAD, OPTIONS" always;
     add_header Access-Control-Allow-Headers "Range, Content-Type" always;
@@ -207,7 +207,7 @@ location ^~ /tracks/ {
 - 工具：`samtools`（BAM/CRAM → `.bai`/`.crai`）、`bcftools`（VCF.gz → `.tbi`）、`tabix`（bed.gz/gff3.gz → `.tbi`）。
 - 二进制缺失时 `shutil.which` 拦截并返回失败，**不重试**。
 - 触发方式：上传时 `auto_index`、`POST /index/create`、前端「我的文件」面板的「创建索引」按钮。
-- ⚠️ 改 task 代码后必须 `docker restart omichub-worker`（Celery worker 不热重载，`docker exec` 看的是磁盘不是进程内存）。
+- ⚠️ 改 task 代码后必须 `docker restart cygnusx-worker`（Celery worker 不热重载，`docker exec` 看的是磁盘不是进程内存）。
 
 ---
 
@@ -215,8 +215,8 @@ location ^~ /tracks/ {
 
 | 层 | 机制 |
 |----|----|
-| 配置生成 | 后端对用户提交的轨道路径做**归属校验**（`ensure_user_owned`）：只允许 `/data/omichub/users/{user_id}/` 下的文件，拒绝越权读取他人数据。`/tracks/` 虽静态暴露，但配置层不协助越权。 |
-| 数据读取 | `/tracks/` 对**所有能访问 nginx 的客户端开放** `/data/omichub/` 下文件（无鉴权）。私有内网部署可接受；**公网部署必须启用 IP 白名单**或改用带鉴权的代理路径。 |
+| 配置生成 | 后端对用户提交的轨道路径做**归属校验**（`ensure_user_owned`）：只允许 `/data/cygnusx/users/{user_id}/` 下的文件，拒绝越权读取他人数据。`/tracks/` 虽静态暴露，但配置层不协助越权。 |
+| 数据读取 | `/tracks/` 对**所有能访问 nginx 的客户端开放** `/data/cygnusx/` 下文件（无鉴权）。私有内网部署可接受；**公网部署必须启用 IP 白名单**或改用带鉴权的代理路径。 |
 | API | 全部 JWT 鉴权，`user_id` 取自 JWT subject，不接受查询参数伪造。 |
 | 只读校验 | `check_index_status` 等只读操作走 `ensure_under_data_root`（下限校验，禁止任意路径探测）。 |
 
@@ -241,7 +241,7 @@ docker compose -f deploy/docker/docker-compose.yml up -d nginx
 nginx:
   volumes:
     - ../../pipelines/jbrowse2:/var/www/jbrowse2:ro   # 本目录 → /jbrowse2/
-    - /data/omichub:/data/omichub:ro                   # 数据 → /tracks/
+    - /data/cygnusx:/data/cygnusx:ro                   # 数据 → /tracks/
     - ../../frontend/dist:/usr/share/nginx/html:ro     # 前端 SPA
 ```
 
@@ -256,11 +256,11 @@ nginx:
 | 症状 | 排查 |
 |----|----|
 | **页面只显示 JBrowse Logo，无基因组视图** | ① **首选查**：config 是否在 blob 前调了 `absolutizeUris`（blob 是 opaque base，相对 `/tracks/` uri 会抛 `Invalid URL`，这才是「只显示 Logo」的真正根因，控制台可见 TypeError）；② 路由 `meta.fullscreen: true` 是否丢失（导致 iframe 高度塌陷，是次因）；③ iframe `:key` 是否生效（避免旧 session）；④ 清浏览器 localStorage 后重试。 |
-| **轨道数据 404** | 打开 DevTools Network，看 JBrowse 对 `/tracks/...` 的请求是否 200。404 → 文件不在 `/data/omichub/` 下或 nginx alias 错；403 → 检查 IP 白名单。 |
+| **轨道数据 404** | 打开 DevTools Network，看 JBrowse 对 `/tracks/...` 的请求是否 200。404 → 文件不在 `/data/cygnusx/` 下或 nginx alias 错；403 → 检查 IP 白名单。 |
 | **`/jbrowse2/static/*.js` 404** | nginx `location ^~ /jbrowse2/` 必须用 `^~` 前缀，否则被 `\.(js|css)$` 正则抢占。 |
 | **FASTA 加载失败 / 无序列** | 检查 `.fai` 是否存在且与 FASTA 匹配；缺索引用「创建索引」或 `POST /index/create`。 |
 | **改了 YAML 不生效** | 调 `POST /api/v1/jbrowse/config/reload`；或确认 mtime 变了（编辑器 `:w` 会更新 mtime）。 |
-| **改了 Celery task 不生效** | `docker restart omichub-worker`（worker 不热重载）。 |
+| **改了 Celery task 不生效** | `docker restart cygnusx-worker`（worker 不热重载）。 |
 | **初始化一直转圈** | 看 Console 是否有 `[JBrowse]` 日志；10s 超时会提示「参考基因组文件可能缺失或格式错误」。 |
 
 ---
@@ -273,11 +273,11 @@ nginx:
 | 前端 API | `frontend/src/api/jbrowse.ts` |
 | 前端类型 | `frontend/src/types/jbrowse.ts` |
 | 前端路由 | `frontend/src/router/index.ts`（`tools/jbrowse`，`fullscreen: true`） |
-| 后端 API | `src/omichub/api/v1/jbrowse.py` |
-| 后端服务 | `src/omichub/application/services/jbrowse_service.py` |
-| 后端 Schema | `src/omichub/application/schemas/jbrowse.py` |
-| 配置加载器 | `src/omichub/infrastructure/config/jbrowse_config.py` |
-| 索引任务 | `src/omichub/infrastructure/celery_app/tasks/jbrowse.py` |
+| 后端 API | `src/cygnusx/api/v1/jbrowse.py` |
+| 后端服务 | `src/cygnusx/application/services/jbrowse_service.py` |
+| 后端 Schema | `src/cygnusx/application/schemas/jbrowse.py` |
+| 配置加载器 | `src/cygnusx/infrastructure/config/jbrowse_config.py` |
+| 索引任务 | `src/cygnusx/infrastructure/celery_app/tasks/jbrowse.py` |
 | 平台配置 | `tools/jbrowse/jbrowse_config.yaml` |
 | nginx | `deploy/docker/nginx/nginx.conf` |
 | 下载脚本 | `scripts/download_jbrowse2.sh` |

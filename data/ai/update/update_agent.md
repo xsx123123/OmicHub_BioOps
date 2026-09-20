@@ -733,14 +733,14 @@ staging 或维护窗口执行，不得直接对生产 run 做破坏性测试。�
 ```bash
 docker compose -f deploy/docker/docker-compose.yml ps db cache web beat
 docker compose -f deploy/docker/docker-compose.yml exec db \
-  pg_isready -U "${POSTGRES_USER:-omichub}" -d "${POSTGRES_DB:-omichub}"
+  pg_isready -U "${POSTGRES_USER:-cygnusx}" -d "${POSTGRES_DB:-cygnusx}"
 docker compose -f deploy/docker/docker-compose.yml exec cache \
   redis-cli -a "${REDIS_PASSWORD}" ping
 ./scripts/worker-compose.sh ps
 docker compose -f deploy/docker/docker-compose.worker.yml exec worker \
-  celery -A omichub.infrastructure.celery_app.celery inspect ping
+  celery -A cygnusx.infrastructure.celery_app.celery inspect ping
 docker compose -f deploy/docker/docker-compose.worker.yml exec worker \
-  celery -A omichub.infrastructure.celery_app.celery inspect registered \
+  celery -A cygnusx.infrastructure.celery_app.celery inspect registered \
   | grep -E 'overdrive\.(advance_run|replan_run|run_assistant_job|run_manager_review_job)'
 docker compose -f deploy/docker/docker-compose.yml exec web alembic current
 ```
@@ -804,7 +804,7 @@ WHERE run_id = '<RUN_ID>';
 docker compose -f deploy/docker/docker-compose.yml logs --since=10m cache
 ./scripts/worker-compose.sh logs --since=10m worker
 docker compose -f deploy/docker/docker-compose.yml exec db \
-  psql -U "${POSTGRES_USER:-omichub}" -d "${POSTGRES_DB:-omichub}" \
+  psql -U "${POSTGRES_USER:-cygnusx}" -d "${POSTGRES_DB:-cygnusx}" \
   -c "SELECT run_id,status,control,event_cursor,updated_at FROM overdrive_runs WHERE run_id='<RUN_ID>';"
 ```
 
@@ -876,8 +876,8 @@ python3 scripts/verify_overdrive_deployment.py \
 ### 12.1 与 AgentTeams（比赛阶段）的关系与迁移
 
 - **比赛阶段**：按 `data/ai/AgentTeams_update.md`，以 AgentTeams Bridge/Case 状态机作为协同基点，
-  通过补建 OmicHub consultation 端点让平台真实 Agent 作为 Worker 执行者，在单窗口内完成闭环。
-  此阶段编排状态在外部 Bridge，执行能力在 OmicHub。
+  通过补建 CygnusX consultation 端点让平台真实 Agent 作为 Worker 执行者，在单窗口内完成闭环。
+  此阶段编排状态在外部 Bridge，执行能力在 CygnusX。
 - **赛后收敛到本文**：编排/状态权威从外部 Bridge 迁回平台内置的超频 v2
   （`overdrive_run_service` DB 事件溯源 + Celery `run_assistant_job` 真异步 +
   `ParallelSubAgentService` 执行内核）。届时不再需要为每个专家常驻外部 Worker 容器，

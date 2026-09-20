@@ -8,10 +8,10 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from omichub.api.deps import get_current_user_id, get_db
-from omichub.application.services.pipeline_controller import PipelineController
-from omichub.core.security import create_access_token
-from omichub.main import app
+from cygnusx.api.deps import get_current_user_id, get_db
+from cygnusx.application.services.pipeline_controller import PipelineController
+from cygnusx.core.security import create_access_token
+from cygnusx.main import app
 
 
 class _FakeAsyncSession(AsyncSession):

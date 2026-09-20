@@ -178,6 +178,6 @@ describe('深度思考流式聊天全链路', () => {
     expect(aiMsg.backendMessageId).toBe('message-final')
     expect(aiMsg.content).toBe('来自 done 事件的完整正文')
     expect(aiMsg.status).toBe('complete')
-    expect(aiMsg.tokens).toEqual({ input: 12, output: 8, total: 20 })
+    expect(aiMsg.tokens).toEqual({ input: 12, output: 8, total: 20, cached: 0 })
   })
 })

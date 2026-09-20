@@ -12,20 +12,20 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
-from omichub_agentteams_bridge.audit import AuditStore
-from omichub_agentteams_bridge.case_store import CaseStore
-from omichub_agentteams_bridge.config import BridgeSettings
-from omichub_agentteams_bridge.minio_store import MinioBridgeStorage
-from omichub_agentteams_bridge.models import (
+from cygnusx_agentteams_bridge.audit import AuditStore
+from cygnusx_agentteams_bridge.case_store import CaseStore
+from cygnusx_agentteams_bridge.config import BridgeSettings
+from cygnusx_agentteams_bridge.minio_store import MinioBridgeStorage
+from cygnusx_agentteams_bridge.models import (
     CaseCreateRequest,
     EvidenceRequest,
     is_room_namespace_case_id,
 )
-from omichub_agentteams_bridge.service import BridgeService
+from cygnusx_agentteams_bridge.service import BridgeService
 from pydantic import ValidationError
 
 
-class FakeOmicHubClient:
+class FakeCygnusXClient:
     async def aclose(self) -> None:
         return None
 
@@ -44,7 +44,7 @@ class FakeOmicHubClient:
 
 def make_settings(tmp_path, **overrides) -> BridgeSettings:
     values = {
-        "omichub_service_token": "service-token",
+        "cygnusx_service_token": "service-token",
         "approval_signing_secret": "test-signing-secret",
         "identities": "bioops-manager:manager,approval-authority:approval",
         "audit_log_path": str(tmp_path / "audit.jsonl"),
@@ -59,7 +59,7 @@ def make_service(tmp_path, **overrides) -> BridgeService:
     settings = make_settings(tmp_path, **overrides)
     return BridgeService(
         settings,
-        FakeOmicHubClient(),
+        FakeCygnusXClient(),
         AuditStore(settings.audit_log_path),
         CaseStore(settings.case_store_path),
     )
@@ -268,7 +268,7 @@ async def test_room_namespace_minio_persistence_and_recovery(tmp_path: Path) -> 
     settings = make_settings(tmp_path)
     audit = AuditStore(settings.audit_log_path, minio_storage=storage)
     cases = CaseStore(settings.case_store_path, minio_storage=storage)
-    service = BridgeService(settings, FakeOmicHubClient(), audit, cases)
+    service = BridgeService(settings, FakeCygnusXClient(), audit, cases)
 
     await service.create_case(namespace_request(), "bioops-manager")
     await service.record_evidence(
@@ -289,7 +289,7 @@ async def test_room_namespace_minio_persistence_and_recovery(tmp_path: Path) -> 
     # 模拟容器重建：用同一 MinIO 重新构造存储层，命名空间记录与事件完整恢复。
     recovered_audit = AuditStore(settings.audit_log_path, minio_storage=storage)
     recovered_cases = CaseStore(settings.case_store_path, minio_storage=storage)
-    recovered_service = BridgeService(settings, FakeOmicHubClient(), recovered_audit, recovered_cases)
+    recovered_service = BridgeService(settings, FakeCygnusXClient(), recovered_audit, recovered_cases)
     record = await recovered_service.get_case("room-abc123", "bioops-manager")
     assert record.record_kind == "room_namespace"
     page = await recovered_service.get_case_events("room-abc123", "bioops-manager")
@@ -360,7 +360,7 @@ async def test_room_namespace_event_metrics_minio_mode_survive_recovery(tmp_path
     storage = MinioBridgeStorage("http://minio:9000", "ak", "sk", "agentteams", client=fake)
     settings = make_settings(tmp_path)
     audit = AuditStore(settings.audit_log_path, minio_storage=storage)
-    service = BridgeService(settings, FakeOmicHubClient(), audit, CaseStore(settings.case_store_path, minio_storage=storage))
+    service = BridgeService(settings, FakeCygnusXClient(), audit, CaseStore(settings.case_store_path, minio_storage=storage))
     await service.create_case(namespace_request(), "bioops-manager")
     await service.record_evidence(
         "room-abc123",

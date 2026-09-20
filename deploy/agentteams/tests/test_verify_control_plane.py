@@ -41,7 +41,7 @@ def test_network_policy_requires_namespace_default_deny() -> None:
 
 def test_pod_rejects_privileged_and_omic_mount() -> None:
     findings = verify_control_plane.check_pods(
-        {"items": [pod(privileged=True, mount_path="/data/omichub")]}
+        {"items": [pod(privileged=True, mount_path="/data/cygnusx")]}
     )
     messages = [finding.message for finding in findings]
     assert any("privileged" in message for message in messages)

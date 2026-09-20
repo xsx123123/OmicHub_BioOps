@@ -545,7 +545,7 @@ function exportInputFasta() {
                 <section class="handoff-card">
                   <div class="ecosystem-heading">
                     <NIcon :size="20"><GitNetworkOutline /></NIcon>
-                    <div><strong>发送到 OmicHub</strong><span>当前序列通过本地会话安全传递</span></div>
+                    <div><strong>发送到 CygnusX</strong><span>当前序列通过本地会话安全传递</span></div>
                   </div>
                   <div class="handoff-list">
                     <button type="button" :disabled="!selectedRecord" @click="sendTo('blast')"><strong>运行 BLAST</strong><span>自动带入 FASTA 与查询名称</span></button>

@@ -1,6 +1,6 @@
-# OmicHub AI Agent 配置与平台挂载指南
+# CygnusX AI Agent 配置与平台挂载指南
 
-`data/ai/` 是 OmicHub 内置 AI Agent、提示词、工具权限、Skill、MCP 绑定和 Studio
+`data/ai/` 是 CygnusX 内置 AI Agent、提示词、工具权限、Skill、MCP 绑定和 Studio
 运行时配置的声明式根目录。本文说明当前所有内置 Agent 的能力边界，重点记录 RNA-seq
 Agent 的组成，并给出创建、挂载、同步和验证 Agent 的标准流程。
 
@@ -11,7 +11,7 @@ Agent 的组成，并给出创建、挂载、同步和验证 Agent 的标准流�
 
 | 路径 | 用途 |
 | --- | --- |
-| `data/OmicHub.yaml` | 平台启用的内置 Agent 清单；只有加入 `agents.enabled` 的 YAML 才会加载。 |
+| `data/CygnusX.yaml` | 平台启用的内置 Agent 清单；只有加入 `agents.enabled` 的 YAML 才会加载。 |
 | `data/ai/*.yaml` | 单个内置 Agent 的身份、能力、模型参数、工具包、Skill、MCP 和运行时声明。 |
 | `data/ai/agent_ability.yaml` | 所有启用 Agent 的可路由能力、边界、转交条件和推荐输入；运行时按 mtime 热重载。 |
 | `data/ai/prompts/*.md` | Agent 的权威系统提示词。 |
@@ -26,14 +26,14 @@ Agent 的组成，并给出创建、挂载、同步和验证 Agent 的标准流�
 | `data/ai/runtime_images.yaml` | Studio/沙盒运行时镜像定义。 |
 | `data/ai/studio.yaml` | Studio 默认运行参数和沙盒配置。 |
 
-所有默认路径由 `src/omichub/core/config.py` 管理，并可通过对应环境变量覆盖。
+所有默认路径由 `src/cygnusx/core/config.py` 管理，并可通过对应环境变量覆盖。
 
 ## 2. 平台加载与挂载链路
 
 内置 Agent 的平台挂载链路如下：
 
 ```text
-data/OmicHub.yaml: agents.enabled
+data/CygnusX.yaml: agents.enabled
         │
         ▼
 data/ai/<agent>.yaml
@@ -59,11 +59,11 @@ AgentService.ensure_builtin_agents()
 
 关键实现位置：
 
-- `src/omichub/infrastructure/config/agent_loader.py`：读取启用清单、Agent YAML、提示词、
+- `src/cygnusx/infrastructure/config/agent_loader.py`：读取启用清单、Agent YAML、提示词、
   Tool Pack 和 Studio Runtime Profile，并合并最终声明。
-- `src/omichub/application/services/agent_service.py`：将内置 Agent 同步到数据库，安装声明的
+- `src/cygnusx/application/services/agent_service.py`：将内置 Agent 同步到数据库，安装声明的
   Marketplace Skill，并在会话创建时组装模型、MCP、Skill、工具和交接上下文。
-- `src/omichub/main.py`：应用启动时执行内置 Agent 同步。
+- `src/cygnusx/main.py`：应用启动时执行内置 Agent 同步。
 - `scripts/sync_builtin_agents.py`：不重启服务时手动同步内置 Agent。
 
 读取 Agent 列表也会触发幂等同步。配置中的 `mcp_ids` 和 `skill_ids` 会追加到已存在的内置
@@ -72,7 +72,7 @@ YAML 为权威来源持续同步，避免后台临时编辑造成配置漂移。
 
 ## 3. 当前内置 Agent 清单
 
-以下 Agent 均已在 `data/OmicHub.yaml` 的 `agents.enabled` 中启用。
+以下 Agent 均已在 `data/CygnusX.yaml` 的 `agents.enabled` 中启用。
 
 | 配置 / Agent ID | 名称 | 主要能力范围 | 默认入口 | 引擎 / Runtime |
 | --- | --- | --- | --- | --- |
@@ -191,9 +191,9 @@ RNA-seq Agent 是当前 Bulk RNA-seq 的统一领域入口，配置文件为 `da
 
 `rnaseq` Tool Pack 按最小权限原则组合以下能力：
 
-- **OmicHub 内置工具**：RNA-seq 任务准备、任务状态和摘要、KEGG 富集、火山图。
+- **CygnusX 内置工具**：RNA-seq 任务准备、任务状态和摘要、KEGG 富集、火山图。
 - **平台工具**：Flow/Task 查询、工作区文件读取和结果下载。
-- **OmicHub Pipelines MCP**：流水线列表、参数检查、RNA-seq 输入准备、提交、状态与结果查询。
+- **CygnusX Pipelines MCP**：流水线列表、参数检查、RNA-seq 输入准备、提交、状态与结果查询。
 - **Ensembl MCP**：物种和组装查询、基因检索、转录本、外部引用、序列和 CDS 查询。
 - **GO MCP**：GO 搜索、术语详情、ID 校验和统计。
 - **Skill**：通过 `rnaflow` 获取完整执行约定；其他 RNA-seq Skill 由 Agent YAML 直接挂载。
@@ -333,7 +333,7 @@ studio:
 
 ### 第三步：加入启用清单
 
-在 `data/OmicHub.yaml` 中把文件键加入：
+在 `data/CygnusX.yaml` 中把文件键加入：
 
 ```yaml
 agents:
@@ -353,7 +353,7 @@ id: example-analysis
 description: 示例 Agent 的最小工具集合。
 
 builtin_tools:
-  - omichub_example_tool
+  - cygnusx_example_tool
 
 platform_tools:
   - list_workspace_files
@@ -373,8 +373,8 @@ skill_ids:
 
 工具类别：
 
-- `builtin_tools`：`tool_configs/tools_schema.yaml` 中注册的 OmicHub 内置函数。
-- `platform_tools`：内置 `omichub-platform` MCP 暴露的平台工具。
+- `builtin_tools`：`tool_configs/tools_schema.yaml` 中注册的 CygnusX 内置函数。
+- `platform_tools`：内置 `cygnusx-platform` MCP 暴露的平台工具。
 - `mcp_ids`：已注册 MCP Server 的 UUID。
 - `mcp_tools`：每个 MCP Server 对该 Agent 暴露的工具白名单。
 - `skill_ids`：随 Tool Pack 一起附加的 Skill。
@@ -496,7 +496,7 @@ handoff:
 
 提交 Agent 变更前至少检查：
 
-- Agent 文件键已加入 `data/OmicHub.yaml`，且 `id` 未与现有 Agent 冲突；
+- Agent 文件键已加入 `data/CygnusX.yaml`，且 `id` 未与现有 Agent 冲突；
 - `prompt_file`、Tool Pack、Skill 和 Runtime Profile 路径均存在；
 - MCP UUID 已注册且健康，`mcp_tools` 名称与服务端发现结果一致；
 - 写操作、高成本操作和外部网络操作遵守最小权限原则；
@@ -564,12 +564,12 @@ timeline 落库、handoff 事件等）是**各自独立实现**的，历史上�
 
 ### 11.3 模型与 Provider 高度单一化 ✅ 已解决（2026-08-14）
 
-**曾经的问题**：13 个 Agent YAML 的 `model` 字段全部是 `qwen3.7-plus`，没有按任务复杂度分层（例如给
+**曾经的问题**：13 个 Agent YAML 的 `model` 字段全部是 `qdoubao-seed-evolving`，没有按任务复杂度分层（例如给
 `router` 这类低延时诉求的入口用更快的模型，给 `mcp_builder` 这类需要强代码生成能力的
-用更强模型）。同时 `data/ai/providers.yaml` 里 `deepseek-v4-flash` 和 `qwen3.7-plus`
+用更强模型）。同时 `data/ai/providers.yaml` 里 `deepseek-v4-flash` 和 `qdoubao-seed-evolving`
 同时标注 `is_default: true`，虽然同步逻辑（`ai_provider_yaml_loader.py`）只会让最后
 生效的一个成为真正默认值，但 YAML 层面两条 `is_default: true` 容易误导后续维护者。
-单一 Provider 也是可用性单点故障：一旦 `qwen3.7-plus` 服务异常，全部 Agent 同时不可用。
+单一 Provider 也是可用性单点故障：一旦 `qdoubao-seed-evolving` 服务异常，全部 Agent 同时不可用。
 
 **解决方案**：按"任务认知负荷"分两档（当前 providers.yaml 只有两个可用 Provider，分档到
 现有模型上）：
@@ -577,11 +577,11 @@ timeline 落库、handoff 事件等）是**各自独立实现**的，历史上�
 | 档位 | 模型 | Agent | 依据 |
 | --- | --- | --- | --- |
 | 轻量档 | `deepseek-v4-flash` | `router`、`data`、`delivery`、`shania` | 路由分类（运行时 temp=0、max_tokens=200 输出 JSON）、清单式核验、结构化汇总、陪伴式对话，均为低温度结构化任务 |
-| 推理档 | `qwen3.7-plus` | 其余全部领域专家、`qc`、`orchestrator`、`mcp_builder` | 实验设计、证据链推理、审计结论、计划生成、代码生成，容错率低 |
+| 推理档 | `qdoubao-seed-evolving` | 其余全部领域专家、`qc`、`orchestrator`、`mcp_builder` | 实验设计、证据链推理、审计结论、计划生成、代码生成，容错率低 |
 
 `qc` 虽以结构化三态结论输出，但其审计结论会阻断交付，错误代价高，明确保留在推理档。
 同时把 `providers.yaml` 中 `deepseek-v4-flash` 的 `is_default` 改为 `false`，全局默认
-Provider 只保留 `qwen3.7-plus` 一个（与此前"最后生效"的实际行为一致，无语义变化）。
+Provider 只保留 `qdoubao-seed-evolving` 一个（与此前"最后生效"的实际行为一致，无语义变化）。
 模型选型准则沉淀为 §12.5。
 
 **尚未解决**：单一 Provider 的可用性单点故障仍在（flash 与 plus 分属火山与阿里两家，
@@ -595,7 +595,7 @@ Provider 只保留 `qwen3.7-plus` 一个（与此前"最后生效"的实际行�
 "计划引用了未注册的 MAS Agent"，导致 `settings.mas_enabled` 打开后这些专家在编排器眼里
 彻底消失。
 
-**解决方案**：把 `data/OmicHub.yaml` 中 `agents.enabled` 的**全部 11 个专家**补进
+**解决方案**：把 `data/CygnusX.yaml` 中 `agents.enabled` 的**全部 11 个专家**补进
 `agent_capabilities.yaml`（router 是纯分派入口、orchestrator 是编排器本身，二者不作为
 可分派节点，按设计豁免）。登记时的关键机制：
 
@@ -663,7 +663,7 @@ Provider 只保留 `qwen3.7-plus` 一个（与此前"最后生效"的实际行�
 
 **顺带澄清一个此前的误评**：曾认为"所有 Agent 的 `mcp_ids` 都是空的，没有 Agent 挂载
 MCP"。实际上 MCP 挂载发生在 Tool Pack 层（`agent_loader.py` 合并 `pack.mcp_ids` +
-自动附加 `omichub-tools`/`omichub-platform` 预设），rnaseq/atacseq 一直通过工具包
+自动附加 `cygnusx-tools`/`cygnusx-platform` 预设），rnaseq/atacseq 一直通过工具包
 绑定 3 个外部 MCP；真正的缺口是 scrna 团队没有领域 MCP，本次已补齐。
 
 ### 11.7 提示词体积护栏（部分缓解，2026-08-14）
@@ -753,7 +753,7 @@ L1 路由冲突和技能质量失控。
      仍由管理员触发 `agent-skill-builder` 决定。
 
 5. **与现有治理体系对齐**
-   - 加入 `data/OmicHub.yaml: agents.enabled`；
+   - 加入 `data/CygnusX.yaml: agents.enabled`；
    - 加入 `data/ai/mas/agent_capabilities.yaml`（能力键：skill-design/osdp-review/
      candidate-generation/dependency-classification/artifact-validate）；
    - 加入 `data/ai/agent_ability.yaml`；
@@ -827,10 +827,10 @@ Agent YAML 的 `model` 按**任务认知负荷**选档，不按"这个 Agent 重
 
 - **轻量档（当前 `deepseek-v4-flash`）**：输出结构化、温度 ≤0.4、错误可被下游校验或
   重试覆盖的任务——路由分类、清单核验、交付汇总、陪伴式对话、Skill 候选包生成。
-- **推理档（当前 `qwen3.7-plus`）**：结论会直接驱动实验设计、阻断交付或生成代码的
+- **推理档（当前 `qdoubao-seed-evolving`）**：结论会直接驱动实验设计、阻断交付或生成代码的
   任务——领域专家分析、`qc` 审计、`orchestrator` 计划、`mcp_builder` 代码生成。
 - 新 Agent 默认进推理档；要进轻量档需在 YAML 注释里说明"错误代价为什么低"。
-- `providers.yaml` 中 `is_default: true` 全局只能有一个（当前 `qwen3.7-plus`）；
+- `providers.yaml` 中 `is_default: true` 全局只能有一个（当前 `qdoubao-seed-evolving`）；
   其余 Provider 一律 `is_default: false`，靠 Agent 按名显式选用。
 
 ### 12.6 Skill 候选区治理规范
@@ -863,7 +863,7 @@ AgentTeams 的唯一有效目标、状态机、角色口径、部署形态和验
 - 14 个可招募专家、1 个 companion、1 个 router 的声明来自 Agent YAML registry。
 - AgentTeams 场景通过 Bridge Work Item 协作；常规助手 fan-out 保留，但绑定 Case 后禁用。
 - 生产专家 Worker 使用 capability 资源池并按目标身份令牌认领，不按角色固定独占服务。
-- 计划确认、审批、取消、专家发言、进度、产物下载和 HTML 沙箱预览均在 OmicHub 聊天内闭环。
+- 计划确认、审批、取消、专家发言、进度、产物下载和 HTML 沙箱预览均在 CygnusX 聊天内闭环。
 - 共享执行协议以 `data/ai/prompts/shared/agentteams_workspace_execution.md` 为准。
 
 ## Agent Persona（仅影响表达与协作方式）

@@ -8,6 +8,7 @@
  */
 import { ref } from 'vue'
 import { reportChatDiagnostic } from '@/utils/chatDiagnostics'
+import { normalizeSuggestions, type SuggestedFollowUp } from '@/utils/nextStepSuggestions'
 import type { PlanAgentSummary, PlanConfirmation } from '@/components/ai-chat/types'
 
 export interface AgentChatStreamOptions {
@@ -16,8 +17,12 @@ export interface AgentChatStreamOptions {
   sessionId?: string
   /** 当前会话运行模式；Studio 模式会由后端装配工作区工具与上下文。 */
   mode?: 'chat' | 'studio'
+  /** 沙箱运行时配置 ID（仅新建会话且 mode="studio" 时生效，创建后固定不可变） */
+  runtimeProfile?: string | null
   /** 当前请求强制使用的模型配置 ID（覆盖 Agent 默认模型） */
   modelId?: string
+  /** 新建会话的项目边界（仅会话尚未落库时生效，创建后固定） */
+  projectId?: string
   /** 温度（0-1），后端 Agent 编排层可透传给底层模型 */
   temperature?: number
   /** 单次回复最大 token 数 */
@@ -37,6 +42,11 @@ export interface AgentChatStreamOptions {
   overdrive?: boolean
   /** 工具调用轮次上限扩展：true 时后端按 1000 轮执行（用户在触顶弹窗确认继续后置位） */
   extendMaxRounds?: boolean
+  /**
+   * AI 助手页面专用：true 时本轮需要用户确认的操作（代码执行、写入文件、网络访问等）
+   * 由后端直接执行，不再逐次弹出审批卡片。AI 工作台页面不传该字段，维持逐次审批。
+   */
+  autoApprove?: boolean
 }
 
 export interface ChatAttachment {
@@ -56,6 +66,10 @@ export interface ToolCallEvent {
   mcp_server?: string
   /** 调用理由（为什么调这个工具，后端 metadata 透传） */
   purpose?: string
+  /** 科研模式信封字段（WP3 任务 1）：cell 时间线分组依据；旧后端/非代码工具无此字段 */
+  cell_index?: number | null
+  /** 科研模式信封字段：cell 组头语言徽标；缺省时由卡片按参数/扩展名推断 */
+  language?: string | null
 }
 export interface ToolResultEvent {
   tool_call_id: string
@@ -183,6 +197,8 @@ export interface TokenUsage {
   prompt_tokens?: number
   completion_tokens?: number
   total_tokens?: number
+  /** 缓存命中的输入 tokens（OpenAI prompt_tokens_details.cached_tokens / Anthropic cache_read_input_tokens） */
+  cached_tokens?: number
 }
 
 export interface RoomSpeechEvent {
@@ -345,6 +361,7 @@ export interface AgentStreamCallbacks {
     finishReason?: string,
     finalContent?: string,
     finalReasoning?: string,
+    suggestions?: SuggestedFollowUp[],
   ) => void
 }
 
@@ -569,7 +586,9 @@ export function useAgentChatStream() {
             agent_id: options.agentId,
             session_id: options.sessionId,
             mode: options.mode,
+            runtime_profile: options.runtimeProfile ?? undefined,
             model_id: options.modelId,
+            project_id: options.projectId || undefined,
             messages: options.messages,
             stream: true,
             temperature: options.temperature,
@@ -583,6 +602,7 @@ export function useAgentChatStream() {
             multi_agent: options.multiAgent ?? false,
             overdrive: options.overdrive,
             extend_max_rounds: options.extendMaxRounds || false,
+            auto_approve: options.autoApprove || false,
           }),
           signal: abortController.value?.signal,
         })
@@ -697,6 +717,8 @@ export function useAgentChatStream() {
           arguments: (data.arguments as Record<string, unknown>) || {},
           mcp_server: typeof data.mcp_server === 'string' ? data.mcp_server : undefined,
           purpose: typeof data.purpose === 'string' ? data.purpose : undefined,
+          cell_index: typeof data.cell_index === 'number' ? data.cell_index : null,
+          language: typeof data.language === 'string' ? data.language : null,
         })
         break
       case 'mode_changed':
@@ -1077,6 +1099,9 @@ export function useAgentChatStream() {
           if (sessionId && messageId) cb.onSessionCreated?.(sessionId, messageId)
           const usage = data.usage as TokenUsage | undefined
           const finishReason = data.finish_reason as string | undefined
+          // 建议追问 Chips（阶段 2 结构化通道）：done 事件 metadata 透传的
+          // suggestions 原样下发，缺失/空数组时由消息渲染层回退正则解析兜底
+          const suggestions = normalizeSuggestions(data.suggestions)
           cb.onDone?.(
             sessionId || '',
             messageId || '',
@@ -1084,6 +1109,7 @@ export function useAgentChatStream() {
             finishReason,
             content,
             reasoning,
+            suggestions.length ? suggestions : undefined,
           )
         }
         break

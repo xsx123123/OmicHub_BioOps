@@ -1,7 +1,7 @@
 # Agent 思考—工具闭环可观测性升级
 
 > 更新日期：2026-08-18  
-> 关联计划：`docs/info/26.8.18/OmicHub-Agent思考工具闭环优化实施计划与编码提示词.md`  
+> 关联计划：`docs/info/26.8.18/CygnusX-Agent思考工具闭环优化实施计划与编码提示词.md`  
 > 关联基线：`ARCHITECTURE_DESIN/agent_current_execution_framework_2026-08.md`
 
 ## 1. 本次目标与范围
@@ -127,13 +127,13 @@ agent_turn_started
 
 | 文件 | 本次职责 |
 | --- | --- |
-| `src/omichub/application/services/execution_events.py` | 统一生命周期事件和稳定字段。 |
-| `src/omichub/application/services/chat_service.py` | Legacy/Studio 事件、Loop Guard 与结果收尾。 |
-| `src/omichub/infrastructure/execution/langgraph_nodes.py` | LangGraph LLM 与工具节点的同语义事件。 |
-| `src/omichub/application/services/agentteams_execution_intent.py` | `tool_execute` 及协助室意图判定。 |
-| `src/omichub/application/services/agentteams_room_response_service.py` | 只读工具路由、失败可见性与房间回复。 |
-| `src/omichub/application/services/parallel_subagent_service.py` | Worker ReAct、回灌、Guard 和工具结果摘要。 |
-| `src/omichub/application/services/agent_consultation_service.py` | Worker 事件到 Case 证据事件的投影。 |
+| `src/cygnusx/application/services/execution_events.py` | 统一生命周期事件和稳定字段。 |
+| `src/cygnusx/application/services/chat_service.py` | Legacy/Studio 事件、Loop Guard 与结果收尾。 |
+| `src/cygnusx/infrastructure/execution/langgraph_nodes.py` | LangGraph LLM 与工具节点的同语义事件。 |
+| `src/cygnusx/application/services/agentteams_execution_intent.py` | `tool_execute` 及协助室意图判定。 |
+| `src/cygnusx/application/services/agentteams_room_response_service.py` | 只读工具路由、失败可见性与房间回复。 |
+| `src/cygnusx/application/services/parallel_subagent_service.py` | Worker ReAct、回灌、Guard 和工具结果摘要。 |
+| `src/cygnusx/application/services/agent_consultation_service.py` | Worker 事件到 Case 证据事件的投影。 |
 | `frontend/src/utils/agentTeamsRoom.ts` | 事件到结构化房间消息的映射。 |
 | `frontend/src/views/AgentTeamsRoomView.vue` | Worker 卡片与技术事件详情展示。 |
 

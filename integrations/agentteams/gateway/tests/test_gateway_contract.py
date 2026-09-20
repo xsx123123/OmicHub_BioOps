@@ -7,9 +7,9 @@ from pathlib import Path
 import httpx
 import pytest
 from httpx import ASGITransport
-from omichub_agent_gateway.app import create_app
-from omichub_agent_gateway.client import OmicHubConsultationClient
-from omichub_agent_gateway.config import GatewaySettings
+from cygnusx_agent_gateway.app import create_app
+from cygnusx_agent_gateway.client import CygnusXConsultationClient
+from cygnusx_agent_gateway.config import GatewaySettings
 
 
 def headers() -> dict[str, str]:
@@ -19,8 +19,8 @@ def headers() -> dict[str, str]:
 @pytest.fixture
 def settings(tmp_path: Path) -> GatewaySettings:
     return GatewaySettings(
-        omichub_base_url="http://omic.test",
-        omichub_integration_token="integration-token",
+        cygnusx_base_url="http://omic.test",
+        cygnusx_integration_token="integration-token",
         audit_log_path=str(tmp_path / "gateway-audit.jsonl"),
         request_timeout_seconds=0.05,
     )
@@ -30,7 +30,7 @@ def make_client(
     settings: GatewaySettings, handler: httpx.MockTransport
 ) -> tuple[httpx.AsyncClient, httpx.AsyncClient]:
     upstream = httpx.AsyncClient(transport=handler, base_url="http://omic.test")
-    app = create_app(settings, OmicHubConsultationClient(settings, upstream))
+    app = create_app(settings, CygnusXConsultationClient(settings, upstream))
     api = httpx.AsyncClient(transport=ASGITransport(app=app), base_url="http://gateway.test")
     return api, upstream
 
@@ -43,7 +43,7 @@ def test_production_gateway_requires_dedicated_integration_token() -> None:
     with pytest.raises(ValueError, match="集成令牌"):
         GatewaySettings(
             environment="production",
-            omichub_integration_token="",
+            cygnusx_integration_token="",
             identities="bioops-manager:manager-secret",
         )
 
@@ -51,12 +51,12 @@ def test_production_gateway_requires_dedicated_integration_token() -> None:
 def test_production_gateway_accepts_dedicated_integration_token() -> None:
     settings = GatewaySettings(
         environment="production",
-        omichub_integration_token="integration-secret",
+        cygnusx_integration_token="integration-secret",
         identities="bioops-manager:manager-secret",
         state_store_url="redis://localhost:6379/0",
     )
 
-    assert settings.omichub_integration_token == "integration-secret"
+    assert settings.cygnusx_integration_token == "integration-secret"
     capabilities, tools = settings.agent_policy_map()["agent-data"]
     assert capabilities == {"project-preflight", "workspace_execution"}
     assert tools == {
@@ -283,7 +283,7 @@ def test_call_and_token_limits_return_structured_rejections(tmp_path: Path) -> N
 
 async def _test_call_and_token_limits_return_structured_rejections(tmp_path: Path) -> None:
     settings = GatewaySettings(
-        omichub_base_url="http://omic.test",
+        cygnusx_base_url="http://omic.test",
         audit_log_path=str(tmp_path / "gateway-audit.jsonl"),
         max_calls_per_case=1,
         max_tokens_per_case=100,
@@ -362,6 +362,8 @@ class FakeMatrixClient:
         self.created: list[tuple[str, str, list[str]]] = []
         self.sent: list[dict[str, object]] = []
         self.ensured: list[list[str]] = []
+        self.joined: list[tuple[str, str]] = []
+        self.left: list[tuple[str, str]] = []
 
     async def close(self) -> None:
         pass
@@ -387,8 +389,17 @@ class FakeMatrixClient:
         )
         return "$event-1"
 
+    async def create_element_session(self, identity: str):
+        return {"user_id": f"@{identity}:test", "access_token": "syt_fake_token", "device_id": "DEVFAKE"}
+
+    async def join_room(self, identity: str, room_id: str) -> None:
+        self.joined.append((identity, room_id))
+
+    async def leave_room(self, identity: str, room_id: str) -> None:
+        self.left.append((identity, room_id))
+
     async def messages(self, room_id: str, since: str | None, limit: int):
-        from omichub_agent_gateway.models import RoomMessage
+        from cygnusx_agent_gateway.models import RoomMessage
 
         return (
             [
@@ -403,7 +414,7 @@ class FakeMatrixClient:
         )
 
     async def stream_sync(self, room_id: str, since: str | None):
-        from omichub_agent_gateway.models import RoomMessage
+        from cygnusx_agent_gateway.models import RoomMessage
 
         yield (
             [
@@ -424,11 +435,11 @@ def test_matrix_room_endpoints_create_send_read_and_sync(tmp_path: Path) -> None
 
 async def _test_matrix_room_endpoints_create_send_read_and_sync(tmp_path: Path) -> None:
     settings = GatewaySettings(
-        omichub_base_url="http://omic.test",
+        cygnusx_base_url="http://omic.test",
         audit_log_path=str(tmp_path / "gateway-audit.jsonl"),
         matrix_homeserver_url="http://matrix.test",
         matrix_service_token="matrix-secret",
-        matrix_identities="bioops-manager=@manager:test,omichub-user=@user:test,agent-rnaseq=@rnaseq:test",
+        matrix_identities="bioops-manager=@manager:test,cygnusx-user=@user:test,agent-rnaseq=@rnaseq:test",
         element_base_url="http://element.test",
     )
     upstream = httpx.AsyncClient(
@@ -436,7 +447,7 @@ async def _test_matrix_room_endpoints_create_send_read_and_sync(tmp_path: Path) 
         base_url="http://omic.test",
     )
     matrix = FakeMatrixClient()
-    app = create_app(settings, OmicHubConsultationClient(settings, upstream), matrix)  # type: ignore[arg-type]
+    app = create_app(settings, CygnusXConsultationClient(settings, upstream), matrix)  # type: ignore[arg-type]
     api = httpx.AsyncClient(transport=ASGITransport(app=app), base_url="http://gateway.test")
     try:
         created = await api.post(
@@ -463,7 +474,7 @@ async def _test_matrix_room_endpoints_create_send_read_and_sync(tmp_path: Path) 
     assert created.json()["room_id"] == "!room:test"
     assert created.json()["element_room_url"] == "http://element.test/#/room/!room:test"
     assert matrix.created == [
-        ("omichub-session-session-1", "bioops-manager", ["bioops-manager", "agent-rnaseq"])
+        ("cygnusx-session-session-1", "bioops-manager", ["bioops-manager", "agent-rnaseq"])
     ]
     assert sent.json() == {"event_id": "$event-1"}
     assert matrix.sent[0]["identity"] == "agent-rnaseq"
@@ -476,24 +487,24 @@ def test_matrix_dynamic_user_mapping() -> None:
         matrix_homeserver_url="http://matrix.test",
         matrix_service_token="matrix-secret",
         matrix_server_name="matrix.example.internal",
-        matrix_identities="bioops-manager=@manager:test,omichub-user=@user:test",
+        matrix_identities="bioops-manager=@manager:test,cygnusx-user=@user:test",
     )
     assert settings.matrix_user_for_identity("bioops-manager") == "@manager:test"
     assert (
-        settings.matrix_user_for_identity("omichub-user-u42")
-        == "@omichub-user-u42:matrix.example.internal"
+        settings.matrix_user_for_identity("cygnusx-user-u42")
+        == "@cygnusx-user-u42:matrix.example.internal"
     )
     # 未知静态身份、非法 localpart、空前缀后缀均不映射
     assert settings.matrix_user_for_identity("agent-rnaseq") is None
-    assert settings.matrix_user_for_identity("omichub-user-") is None
-    assert settings.matrix_user_for_identity("omichub-user-Bad/Char") is None
+    assert settings.matrix_user_for_identity("cygnusx-user-") is None
+    assert settings.matrix_user_for_identity("cygnusx-user-Bad/Char") is None
     # 反向解析：动态账号 ↔ identity，供 sync 事件归源
     assert (
-        settings.matrix_identity_by_user_dynamic("@omichub-user-u42:matrix.example.internal")
-        == "omichub-user-u42"
+        settings.matrix_identity_by_user_dynamic("@cygnusx-user-u42:matrix.example.internal")
+        == "cygnusx-user-u42"
     )
     assert settings.matrix_identity_by_user_dynamic("@manager:test") == "bioops-manager"
-    assert settings.matrix_identity_by_user_dynamic("@omichub-user-u42:other.server") is None
+    assert settings.matrix_identity_by_user_dynamic("@cygnusx-user-u42:other.server") is None
 
 
 def test_ensure_users_endpoint_provisions_dynamic_accounts(tmp_path: Path) -> None:
@@ -502,48 +513,150 @@ def test_ensure_users_endpoint_provisions_dynamic_accounts(tmp_path: Path) -> No
 
 async def _test_ensure_users_endpoint(tmp_path: Path) -> None:
     settings = GatewaySettings(
-        omichub_base_url="http://omic.test",
+        cygnusx_base_url="http://omic.test",
         audit_log_path=str(tmp_path / "gateway-audit.jsonl"),
         matrix_homeserver_url="http://matrix.test",
         matrix_service_token="matrix-secret",
         matrix_server_name="test",
-        matrix_identities="bioops-manager=@manager:test,omichub-user=@user:test",
+        matrix_identities="bioops-manager=@manager:test,cygnusx-user=@user:test",
     )
     upstream = httpx.AsyncClient(
         transport=httpx.MockTransport(lambda _: httpx.Response(200, json={})),
         base_url="http://omic.test",
     )
     matrix = FakeMatrixClient()
-    app = create_app(settings, OmicHubConsultationClient(settings, upstream), matrix)  # type: ignore[arg-type]
+    app = create_app(settings, CygnusXConsultationClient(settings, upstream), matrix)  # type: ignore[arg-type]
     api = httpx.AsyncClient(transport=ASGITransport(app=app), base_url="http://gateway.test")
     try:
         ensured = await api.post(
             "/users/ensure",
             headers=headers(),
-            json={"identities": ["omichub-user-u42", "bioops-manager", "omichub-user-u42"]},
+            json={"identities": ["cygnusx-user-u42", "bioops-manager", "cygnusx-user-u42"]},
         )
         rejected = await api.post(
             "/users/ensure",
             headers=headers(),
-            json={"identities": ["omichub-user-Bad/Char"]},
+            json={"identities": ["cygnusx-user-Bad/Char"]},
         )
         # 建房同样接受动态平台用户身份并供给其账号
         created = await api.post(
             "/rooms",
             headers=headers(),
-            json={"session_id": "session-2", "identities": ["bioops-manager", "omichub-user-u42"]},
+            json={"session_id": "session-2", "identities": ["bioops-manager", "cygnusx-user-u42"]},
         )
     finally:
         await api.aclose()
         await upstream.aclose()
 
     assert ensured.status_code == 200
-    assert ensured.json() == {"ensured": ["omichub-user-u42", "bioops-manager"]}
-    assert matrix.ensured[0] == ["omichub-user-u42", "bioops-manager"]
+    assert ensured.json() == {"ensured": ["cygnusx-user-u42", "bioops-manager"]}
+    assert matrix.ensured[0] == ["cygnusx-user-u42", "bioops-manager"]
     assert rejected.status_code == 503
     assert created.status_code == 200
     assert matrix.created[-1] == (
-        "omichub-session-session-2",
+        "cygnusx-session-session-2",
         "bioops-manager",
-        ["bioops-manager", "omichub-user-u42"],
+        ["bioops-manager", "cygnusx-user-u42"],
     )
+
+
+def test_element_session_endpoint_issues_credentials_and_audits(tmp_path: Path) -> None:
+    asyncio.run(_test_element_session_endpoint(tmp_path))
+
+
+async def _test_element_session_endpoint(tmp_path: Path) -> None:
+    settings = GatewaySettings(
+        cygnusx_base_url="http://omic.test",
+        audit_log_path=str(tmp_path / "gateway-audit.jsonl"),
+        matrix_homeserver_url="http://matrix.internal",
+        matrix_public_base_url="https://matrix.example.com",
+        matrix_service_token="matrix-secret",
+        matrix_server_name="test",
+        matrix_identities="bioops-manager=@manager:test,cygnusx-user=@user:test",
+        element_base_url="http://element.test",
+    )
+    upstream = httpx.AsyncClient(
+        transport=httpx.MockTransport(lambda _: httpx.Response(200, json={})),
+        base_url="http://omic.test",
+    )
+    matrix = FakeMatrixClient()
+    app = create_app(settings, CygnusXConsultationClient(settings, upstream), matrix)  # type: ignore[arg-type]
+    api = httpx.AsyncClient(transport=ASGITransport(app=app), base_url="http://gateway.test")
+    try:
+        issued = await api.post(
+            "/matrix/element-session",
+            headers=headers(),
+            json={"identity": "cygnusx-user-u42", "room_id": "!room:test"},
+        )
+        rejected = await api.post(
+            "/matrix/element-session",
+            headers=headers(),
+            json={"identity": "agent-rnaseq"},
+        )
+    finally:
+        await api.aclose()
+        await upstream.aclose()
+
+    assert issued.status_code == 200
+    # 携带 room_id 时先幂等入房再签发（仅 invited 未 joined 的房间在 Element 深链下会卡黑屏）
+    assert matrix.joined == [("cygnusx-user-u42", "!room:test")]
+    body = issued.json()
+    assert body["user_id"] == "@cygnusx-user-u42:test"
+    assert body["access_token"] == "syt_fake_token"
+    assert body["device_id"] == "DEVFAKE"
+    # 浏览器侧地址走公网配置，不回退内网 homeserver 地址
+    assert body["homeserver_url"] == "https://matrix.example.com"
+    assert body["element_base_url"] == "http://element.test"
+    # 未配置的静态身份、非 cygnusx-user- 前缀身份一律拒绝
+    assert rejected.status_code == 503
+    # 签发动作落审计，但 access_token 不进审计日志
+    audit_text = read_audit_log(settings.audit_log_path)
+    event = json.loads(audit_text.splitlines()[-1])
+    assert event["event_type"] == "matrix.element_session.created"
+    assert event["payload"]["identity"] == "cygnusx-user-u42"
+    assert "syt_fake_token" not in audit_text
+
+
+def test_room_leave_endpoint_leaves_and_audits(tmp_path: Path) -> None:
+    asyncio.run(_test_room_leave_endpoint(tmp_path))
+
+
+async def _test_room_leave_endpoint(tmp_path: Path) -> None:
+    settings = GatewaySettings(
+        cygnusx_base_url="http://omic.test",
+        audit_log_path=str(tmp_path / "gateway-audit.jsonl"),
+        matrix_homeserver_url="http://matrix.internal",
+        matrix_service_token="matrix-secret",
+        matrix_server_name="test",
+        matrix_identities="bioops-manager=@manager:test,cygnusx-user=@user:test",
+    )
+    upstream = httpx.AsyncClient(
+        transport=httpx.MockTransport(lambda _: httpx.Response(200, json={})),
+        base_url="http://omic.test",
+    )
+    matrix = FakeMatrixClient()
+    app = create_app(settings, CygnusXConsultationClient(settings, upstream), matrix)  # type: ignore[arg-type]
+    api = httpx.AsyncClient(transport=ASGITransport(app=app), base_url="http://gateway.test")
+    try:
+        left = await api.post(
+            "/matrix/rooms/leave",
+            headers=headers(),
+            json={"identity": "cygnusx-user-u42", "room_id": "!room:test"},
+        )
+        rejected = await api.post(
+            "/matrix/rooms/leave",
+            headers=headers(),
+            json={"identity": "agent-rnaseq", "room_id": "!room:test"},
+        )
+    finally:
+        await api.aclose()
+        await upstream.aclose()
+
+    assert left.status_code == 200
+    assert left.json() == {"left": True}
+    assert matrix.left == [("cygnusx-user-u42", "!room:test")]
+    # 未配置的静态身份、非 cygnusx-user- 前缀身份一律拒绝
+    assert rejected.status_code == 503
+    event = json.loads(read_audit_log(settings.audit_log_path).splitlines()[-1])
+    assert event["event_type"] == "matrix.room.left"
+    assert event["payload"] == {"room_id": "!room:test", "identity": "cygnusx-user-u42"}

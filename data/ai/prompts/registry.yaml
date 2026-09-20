@@ -64,8 +64,8 @@ prompts:
     variables:
     - skills_catalog
     - mcp_catalog
-  tools.omichub_system_hint:
-    file: tools/omichub_system_hint.md
+  tools.cygnusx_system_hint:
+    file: tools/cygnusx_system_hint.md
     kind: template
     owners:
     - agent

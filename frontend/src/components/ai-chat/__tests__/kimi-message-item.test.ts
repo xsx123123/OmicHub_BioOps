@@ -260,7 +260,7 @@ describe('KimiMessageItem 渲染分支', () => {
     expect(el.textContent).not.toContain('STELLAR ROUTER')
   })
 
-  it('工具生成图片后在对话中显示预览并支持下载', async () => {
+  it('工具生成图片后在对话中显示缩略图，产物窗口中支持预览与下载', async () => {
     // 组件链路：fetchArtifactBlob 返回 objectUrl → fetch(objectUrl).blob() → createObjectURL 作为 img src
     URL.createObjectURL = vi.fn(() => 'blob:heatmap-preview')
     global.fetch = vi.fn().mockResolvedValue({ blob: () => Promise.resolve(new Blob(['image'])) })
@@ -293,10 +293,20 @@ describe('KimiMessageItem 渲染分支', () => {
       'session-artifact',
       'output/sample_correlation_heatmap.png',
     )
-    expect(el.querySelector<HTMLImageElement>('.message-artifacts__preview img')?.src).toContain('blob:heatmap-preview')
-    expect(el.textContent).toContain('sample_correlation_heatmap.png')
+    // 内联只保留缩略图条：不再把整个画廊铺在对话里
+    expect(el.querySelector<HTMLImageElement>('.message-artifacts__thumb img')?.src).toContain('blob:heatmap-preview')
+    expect(el.querySelector('.message-artifacts__thumb')?.getAttribute('aria-label'))
+      .toContain('sample_correlation_heatmap.png')
 
-    el.querySelector<HTMLButtonElement>('.message-artifacts__download')?.click()
+    // 文件名与下载收进产物窗口
+    el.querySelector<HTMLButtonElement>('.message-artifacts__open-window')?.click()
+    await nextTick()
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    await nextTick()
+    expect(document.body.querySelector('.artifact-gallery-window__body')?.textContent)
+      .toContain('sample_correlation_heatmap.png')
+
+    document.body.querySelector<HTMLButtonElement>('.artifact-gallery-window__body .message-artifacts__download')?.click()
     await new Promise((resolve) => setTimeout(resolve, 20))
     await nextTick()
     expect(anchorClickSpy).toHaveBeenCalled()
@@ -305,11 +315,11 @@ describe('KimiMessageItem 渲染分支', () => {
 
   it('有 thought + 有 content：思考面板与正文都应渲染', () => {
     const { el } = mountItem({
-      message: { ...baseMsg, content: '你好！我是 OmicHub AI 助手。', thought: '用户打招呼' },
+      message: { ...baseMsg, content: '你好！我是 CygnusX AI 助手。', thought: '用户打招呼' },
       isStreaming: false,
     })
     expect(el.textContent).toContain('思考过程')
-    expect(el.textContent).toContain('你好！我是 OmicHub AI 助手。')
+    expect(el.textContent).toContain('你好！我是 CygnusX AI 助手。')
   })
 
   it('只有 thought、content 为空：显示空态兜底而非空白', () => {

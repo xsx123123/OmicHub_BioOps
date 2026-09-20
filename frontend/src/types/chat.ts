@@ -2,6 +2,14 @@
  * 聊天系统类型定义（Cherry Studio 架构）
  */
 
+/** 科研模式设置（WP3 任务 3；null/undefined = 未开启，旧数据兼容） */
+export interface ResearchModeSettings {
+  enabled: boolean
+  render_mode: 'message_flow' | 'cell_timeline'
+  workspace_protocol: 'standard' | 'research'
+  ptc_llm_query: boolean
+}
+
 export interface ChatSessionDTO {
   session_id: string
   title: string
@@ -12,6 +20,8 @@ export interface ChatSessionDTO {
   created_at: string
   updated_at: string
   last_message_at: string | null
+  /** 科研模式设置（后端契约新增字段；旧数据无此字段时为 null/undefined） */
+  research_mode?: ResearchModeSettings | null
 }
 
 export interface ChatMessageDTO {
@@ -26,6 +36,7 @@ export interface ChatMessageDTO {
     input: number
     output: number
     total: number
+    cached?: number
   }
 }
 
@@ -67,5 +78,7 @@ export interface DisplayMessage {
   content: string
   reasoning: string
   status: 'complete' | 'streaming' | 'error'
+  /** 错误原因；出错时 content 保留已累计正文 */
+  error?: string
   created_at: string
 }

@@ -18,7 +18,7 @@ import type { ToolItem } from '@/types/tools'
 
 const router = useRouter()
 
-const COLLAPSED_STORAGE_KEY = 'omicHub_tools_group_collapsed'
+const COLLAPSED_STORAGE_KEY = 'cygnusX_tools_group_collapsed'
 
 const GROUP_MAP: Record<string, { label: string; icon: string; order: number }> = {
   sequence: { label: '序列分析', icon: 'CodeSlashOutline', order: 1 },

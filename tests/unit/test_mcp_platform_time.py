@@ -6,7 +6,7 @@ from datetime import datetime
 
 import pytest
 
-from omichub.infrastructure.mcp.presets import PLATFORM_HANDLERS, PLATFORM_PRESET_TOOLS
+from cygnusx.infrastructure.mcp.presets import PLATFORM_HANDLERS, PLATFORM_PRESET_TOOLS
 
 
 @pytest.mark.unit

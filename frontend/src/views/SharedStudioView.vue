@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router'
 import { NButton, NSpin, NTag } from 'naive-ui'
 import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
 import ErrorPage from '@/components/ErrorPage.vue'
-import { studioApi, type SharedStudioSession } from '@/api/studio'
+import { studioApi, type SharedStudioSession, type SharedToolInvocation } from '@/api/studio'
 import PageHeader from '@/components/PageHeader.vue'
 
 const route = useRoute()
@@ -16,6 +16,21 @@ const failed = ref(false)
 function formatTime(value: string): string {
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString('zh-CN')
+}
+
+/** R4：工具卡代码/路径摘要（arguments.code 优先，其次 path），截断防撑爆布局 */
+function toolArgsSummary(invocation: SharedToolInvocation): string {
+  const args = invocation.arguments
+  if (!args || typeof args !== 'object') return ''
+  const raw = typeof args.code === 'string' ? args.code : typeof args.path === 'string' ? args.path : ''
+  return raw.length > 600 ? `${raw.slice(0, 600)}…` : raw
+}
+
+function toolIsTruncated(invocation: SharedToolInvocation): boolean {
+  return Boolean(
+    invocation.result_truncation?.payload_truncated ||
+      invocation.ui_payload_truncation?.payload_truncated,
+  )
 }
 
 function printPage() {
@@ -74,6 +89,37 @@ onMounted(async () => {
               <time>{{ formatTime(item.created_at) }}</time>
             </header>
             <MarkdownRenderer :content="item.content" />
+            <!-- R4：工具执行历史摘要（被分享方可见完整执行过程，只读） -->
+            <div
+              v-if="item.metadata_json?.tool_invocations?.length"
+              class="tool-list"
+            >
+              <div
+                v-for="(invocation, toolIndex) in item.metadata_json.tool_invocations"
+                :key="toolIndex"
+                class="tool-item"
+              >
+                <header>
+                  <code>{{ invocation.tool_name || 'tool' }}</code>
+                  <n-tag
+                    size="tiny"
+                    :bordered="false"
+                    :type="invocation.success ? 'success' : 'error'"
+                  >
+                    {{ invocation.success ? '成功' : '失败' }}
+                  </n-tag>
+                  <n-tag
+                    v-if="toolIsTruncated(invocation)"
+                    size="tiny"
+                    :bordered="false"
+                    type="warning"
+                  >
+                    输出已截断
+                  </n-tag>
+                </header>
+                <pre v-if="toolArgsSummary(invocation)">{{ toolArgsSummary(invocation) }}</pre>
+              </div>
+            </div>
           </article>
         </div>
         <p v-else class="empty">暂无可分享的对话内容</p>
@@ -91,7 +137,10 @@ onMounted(async () => {
             rel="noopener noreferrer"
           >
             <code>{{ artifact.path }}</code>
-            <span>{{ artifact.size.toLocaleString() }} bytes</span>
+            <span>
+              {{ artifact.size.toLocaleString() }} bytes
+              <template v-if="artifact.sha256"> · sha256 {{ artifact.sha256.slice(0, 12) }}…</template>
+            </span>
           </a>
         </div>
         <p v-else class="empty">暂无 output 产物</p>
@@ -153,6 +202,36 @@ footer {
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 8px;
+}
+/* R4：工具执行历史摘要 */
+.tool-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  border-top: 1px dashed var(--neutral-border, #e4e7ec);
+  padding-top: 10px;
+}
+.tool-item {
+  border: 1px solid var(--neutral-border, #eef1f4);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+.tool-item > header {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 0;
+}
+.tool-item pre {
+  margin: 6px 0 0;
+  padding: 8px;
+  border-radius: 6px;
+  background: var(--neutral-bg-3, #f8fafc);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 180px;
+  overflow: auto;
 }
 time,
 .artifact span,

@@ -1,6 +1,6 @@
 # 系统架构总览
 
-OmicHub 是私有化多组学分析平台。它将面向用户的控制面、可扩展的计算 Worker、共享数据目录和
+CygnusX 是私有化多组学分析平台。它将面向用户的控制面、可扩展的计算 Worker、共享数据目录和
 可配置的 AI/知识库能力分开部署，以便从单机逐步扩展到跨机器、HPC 或 Kubernetes。
 
 ## 技术栈
@@ -54,7 +54,7 @@ PostgreSQL / Redis / 可选 RocketMQ / Worker / Snakemake / 共享存储
 
 | 变更类型 | 位置 |
 | --- | --- |
-| 环境与服务开关 | `.env.example`、`.env`、`data/OmicHub.yaml` |
+| 环境与服务开关 | `.env.example`、`.env`、`data/CygnusX.yaml` |
 | Agent、工具和提示词 | `data/ai/` |
 | 流程定义 | `flows/` 与 `pipelines/` |
 | 工具配置 | `tool_configs/` |

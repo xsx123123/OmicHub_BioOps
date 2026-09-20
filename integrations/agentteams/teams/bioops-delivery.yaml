@@ -5,8 +5,8 @@
 schema_version: "1.0"
 team_id: bioops-delivery
 description: >-
-  AgentTeams-side coordination only. Workers have no OmicHub database, Redis, Docker,
-  shell, or data-volume access; every OmicHub action goes through the Bridge.
+  AgentTeams-side coordination only. Workers have no CygnusX database, Redis, Docker,
+  shell, or data-volume access; every CygnusX action goes through the Bridge.
 manager:
   identity: bioops-manager
   skills: [task-intake, approval-request, case-closeout]

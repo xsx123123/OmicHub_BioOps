@@ -6,10 +6,10 @@ from uuid import uuid4
 
 import pytest
 
-from omichub.application.schemas.task import TaskResponse
-from omichub.core.config import get_settings
-from omichub.core.security import create_access_token
-from omichub.main import app  # noqa: F401  (确保路由注册)
+from cygnusx.application.schemas.task import TaskResponse
+from cygnusx.core.config import get_settings
+from cygnusx.core.security import create_access_token
+from cygnusx.main import app  # noqa: F401  (确保路由注册)
 
 
 @pytest.fixture
@@ -54,7 +54,7 @@ async def test_submit_download_contract(client, auth_headers, monkeypatch):
         finished_at=None,
     )
     with patch(
-        "omichub.api.v1.downloads.DownloadService.submit",
+        "cygnusx.api.v1.downloads.DownloadService.submit",
         new=AsyncMock(return_value=fake),
     ):
         resp = await client.post(
@@ -92,7 +92,7 @@ async def test_submit_cloud_storage_download_contract(client, auth_headers, monk
         finished_at=None,
     )
     with patch(
-        "omichub.api.v1.downloads.DownloadService.submit",
+        "cygnusx.api.v1.downloads.DownloadService.submit",
         new=AsyncMock(return_value=fake),
     ):
         resp = await client.post(

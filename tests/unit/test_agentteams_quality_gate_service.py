@@ -6,7 +6,7 @@ import zipfile
 
 import pytest
 
-from omichub.application.services.agentteams_quality_gate_service import (
+from cygnusx.application.services.agentteams_quality_gate_service import (
     AgentTeamsQualityGateService,
 )
 

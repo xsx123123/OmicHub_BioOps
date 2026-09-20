@@ -1,6 +1,6 @@
 # Workflow Monitor Templates
 
-This directory stores YAML templates for the OmicHub workflow monitor dashboard.
+This directory stores YAML templates for the CygnusX workflow monitor dashboard.
 
 - `templates/default.yaml`: default user/admin dashboard.
 - `templates/user.yaml`: user-focused dashboard.

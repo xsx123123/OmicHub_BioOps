@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from omichub.tools.phylogenetic_tree.config import PhyloConfigManager
+from cygnusx.tools.phylogenetic_tree.config import PhyloConfigManager
 
 
 def _write(path: Path, content: str, mtime_ns: int) -> None:

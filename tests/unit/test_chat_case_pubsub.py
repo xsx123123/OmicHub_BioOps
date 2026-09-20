@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-import omichub.infrastructure.cache.chat_case_pubsub as pubsub
+import cygnusx.infrastructure.cache.chat_case_pubsub as pubsub
 
 
 class FakeRedis:

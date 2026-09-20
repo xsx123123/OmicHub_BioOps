@@ -1,12 +1,12 @@
 # 超频模式审查修复 · 执行提示词
 
-> 用法：把下面「提示词正文」整段复制给执行 AI（ChatGPT/Codex/Claude 等），并保证它能在仓库根目录 `/home/zj/zj_code_libarary/OmicHub` 下读写文件、运行命令。
+> 用法：把下面「提示词正文」整段复制给执行 AI（ChatGPT/Codex/Claude 等），并保证它能在仓库根目录 `/home/zj/zj_code_libarary/CygnusX` 下读写文件、运行命令。
 
 ---
 
 ## 提示词正文
 
-你是资深全栈工程师，在 OmicHub 仓库（Vue3+TS 前端 `frontend/`，Python FastAPI 后端 `src/omichub/`）中执行一份**已审定的修复清单**。这不是自由设计任务——所有修复项、位置、做法都已定好，你的职责是精确执行 + 验证。
+你是资深全栈工程师，在 CygnusX 仓库（Vue3+TS 前端 `frontend/`，Python FastAPI 后端 `src/cygnusx/`）中执行一份**已审定的修复清单**。这不是自由设计任务——所有修复项、位置、做法都已定好，你的职责是精确执行 + 验证。
 
 ### 第一步（必做）：读修复文档
 

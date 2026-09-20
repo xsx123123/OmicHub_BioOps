@@ -1,11 +1,11 @@
 # ============================================
-# OmicHub FASTQ 极速质控（fastp + MultiQC）配置
+# CygnusX FASTQ 极速质控（fastp + MultiQC）配置
 # ============================================
 # API 与 QC Worker 共同读取本文件，并基于 mtime 自动热重载。
 # 已创建任务会将默认参数与允许的前端覆盖项合并为 task.yaml 快照；
 # 因此后续修改本文件不会改变历史任务的可复现性。
 #
-# 配置契约：docs/26.7.18/OmicHub_FASTQ质控模块实现方案.md
+# 配置契约：docs/26.7.18/CygnusX_FASTQ质控模块实现方案.md
 # --------------------------------------------
 
 tool:
@@ -16,7 +16,7 @@ tool:
 
 # Worker 镜像需包含 fastp >= 0.24、MultiQC >= 1.29，以及 pyarrow 或 polars。
 image:
-  repository: "omichub/qc-worker"
+  repository: "cygnusx/qc-worker"
   tag: "1.0.0"
   pull_policy: "IfNotPresent"
 
@@ -65,7 +65,7 @@ multiqc:
   timeout: 1800
 
 storage:
-  root: "/data/omichub/qc/tasks"
+  root: "/data/cygnusx/qc/tasks"
   subdirs:
     - "input"
     - "output"

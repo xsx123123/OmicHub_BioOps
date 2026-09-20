@@ -2,7 +2,7 @@
 
 import pytest
 
-from omichub.api.v1.plot_stats import PosthocRequest, posthoc_comparisons
+from cygnusx.api.v1.plot_stats import PosthocRequest, posthoc_comparisons
 
 
 @pytest.mark.unit

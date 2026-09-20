@@ -8,7 +8,7 @@ export interface SequenceHandoffPayload {
   record: FastaRecord
 }
 
-const HANDOFF_PREFIX = 'omichub:sequence-handoff:'
+const HANDOFF_PREFIX = 'cygnusx:sequence-handoff:'
 
 export function storeSequenceHandoff(target: SequenceHandoffTarget, record: FastaRecord): void {
   const payload: SequenceHandoffPayload = {

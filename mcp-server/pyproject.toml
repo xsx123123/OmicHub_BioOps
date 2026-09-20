@@ -1,7 +1,7 @@
 [project]
-name = "omichub-mcp-server"
+name = "cygnusx-mcp-server"
 version = "0.1.0"
-description = "OmicHub 多组学分析平台 MCP Server — 统一 AI 助手操作接口"
+description = "CygnusX 多组学分析平台 MCP Server — 统一 AI 助手操作接口"
 requires-python = ">=3.11"
 dependencies = [
     "fastmcp>=2.3.0",
@@ -13,8 +13,8 @@ dependencies = [
 ]
 
 [project.scripts]
-omichub-mcp = "main:main"
-omichub-pipelines-mcp = "pipelines_main:main"
+cygnusx-mcp = "main:main"
+cygnusx-pipelines-mcp = "pipelines_main:main"
 
 [tool.uv]
 package = false

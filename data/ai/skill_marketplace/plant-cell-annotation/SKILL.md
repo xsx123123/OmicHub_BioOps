@@ -2,7 +2,7 @@
 name: 植物单细胞注释
 description: 当用户提供植物 scRNA-seq Cluster 的差异表达基因、marker 参考表和组织背景，要求进行细胞类型注释时触发。
 version: 1.0.0
-author: OmicHub
+author: CygnusX
 icon: 🔬
 category: analysis
 ---

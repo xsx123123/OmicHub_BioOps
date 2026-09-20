@@ -13,6 +13,7 @@ import {
   resolveElementRoomUrl,
   resolveManagerTyping,
   resolveRoomSender,
+  resolveRoomTyping,
   ROOM_ASK_REPLY_MARKER,
   shouldStartNewRoomCase,
   type RoomRoleMetadata,
@@ -664,6 +665,135 @@ describe('room.agent_stream projection', () => {
     })
     expect(messages[0].content).not.toContain('{"conclusion"')
   })
+
+  it('attaches tool call events carrying stream_id to the speech bubble instead of progress rows', () => {
+    const streamId = 'manager-tools-1'
+    const messages = projectCaseEvents(
+      [
+        makeEvent('room.agent_stream', {
+          payload: { stream_id: streamId, channel: 'reasoning', delta: '先查能力目录。', agent_id: 'bioops-manager' },
+        }, 'bioops-manager', '2026-08-12T08:00:00Z'),
+        makeEvent('agent.tool_call', {
+          payload: { stream_id: streamId, tool: 'ability_catalog_query', tool_call_id: 'tc-1', args_summary: '{"scene":"phylo"}' },
+        }, 'bioops-manager', '2026-08-12T08:00:01Z'),
+        makeEvent('agent.tool_started', {
+          payload: { stream_id: streamId, tool: 'ability_catalog_query', tool_call_id: 'tc-1' },
+        }, 'bioops-manager', '2026-08-12T08:00:02Z'),
+        makeEvent('agent.tool_result', {
+          payload: { stream_id: streamId, tool: 'ability_catalog_query', tool_call_id: 'tc-1', success: true, duration_ms: 123, result_summary: '3 位专家' },
+        }, 'bioops-manager', '2026-08-12T08:00:03Z'),
+        makeEvent('room.agent_stream', {
+          payload: { stream_id: streamId, channel: 'content', delta: '已确认专家能力。', agent_id: 'bioops-manager' },
+        }, 'bioops-manager', '2026-08-12T08:00:04Z'),
+        makeEvent('room.agent_message', {
+          payload: { stream_id: streamId, content: '已确认专家能力。', agent_id: 'bioops-manager' },
+        }, 'bioops-manager', '2026-08-12T08:00:05Z'),
+      ],
+      METADATA,
+    )
+
+    expect(messages).toHaveLength(1)
+    expect(messages[0].kind).toBe('speech')
+    expect(messages[0].toolCalls).toEqual([
+      {
+        id: 'tc-1',
+        name: 'ability_catalog_query',
+        status: 'ok',
+        durationMs: 123,
+        argsSummary: '{"scene":"phylo"}',
+        resultSummary: '3 位专家',
+      },
+    ])
+  })
+
+  it('attaches tool events that arrive before the first stream delta once the bubble is created', () => {
+    const streamId = 'manager-tools-early'
+    const messages = projectCaseEvents(
+      [
+        makeEvent('agent.tool_call', {
+          payload: { stream_id: streamId, tool: 'room_messages_read', tool_call_id: 'tc-9' },
+        }, 'bioops-manager', '2026-08-12T08:00:00Z'),
+        makeEvent('agent.tool_result', {
+          payload: { stream_id: streamId, tool: 'room_messages_read', tool_call_id: 'tc-9', success: false },
+        }, 'bioops-manager', '2026-08-12T08:00:01Z'),
+        makeEvent('room.agent_stream', {
+          payload: { stream_id: streamId, channel: 'content', delta: '读取失败，改用已有上下文。', agent_id: 'bioops-manager' },
+        }, 'bioops-manager', '2026-08-12T08:00:02Z'),
+      ],
+      METADATA,
+    )
+
+    expect(messages).toHaveLength(1)
+    expect(messages[0].toolCalls).toEqual([
+      { id: 'tc-9', name: 'room_messages_read', status: 'failed' },
+    ])
+  })
+
+  it('restores thought and tool cards from aggregation-injected payload when stream deltas are lost', () => {
+    // 房间重开后 room.agent_stream 瞬态增量已丢失：后端把持久化的思考链/工具
+    // 事件注入 room.agent_message 载荷，投影层直接取用。
+    const streamId = 'manager-reload-1'
+    const messages = projectCaseEvents(
+      [
+        makeEvent('room.agent_message', {
+          payload: {
+            stream_id: streamId,
+            content: '已完成分析。',
+            agent_id: 'bioops-manager',
+            thought: '先读取房间消息，再汇总结论。',
+            tool_calls: [
+              { id: 'tc-1', name: 'room_messages_read', status: 'ok', duration_ms: 45, args_summary: '{}', result_summary: '61 条事件' },
+            ],
+          },
+        }, 'bioops-manager', '2026-08-12T08:00:05Z'),
+      ],
+      METADATA,
+    )
+
+    expect(messages).toHaveLength(1)
+    expect(messages[0].thought).toBe('先读取房间消息，再汇总结论。')
+    expect(messages[0].toolCalls).toEqual([
+      { id: 'tc-1', name: 'room_messages_read', status: 'ok', durationMs: 45, argsSummary: '{}', resultSummary: '61 条事件' },
+    ])
+  })
+
+  it('attaches orphan tool events to the final message when the stream bubble is gone after reload', () => {
+    const streamId = 'manager-orphan-1'
+    const messages = projectCaseEvents(
+      [
+        makeEvent('agent.tool_call', {
+          payload: { stream_id: streamId, tool: 'room_messages_read', tool_call_id: 'tc-2', args_summary: '{"limit":100}' },
+        }, 'bioops-manager', '2026-08-12T08:00:01Z'),
+        makeEvent('agent.tool_result', {
+          payload: { stream_id: streamId, tool: 'room_messages_read', tool_call_id: 'tc-2', success: true, duration_ms: 88, result_summary: '61 条事件' },
+        }, 'bioops-manager', '2026-08-12T08:00:02Z'),
+        makeEvent('room.agent_message', {
+          payload: { stream_id: streamId, content: '已读取历史消息。', agent_id: 'bioops-manager' },
+        }, 'bioops-manager', '2026-08-12T08:00:05Z'),
+      ],
+      METADATA,
+    )
+
+    expect(messages).toHaveLength(1)
+    expect(messages[0].toolCalls).toEqual([
+      { id: 'tc-2', name: 'room_messages_read', status: 'ok', durationMs: 88, argsSummary: '{"limit":100}', resultSummary: '61 条事件' },
+    ])
+  })
+
+  it('keeps worker tool events without stream_id as progress rows', () => {
+    const messages = projectCaseEvents(
+      [
+        makeEvent('agent.tool_call', {
+          payload: { tool: 'workspace_read', tool_call_id: 'tc-w1' },
+        }, 'agent-data', '2026-08-12T08:00:00Z'),
+      ],
+      METADATA,
+    )
+
+    expect(messages).toHaveLength(1)
+    expect(messages[0].kind).toBe('progress')
+    expect(messages[0].tool).toMatchObject({ name: 'workspace_read', status: 'running' })
+  })
 })
 
 describe('malformed manager envelope recovery', () => {
@@ -699,13 +829,29 @@ describe('resolveManagerTyping', () => {
   })
 
   it('stops typing on typing:false or a manager reply', () => {
-    expect(resolveManagerTyping([typingEvent(true), typingEvent(false)], NOW)).toBe(false)
+    expect(resolveManagerTyping([typingEvent(true), typingEvent(false, '2026-08-13T11:59:55Z')], NOW)).toBe(false)
     expect(
       resolveManagerTyping(
-        [typingEvent(true), makeEvent('room.agent_message', { payload: { content: '回复' } })],
+        [typingEvent(true), makeEvent('room.agent_message', { payload: { content: '回复' } }, 'bioops-manager', '2026-08-13T11:59:55Z')],
         NOW,
       ),
     ).toBe(false)
+  })
+
+  it('stops typing when a stream chunk arrives', () => {
+    expect(
+      resolveManagerTyping(
+        [typingEvent(true), makeEvent('room.agent_stream', { payload: { delta: '…' } }, 'bioops-manager', '2026-08-13T11:59:55Z')],
+        NOW,
+      ),
+    ).toBe(false)
+  })
+
+  it('orders by recorded_at so a late-delivered typing:true cannot resurrect the indicator', () => {
+    // SSE 丢失 typing:true 后由轮询补回：数组顺序中它在回复事件之后，但时间戳更早
+    const reply = makeEvent('room.agent_message', { payload: { content: '回复' } }, 'bioops-manager', '2026-08-13T11:59:55Z')
+    expect(resolveManagerTyping([typingEvent(true), reply], NOW)).toBe(false)
+    expect(resolveManagerTyping([reply, typingEvent(true)], NOW)).toBe(false)
   })
 
   it('ignores stale typing events beyond the freshness window', () => {
@@ -716,6 +862,34 @@ describe('resolveManagerTyping', () => {
 
   it('is not typing without any typing event', () => {
     expect(resolveManagerTyping([], NOW)).toBe(false)
+  })
+})
+
+describe('resolveRoomTyping', () => {
+  const NOW = Date.parse('2026-08-13T12:00:00Z')
+
+  function agentTypingEvent(typing: boolean, agentName?: string, recordedAt = '2026-08-13T11:59:50Z'): AgentTeamsEvent {
+    return makeEvent('room.typing', { payload: { typing, agent_name: agentName } }, 'agent-coder', recordedAt)
+  }
+
+  it('returns the agent_name carried by a domain-agent typing event', () => {
+    expect(resolveRoomTyping([agentTypingEvent(true, '代码助手')], NOW)).toEqual({ active: true, agentName: '代码助手' })
+  })
+
+  it('returns null agentName for manager typing events without agent_name', () => {
+    const managerTyping = makeEvent('room.typing', { payload: { typing: true } }, 'bioops-manager', '2026-08-13T11:59:50Z')
+    expect(resolveRoomTyping([managerTyping], NOW)).toEqual({ active: true, agentName: null })
+  })
+
+  it('clears agentName once the reply event arrives', () => {
+    const reply = makeEvent('room.agent_message', { payload: { content: '回复' } }, 'agent-coder', '2026-08-13T11:59:55Z')
+    expect(resolveRoomTyping([agentTypingEvent(true, '代码助手'), reply], NOW)).toEqual({ active: false, agentName: null })
+  })
+
+  it('clears agentName on typing:false', () => {
+    expect(
+      resolveRoomTyping([agentTypingEvent(true, '代码助手'), agentTypingEvent(false, '代码助手', '2026-08-13T11:59:55Z')], NOW),
+    ).toEqual({ active: false, agentName: null })
   })
 })
 
@@ -1348,6 +1522,81 @@ describe('room.route_decision routing card', () => {
 
   it('drops route_decision events without a valid path', () => {
     expect(projectCaseEvent(routeEvent({ flow_id: 'rnaseq' }), METADATA)).toBeNull()
+  })
+})
+
+describe('room.route_transition 咨询分诊转场卡投影', () => {
+  const transitionPayload = (overrides: Record<string, unknown> = {}) => ({
+    from_agent_id: 'agentteams-manager',
+    from_name: '生物信息部门经理',
+    target_agent_id: 'agent-rnaseq',
+    target_name: 'RNA-seq 专家',
+    reason: 'RNA-seq 原理属转录组领域',
+    confidence: 0.92,
+    trigger: 'consultation_triage',
+    causation_event_id: 'evt-room.user_message',
+    ...overrides,
+  })
+  const transitionEvent = (payload: Record<string, unknown>) =>
+    makeEvent('room.route_transition', { summary: '咨询分诊', payload }, 'agentteams-manager')
+
+  it('projects a triage transition into a card-only speech message', () => {
+    const message = projectCaseEvent(transitionEvent(transitionPayload()), METADATA)
+    expect(message).not.toBeNull()
+    expect(message?.kind).toBe('speech')
+    expect(message?.sender.role).toBe('manager')
+    expect(message?.content).toBe('')
+    expect(message?.hideContent).toBe(true)
+    expect(message?.routeTransition).toEqual({
+      fromAgentId: 'agentteams-manager',
+      fromName: '生物信息部门经理',
+      targetAgentId: 'agent-rnaseq',
+      targetName: 'RNA-seq 专家',
+      reason: 'RNA-seq 原理属转录组领域',
+      confidence: 0.92,
+      trigger: 'consultation_triage',
+      causationEventId: 'evt-room.user_message',
+    })
+  })
+
+  it('resolves missing display names via role metadata', () => {
+    const message = projectCaseEvent(
+      transitionEvent(transitionPayload({ from_name: '', target_name: '', target_agent_id: 'data-steward' })),
+      METADATA,
+    )
+    expect(message?.routeTransition?.fromName).toBe('生物信息部门经理')
+    expect(message?.routeTransition?.targetName).toBe('数据管理员')
+  })
+
+  it('drops route_transition events without any target identity', () => {
+    expect(
+      projectCaseEvent(transitionEvent(transitionPayload({ target_agent_id: '', target_name: '' })), METADATA),
+    ).toBeNull()
+  })
+
+  it('marks expert replies routed by manager triage with routedBy', () => {
+    const message = projectCaseEvent(
+      makeEvent('room.agent_message', {
+        payload: {
+          role: 'worker',
+          agent_id: 'agent-rnaseq',
+          content: 'RNA-seq 通过测序 reads 定量基因表达……',
+          routed_by: 'manager_triage',
+        },
+      }),
+      METADATA,
+    )
+    expect(message?.routedBy).toBe('manager_triage')
+  })
+
+  it('leaves routedBy undefined for legacy messages without routed_by', () => {
+    const message = projectCaseEvent(
+      makeEvent('room.agent_message', {
+        payload: { role: 'worker', agent_id: 'agent-rnaseq', content: '常规回复' },
+      }),
+      METADATA,
+    )
+    expect(message?.routedBy).toBeUndefined()
   })
 })
 

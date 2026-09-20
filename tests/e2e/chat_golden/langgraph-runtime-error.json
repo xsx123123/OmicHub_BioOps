@@ -1,0 +1,32 @@
+[
+  {
+    "metadata": {
+      "agent_id": "agent-1",
+      "event_type": "agent_turn_started",
+      "execution_path": "chat_langgraph",
+      "round": 0,
+      "tool_count": 0
+    },
+    "type": "agent_turn_started"
+  },
+  {
+    "content": "provider unavailable",
+    "type": "error"
+  },
+  {
+    "metadata": {
+      "agent_id": "agent-1",
+      "error": "provider unavailable",
+      "event_type": "agent_turn_failed",
+      "execution_path": "chat_langgraph",
+      "round": 0
+    },
+    "type": "agent_turn_failed"
+  },
+  {
+    "metadata": {
+      "status": "error"
+    },
+    "type": "done"
+  }
+]

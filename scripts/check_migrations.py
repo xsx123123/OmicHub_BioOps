@@ -30,14 +30,25 @@ def parse_revision(p: Path) -> dict | None:
 
     info: dict = {"file": p.name}
     for node in ast.walk(tree):
+        # 同时兼容注解写法（revision: str = "..."）与裸赋值（revision = "..."），
+        # alembic 两种模板都合法，漏掉裸赋值会产生假的"依赖不存在/孤岛"级联报错。
+        targets: list[str] = []
+        value: ast.expr | None = None
         if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
-            name = node.target.id
+            targets = [node.target.id]
+            value = node.value
+        elif isinstance(node, ast.Assign):
+            targets = [t.id for t in node.targets if isinstance(t, ast.Name)]
+            value = node.value
+        if value is None:
+            continue
+        for name in targets:
             if name not in ("revision", "down_revision", "depends_on"):
                 continue
-            if isinstance(node.value, ast.Constant):
-                info[name] = node.value.value
-            elif isinstance(node.value, ast.Tuple):
-                info[name] = tuple(ast.literal_eval(elt) for elt in node.value.elts)
+            if isinstance(value, ast.Constant):
+                info[name] = value.value
+            elif isinstance(value, ast.Tuple):
+                info[name] = tuple(ast.literal_eval(elt) for elt in value.elts)
     return info if "revision" in info else None
 
 

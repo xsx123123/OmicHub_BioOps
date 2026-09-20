@@ -16,7 +16,7 @@ import { html as diffToHtml } from 'diff2html'
 import 'diff2html/bundles/css/diff2html.min.css'
 import {
   CreateOutline, PlayOutline, CopyOutline, ChevronDownOutline, ChevronUpOutline,
-  CheckmarkOutline, CloseOutline, DocumentOutline, ReturnDownBackOutline,
+  CheckmarkOutline, CloseOutline, DocumentOutline, ReturnDownBackOutline, AlertCircleOutline,
 } from '@vicons/ionicons5'
 import CodeEditor from '@/components/sandbox/CodeEditor.vue'
 import TaskProgressCard from '@/components/ai-chat/TaskProgressCard.vue'
@@ -38,6 +38,25 @@ const TOOL_LABELS: Record<string, string> = {
 
 const toolLabel = computed(() => TOOL_LABELS[props.tool.name] || props.tool.name)
 const isEditTool = computed(() => props.tool.name === 'workspace_edit')
+
+/** ui_payload/result 被 200KB 落库护栏截断：优先读信封层级标记，兼容载荷本身即截断标记的旧数据 */
+const payloadTruncated = computed(() => {
+  if (props.tool.uiPayloadTruncation?.payload_truncated || props.tool.resultTruncation?.payload_truncated) {
+    return true
+  }
+  return props.tool.uiPayload?._cygnusx_payload_truncated === true
+    || (props.tool.result && typeof props.tool.result === 'object'
+      && (props.tool.result as Record<string, unknown>)._cygnusx_payload_truncated === true)
+})
+const truncationNote = computed(() => {
+  const meta = props.tool.uiPayloadTruncation?.payload_truncated
+    ? props.tool.uiPayloadTruncation
+    : props.tool.resultTruncation
+  const bytes = meta?.original_bytes
+  const sizeHint = typeof bytes === 'number' && bytes > 0 ? `（原始约 ${Math.ceil(bytes / 1024)} KB）` : ''
+  return `内容已截断${sizeHint}，完整结果见产物/归档`
+})
+
 const asyncTaskId = computed(() => String(props.tool.uiPayload?.task_id || ''))
 const isAsyncTask = computed(() => props.tool.name === 'sandbox_execute' && !!asyncTaskId.value)
 
@@ -387,6 +406,12 @@ onUnmounted(() => {
       </div>
     </div>
 
+    <!-- 落库载荷被 200KB 护栏截断：历史重建时显式提示，完整结果以产物/归档为准 -->
+    <div v-if="payloadTruncated" class="truncation-notice" :title="truncationNote">
+      <n-icon size="13"><AlertCircleOutline /></n-icon>
+      <span>{{ truncationNote }}</span>
+    </div>
+
     <TaskProgressCard
       v-if="isAsyncTask"
       :task-id="asyncTaskId"
@@ -529,6 +554,10 @@ onUnmounted(() => {
   margin-left: auto;
 }
 .diff-html {
+  /* diff2html 的 .d2h-code-linenumber 是 position:absolute 且自身无定位父级，
+     不设 relative 时会逃逸出 overflow 裁剪（上游虚拟列表项的 transform 会成为
+     包含块），导致行号列溢出卡片覆盖下方内容 */
+  position: relative;
   max-height: 360px;
   overflow: auto;
   font-size: 12px;
@@ -591,6 +620,16 @@ onUnmounted(() => {
 
 .output-block {
   border-top: 1px solid var(--chat-border, #e5e7eb);
+}
+.truncation-notice {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-top: 1px solid var(--chat-border, #e5e7eb);
+  background: rgba(240, 156, 60, 0.08);
+  color: var(--chat-text-secondary, #8a6d3b);
+  font-size: 11px;
 }
 .output-toggle {
   display: flex;

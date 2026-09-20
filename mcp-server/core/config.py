@@ -30,18 +30,18 @@ _tool_groups = _yaml.get("tool_groups", {})
 
 
 class MCPServerConfig(BaseSettings):
-    """服务配置。环境变量前缀 OMICSHUB_，覆盖 YAML 值。"""
+    """服务配置。环境变量前缀 CYGNUSX_，覆盖 YAML 值。"""
 
-    model_config = {"env_prefix": "OMICSHUB_"}
+    model_config = {"env_prefix": "CYGNUSX_"}
 
     # server
-    server_name: str = _server.get("name", "OmicHub")
+    server_name: str = _server.get("name", "CygnusX")
     server_description: str = _server.get(
         "description",
-        "OmicHub 多组学分析平台 MCP Server — 任务管理、数据下载、流程分析、结果解读、沙箱执行",
+        "CygnusX 多组学分析平台 MCP Server — 任务管理、数据下载、流程分析、结果解读、沙箱执行",
     )
     transport: str = _server.get("transport", "stdio")
-    host: str = _server.get("host", "0.0.0.0")
+    host: str = _server.get("host", "127.0.0.1")
     port: int = _server.get("port", 8900)
 
     # connection

@@ -17,8 +17,8 @@ from __future__ import annotations
 import asyncio
 import sys
 
-from omichub.core.config import get_settings
-from omichub.infrastructure.database.models.agent import AgentTemplateModel
+from cygnusx.core.config import get_settings
+from cygnusx.infrastructure.database.models.agent import AgentTemplateModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 

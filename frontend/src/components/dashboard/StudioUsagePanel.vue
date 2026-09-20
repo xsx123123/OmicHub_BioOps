@@ -83,7 +83,7 @@ onMounted(fetchUsage)
           <div class="metric-item">
             <div class="metric-label-row">
               <span class="metric-label">Token</span>
-              <div class="omichub-segmented-toggle unit-toggle" role="group" aria-label="Token 单位切换">
+              <div class="cygnusx-segmented-toggle unit-toggle" role="group" aria-label="Token 单位切换">
                 <button type="button" :class="{ active: tokenUnit === 'K' }" :aria-pressed="tokenUnit === 'K'" @click="tokenUnit = 'K'">K</button>
                 <button type="button" :class="{ active: tokenUnit === 'M' }" :aria-pressed="tokenUnit === 'M'" @click="tokenUnit = 'M'">M</button>
               </div>

@@ -1,4 +1,4 @@
-# OmicHub 平台安全审计报告
+# CygnusX 平台安全审计报告
 
 > 审计日期:2026-07-09
 > 审计范围:认证/授权、终端沙盒、文件下载、部署配置、注入/SSRF 五个攻击面
@@ -19,38 +19,38 @@
 ## 🔴 严重(需立即处理)
 
 ### #1 路径穿越 → 任意文件读取
-`src/omichub/application/services/file_service.py:214-216` 的 `_resolve_abs` 直接拼接,**无 `resolve()` 边界校验**:
+`src/cygnusx/application/services/file_service.py:214-216` 的 `_resolve_abs` 直接拼接,**无 `resolve()` 边界校验**:
 
 ```python
 def _resolve_abs(self, storage_path: str) -> Path:
     return self._storage_root / storage_path   # storage_path=../../etc/passwd → 逃逸
 ```
 
-`src/omichub/application/services/report_service.py:76 / 95` 更糟:`Path(primary.path)` / `Path(file_model.path)` 直接把 DB 里的**绝对路径**喂给 `read_text()` 和 `FileResponse`,完全无根目录约束。
+`src/cygnusx/application/services/report_service.py:76 / 95` 更糟:`Path(primary.path)` / `Path(file_model.path)` 直接把 DB 里的**绝对路径**喂给 `read_text()` 和 `FileResponse`,完全无根目录约束。
 
 - **攻击链**:凡是能污染 `file_records.storage_path` / `report_files.path` 的路径(task 产物写入、下载登记),即可读取宿主任意文件。授权检查通过(文件属于该用户)但路径校验缺失。
-- **正确范本**:`src/omichub/application/services/docs_service.py:109` 用了 `resolve().relative_to()` 校验,应推广到 file / report。
+- **正确范本**:`src/cygnusx/application/services/docs_service.py:109` 用了 `resolve().relative_to()` 校验,应推广到 file / report。
 
 ### #2 nginx `/tracks/` 无鉴权暴露全部用户数据(dev + prod 均存在)
 `deploy/docker/nginx/nginx.conf:136` 和 `deploy/docker/nginx/nginx.prod.conf:113`:
 
 ```nginx
 location ^~ /tracks/ {
-    alias /data/omichub/;                    # 直挂全部数据根
+    alias /data/cygnusx/;                    # 直挂全部数据根
     add_header Access-Control-Allow-Origin * always;
     # allow 10.0.0.0/8;  ← IP 白名单被注释掉,未启用
 }
 ```
 
-任何能访问 nginx 的客户端可遍历读取 `/data/omichub/users/*/` 下**所有用户**的原始数据、结果、下载文件。CORS `*` 让恶意网页也能跨域抓取。白名单目前是注释状态,等于没做。
+任何能访问 nginx 的客户端可遍历读取 `/data/cygnusx/users/*/` 下**所有用户**的原始数据、结果、下载文件。CORS `*` 让恶意网页也能跨域抓取。白名单目前是注释状态,等于没做。
 
 ### #3 生产环境密钥默认值可伪造 JWT
-`src/omichub/core/config.py`:
+`src/cygnusx/core/config.py`:
 
 ```python
 app_secret_key = "change-me-in-production"
 jwt_secret_key = "change-me-in-production"   # HS256 对称,泄露即可伪造任意用户/admin token
-postgres_password = "omichub"
+postgres_password = "cygnusx"
 ```
 
 `.env` 里也是占位符 `change-me-...`。若上线时忘记覆盖(尤其 `is_production` 未强校验这两个值),攻击者用已知密钥伪造 admin JWT 即可全站接管。**建议在 `is_production` 分支里断言这些值非默认,启动即 fail-fast。**
@@ -63,17 +63,17 @@ postgres_password = "omichub"
 `.env` 中 `REDIS_PASSWORD=`(空);`deploy/docker/docker-compose.yml` 暴露 `6379:6379`、`5432:5432` 到宿主。dev 环境任何本机/同网段进程可读写 Celery 队列、结果后端、缓存,注入/篡改任务结果。~~prod compose 已移除端口绑定(好),但 Redis 仍无 auth。~~ **已修复:prod compose 关闭 Redis 端口并统一加 `--requirepass`。**
 
 ### #5 AI provider key / TOTP secret 明文落盘
-`src/omichub/core/config.py:111` `ai_provider_key_encryption_key = ""` 默认空;`src/omichub/core/security.py` 的 `encrypt_value` 在无密钥时**原样返回明文**。结果:第三方 LLM API key **和 2FA TOTP secret** 明文存 DB。库一旦泄露 → 密钥泄露 + 2FA 绕过。**生产应强制要求配置该密钥。**
+`src/cygnusx/core/config.py:111` `ai_provider_key_encryption_key = ""` 默认空;`src/cygnusx/core/security.py` 的 `encrypt_value` 在无密钥时**原样返回明文**。结果:第三方 LLM API key **和 2FA TOTP secret** 明文存 DB。库一旦泄露 → 密钥泄露 + 2FA 绕过。**生产应强制要求配置该密钥。**
 
 ### #6 MCP stdio/SSE = admin 后台 RCE + SSRF(已核实为 admin-gated)
-`src/omichub/infrastructure/mcp/client.py:118-137`:stdio transport 把 `command`/`args`/`env` 直接交给 `StdioServerParameters` 执行;SSE transport `sse_client(server.url)` 无 URL 校验。
+`src/cygnusx/infrastructure/mcp/client.py:118-137`:stdio transport 把 `command`/`args`/`env` 直接交给 `StdioServerParameters` 执行;SSE transport `sse_client(server.url)` 无 URL 校验。
 
-- **已核实所有 MCP 端点都有 `AdminRequired`**(`src/omichub/api/v1/mcp.py`)—— 所以不是未授权 RCE,而是:①恶意/被盗 admin 账号 → 服务器任意命令执行;②SSE URL 可指向 `169.254.169.254`/内网 → SSRF。
+- **已核实所有 MCP 端点都有 `AdminRequired`**(`src/cygnusx/api/v1/mcp.py`)—— 所以不是未授权 RCE,而是:①恶意/被盗 admin 账号 → 服务器任意命令执行;②SSE URL 可指向 `169.254.169.254`/内网 → SSRF。
 - 缺 CSRF 防护叠加:admin 被诱导访问恶意站点即可注册后门 MCP。
 - **建议**:SSE URL 加内网/metadata 黑名单,stdio command 加白名单。
 
 ### #7 nginx 缺失全部安全响应头
-`nginx.conf` 与 `nginx.prod.conf` 都没有 `X-Frame-Options` / `X-Content-Type-Options: nosniff` / `CSP` / `HSTS`。叠加 chat 上传无扩展名/类型校验(`src/omichub/api/v1/files.py:178-200`),存在 MIME sniffing、点击劫持风险。
+`nginx.conf` 与 `nginx.prod.conf` 都没有 `X-Frame-Options` / `X-Content-Type-Options: nosniff` / `CSP` / `HSTS`。叠加 chat 上传无扩展名/类型校验(`src/cygnusx/api/v1/files.py:178-200`),存在 MIME sniffing、点击劫持风险。
 
 ### #8 Flower 监控 UI 无鉴权(dev)
 `deploy/docker/docker-compose.yml` 暴露 `5555`,`nginx.conf:116` 代理 `/flower/` 无认证。可查看/终止所有 Celery 任务(含任务参数、文件路径)。prod nginx 未含此段,但 compose 端口仍开。
@@ -84,18 +84,18 @@ postgres_password = "omichub"
 
 | # | 问题 | 位置 |
 |---|------|------|
-| 9 | 云存储 URI 仅校验前缀(`oss://`)不校验 host,可能 SSRF | `src/omichub/infrastructure/celery_app/tasks/download.py:60,86` |
-| 10 | `cookie_balance` WebSocket Redis 频道用裸 `user_id` 无命名空间前缀 | `src/omichub/api/v1/cookies.py:74-102` |
-| 11 | 登录/2FA 端点仅全局 IP 限流(100/60s),无针对性防爆破 | `src/omichub/api/v1/auth.py:47` |
-| 12 | 会话 ID 用 `random`(非 `secrets`)8 位,熵偏低 | `src/omichub/application/services/terminal_service.py:70` |
-| 13 | WebSocket 异常 detail 原文回传客户端(信息泄露) | `src/omichub/api/v1/sandbox.py:126`, `terminal.py:221` |
-| 14 | AI provider key 可能进异常日志 | `src/omichub/infrastructure/ai_provider/openai_compatible.py:298` |
+| 9 | 云存储 URI 仅校验前缀(`oss://`)不校验 host,可能 SSRF | `src/cygnusx/infrastructure/celery_app/tasks/download.py:60,86` |
+| 10 | `cookie_balance` WebSocket Redis 频道用裸 `user_id` 无命名空间前缀 | `src/cygnusx/api/v1/cookies.py:74-102` |
+| 11 | 登录/2FA 端点仅全局 IP 限流(100/60s),无针对性防爆破 | `src/cygnusx/api/v1/auth.py:47` |
+| 12 | 会话 ID 用 `random`(非 `secrets`)8 位,熵偏低 | `src/cygnusx/application/services/terminal_service.py:70` |
+| 13 | WebSocket 异常 detail 原文回传客户端(信息泄露) | `src/cygnusx/api/v1/sandbox.py:126`, `terminal.py:221` |
+| 14 | AI provider key 可能进异常日志 | `src/cygnusx/infrastructure/ai_provider/openai_compatible.py:298` |
 
 ---
 
 ## ✅ 已核实做得对的地方(纠正自动化扫描的误报)
 
-- **终端 WebSocket 认证是安全的**:`src/omichub/api/v1/terminal.py:104-119` 在 `accept()` **之前**校验了 token type=`access` **且** `session.user_id == token.sub`。所谓"未授权 shell"不成立。
+- **终端 WebSocket 认证是安全的**:`src/cygnusx/api/v1/terminal.py:104-119` 在 `accept()` **之前**校验了 token type=`access` **且** `session.user_id == token.sub`。所谓"未授权 shell"不成立。
 - `.env` **未被 git 跟踪**,`.gitignore:56` 正确忽略,仓库无真实密钥泄露。
 - prod compose 正确移除 DB 端口、`APP_DEBUG=false`、容器非 root(PUID=1000)。
 - `docs_service.py` 路径校验正确,可作为修复 file/report 的范本。
@@ -128,7 +128,7 @@ postgres_password = "omichub"
 | #7 | nginx 增加 `X-Frame-Options`/`X-Content-Type-Options`/`X-XSS-Protection`/`Referrer-Policy`/`HSTS`;聊天上传增加扩展名白名单 | `nginx.conf`, `nginx.prod.conf`, `files.py` |
 | #8 | Flower 开发环境启用 `--basic_auth`;生产环境 `replicas: 0` 关闭 | `docker-compose.yml`, `docker-compose.prod.yml` |
 | #9 | 云存储 URI 校验主机名:禁止 IP,显式 endpoint 必须匹配云商域名后缀 | `schemas/download.py` |
-| #10 | cookie balance Redis 频道增加应用前缀 `omichub:` | `cookie_pubsub.py` |
+| #10 | cookie balance Redis 频道增加应用前缀 `cygnusx:` | `cookie_pubsub.py` |
 | #11 | `/login` 与 `/2fa/login` 增加 IP 级登录失败限流(5 分钟 5 次失败封禁 15 分钟) | `auth.py`, `login_rate_limit.py` |
 | #12 | 终端会话 ID 改用 `secrets.token_urlsafe(16)` | `terminal_service.py` |
 | #13 | 沙盒 WebSocket 异常不再回传 detail 给客户端,仅记录日志 | `sandbox.py` |

@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from omichub_agentteams_bridge.migrate_to_minio import (
+from cygnusx_agentteams_bridge.migrate_to_minio import (
     MigrationReport,
     _read_local_cases,
     _read_local_events,

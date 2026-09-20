@@ -16,7 +16,7 @@ from typing import Any
 
 from langgraph.checkpoint.memory import InMemorySaver
 
-from omichub.infrastructure.execution.orchestrator_graph import (
+from cygnusx.infrastructure.execution.orchestrator_graph import (
     OrchestratorDeps,
     build_orchestrator_engine,
 )

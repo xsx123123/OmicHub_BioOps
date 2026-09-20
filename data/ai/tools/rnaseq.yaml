@@ -1,7 +1,7 @@
 id: rnaseq
 description: RNA-seq 专项数据库查询、公共数据下载、流程预检提交和结果读取能力。
 builtin_tools:
-  - omichub_plot_volcano
+  - cygnusx_plot_volcano
 platform_tools:
   - platform_list_flows
   - platform_list_tasks

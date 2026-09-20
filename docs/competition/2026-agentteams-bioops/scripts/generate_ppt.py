@@ -19,7 +19,7 @@ from xml.etree import ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[4]
 TEMPLATE = ROOT / "docs/competition/2e567d1a-99c1-45ce-8a0f-3d36d11f3314.pptx"
-OUTPUT = ROOT / "docs/competition/2026-agentteams-bioops/output/OmicHub_BioOps_初赛方案_可编辑版.pptx"
+OUTPUT = ROOT / "docs/competition/2026-agentteams-bioops/output/CygnusX_BioOps_初赛方案_可编辑版.pptx"
 SCREENSHOTS = {
     1: ROOT / "docs/26.8.10/image copy 5.png",
     2: ROOT / "docs/26.8.10/image copy 4.png",
@@ -237,12 +237,12 @@ def card(b: SlideBuilder, title: str, body: str, x: float, y: float, w: float, h
 
 def add_content(slide: SlideBuilder, n: int) -> None:
     if n == 1:
-        base(slide, "GOAI 世界人工智能开源大赛 · Agent Infra 新智基座", "OmicHub BioOps", n, True)
+        base(slide, "GOAI 世界人工智能开源大赛 · Agent Infra 新智基座", "CygnusX BioOps", n, True)
         slide.text("面向生命科学研发的可审计多 Agent 协同基础设施", 0.7, 1.68, 8.8, 0.55, 22, "D7E5F5", True)
         slide.text("让每一次组学交付都可审计、可验证、可复用", 0.72, 2.4, 7.4, 0.35, 14, CYAN, True)
         for label, x, color in [("Case", 0.75, TEAL), ("Skill", 2.15, BLUE), ("Artifact", 3.55, ORANGE), ("Evidence", 5.15, LIME)]:
             pill(slide, label, x, 3.25, 1.15, color)
-        slide.text("华中农业大学园艺林学学院 · OmicHub Team", 0.72, 6.1, 6.8, 0.3, 11, "D7E5F5")
+        slide.text("华中农业大学园艺林学学院 · CygnusX Team", 0.72, 6.1, 6.8, 0.3, 11, "D7E5F5")
         slide.text("初赛方案 · 可编辑草案", 0.72, 6.48, 5.2, 0.26, 10, "99AEC8")
         # Editable data-flow illustration
         for title, sub, x, color in [
@@ -256,7 +256,7 @@ def add_content(slide: SlideBuilder, n: int) -> None:
     elif n == 2:
         base(slide, "P0 · 一页纸速览", "作品简介", n)
         entries = [
-            ("项目名称", "OmicHub BioOps\n可审计组学交付协同", TEAL),
+            ("项目名称", "CygnusX BioOps\n可审计组学交付协同", TEAL),
             ("问题与场景", "RNA-seq 项目跨数据、计算、质控、报告多角色协作；信息断裂、责任混杂、结果难复核。", RED),
             ("核心解决方案", "将自然语言需求转为 Case → Work Item → Skill → Artifact → Quality Decision → Manifest 闭环。", BLUE),
             ("创新与差异化", "不让万能 Agent 自己申请、执行、验收；以职责分离、规则质量门和证据链保证可信。", ORANGE),
@@ -285,8 +285,8 @@ def add_content(slide: SlideBuilder, n: int) -> None:
     elif n == 5:
         base(slide, "第一章 · 目标用户与价值", "从 RNA-seq 交付出发，复制到多组学研发", n)
         slide.text("真实平台已具备统一 AI 工作台与任务协作入口；本次 Demo 聚焦 bulk RNA-seq 差异分析交付。", 0.7, 1.42, 11.6, 0.35, 13, MUTED)
-        slide.image("rId1", 0.72, 1.95, 7.55, 4.35, "OmicHub Home")
-        slide.image("rId2", 8.55, 1.95, 4.05, 2.2, "OmicHub Agent Chat")
+        slide.image("rId1", 0.72, 1.95, 7.55, 4.35, "CygnusX Home")
+        slide.image("rId2", 8.55, 1.95, 4.05, 2.2, "CygnusX Agent Chat")
         card(slide, "可复制目标用户", "药企 / 转化医学\n种业 / 农业科研\n检验 / 科研服务\n高校核心设施", 8.55, 4.42, 4.05, 1.88, TEAL, 11.2)
         pill(slide, "真实平台界面", 0.92, 5.78, 1.25, LIME)
     elif n == 6:
@@ -342,7 +342,7 @@ def add_content(slide: SlideBuilder, n: int) -> None:
         slide.text("工程重点是“每个动作可控制、每条链路可验证、每项结果可解释”。", 0.7, 1.55, 10.8, 0.36, 15, "D7E5F5")
         for title, body, x, y, color in [
             ("可运行底座", "FastAPI / PostgreSQL / Redis / Celery\nVue 3 / Snakemake / Docker Compose", 0.72, 2.25, BLUE),
-            ("协同与执行", "AgentTeams Bridge + OmicHub MAS\n独立 Worker 计算面与流程 YAML", 4.52, 2.25, TEAL),
+            ("协同与执行", "AgentTeams Bridge + CygnusX MAS\n独立 Worker 计算面与流程 YAML", 4.52, 2.25, TEAL),
             ("审计与证据", "Case、Artifact、Outbox、Trace\nDelivery Manifest 与 Evidence Event", 8.32, 2.25, ORANGE),
             ("安全与治理", "最小权限、审批、幂等、质量门\n关闭高风险默认能力，支持回滚", 2.62, 4.62, LIME),
             ("验证边界", "单元/契约测试已有基础；真实 RNAFlow、Matrix 等以 staging 部署验收为准。", 6.42, 4.62, RED),
@@ -366,7 +366,7 @@ def add_content(slide: SlideBuilder, n: int) -> None:
     elif n == 15:
         base(slide, "第六章 · 复用与贡献", "配置优先，让新场景接入不必重写主链路", n)
         slide.shape(0.7, 1.85, 11.9, 3.95, WHITE, "DCE5F1", True)
-        layers = [("场景层", "RNA-seq · ATAC-seq · 单细胞 · 其他科学计算", TEAL), ("协同层", "Team / Role / Case / Work Item / 审批策略", BLUE), ("能力层", "Skill Contract / Bridge / 质量规则 / 交付模板", ORANGE), ("执行层", "OmicHub MAS / Worker / Snakemake / Artifact Registry", LIME)]
+        layers = [("场景层", "RNA-seq · ATAC-seq · 单细胞 · 其他科学计算", TEAL), ("协同层", "Team / Role / Case / Work Item / 审批策略", BLUE), ("能力层", "Skill Contract / Bridge / 质量规则 / 交付模板", ORANGE), ("执行层", "CygnusX MAS / Worker / Snakemake / Artifact Registry", LIME)]
         for i, (title, content, color) in enumerate(layers):
             y = 2.2 + i * 0.82
             slide.shape(1.05, y, 2.0, 0.55, color, radius=True)
@@ -376,7 +376,7 @@ def add_content(slide: SlideBuilder, n: int) -> None:
     elif n == 16:
         base(slide, "第七章", "落地计划与进展", n, True)
         slide.text("以“可验证闭环”为阶段目标，清晰区分已有工程基础、比赛增量与后续部署验收。", 0.7, 1.55, 11.2, 0.38, 15, "D7E5F5")
-        phases = [("已有基础", "OmicHub 平台、领域 Agent、流程 YAML、MAS/Artifact/审计、AgentTeams Bridge 与契约", TEAL), ("比赛增量", "BioOps Team/Role、Case 编排、专职 Agent、质量规则、三条可验证 Demo", ORANGE), ("部署验收", "staging Worker、RNAFlow 容器、审批链、Matrix/Gateway（可选）与真实 E2E", BLUE), ("扩展演进", "SOP / 规则 RAG、指标看板、更多组学与企业客户场景", LIME)]
+        phases = [("已有基础", "CygnusX 平台、领域 Agent、流程 YAML、MAS/Artifact/审计、AgentTeams Bridge 与契约", TEAL), ("比赛增量", "BioOps Team/Role、Case 编排、专职 Agent、质量规则、三条可验证 Demo", ORANGE), ("部署验收", "staging Worker、RNAFlow 容器、审批链、Matrix/Gateway（可选）与真实 E2E", BLUE), ("扩展演进", "SOP / 规则 RAG、指标看板、更多组学与企业客户场景", LIME)]
         for i, (title, body, color) in enumerate(phases):
             x = 0.8 + i * 3.07
             card(slide, title, body, x, 2.35, 2.7, 2.6, color, 11)
@@ -400,7 +400,7 @@ def add_content(slide: SlideBuilder, n: int) -> None:
         slide.text("团队分工原则：科学正确性、工程可靠性与用户体验并重；所有外部合作与成果署名以实际贡献及授权为准。", 0.85, 6.25, 11.5, 0.3, 12, LIME, True, "c")
     elif n == 19:
         base(slide, "第八章 · 团队与致谢", "谢谢聆听", n, True)
-        slide.text("OmicHub BioOps", 0.72, 1.65, 5.2, 0.55, 25, WHITE, True)
+        slide.text("CygnusX BioOps", 0.72, 1.65, 5.2, 0.55, 25, WHITE, True)
         slide.text("让每一次组学交付都可审计、可验证、可复用", 0.75, 2.35, 7.2, 0.38, 15, CYAN, True)
         slide.shape(0.72, 3.2, 6.2, 1.55, "173355", "3A5D81", True)
         slide.text("提交前请补充", 1.02, 3.52, 1.5, 0.23, 12, LIME, True)

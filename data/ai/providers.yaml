@@ -1,5 +1,5 @@
 # ============================================
-# OmicHub AI Provider 外置配置示例
+# CygnusX AI Provider 外置配置示例
 # ============================================
 # 在 data/ai/providers.yaml 中填入真实 API Key。
 # 支持 ${ENV_VAR} 或 ${ENV_VAR:-default} 语法引用环境变量，
@@ -11,23 +11,33 @@
 providers:
 - name: deepseek-v4-flash
   provider_type: openai_compatible
-  model: deepseek-v4-flash-ga-260731
-  base_url: https://ark.cn-beijing.volces.com/api/v3
-  api_key: ${ARK_API_KEY}
+  model: deepseek-v4-flash
+  base_url: https://api.deepseek.com
+  api_key: ${DP_API_KEY}
   temperature: 0.7
   max_tokens: 8192
   top_p: 1.0
   timeout: 120
-  # 默认 Provider 只保留一个：qwen3.7-plus（下方）。flash 供 router/data/delivery/shania
-  # 等轻量 Agent 按 model 名显式选用，不作为全局默认。
   is_default: false
   is_active: true
   extra_params: {}
-- name: qwen3.7-plus
+- name: qwen3.8-flash
   provider_type: openai_compatible
-  model: qwen3.7-plus-2026-05-26
+  model: qwen3.8-flash
   base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
   api_key: ${AL_API_KEY}
+  temperature: 0.7
+  max_tokens: 8192
+  top_p: 1.0
+  timeout: 120
+  is_default: false
+  is_active: true
+  extra_params: {}
+- name: doubao-seed-evolving
+  provider_type: openai_compatible
+  model: doubao-seed-evolving
+  base_url: https://ark.cn-beijing.volces.com/api/plan/v3
+  api_key: ${ARK_API_KEY}
   temperature: 0.7
   max_tokens: 8192
   top_p: 1.0

@@ -1,4 +1,4 @@
-# 6. OmicsHub 部署运维手册
+# 6. CygnusX 部署运维手册
 
 > **文档版本**: v1.0  
 > **适用环境**: 华中农业大学园艺林学学院内网服务器（Linux + Docker）  
@@ -9,7 +9,7 @@
 
 ## 6.1 概述
 
-OmicsHub 采用 Docker Compose 进行容器化部署，支持两种运行模式：
+CygnusX 采用 Docker Compose 进行容器化部署，支持两种运行模式：
 
 | 模式 | 适用场景 | 架构特点 |
 |------|----------|----------|
@@ -19,7 +19,7 @@ OmicsHub 采用 Docker Compose 进行容器化部署，支持两种运行模式�
 **目录结构**:
 
 ```
-omichub/
+cygnusx/
 ├── docker-compose.yml              # local模式主文件 / remote模式Web平台
 ├── docker-compose.master.yml       # remote模式Master计算节点
 ├── docker-compose.override.yml     # 本地开发覆盖（可选）
@@ -56,7 +56,7 @@ local模式适用于单台物理机部署，所有服务运行在同一Docker网
 
 ```yaml
 # =============================================================================
-# OmicsHub Docker Compose - Local Mode
+# CygnusX Docker Compose - Local Mode
 # 单机部署：Web + DB + Redis + Celery Worker/Beat + Flower + Nginx
 # =============================================================================
 version: "3.8"
@@ -68,10 +68,10 @@ x-backend-env: &backend-env
   CONDA_ENV_PATH: /opt/conda/envs
 
   # --- 数据库 ---
-  DATABASE_URL: postgresql://${POSTGRES_USER:-omicshub}:${POSTGRES_PASSWORD:-changeme}@db:5432/${POSTGRES_DB:-omicshub}
-  POSTGRES_USER: ${POSTGRES_USER:-omicshub}
+  DATABASE_URL: postgresql://${POSTGRES_USER:-cygnusx}:${POSTGRES_PASSWORD:-changeme}@db:5432/${POSTGRES_DB:-cygnusx}
+  POSTGRES_USER: ${POSTGRES_USER:-cygnusx}
   POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
-  POSTGRES_DB: ${POSTGRES_DB:-omicshub}
+  POSTGRES_DB: ${POSTGRES_DB:-cygnusx}
   POSTGRES_HOST: db
   POSTGRES_PORT: 5432
 
@@ -104,9 +104,9 @@ x-backend-env: &backend-env
   ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
 
 x-backend-volumes: &backend-volumes
-  - ${DATA_PATH:-/data/omicshub}:/data
+  - ${DATA_PATH:-/data/cygnusx}:/data
   - ${WORKFLOW_PATH:-./workflows}:/workflows:ro
-  - ${REFERENCE_PATH:-/data/omicshub/references}:/references:ro
+  - ${REFERENCE_PATH:-/data/cygnusx/references}:/references:ro
   - ${CONDA_ENV_PATH:-/opt/conda/envs}:/opt/conda/envs
   - backend_logs:/app/logs
 
@@ -118,7 +118,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: omicshub-web
+    container_name: cygnusx-web
     restart: unless-stopped
     ports:
       - "127.0.0.1:8000:8000"  # 仅本地回环，通过Nginx代理
@@ -137,7 +137,7 @@ services:
       retries: 3
       start_period: 40s
     networks:
-      - omicshub_net
+      - cygnusx_net
     deploy:
       resources:
         limits:
@@ -152,24 +152,24 @@ services:
   # =========================================================================
   db:
     image: postgres:14-alpine
-    container_name: omicshub-db
+    container_name: cygnusx-db
     restart: unless-stopped
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-omicshub}
+      POSTGRES_USER: ${POSTGRES_USER:-cygnusx}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
-      POSTGRES_DB: ${POSTGRES_DB:-omicshub}
+      POSTGRES_DB: ${POSTGRES_DB:-cygnusx}
       PGDATA: /var/lib/postgresql/data/pgdata
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-omicshub} -d ${POSTGRES_DB:-omicshub}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cygnusx} -d ${POSTGRES_DB:-cygnusx}"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
     networks:
-      - omicshub_net
+      - cygnusx_net
     deploy:
       resources:
         limits:
@@ -184,7 +184,7 @@ services:
   # =========================================================================
   redis:
     image: redis:7-alpine
-    container_name: omicshub-redis
+    container_name: cygnusx-redis
     restart: unless-stopped
     command: >
       sh -c 'redis-server 
@@ -202,7 +202,7 @@ services:
       retries: 5
       start_period: 10s
     networks:
-      - omicshub_net
+      - cygnusx_net
     deploy:
       resources:
         limits:
@@ -219,7 +219,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: omicshub-celery-worker
+    container_name: cygnusx-celery-worker
     restart: unless-stopped
     command: >
       celery -A app.celery_app worker
@@ -245,7 +245,7 @@ services:
       retries: 3
       start_period: 30s
     networks:
-      - omicshub_net
+      - cygnusx_net
     deploy:
       resources:
         limits:
@@ -264,7 +264,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: omicshub-celery-beat
+    container_name: cygnusx-celery-beat
     restart: unless-stopped
     command: >
       celery -A app.celery_app beat
@@ -272,7 +272,7 @@ services:
       --scheduler django_celery_beat.schedulers:DatabaseScheduler
       --max-interval 300
     volumes:
-      - ${DATA_PATH:-/data/omicshub}:/data
+      - ${DATA_PATH:-/data/cygnusx}:/data
       - backend_logs:/app/logs
     environment:
       <<: *backend-env
@@ -280,7 +280,7 @@ services:
       - db
       - redis
     networks:
-      - omicshub_net
+      - cygnusx_net
     deploy:
       resources:
         limits:
@@ -294,7 +294,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: omicshub-flower
+    container_name: cygnusx-flower
     restart: unless-stopped
     command: >
       celery -A app.celery_app flower
@@ -308,7 +308,7 @@ services:
       - redis
       - celery_worker
     networks:
-      - omicshub_net
+      - cygnusx_net
     deploy:
       resources:
         limits:
@@ -320,7 +320,7 @@ services:
   # =========================================================================
   nginx:
     image: nginx:alpine
-    container_name: omicshub-nginx
+    container_name: cygnusx-nginx
     restart: unless-stopped
     ports:
       - "80:80"
@@ -328,7 +328,7 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./frontend/dist:/usr/share/nginx/html:ro
-      - ${DATA_PATH:-/data/omicshub}:/data:ro  # 文件下载
+      - ${DATA_PATH:-/data/cygnusx}:/data:ro  # 文件下载
       - ./nginx/ssl:/etc/nginx/ssl:ro  # SSL证书（可选）
     depends_on:
       - web
@@ -338,7 +338,7 @@ services:
       timeout: 5s
       retries: 3
     networks:
-      - omicshub_net
+      - cygnusx_net
     deploy:
       resources:
         limits:
@@ -360,7 +360,7 @@ volumes:
 # 网络定义
 # =============================================================================
 networks:
-  omicshub_net:
+  cygnusx_net:
     driver: bridge
     ipam:
       config:
@@ -377,17 +377,17 @@ networks:
 | `EXECUTION_MODE` | `local` | 执行模式：local 或 remote |
 | `SNAKEMAKE_CORES` | `8` | Snakemake默认使用CPU核心数 |
 | `CONDA_ENV_PATH` | `/opt/conda/envs` | Conda环境路径 |
-| `POSTGRES_USER` | `omicshub` | PostgreSQL用户名 |
+| `POSTGRES_USER` | `cygnusx` | PostgreSQL用户名 |
 | `POSTGRES_PASSWORD` | `changeme` | PostgreSQL密码（**生产环境必须修改**） |
-| `POSTGRES_DB` | `omicshub` | PostgreSQL数据库名 |
+| `POSTGRES_DB` | `cygnusx` | PostgreSQL数据库名 |
 | `REDIS_PASSWORD` | `` | Redis密码（建议设置） |
 | `SECRET_KEY` | `your-super-secret-jwt-key` | JWT签名密钥（**生产环境必须修改**） |
 | `INTERNAL_TOKEN` | `internal-token` | Master回调认证令牌（remote模式必需） |
 | `KIMI_API_KEY` | `` | Kimi AI API密钥（可选） |
 | `OPENAI_API_KEY` | `` | OpenAI API密钥（可选） |
-| `DATA_PATH` | `/data/omicshub` | 数据持久化路径（宿主机） |
+| `DATA_PATH` | `/data/cygnusx` | 数据持久化路径（宿主机） |
 | `WORKFLOW_PATH` | `./workflows` | Snakefile存放路径（宿主机） |
-| `REFERENCE_PATH` | `/data/omicshub/references` | 参考基因组路径（宿主机） |
+| `REFERENCE_PATH` | `/data/cygnusx/references` | 参考基因组路径（宿主机） |
 | `LOG_LEVEL` | `INFO` | 日志级别：DEBUG/INFO/WARNING/ERROR |
 | `MAX_UPLOAD_SIZE` | `1073741824` | 最大上传文件大小（字节，默认1GB） |
 | `ADMIN_EMAIL` | `admin@example.com` | 默认管理员邮箱 |
@@ -423,7 +423,7 @@ remote模式适用于**Web平台**与**计算节点**分离部署的场景。Web
 
 ```yaml
 # =============================================================================
-# OmicsHub Docker Compose - Remote Mode: Web Platform
+# CygnusX Docker Compose - Remote Mode: Web Platform
 # Web平台：API + DB + Redis + 轻量Worker + Beat + Flower + Nginx
 # =============================================================================
 version: "3.8"
@@ -434,10 +434,10 @@ x-backend-env: &backend-env
   MASTER_INTERNAL_TOKEN: ${MASTER_INTERNAL_TOKEN:-master-token-change-me}
 
   # --- 数据库（同local模式）---
-  DATABASE_URL: postgresql://${POSTGRES_USER:-omicshub}:${POSTGRES_PASSWORD:-changeme}@db:5432/${POSTGRES_DB:-omicshub}
-  POSTGRES_USER: ${POSTGRES_USER:-omicshub}
+  DATABASE_URL: postgresql://${POSTGRES_USER:-cygnusx}:${POSTGRES_PASSWORD:-changeme}@db:5432/${POSTGRES_DB:-cygnusx}
+  POSTGRES_USER: ${POSTGRES_USER:-cygnusx}
   POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
-  POSTGRES_DB: ${POSTGRES_DB:-omicshub}
+  POSTGRES_DB: ${POSTGRES_DB:-cygnusx}
   POSTGRES_HOST: db
   POSTGRES_PORT: 5432
 
@@ -470,9 +470,9 @@ x-backend-env: &backend-env
   ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
 
 x-backend-volumes: &backend-volumes
-  - ${DATA_PATH:-/data/omicshub}:/data
+  - ${DATA_PATH:-/data/cygnusx}:/data
   - ${WORKFLOW_PATH:-./workflows}:/workflows:ro
-  - ${NFS_MOUNT_PATH:-/data/omicshub}:/data  # NFS共享存储挂载点
+  - ${NFS_MOUNT_PATH:-/data/cygnusx}:/data  # NFS共享存储挂载点
   - backend_logs:/app/logs
 
 services:
@@ -480,7 +480,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: omicshub-web
+    container_name: cygnusx-web
     restart: unless-stopped
     ports:
       - "127.0.0.1:8000:8000"
@@ -499,7 +499,7 @@ services:
       retries: 3
       start_period: 40s
     networks:
-      - omicshub_net
+      - cygnusx_net
     deploy:
       resources:
         limits:
@@ -508,23 +508,23 @@ services:
 
   db:
     image: postgres:14-alpine
-    container_name: omicshub-db
+    container_name: cygnusx-db
     restart: unless-stopped
     volumes:
       - postgres_data:/var/lib/postgresql/data
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-omicshub}
+      POSTGRES_USER: ${POSTGRES_USER:-cygnusx}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
-      POSTGRES_DB: ${POSTGRES_DB:-omicshub}
+      POSTGRES_DB: ${POSTGRES_DB:-cygnusx}
       PGDATA: /var/lib/postgresql/data/pgdata
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-omicshub} -d ${POSTGRES_DB:-omicshub}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cygnusx} -d ${POSTGRES_DB:-cygnusx}"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
     networks:
-      - omicshub_net
+      - cygnusx_net
     deploy:
       resources:
         limits:
@@ -533,7 +533,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: omicshub-redis
+    container_name: cygnusx-redis
     restart: unless-stopped
     command: >
       sh -c 'redis-server
@@ -550,7 +550,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - omicshub_net
+      - cygnusx_net
     deploy:
       resources:
         limits:
@@ -564,7 +564,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: omicshub-celery-worker
+    container_name: cygnusx-celery-worker
     restart: unless-stopped
     command: >
       celery -A app.celery_app worker
@@ -574,7 +574,7 @@ services:
       --concurrency 4
       -Ofair
     volumes:
-      - ${DATA_PATH:-/data/omicshub}:/data
+      - ${DATA_PATH:-/data/cygnusx}:/data
       - backend_logs:/app/logs
     environment:
       <<: *backend-env
@@ -588,7 +588,7 @@ services:
       timeout: 10s
       retries: 3
     networks:
-      - omicshub_net
+      - cygnusx_net
     deploy:
       resources:
         limits:
@@ -600,14 +600,14 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: omicshub-celery-beat
+    container_name: cygnusx-celery-beat
     restart: unless-stopped
     command: >
       celery -A app.celery_app beat
       -l ${LOG_LEVEL:-info}
       --scheduler django_celery_beat.schedulers:DatabaseScheduler
     volumes:
-      - ${DATA_PATH:-/data/omicshub}:/data
+      - ${DATA_PATH:-/data/cygnusx}:/data
       - backend_logs:/app/logs
     environment:
       <<: *backend-env
@@ -615,7 +615,7 @@ services:
       - db
       - redis
     networks:
-      - omicshub_net
+      - cygnusx_net
     deploy:
       resources:
         limits:
@@ -626,7 +626,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: omicshub-flower
+    container_name: cygnusx-flower
     restart: unless-stopped
     command: >
       celery -A app.celery_app flower
@@ -640,7 +640,7 @@ services:
       - redis
       - celery_worker
     networks:
-      - omicshub_net
+      - cygnusx_net
     deploy:
       resources:
         limits:
@@ -649,7 +649,7 @@ services:
 
   nginx:
     image: nginx:alpine
-    container_name: omicshub-nginx
+    container_name: cygnusx-nginx
     restart: unless-stopped
     ports:
       - "80:80"
@@ -657,12 +657,12 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./frontend/dist:/usr/share/nginx/html:ro
-      - ${NFS_MOUNT_PATH:-/data/omicshub}:/data:ro
+      - ${NFS_MOUNT_PATH:-/data/cygnusx}:/data:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
     depends_on:
       - web
     networks:
-      - omicshub_net
+      - cygnusx_net
     deploy:
       resources:
         limits:
@@ -678,7 +678,7 @@ volumes:
     driver: local
 
 networks:
-  omicshub_net:
+  cygnusx_net:
     driver: bridge
     ipam:
       config:
@@ -691,7 +691,7 @@ networks:
 
 ```yaml
 # =============================================================================
-# OmicsHub Docker Compose - Remote Mode: Master Compute Node
+# CygnusX Docker Compose - Remote Mode: Master Compute Node
 # Master节点：专用于执行Snakemake计算任务
 # 不暴露公网，仅内网Web平台访问
 # =============================================================================
@@ -705,16 +705,16 @@ services:
     build:
       context: ./master
       dockerfile: Dockerfile
-    container_name: omicshub-master
+    container_name: cygnusx-master
     restart: unless-stopped
     ports:
       # 仅暴露给内网Web平台，不绑定0.0.0.0
       - "127.0.0.1:8001:8001"
     volumes:
       # 共享存储：与Web平台使用相同的NFS/Docker Volume
-      - ${DATA_PATH:-/data/omicshub}:/data
+      - ${DATA_PATH:-/data/cygnusx}:/data
       - ${WORKFLOW_PATH:-./workflows}:/workflows:ro
-      - ${REFERENCE_PATH:-/data/omicshub/references}:/references:ro
+      - ${REFERENCE_PATH:-/data/cygnusx/references}:/references:ro
       - ${CONDA_ENV_PATH:-/opt/conda/envs}:/opt/conda/envs
       - master_logs:/app/logs
     environment:
@@ -748,7 +748,7 @@ services:
       retries: 3
       start_period: 20s
     networks:
-      - omicshub_master_net
+      - cygnusx_master_net
     deploy:
       resources:
         limits:
@@ -765,7 +765,7 @@ services:
   # =========================================================================
   node_exporter:
     image: prom/node-exporter:latest
-    container_name: omicshub-master-exporter
+    container_name: cygnusx-master-exporter
     restart: unless-stopped
     volumes:
       - /proc:/host/proc:ro
@@ -779,7 +779,7 @@ services:
     ports:
       - "127.0.0.1:9100:9100"
     networks:
-      - omicshub_master_net
+      - cygnusx_master_net
     deploy:
       resources:
         limits:
@@ -791,12 +791,12 @@ volumes:
     driver: local
 
 networks:
-  omicshub_master_net:
+  cygnusx_master_net:
     driver: bridge
     ipam:
       config:
         - subnet: 172.21.0.0/16
-    # 该网络仅内网使用，可与Web平台的omicshub_net通过docker network connect互联
+    # 该网络仅内网使用，可与Web平台的cygnusx_net通过docker network connect互联
     # 或通过宿主机的docker0网桥访问
 ```
 
@@ -808,16 +808,16 @@ networks:
 
 ```bash
 # 1. 在Web平台服务器创建共享网络
-docker network create --driver bridge --subnet 172.30.0.0/16 omicshub_shared
+docker network create --driver bridge --subnet 172.30.0.0/16 cygnusx_shared
 
 # 2. Web平台加入共享网络
-docker network connect omicshub_shared omicshub-web
+docker network connect cygnusx_shared cygnusx-web
 
 # 3. Master节点加入共享网络
-docker network connect omicshub_shared omicshub-master
+docker network connect cygnusx_shared cygnusx-master
 
 # 4. 更新环境变量，使用共享网络通信
-# MASTER_API_URL=http://omicshub-master:8001
+# MASTER_API_URL=http://cygnusx-master:8001
 ```
 
 **方案二：宿主机IP直连**
@@ -835,11 +835,11 @@ docker-compose -f docker-compose.master.yml up -d
 ```bash
 # 创建Docker Swarm overlay网络（需初始化Swarm）
 docker swarm init
-docker network create --driver overlay --attachable omicshub_overlay
+docker network create --driver overlay --attachable cygnusx_overlay
 
 # 两个stack使用同一overlay网络
-docker stack deploy -c docker-compose.yml omicshub-web
-docker stack deploy -c docker-compose.master.yml omicshub-master
+docker stack deploy -c docker-compose.yml cygnusx-web
+docker stack deploy -c docker-compose.master.yml cygnusx-master
 ```
 
 **Master节点启动命令**：
@@ -850,7 +850,7 @@ docker stack deploy -c docker-compose.master.yml omicshub-master
 
 set -e
 
-echo "=== OmicsHub Master Node Startup ==="
+echo "=== CygnusX Master Node Startup ==="
 
 # 检查环境变量
 if [ -z "$INTERNAL_TOKEN" ]; then
@@ -859,8 +859,8 @@ if [ -z "$INTERNAL_TOKEN" ]; then
 fi
 
 # 创建必要目录
-mkdir -p /data/omicshub/tasks /data/omicshub/uploads /data/omicshub/logs
-chmod 755 /data/omicshub
+mkdir -p /data/cygnusx/tasks /data/cygnusx/uploads /data/cygnusx/logs
+chmod 755 /data/cygnusx
 
 # 拉取最新镜像
 docker-compose -f docker-compose.master.yml pull
@@ -914,16 +914,16 @@ sudo apt-get update
 sudo apt-get install -y nfs-kernel-server
 
 # 2. 创建共享目录
-sudo mkdir -p /data/omicshub
-sudo chown -R 1000:1000 /data/omicshub
-sudo chmod 755 /data/omicshub
+sudo mkdir -p /data/cygnusx
+sudo chown -R 1000:1000 /data/cygnusx
+sudo chmod 755 /data/cygnusx
 
 # 3. 配置NFS导出
 # /etc/exports
 cat << 'EOF' | sudo tee /etc/exports
-# OmicsHub 共享存储
-/data/omicshub  172.20.0.0/16(rw,sync,no_subtree_check,no_root_squash)
-/data/omicshub  172.21.0.0/16(rw,sync,no_subtree_check,no_root_squash)
+# CygnusX 共享存储
+/data/cygnusx  172.20.0.0/16(rw,sync,no_subtree_check,no_root_squash)
+/data/cygnusx  172.21.0.0/16(rw,sync,no_subtree_check,no_root_squash)
 EOF
 
 # 4. 启动NFS服务
@@ -933,25 +933,25 @@ sudo systemctl enable nfs-kernel-server
 
 # 5. 客户端挂载（Web平台服务器）
 sudo apt-get install -y nfs-common
-sudo mkdir -p /data/omicshub
-sudo mount -t nfs <nfs_server_ip>:/data/omicshub /data/omicshub
+sudo mkdir -p /data/cygnusx
+sudo mount -t nfs <nfs_server_ip>:/data/cygnusx /data/cygnusx
 
 # 6. 开机自动挂载（/etc/fstab）
-echo "<nfs_server_ip>:/data/omicshub /data/omicshub nfs defaults,_netdev 0 0" | sudo tee -a /etc/fstab
+echo "<nfs_server_ip>:/data/cygnusx /data/cygnusx nfs defaults,_netdev 0 0" | sudo tee -a /etc/fstab
 
 # 7. Docker中使用NFS Volume
 docker volume create --driver local \
   --opt type=nfs \
   --opt o=addr=<nfs_server_ip>,rw,nfsvers=4 \
-  --opt device=:/data/omicshub \
-  omicshub_nfs_data
+  --opt device=:/data/cygnusx \
+  cygnusx_nfs_data
 ```
 
 ### 6.4.3 目录结构规范
 
 ```
-/data/omicshub/                          # 根目录
-├── docker-compose.yml -> /opt/omicshub/ # 软链接到实际部署位置
+/data/cygnusx/                          # 根目录
+├── docker-compose.yml -> /opt/cygnusx/ # 软链接到实际部署位置
 ├── .env                                 # 环境变量
 │
 ├── tasks/                               # 任务执行目录
@@ -1034,11 +1034,11 @@ docker volume create --driver local \
 #!/bin/bash
 # init_storage.sh - 共享存储初始化脚本
 
-DATA_ROOT="${1:-/data/omicshub}"
+DATA_ROOT="${1:-/data/cygnusx}"
 USER_ID="${2:-1000}"  # 容器内运行用户的UID
 GROUP_ID="${3:-1000}" # 容器内运行用户的GID
 
-echo "=== Initializing OmicsHub Storage ==="
+echo "=== Initializing CygnusX Storage ==="
 echo "Data root: $DATA_ROOT"
 echo "Owner: $USER_ID:$GROUP_ID"
 
@@ -1077,7 +1077,7 @@ find "$DATA_ROOT" -maxdepth 2 -type d | head -30
 
 ```nginx
 # =============================================================================
-# OmicsHub Nginx Configuration
+# CygnusX Nginx Configuration
 # 功能：静态文件服务、API反向代理、WebSocket支持、Flower监控、安全防护
 # =============================================================================
 
@@ -1151,7 +1151,7 @@ http {
         # return 301 https://$host$request_uri;
 
         # 未配置SSL时直接服务
-        include /etc/nginx/conf.d/omicshub.conf;
+        include /etc/nginx/conf.d/cygnusx.conf;
     }
 
     # =================================================================
@@ -1159,24 +1159,24 @@ http {
     # =================================================================
     # server {
     #     listen 443 ssl http2;
-    #     server_name omicshub.example.com;
+    #     server_name cygnusx.example.com;
     #
-    #     ssl_certificate /etc/nginx/ssl/omicshub.crt;
-    #     ssl_certificate_key /etc/nginx/ssl/omicshub.key;
+    #     ssl_certificate /etc/nginx/ssl/cygnusx.crt;
+    #     ssl_certificate_key /etc/nginx/ssl/cygnusx.key;
     #     ssl_protocols TLSv1.2 TLSv1.3;
     #     ssl_ciphers 'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256';
     #     ssl_prefer_server_ciphers on;
     #
-    #     include /etc/nginx/conf.d/omicshub.conf;
+    #     include /etc/nginx/conf.d/cygnusx.conf;
     # }
 }
 ```
 
-### 6.5.2 omicshub.conf（站点配置）
+### 6.5.2 cygnusx.conf（站点配置）
 
 ```nginx
 # =============================================================================
-# OmicsHub 站点配置 - 包含在 server 块中
+# CygnusX 站点配置 - 包含在 server 块中
 # =============================================================================
 
 # --- 静态文件服务（前端dist） ---
@@ -1251,8 +1251,8 @@ location /flower/ {
 # --- 内部回调接口（严格IP白名单限制） ---
 location /internal/ {
     # 仅允许Docker网络内部和Master节点IP访问
-    allow 172.20.0.0/16;   # omicshub_web 网络
-    allow 172.21.0.0/16;   # omicshub_master 网络
+    allow 172.20.0.0/16;   # cygnusx_web 网络
+    allow 172.21.0.0/16;   # cygnusx_master 网络
     allow 127.0.0.1;
     deny all;              # 拒绝其他所有IP
 
@@ -1341,7 +1341,7 @@ location = /50x.html {
 
 ```dockerfile
 # =============================================================================
-# OmicsHub Backend Dockerfile
+# CygnusX Backend Dockerfile
 # 多阶段构建：构建阶段 + 运行阶段
 # 包含：Python 3.11 + FastAPI + Celery + Snakemake + Miniforge(Conda)
 # =============================================================================
@@ -1372,8 +1372,8 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # -----------------------------------------------------------------------------
 FROM python:3.11-slim AS runtime
 
-LABEL maintainer="OmicsHub Team" \
-      description="OmicsHub Backend - FastAPI + Celery + Snakemake"
+LABEL maintainer="CygnusX Team" \
+      description="CygnusX Backend - FastAPI + Celery + Snakemake"
 
 # --- 系统依赖 ---
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -1390,8 +1390,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # --- 创建非root用户 ---
-RUN groupadd -r -g 1000 omicshub && \
-    useradd -r -u 1000 -g omicshub -d /app -s /bin/bash omicshub
+RUN groupadd -r -g 1000 cygnusx && \
+    useradd -r -u 1000 -g cygnusx -d /app -s /bin/bash cygnusx
 
 # --- 复制虚拟环境 ---
 COPY --from=builder /opt/venv /opt/venv
@@ -1412,15 +1412,15 @@ RUN pip install --no-cache-dir snakemake==7.32.4
 
 # --- 创建工作目录 ---
 WORKDIR /app
-RUN chown -R omicshub:omicshub /app
+RUN chown -R cygnusx:cygnusx /app
 
 # --- 复制应用代码 ---
-COPY --chown=omicshub:omicshub ./app ./app
-COPY --chown=omicshub:omicshub ./alembic ./alembic
-COPY --chown=omicshub:omicshub alembic.ini .
+COPY --chown=cygnusx:cygnusx ./app ./app
+COPY --chown=cygnusx:cygnusx ./alembic ./alembic
+COPY --chown=cygnusx:cygnusx alembic.ini .
 
 # --- 创建日志目录 ---
-RUN mkdir -p /app/logs && chown -R omicshub:omicshub /app/logs
+RUN mkdir -p /app/logs && chown -R cygnusx:cygnusx /app/logs
 
 # --- 健康检查 ---
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
@@ -1430,7 +1430,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 EXPOSE 8000
 
 # --- 切换到非root用户 ---
-USER omicshub
+USER cygnusx
 
 # --- 启动命令 ---
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
@@ -1440,15 +1440,15 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--worker
 
 ```dockerfile
 # =============================================================================
-# OmicsHub Master Node Dockerfile
+# CygnusX Master Node Dockerfile
 # 专用于执行Snakemake计算任务
 # 需要更多系统工具和生物信息学依赖
 # =============================================================================
 
 FROM python:3.11-slim
 
-LABEL maintainer="OmicsHub Team" \
-      description="OmicsHub Master Executor - Snakemake Compute Node"
+LABEL maintainer="CygnusX Team" \
+      description="CygnusX Master Executor - Snakemake Compute Node"
 
 # --- 系统依赖（生物信息学工具链） ---
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -1486,8 +1486,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # --- 创建非root用户 ---
-RUN groupadd -r -g 1000 omicshub && \
-    useradd -r -u 1000 -g omicshub -d /app -s /bin/bash omicshub
+RUN groupadd -r -g 1000 cygnusx && \
+    useradd -r -u 1000 -g cygnusx -d /app -s /bin/bash cygnusx
 
 # --- 安装Miniforge（Conda）---
 ENV CONDA_DIR=/opt/conda
@@ -1511,15 +1511,15 @@ RUN pip install --no-cache-dir -r /tmp/requirements.txt && rm /tmp/requirements.
 
 # --- 创建工作目录 ---
 WORKDIR /app
-RUN chown -R omicshub:omicshub /app
+RUN chown -R cygnusx:cygnusx /app
 
 # --- 复制Master应用代码 ---
-COPY --chown=omicshub:omicshub ./app ./app
-COPY --chown=omicshub:omicshub ./scripts ./scripts
+COPY --chown=cygnusx:cygnusx ./app ./app
+COPY --chown=cygnusx:cygnusx ./scripts ./scripts
 
 # --- 创建日志和临时目录 ---
 RUN mkdir -p /app/logs /tmp/snakemake && \
-    chown -R omicshub:omicshub /app/logs /tmp/snakemake
+    chown -R cygnusx:cygnusx /app/logs /tmp/snakemake
 
 # --- 数据卷挂载点 ---
 VOLUME ["/data", "/workflows", "/references", "/opt/conda/envs"]
@@ -1532,7 +1532,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
 EXPOSE 8001
 
 # --- 切换到非root用户 ---
-USER omicshub
+USER cygnusx
 
 # --- 启动命令 ---
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "1"]
@@ -1542,7 +1542,7 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001", "--worker
 
 ```txt
 # =============================================================================
-# OmicsHub Python Dependencies
+# CygnusX Python Dependencies
 # =============================================================================
 
 # --- Web Framework ---
@@ -1601,7 +1601,7 @@ httpx==0.27.0
 ```bash
 #!/bin/bash
 # =============================================================================
-# OmicsHub 一键初始化脚本
+# CygnusX 一键初始化脚本
 # 功能：目录创建、权限设置、数据库迁移、管理员创建、流程导入
 # 用法: ./init.sh [--skip-migration] [--reset-db]
 # =============================================================================
@@ -1623,7 +1623,7 @@ log_step()  { echo -e "\n${BLUE}=== $1 ===${NC}"; }
 
 # --- 配置 ---
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DATA_PATH="${DATA_PATH:-/data/omicshub}"
+DATA_PATH="${DATA_PATH:-/data/cygnusx}"
 COMPOSE_FILE="${SCRIPT_DIR}/docker-compose.yml"
 ENV_FILE="${SCRIPT_DIR}/.env"
 SKIP_MIGRATION=false
@@ -1640,7 +1640,7 @@ while [[ $# -gt 0 ]]; do
             echo "Options:"
             echo "  --skip-migration   Skip database migration"
             echo "  --reset-db         Reset database (WARNING: destroys all data)"
-            echo "  --data-path PATH   Set data directory path (default: /data/omicshub)"
+            echo "  --data-path PATH   Set data directory path (default: /data/cygnusx)"
             exit 0
             ;;
         *) echo "Unknown option: $1"; exit 1 ;;
@@ -1705,7 +1705,7 @@ log_info "Directory structure created at $DATA_PATH"
 log_step "Step 3: Set Directory Permissions"
 
 # 检测容器运行用户UID（默认1000）
-CONTAINER_UID=$(grep "^omicshub" /etc/passwd 2>/dev/null | cut -d: -f3 || echo "1000")
+CONTAINER_UID=$(grep "^cygnusx" /etc/passwd 2>/dev/null | cut -d: -f3 || echo "1000")
 chown -R "${CONTAINER_UID}:${CONTAINER_UID}" "$DATA_PATH" 2>/dev/null || {
     log_warn "Could not chown $DATA_PATH (may need sudo)"
     log_warn "Please run: sudo chown -R ${CONTAINER_UID}:${CONTAINER_UID} $DATA_PATH"
@@ -1721,7 +1721,7 @@ $COMPOSE_CMD -f "$COMPOSE_FILE" up -d db redis
 # 等待数据库就绪
 log_info "Waiting for PostgreSQL to be ready..."
 for i in {1..60}; do
-    if $COMPOSE_CMD -f "$COMPOSE_FILE" exec -T db pg_isready -U "${POSTGRES_USER:-omicshub}" > /dev/null 2>&1; then
+    if $COMPOSE_CMD -f "$COMPOSE_FILE" exec -T db pg_isready -U "${POSTGRES_USER:-cygnusx}" > /dev/null 2>&1; then
         log_info "PostgreSQL is ready"
         break
     fi
@@ -1755,8 +1755,8 @@ if [ "$SKIP_MIGRATION" = false ]; then
         log_warn "Resetting database - ALL DATA WILL BE LOST!"
         read -p "Are you sure? Type 'yes' to continue: " confirm
         if [ "$confirm" = "yes" ]; then
-            $COMPOSE_CMD -f "$COMPOSE_FILE" exec -T db dropdb -U "${POSTGRES_USER:-omicshub}" "${POSTGRES_DB:-omicshub}" 2>/dev/null || true
-            $COMPOSE_CMD -f "$COMPOSE_FILE" exec -T db createdb -U "${POSTGRES_USER:-omicshub}" "${POSTGRES_DB:-omicshub}"
+            $COMPOSE_CMD -f "$COMPOSE_FILE" exec -T db dropdb -U "${POSTGRES_USER:-cygnusx}" "${POSTGRES_DB:-cygnusx}" 2>/dev/null || true
+            $COMPOSE_CMD -f "$COMPOSE_FILE" exec -T db createdb -U "${POSTGRES_USER:-cygnusx}" "${POSTGRES_DB:-cygnusx}"
             log_info "Database reset"
         else
             log_info "Database reset cancelled"
@@ -1882,7 +1882,7 @@ log_step "Initialization Complete"
 
 echo ""
 echo "========================================"
-echo "  OmicsHub Initialization Summary"
+echo "  CygnusX Initialization Summary"
 echo "========================================"
 echo "  Services:     $HEALTHY/$TOTAL running"
 echo "  Data path:    $DATA_PATH"
@@ -1914,25 +1914,25 @@ exit 0
 ```bash
 #!/bin/bash
 # =============================================================================
-# OmicsHub 每日备份脚本
-# 用法: 添加到 crontab: 0 2 * * * /opt/omicshub/scripts/backup.sh
+# CygnusX 每日备份脚本
+# 用法: 添加到 crontab: 0 2 * * * /opt/cygnusx/scripts/backup.sh
 # =============================================================================
 
 set -euo pipefail
 
-BACKUP_DIR="/data/omicshub/backups/$(date +%Y%m%d)"
-DATA_ROOT="/data/omicshub"
+BACKUP_DIR="/data/cygnusx/backups/$(date +%Y%m%d)"
+DATA_ROOT="/data/cygnusx"
 RETENTION_DAYS=30
 COMPOSE_CMD="docker-compose"
-COMPOSE_FILE="/opt/omicshub/docker-compose.yml"
+COMPOSE_FILE="/opt/cygnusx/docker-compose.yml"
 
 mkdir -p "$BACKUP_DIR"
 
 # --- 数据库备份 ---
 echo "[$(date)] Backing up database..."
 $COMPOSE_CMD -f "$COMPOSE_FILE" exec -T db pg_dump \
-    -U "${POSTGRES_USER:-omicshub}" \
-    "${POSTGRES_DB:-omicshub}" | gzip > "$BACKUP_DIR/db_backup.sql.gz"
+    -U "${POSTGRES_USER:-cygnusx}" \
+    "${POSTGRES_DB:-cygnusx}" | gzip > "$BACKUP_DIR/db_backup.sql.gz"
 
 # --- 应用数据备份（排除临时文件） ---
 echo "[$(date)] Backing up application data..."
@@ -1955,7 +1955,7 @@ ls -lh "$BACKUP_DIR"
 
 ### 6.8.1 架构概述
 
-OmicsHub 的工作流执行引擎采用**策略模式（Strategy Pattern）**设计，通过 `ExecutionBackend` 抽象层统一接口，支持本地执行和远程执行两种模式的无缝切换。
+CygnusX 的工作流执行引擎采用**策略模式（Strategy Pattern）**设计，通过 `ExecutionBackend` 抽象层统一接口，支持本地执行和远程执行两种模式的无缝切换。
 
 ```
 +---------------------------------------------------------------------+
@@ -2915,7 +2915,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="OmicsHub Master Executor",
+    title="CygnusX Master Executor",
     description="Dedicated execution node for running Snakemake workflows",
     version="1.0.0",
     lifespan=lifespan
@@ -3825,9 +3825,9 @@ class Settings(BaseSettings):
     SNAKEMAKE_CORES: int = 8
     
     # Database
-    POSTGRES_USER: str = "omicshub"
+    POSTGRES_USER: str = "cygnusx"
     POSTGRES_PASSWORD: str = "changeme"
-    POSTGRES_DB: str = "omicshub"
+    POSTGRES_DB: str = "cygnusx"
     POSTGRES_HOST: str = "db"
     POSTGRES_PORT: int = 5432
     
@@ -4099,7 +4099,7 @@ class TaskCancelRequest(BaseModel):
 ```yaml
 # docker-compose.master.yml - Network isolation section
 networks:
-  omicshub_master_net:
+  cygnusx_master_net:
     driver: bridge
     internal: true  # Block external access, only internal Docker communication
     ipam:
@@ -4142,7 +4142,7 @@ iptables -A INPUT -p tcp --dport 8001 -s 172.20.0.0/16 -j ACCEPT
 iptables -A INPUT -s 172.21.0.0/16 -j ACCEPT
 
 # Log and drop other connections
-iptables -A INPUT -j LOG --log-prefix "[OMICSHUB DROP] "
+iptables -A INPUT -j LOG --log-prefix "[CYGNUSX DROP] "
 iptables -A INPUT -j DROP
 
 # Save rules
@@ -4281,8 +4281,8 @@ docker volume prune -f  # 清理未使用的卷（谨慎！）
 |------|----------|----------|
 | Web无法启动 | 数据库未就绪 | 检查db健康状态 `docker-compose ps` |
 | 任务提交失败 | Worker未运行 | `docker-compose ps` 检查celery_worker |
-| 权限错误 | UID/GID不匹配 | `chown -R 1000:1000 /data/omicshub` |
-| 存储空间不足 | 日志或结果文件过大 | 清理 `/data/omicshub/tmp/` 和日志 |
+| 权限错误 | UID/GID不匹配 | `chown -R 1000:1000 /data/cygnusx` |
+| 存储空间不足 | 日志或结果文件过大 | 清理 `/data/cygnusx/tmp/` 和日志 |
 | Master连接失败 | 网络不通 | 检查Docker网络互联配置 |
 | WebSocket断开 | Nginx配置问题 | 检查nginx.conf proxy设置 |
 
@@ -4293,7 +4293,7 @@ docker volume prune -f  # 清理未使用的卷（谨慎！）
 #!/bin/bash
 # health_check.sh
 
-echo "=== OmicsHub Health Check ==="
+echo "=== CygnusX Health Check ==="
 
 # Check all services
 echo "--- Services ---"
@@ -4301,7 +4301,7 @@ docker-compose ps
 
 # Check database
 echo "--- Database ---"
-docker-compose exec -T db pg_isready -U omicshub
+docker-compose exec -T db pg_isready -U cygnusx
 
 # Check Redis
 echo "--- Redis ---"
@@ -4313,7 +4313,7 @@ curl -sf http://localhost/api/v1/health && echo "OK" || echo "FAILED"
 
 # Check disk usage
 echo "--- Disk Usage ---"
-df -h /data/omicshub
+df -h /data/cygnusx
 
 # Check memory
 echo "--- Memory ---"
@@ -4326,7 +4326,7 @@ echo "=== Check Complete ==="
 
 ## 6.11 总结
 
-OmicsHub的部署运维体系围绕以下核心原则设计：
+CygnusX的部署运维体系围绕以下核心原则设计：
 
 1. **极简运维**：单维护者可管理，一键部署（`./init.sh`），所有配置集中管理
 2. **双模式支持**：Local模式适合单机，Remote模式支持计算扩展，通过 `EXECUTION_MODE` 环境变量切换

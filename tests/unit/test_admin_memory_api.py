@@ -6,9 +6,9 @@ from uuid import uuid4
 
 import pytest
 
-from omichub.api.v1.admin.users import get_user_memory_overview
-from omichub.application.schemas.agent_memory import MemoryOverviewDTO
-from omichub.core.exceptions import NotFoundError
+from cygnusx.api.v1.admin.users import get_user_memory_overview
+from cygnusx.application.schemas.agent_memory import MemoryOverviewDTO
+from cygnusx.core.exceptions import NotFoundError
 
 
 @pytest.mark.asyncio
@@ -37,7 +37,7 @@ async def test_admin_memory_overview_forwards_filters_and_returns_v2_data() -> N
         "legacy_memories": [],
     }
 
-    with patch("omichub.api.v1.admin.users.AgentMemoryService") as service_type:
+    with patch("cygnusx.api.v1.admin.users.AgentMemoryService") as service_type:
         service_type.return_value.get_memory_overview = AsyncMock(return_value=overview)
 
         result = await get_user_memory_overview(

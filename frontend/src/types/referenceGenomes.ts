@@ -129,9 +129,19 @@ export interface Transcript {
   length: number
   exonCount: number
   exons: Array<{ start: number; end: number; rank: number }>
+  /** 结构特征区间（GFF3 CDS/UTR）：{ cds: [[s,e],...], five_prime_utr: [...], three_prime_utr: [...] } */
+  features?: Record<string, Array<[number, number]>>
   cdsId?: string
   pepId?: string
   canonical: boolean
+}
+
+export interface GoSlimItem {
+  goId: string
+  name: string
+  namespace: 'MF' | 'BP' | 'CC'
+  slimCategory: string
+  evidence: string
 }
 
 export interface GoAnnotation {
@@ -140,6 +150,7 @@ export interface GoAnnotation {
   namespace: 'MF' | 'BP' | 'CC'
   evidenceCode: string
   source: string
+  definition: string
 }
 
 export interface KeggKo {
@@ -163,6 +174,7 @@ export interface SequenceAvailability {
   genomic: boolean
   cds: boolean
   protein: boolean
+  promoter: boolean
 }
 
 /** GET /versions/{id}/genes/{geneId} */
@@ -170,6 +182,7 @@ export interface GeneDetail {
   gene: ApiGene
   transcripts: Transcript[]
   go: GoAnnotation[]
+  goslim: GoSlimItem[]
   kegg: GeneDetailKegg
   sequenceAvailable: SequenceAvailability
 }

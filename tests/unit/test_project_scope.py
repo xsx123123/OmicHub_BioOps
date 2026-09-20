@@ -2,8 +2,8 @@
 
 import pytest
 
-from omichub.application.services.project_scope import resolve_agent_project_scope
-from omichub.core.exceptions import BusinessError
+from cygnusx.application.services.project_scope import resolve_agent_project_scope
+from cygnusx.core.exceptions import BusinessError
 
 
 def test_global_agent_preserves_requested_session_project() -> None:

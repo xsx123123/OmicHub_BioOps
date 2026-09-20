@@ -18,7 +18,7 @@ const emit = defineEmits<{
 
 <template>
   <div
-    class="tool-card omichub-card"
+    class="tool-card cygnusx-card"
     role="link"
     tabindex="0"
     @click="emit('click')"

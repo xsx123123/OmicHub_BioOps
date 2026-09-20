@@ -1,6 +1,6 @@
 /**
  * 系统发育树工具类型定义
- * 与后端 omichub/tools/phylogenetic_tree/schema.py 对齐
+ * 与后端 cygnusx/tools/phylogenetic_tree/schema.py 对齐
  */
 
 export type AlignmentTool = 'mafft' | 'clustalo' | 'muscle5' | 'prealigned'

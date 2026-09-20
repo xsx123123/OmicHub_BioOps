@@ -4,12 +4,12 @@ from pathlib import Path
 
 import pytest
 
-from omichub.core.exceptions import BusinessError, NotFoundError
-from omichub.infrastructure.config.storage_config import StorageConfig
-from omichub.infrastructure.storage.backend import LocalStorageBackend
-from omichub.infrastructure.storage.path_factory import StoragePathFactory
-from omichub.infrastructure.studio.paths import PathEscapeError, resolve_workspace_path
-from omichub.infrastructure.studio.workspace import (
+from cygnusx.core.exceptions import BusinessError, NotFoundError
+from cygnusx.infrastructure.config.storage_config import StorageConfig
+from cygnusx.infrastructure.storage.backend import LocalStorageBackend
+from cygnusx.infrastructure.storage.path_factory import StoragePathFactory
+from cygnusx.infrastructure.studio.paths import PathEscapeError, resolve_workspace_path
+from cygnusx.infrastructure.studio.workspace import (
     disk_list_artifacts,
     disk_list_files,
     disk_read_file,
@@ -178,7 +178,7 @@ def test_business_error_importable():
 
 @pytest.mark.unit
 def test_link_platform_file_creates_input_symlink(tmp_path: Path):
-    from omichub.infrastructure.studio.paths import PLATFORM_CONTAINER_MOUNT
+    from cygnusx.infrastructure.studio.paths import PLATFORM_CONTAINER_MOUNT
 
     name = link_platform_file(tmp_path, "raw/a.csv")
     assert name == "a.csv"

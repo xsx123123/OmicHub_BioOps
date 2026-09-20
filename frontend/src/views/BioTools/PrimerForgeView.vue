@@ -330,7 +330,7 @@ function saveHistory() {
     pairCount: designResult.value.primerPairs.length,
     bestScore: designResult.value.primerPairs[0]?.qualityScore,
   }
-  const key = 'omichub_primerforge_history'
+  const key = 'cygnusx_primerforge_history'
   const previous = JSON.parse(localStorage.getItem(key) || '[]') as unknown[]
   localStorage.setItem(key, JSON.stringify([item, ...previous].slice(0, 30)))
   message.success('已保存到本地历史记录')

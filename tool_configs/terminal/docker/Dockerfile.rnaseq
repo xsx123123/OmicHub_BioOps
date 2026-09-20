@@ -1,6 +1,6 @@
-# OmicHub RNA-seq 流程沙盒镜像
-# 构建: docker build -t omichub/sandbox-rnaseq:latest -f tool_configs/terminal/docker/Dockerfile.rnaseq tool_configs/terminal/docker/
-FROM omichub/sandbox-terminal:latest
+# CygnusX RNA-seq 流程沙盒镜像
+# 构建: docker build -t cygnusx-sandbox-rnaseq:v0.0.2dev -f tool_configs/terminal/docker/Dockerfile.rnaseq tool_configs/terminal/docker/
+FROM cygnusx-sandbox-terminal:v0.0.2dev
 
 USER root
 

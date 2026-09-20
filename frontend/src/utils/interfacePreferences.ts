@@ -1,4 +1,4 @@
-const FESTIVAL_EFFECTS_KEY = 'omichub-festival-effects'
+const FESTIVAL_EFFECTS_KEY = 'cygnusx-festival-effects'
 
 export function isFestivalEffectsEnabled(): boolean {
   try {

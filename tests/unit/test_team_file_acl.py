@@ -4,11 +4,11 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from omichub.application.services.file_service import FileService
-from omichub.core.exceptions import AuthorizationError
-from omichub.domain.file.entities import DataFile
-from omichub.domain.file.value_objects import OwnerScope
-from omichub.domain.team.value_objects import TeamRole
+from cygnusx.application.services.file_service import FileService
+from cygnusx.core.exceptions import AuthorizationError
+from cygnusx.domain.file.entities import DataFile
+from cygnusx.domain.file.value_objects import OwnerScope
+from cygnusx.domain.team.value_objects import TeamRole
 
 
 class _FakeFileRepo:

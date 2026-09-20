@@ -1,17 +1,17 @@
-# ~/.bashrc - OmicHub 沙盒终端
+# ~/.bashrc - CygnusX 沙盒终端
 
 if [ -f /etc/bash_completion ]; then
     . /etc/bash_completion
 fi
 
-export PS1='\[\033[01;32m\]\u@omichub-sandbox\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+export PS1='\[\033[01;32m\]\u@cygnusx-sandbox\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
 export LANG=C.UTF-8
 export LC_ALL=C.UTF-8
-export HOME=/home/omichub
-export ZDOTDIR=/home/omichub
-export XDG_CACHE_HOME=/home/omichub/.cache
-export OMP_CACHE_DIR=/home/omichub/.cache
-export HISTFILE=/home/omichub/.cache/.bash_history
+export HOME=/home/cygnusx
+export ZDOTDIR=/home/cygnusx
+export XDG_CACHE_HOME=/home/cygnusx/.cache
+export OMP_CACHE_DIR=/home/cygnusx/.cache
+export HISTFILE=/home/cygnusx/.cache/.bash_history
 
 mkdir -p "$XDG_CACHE_HOME" "$OMP_CACHE_DIR"
 
@@ -21,9 +21,9 @@ alias l='ls -CF'
 
 clear
 echo ""
-echo -e "\033[1;32m  OmicHub 沙盒终端\033[0m"
+echo -e "\033[1;32m  CygnusX 沙盒终端\033[0m"
 echo "  ─────────────────────────────────────"
-echo -e "  工作目录: \033[0;36m/home/omichub/workspace\033[0m"
+echo -e "  工作目录: \033[0;36m/home/cygnusx/workspace\033[0m"
 echo -e "  临时目录: \033[0;36m/tmp\033[0m (容器销毁后清空)"
 echo ""
 echo "  预装工具: samtools, bcftools, bedtools, fastqc, seqkit, python3"

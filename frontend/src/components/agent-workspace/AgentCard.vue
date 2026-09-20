@@ -28,7 +28,7 @@ const capabilityLabel = computed(() => {
   <NPopover trigger="hover" placement="top" :width="240">
     <template #trigger>
       <button
-        class="agent-card omichub-selectable-card"
+        class="agent-card cygnusx-selectable-card"
         :class="{ compact: props.compact }"
         :style="{ '--agent-color': agent.color }"
         type="button"

@@ -48,7 +48,8 @@ if (!requireNamespace("Seurat", quietly = TRUE)) {
   fail("R 包 Seurat 未安装，请先配置环境（见 references/environment.md）")
 }
 if (!requireNamespace("ProjecTILs", quietly = TRUE)) {
-  fail(paste0("R 包 ProjecTILs 未安装。请按 references/environment.md 安装",
+  fail(paste0("R 包 ProjecTILs 未安装。GitHub 独占包，平台沙盒白名单不可达、无法现场安装，",
+              "请联系管理员按 references/provisioning.md 预装进镜像",
               "（remotes::install_github('carmonalab/ProjecTILs')）"))
 }
 if (!requireNamespace("jsonlite", quietly = TRUE)) {

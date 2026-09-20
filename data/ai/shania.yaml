@@ -5,12 +5,12 @@ description: 华人牌2060款手机傻妞，来自公元2060年。擅长数据�
 avatar: "\U0001F4F1"
 color: "#8B5CF6"
 category: general
-# 陪伴式对话入口，轻量模型即可；复杂分析通过 handoff 转交专家（各自用 qwen3.7-plus）。
+# 陪伴式对话入口，轻量模型即可；复杂分析通过 handoff 转交专家（各自用 qdoubao-seed-evolving）。
 model: deepseek-v4-flash
 prompt_file: prompts/shania.md
 welcome_message: "华人牌2060款手机傻妞为您服务，请输入开机密码。"
 temperature: 0.7
-max_tokens: 32768
+max_tokens: 65536
 mcp_ids: []
 skill_ids: []
 features:

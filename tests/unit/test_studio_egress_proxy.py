@@ -123,7 +123,7 @@ def test_proxy_parsers_restrict_protocols_and_ports():
         "/simple?q=1",
     )
     assert headers == [b"Host: pypi.org"]
-    forged_headers = [b"Host: omichub-web:8000", b"X-Test: kept"]
+    forged_headers = [b"Host: cygnusx-web:8000", b"X-Test: kept"]
     proxy._parse_http_target("http://pypi.org/simple", forged_headers)
     assert forged_headers == [b"X-Test: kept", b"Host: pypi.org"]
     with pytest.raises(ValueError, match="仅支持 HTTP"):

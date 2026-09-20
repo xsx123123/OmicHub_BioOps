@@ -1,5 +1,5 @@
 # ============================================================
-# OmicHub 节日彩蛋系统配置文件
+# CygnusX 节日彩蛋系统配置文件
 # 版本: 1.0
 # 说明: 管理员可通过此文件配置节日彩蛋、弹窗、额度赠送
 # 路径: data/festival_config.yaml
@@ -695,7 +695,7 @@ festivals:
     popup:
       enabled: true
       title: "🧣 立冬"
-      content: "冬意初临，万物收藏。愿 OmicHub 给你一点温暖。送你 {{bonusAmount}} 饼干！"
+      content: "冬意初临，万物收藏。愿 CygnusX 给你一点温暖。送你 {{bonusAmount}} 饼干！"
       animation:
         enabled: true
         type: "snow"
@@ -704,7 +704,7 @@ festivals:
       enabled: true
       amount: 200
       unit: "cookie"
-      description: "冬意初临，万物收藏。愿 OmicHub 给你一点温暖。送你 {{bonusAmount}} 饼干！"
+      description: "冬意初临，万物收藏。愿 CygnusX 给你一点温暖。送你 {{bonusAmount}} 饼干！"
     priority: 50
     enabled: true
 
@@ -847,16 +847,16 @@ festivals:
   # ═══════════════════════════════════════════════════════════
   # 管理员自定义节日（示例）
   # ═══════════════════════════════════════════════════════════
-  - id: omichub_anniversary
-    name: "OmicHub 周年庆"
+  - id: cygnusx_anniversary
+    name: "CygnusX 周年庆"
     category: "custom"
     calendarType: "solar"
     solarDate: { month: 6, day: 18 }
     activeRange: { year: 2026, offsetDays: 0, durationDays: 3 }
-    description: "感恩相伴，共赴未来。OmicHub 与你一同探索星辰大海"
+    description: "感恩相伴，共赴未来。CygnusX 与你一同探索星辰大海"
     popup:
       enabled: true
-      title: "🎂 OmicHub 周年庆"
+      title: "🎂 CygnusX 周年庆"
       content: "感恩相伴，共赴未来。周年庆特别福利 {{bonusAmount}} 饼干！"
     quotaBonus:
       enabled: true

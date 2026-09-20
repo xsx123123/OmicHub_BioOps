@@ -2,7 +2,7 @@
 name: 单细胞转录组端到端主流程编排
 description: 当用户提供 CellRanger 或 DNBC4 的输出矩阵、要求做端到端的 scRNA-seq 标准分析（多样本整合/单样本 QC → 聚类 → 自动注释 → 比例统计）时触发。输入为样本配置 CSV 与矩阵目录，产出固定的 *-scRNA-seq-result 结果目录。本技能是主流程 scRNAseqMulticommand 的调用编排（重量级管线不 skill 化，只指导如何准备 conf、如何调用、如何解读输出）；只做单个分析任务（格式转换、DEG、重聚类、比例统计、T 细胞注释、渲染报告）时不适用，请路由到对应专项技能。
 skill_id: scrna-pipeline-overview
-version: 0.9.0
+version: 0.9.1
 author: "zj"
 icon: 🧬
 category: analysis
@@ -58,7 +58,7 @@ CellRanger,name,group,library_type
 **坑位提示**：
 
 - `-y` / `--yaml` 参数**无效**：yaml 永远读取 `<repo>/scRNAseqMulticommand.yaml`，改配置直接编辑该文件；
-- CLI 是 R 脚本，用 `Rscript` 执行，当前版本 v4.1.1-alpha。
+- CLI 是 R 脚本，用 `Rscript` 执行，当前版本 v4.1.2-alpha。
 
 ## 执行步骤（Workflow）
 
@@ -66,7 +66,7 @@ CellRanger,name,group,library_type
 
 - [ ] 每个样本矩阵目录下 `matrix.mtx.gz` / `features.tsv.gz` / `barcodes.tsv.gz` 三文件齐全；
 - [ ] conf CSV 恰好四列、表头正确、逗号分隔、`name` 无重复、`library_type` ∈ {`10x`, `DNBC4`}；
-- [ ] `Celldex/` 下 7 个 SingleR 参考 rds 文件存在（**仓库不含，需另行准备**，路径约定与获取方式见 `scrna-annotation-ref` 技能）；仓库自带的是 Cellmarker/PanglaoDB/ScType 的标记物表；
+- [ ] SingleR/ScType 参考数据齐备：平台沙盒内为共享数据卷 `ref/Celldex/`（7 个 SingleR rds + 4 个 marker 表，由管理员预置），核查脚本与供给清单见 `scrna-annotation-ref` 技能及其 `references/provisioning.md`；本地/Docker 运行时为仓库 `Celldex/` 目录（**rds 仓库不含，需另行准备**）；
 - [ ] 若用 `SCVI` 整合：检查 `<repo>/scRNAseqMulticommand.yaml` 中 `conda_env.scvi_path_conda` 指向有效的 scvi conda 环境（当前硬编码 `/home/zj/miniconda3/envs/scvi`，**换机器必改**；可用 `envs/scvi.yaml` 创建该环境）；
 - [ ] 输出根目录可写、磁盘余量充足；
 - [ ] 仓库根目录的 `scRNA-seq.csv` 是硬编码 `/titan3/...` 示例，**不可直接当输入用**；测试数据在 `data/testdata/`（5 个真实样本矩阵 + 一次跑通的 `lettuce_scrna_analysis` 输出示例 + 配套 conf `data/testdata/scRNA-seq.csv`）。
@@ -77,14 +77,24 @@ CellRanger,name,group,library_type
 
 ### 3. 执行命令
 
-**推荐 = Docker**（规避脚本 shebang `#!/opt/conda/envs/scrna/bin/Rscript` 与宿主机环境名不一致的问题；镜像名 `scrna-seq-multicommand:v4.1.1-alpha`，Dockerfile 见 `build_analysis_env/`）：
+**平台沙盒内**：主流程仓库由管理员预置在共享数据卷（沙盒内 `ref/scRNAseqMulticommand/`，含运行环境与 Celldex 链接，供给清单见 `references/provisioning.md`），直接调用：
+
+```bash
+Rscript ref/scRNAseqMulticommand/scRNAseqMulticommand \
+  -c {conf.csv} -o {outputdir} -n {projectname} \
+  -I {taxID} -F {Cellmarker|PanglaoDB|Custom} -O {organ} [-i {method}] [-t {threads}]
+```
+
+主流程为重负载长任务，平台侧优先以容器任务方式运行（§9.2 模式）；沙盒内直接执行前确认资源配额足够。
+
+**本地运行 = Docker 推荐**（规避脚本 shebang `#!/opt/conda/envs/scrna/bin/Rscript` 与宿主机环境名不一致的问题；镜像名 `scrna-seq-multicommand:v4.1.2-alpha`，Dockerfile 见 `build_analysis_env/`）：
 
 ```bash
 docker run --rm \
   -v {数据目录}:/home/mambauser/workdir/data \
   -v {输出目录}:/home/mambauser/workdir/output \
   -v {Celldex目录}:/home/mambauser/scRNAseqMulticommand/Celldex \
-  scrna-seq-multicommand:v4.1.1-alpha \
+  scrna-seq-multicommand:v4.1.2-alpha \
   Rscript /home/mambauser/scRNAseqMulticommand/scRNAseqMulticommand \
     -c /home/mambauser/workdir/data/{conf.csv} \
     -o /home/mambauser/workdir/output \

@@ -25,11 +25,11 @@ import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import create_async_engine
 
 # 导入模型包以注册全部表到 Base.metadata
-import omichub.infrastructure.database.models  # noqa: F401
-from omichub.core.config import get_settings
-from omichub.infrastructure.database.base import Base
+import cygnusx.infrastructure.database.models  # noqa: F401
+from cygnusx.core.config import get_settings
+from cygnusx.infrastructure.database.base import Base
 
-_IGNORED_EXTRA_TABLES = {"alembic_version"}
+_IGNORED_EXTRA_TABLES = {"alembic_version", "mem0_memories"}
 
 
 async def _collect() -> tuple[list[str], list[str], list[str]]:

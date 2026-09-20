@@ -2,7 +2,7 @@
 name: 单细胞注释比例统计
 description: 当用户需要对已注释 scRNA-seq Seurat 对象做细胞比例统计与可视化（堆叠柱状图）、组间比例显著性检验（Fisher 精确检验 / 样本级 GLM）、多组配对的"DEG 数 × 细胞比例变化"气泡图、或按分组计算基因表达百分比与平均表达时触发。输入为 RDS 对象路径与 meta.data 列名。差异表达基因本身的批量鉴定、基因注释与火山图走 scrna-deg-analysis，本技能只做比例统计与汇总。
 skill_id: scrna-annotation-stats
-version: 0.9.0
+version: 0.9.1
 author: "zj"
 icon: 📈
 category: analysis
@@ -56,30 +56,30 @@ category: analysis
 
 ```bash
 # prop：比例堆叠柱状图 + 细胞数/比例 CSV
-Rscript scripts/annotation_stats.R --mode prop \
+Rscript /workspace/.skills/scrna-annotation-stats/scripts/annotation_stats.R --mode prop \
   --input {object.rds} --output {outdir} \
   --celltype-col {celltype} --group-col {orig.ident} --name prop
 
 # fisher：两组比例差异 Fisher 精确检验
-Rscript scripts/annotation_stats.R --mode fisher \
+Rscript /workspace/.skills/scrna-annotation-stats/scripts/annotation_stats.R --mode fisher \
   --input {object.rds} --output {outdir} \
   --celltype-col {celltype} --group-col {group} \
   --treat {Treate} --control {Control}
 
 # glm：两组比例差异样本级 GLM（有生物学重复时优先）
-Rscript scripts/annotation_stats.R --mode glm \
+Rscript /workspace/.skills/scrna-annotation-stats/scripts/annotation_stats.R --mode glm \
   --input {object.rds} --output {outdir} \
   --celltype-col {celltype} --group-col {group} \
   --treat {Treate} --control {Control}
 
 # deg-prop：多组配对 DEG 数 × 细胞比例变化气泡图
-Rscript scripts/annotation_stats.R --mode deg-prop \
+Rscript /workspace/.skills/scrna-annotation-stats/scripts/annotation_stats.R --mode deg-prop \
   --input {object.rds} --output {outdir} \
   --celltype-col {celltype} --group-col {orig.ident} \
   --pair {LC:N} --pair {T:N} --project-id myproject
 
 # pct-exp：基因表达百分比 + 平均表达
-Rscript scripts/annotation_stats.R --mode pct-exp \
+Rscript /workspace/.skills/scrna-annotation-stats/scripts/annotation_stats.R --mode pct-exp \
   --input {object.rds} --output {outdir} \
   --group-col {celltype} --genes {CD3D,CD8A,MS4A1}
 ```

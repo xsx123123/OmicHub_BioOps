@@ -4,9 +4,9 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: omichub-tuwunel-config
+  name: cygnusx-tuwunel-config
   namespace: agentteams-system
-  labels: {app.kubernetes.io/name: omichub-tuwunel, app.kubernetes.io/part-of: omichub-agentteams}
+  labels: {app.kubernetes.io/name: cygnusx-tuwunel, app.kubernetes.io/part-of: cygnusx-agentteams}
 data:
   # server_name 必须与 Gateway 的 GATEWAY_MATRIX_SERVER_NAME、
   # GATEWAY_MATRIX_IDENTITIES 中的域名部分一致。
@@ -19,40 +19,40 @@ data:
   TUWUNEL_ALLOW_REGISTRATION: "false"
   TUWUNEL_ALLOW_FEDERATION: "false"
   TUWUNEL_ALLOW_CHECK_FOR_UPDATES: "false"
-  # AppService 注册文件由 Secret omichub-tuwunel-appservice 挂载。
+  # AppService 注册文件由 Secret cygnusx-tuwunel-appservice 挂载。
   TUWUNEL_APPSERVICE_CONFIG_FILES: '["/etc/tuwunel/appservice/registration.yaml"]'
   TUWUNEL_LOG: "info,state_res=warn"
 ---
 apiVersion: v1
 kind: Secret
 metadata:
-  name: omichub-tuwunel-appservice
+  name: cygnusx-tuwunel-appservice
   namespace: agentteams-system
-  labels: {app.kubernetes.io/name: omichub-tuwunel, app.kubernetes.io/part-of: omichub-agentteams}
+  labels: {app.kubernetes.io/name: cygnusx-tuwunel, app.kubernetes.io/part-of: cygnusx-agentteams}
 type: Opaque
 stringData:
   # 模板：部署前替换两个 token，且 as_token 必须等于 Gateway 的
   # GATEWAY_MATRIX_SERVICE_TOKEN。sender_localpart 固定为 Gateway 伪装身份的
-  # 归属命名空间起点；users 正则覆盖静态身份与 omichub-user-* 动态账号。
+  # 归属命名空间起点；users 正则覆盖静态身份与 cygnusx-user-* 动态账号。
   registration.yaml: |
-    id: omichub-agent-gateway
-    url: "http://omichub-agent-gateway:8081"
+    id: cygnusx-agent-gateway
+    url: "http://cygnusx-agent-gateway:8081"
     as_token: "replace-appservice-as-token"
     hs_token: "replace-appservice-hs-token"
-    sender_localpart: omichub-user
+    sender_localpart: cygnusx-user
     namespaces:
       users:
         - exclusive: true
-          regex: "@(bioops-manager|omichub-user|omichub-user-.+|agent-.+):example\\.internal"
+          regex: "@(bioops-manager|cygnusx-user|cygnusx-user-.+|agent-.+):example\\.internal"
       rooms: []
       aliases: []
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: omichub-tuwunel-data
+  name: cygnusx-tuwunel-data
   namespace: agentteams-system
-  labels: {app.kubernetes.io/name: omichub-tuwunel, app.kubernetes.io/part-of: omichub-agentteams}
+  labels: {app.kubernetes.io/name: cygnusx-tuwunel, app.kubernetes.io/part-of: cygnusx-agentteams}
 spec:
   accessModes: [ReadWriteOnce]
   resources:
@@ -61,21 +61,21 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: omichub-tuwunel
+  name: cygnusx-tuwunel
   namespace: agentteams-system
   labels:
-    app.kubernetes.io/name: omichub-tuwunel
-    app.kubernetes.io/part-of: omichub-agentteams
+    app.kubernetes.io/name: cygnusx-tuwunel
+    app.kubernetes.io/part-of: cygnusx-agentteams
 spec:
   replicas: 1
   strategy: {type: Recreate}
   selector:
-    matchLabels: {app.kubernetes.io/name: omichub-tuwunel}
+    matchLabels: {app.kubernetes.io/name: cygnusx-tuwunel}
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: omichub-tuwunel
-        app.kubernetes.io/part-of: omichub-agentteams
+        app.kubernetes.io/name: cygnusx-tuwunel
+        app.kubernetes.io/part-of: cygnusx-agentteams
     spec:
       securityContext:
         runAsNonRoot: true
@@ -88,7 +88,7 @@ spec:
           image: jevolk/tuwunel:latest
           imagePullPolicy: IfNotPresent
           envFrom:
-            - configMapRef: {name: omichub-tuwunel-config}
+            - configMapRef: {name: cygnusx-tuwunel-config}
           ports: [{name: http, containerPort: 6167}]
           readinessProbe:
             httpGet: {path: /_matrix/client/versions, port: http}
@@ -109,18 +109,18 @@ spec:
             - {name: appservice, mountPath: /etc/tuwunel/appservice, readOnly: true}
       volumes:
         - name: data
-          persistentVolumeClaim: {claimName: omichub-tuwunel-data}
+          persistentVolumeClaim: {claimName: cygnusx-tuwunel-data}
         - name: tmp
           emptyDir: {medium: Memory}
         - name: appservice
-          secret: {secretName: omichub-tuwunel-appservice}
+          secret: {secretName: cygnusx-tuwunel-appservice}
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: omichub-tuwunel
+  name: cygnusx-tuwunel
   namespace: agentteams-system
-  labels: {app.kubernetes.io/name: omichub-tuwunel, app.kubernetes.io/part-of: omichub-agentteams}
+  labels: {app.kubernetes.io/name: cygnusx-tuwunel, app.kubernetes.io/part-of: cygnusx-agentteams}
 spec:
-  selector: {app.kubernetes.io/name: omichub-tuwunel}
+  selector: {app.kubernetes.io/name: cygnusx-tuwunel}
   ports: [{name: http, port: 6167, targetPort: http}]

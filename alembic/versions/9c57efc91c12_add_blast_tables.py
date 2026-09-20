@@ -58,12 +58,6 @@ def upgrade() -> None:
     op.create_index(
         op.f("ix_blast_databases_build_status"), "blast_databases", ["build_status"], unique=False
     )
-    op.create_index(
-        op.f("ix_blast_databases_version_group"), "blast_databases", ["version_group"], unique=False
-    )
-    op.create_index(
-        op.f("ix_blast_databases_is_active"), "blast_databases", ["is_active"], unique=False
-    )
 
     op.create_table(
         "blast_tasks",

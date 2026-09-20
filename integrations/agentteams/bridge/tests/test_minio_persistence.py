@@ -10,10 +10,10 @@ from typing import Any
 
 import pytest
 from fastapi import HTTPException
-from omichub_agentteams_bridge.audit import OPERATIONAL_EVENT_TYPES, AuditStore
-from omichub_agentteams_bridge.case_store import CaseStore
-from omichub_agentteams_bridge.minio_store import MinioBridgeStorage
-from omichub_agentteams_bridge.models import CaseRecord, WorkItemRecord
+from cygnusx_agentteams_bridge.audit import OPERATIONAL_EVENT_TYPES, AuditStore
+from cygnusx_agentteams_bridge.case_store import CaseStore
+from cygnusx_agentteams_bridge.minio_store import MinioBridgeStorage
+from cygnusx_agentteams_bridge.models import CaseRecord, WorkItemRecord
 
 
 class NoSuchKey(Exception):  # noqa: N818 - 类名刻意与 minio S3Error 的 code 对齐，供适配层识别
@@ -267,7 +267,7 @@ async def test_operational_events_are_counted_not_persisted(tmp_path: Path) -> N
     }
     # business 事件照常持久化
     await store.record(
-        case_id="case-1", actor="omichub-user", event_type="room.user_message", payload={}
+        case_id="case-1", actor="cygnusx-user", event_type="room.user_message", payload={}
     )
     assert [event["event_type"] for event in await store.list_events("case-1")] == [
         "room.user_message"
@@ -283,7 +283,7 @@ async def test_metrics_expose_operational_event_counts(tmp_path: Path) -> None:
             case_id="case-1", actor="agent-code", event_type="worker.heartbeat", payload={}
         )
     await store.record(
-        case_id="case-1", actor="omichub-user", event_type="room.user_message", payload={}
+        case_id="case-1", actor="cygnusx-user", event_type="room.user_message", payload={}
     )
     metrics = await store.metrics()
     assert metrics["operational_events__worker.heartbeat"] == 3
@@ -372,8 +372,8 @@ def test_audit_store_refuses_corrupt_minio_events(tmp_path: Path) -> None:
 @pytest.mark.asyncio
 async def test_healthz_reports_minio_fields(tmp_path: Path) -> None:
     from httpx import ASGITransport, AsyncClient
-    from omichub_agentteams_bridge.app import create_app
-    from omichub_agentteams_bridge.config import BridgeSettings
+    from cygnusx_agentteams_bridge.app import create_app
+    from cygnusx_agentteams_bridge.config import BridgeSettings
 
     client = FakeMinioClient()
     settings = BridgeSettings(
@@ -400,8 +400,8 @@ async def test_healthz_reports_minio_fields(tmp_path: Path) -> None:
 @pytest.mark.asyncio
 async def test_healthz_without_minio_reports_disabled(tmp_path: Path) -> None:
     from httpx import ASGITransport, AsyncClient
-    from omichub_agentteams_bridge.app import create_app
-    from omichub_agentteams_bridge.config import BridgeSettings
+    from cygnusx_agentteams_bridge.app import create_app
+    from cygnusx_agentteams_bridge.config import BridgeSettings
 
     settings = BridgeSettings(
         audit_log_path=str(tmp_path / "audit.jsonl"),
@@ -423,24 +423,24 @@ async def test_healthz_without_minio_reports_disabled(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-class _FakeOmicHubClient:
+class _FakeCygnusXClient:
     async def aclose(self) -> None:
         return None
 
 
 @pytest.mark.asyncio
 async def test_service_layer_runs_unchanged_on_minio_backed_stores(tmp_path: Path) -> None:
-    from omichub_agentteams_bridge.config import BridgeSettings
-    from omichub_agentteams_bridge.models import (
+    from cygnusx_agentteams_bridge.config import BridgeSettings
+    from cygnusx_agentteams_bridge.models import (
         CaseCreateRequest,
         ContextRef,
         WorkItemCreateRequest,
     )
-    from omichub_agentteams_bridge.service import BridgeService
+    from cygnusx_agentteams_bridge.service import BridgeService
 
     client = FakeMinioClient()
     settings = BridgeSettings(
-        omichub_service_token="service-token",
+        cygnusx_service_token="service-token",
         approval_signing_secret="test-signing-secret",
         identities="bioops-manager:manager,agent-code:code",
         role_agent_map="agent-code:agent-code",
@@ -454,7 +454,7 @@ async def test_service_layer_runs_unchanged_on_minio_backed_stores(tmp_path: Pat
     def build_service() -> BridgeService:
         return BridgeService(
             settings,
-            _FakeOmicHubClient(),
+            _FakeCygnusXClient(),
             AuditStore(settings.audit_log_path, minio_storage=make_storage(client)),
             CaseStore(settings.case_store_path, minio_storage=make_storage(client)),
         )

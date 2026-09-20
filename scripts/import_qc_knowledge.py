@@ -13,14 +13,14 @@ from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import quote, unquote
 
-from omichub.application.services.knowledge_index_service import KnowledgeIndexService
-from omichub.infrastructure.database.models.knowledge_base import KnowledgeBaseModel
-from omichub.infrastructure.database.models.knowledge_chunk import KbChunkModel
-from omichub.infrastructure.database.models.knowledge_document import KbDocumentModel
-from omichub.infrastructure.database.models.knowledge_editor import DocEditorModel
-from omichub.infrastructure.database.models.knowledge_revision import DocRevisionModel
-from omichub.infrastructure.database.models.user import UserModel
-from omichub.infrastructure.database.session import get_engine, get_session_factory
+from cygnusx.application.services.knowledge_index_service import KnowledgeIndexService
+from cygnusx.infrastructure.database.models.knowledge_base import KnowledgeBaseModel
+from cygnusx.infrastructure.database.models.knowledge_chunk import KbChunkModel
+from cygnusx.infrastructure.database.models.knowledge_document import KbDocumentModel
+from cygnusx.infrastructure.database.models.knowledge_editor import DocEditorModel
+from cygnusx.infrastructure.database.models.knowledge_revision import DocRevisionModel
+from cygnusx.infrastructure.database.models.user import UserModel
+from cygnusx.infrastructure.database.session import get_engine, get_session_factory
 from rich.console import Console
 from rich.progress import (
     BarColumn,
@@ -225,7 +225,7 @@ async def resolve_admin_user_id(
 
 
 def validate_sources() -> tuple[int, int, int, int]:
-    from omichub.application.services.knowledge_asset_service import KnowledgeAssetService
+    from cygnusx.application.services.knowledge_asset_service import KnowledgeAssetService
 
     markdown_files = discover_markdown_files()
     service = KnowledgeAssetService()

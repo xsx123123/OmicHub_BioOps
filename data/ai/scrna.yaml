@@ -4,24 +4,26 @@ description: 面向单细胞转录组质控、聚类、注释与下游分析。
 avatar: "🔬"
 color: "#e74c3c"
 category: analysis
-model: qwen3.7-plus
+model: qdoubao-seed-evolving
 prompt_file: prompts/scrna.md
 welcome_message: "你好！请提供 10x 矩阵、h5ad/rds 文件或单细胞分析目标。"
 temperature: 0.3
-max_tokens: 32768
+max_tokens: 65536
+package_catalogs: [scrna, r-bio, io, visualization, machine-learning, network]
 mcp_ids: []
 skill_ids:
   - human-mouse-cell-annotation
   - plant-cell-annotation
   # scRNA 可执行技能集（来源：pipelines/scrna/skills/，规范：Protocol/Skill_design.md）
-  - scrna-pipeline-overview
-  - scrna-object-convert
-  - scrna-recluster
-  - scrna-annotation-ref
-  - scrna-tcell-projectils
-  - scrna-deg-analysis
-  - scrna-annotation-stats
-  - scrna-quarto-report
+  - scrna-pipeline-core        # ⭐ 标准全流程：从原始数据到最终 Seurat 对象
+  - scrna-pipeline-overview    # 主流程使用说明
+  - scrna-object-convert       # RDS↔H5AD 转换与信息查看
+  - scrna-recluster            # 重聚类与降维优化
+  - scrna-annotation-stats     # 细胞类型统计报告
+  - scrna-deg-analysis         # 差异表达分析
+  - scrna-tcell-projectils     # T 细胞精细注释 (ProjecTILs)
+  - scrna-annotation-ref       # 参考数据验证 (Celldex)
+  - scrna-quarto-report        # HTML 报告渲染
   # inferCNV 工具（来源：pipelines/tools/skills/）
   - scrna-seq
   # bio_skills 单细胞技能集（来源：skills/bio_skills/single-cell/，市场目录 data/ai/skill_marketplace/bio-single-cell-*）
@@ -75,7 +77,7 @@ features:
   default_role: 单细胞 RNA-seq 专项分析
   capability_scope: [单细胞质控, 整合聚类, 细胞注释, marker, 轨迹与通讯]
   capability_tags: [single-cell-rna, qc, integration, clustering, annotation, marker-analysis]
-  accepts_inputs: [h5ad, rds, count-matrix, sample-metadata, research-plan]
+  accepts_inputs: [h5ad, rds, qs, count-matrix, sample-metadata, research-plan]
   produces_outputs: [domain-analysis-plan, annotated-object, marker-table, cell-composition]
   default_stage: domain-analysis
   web_search:

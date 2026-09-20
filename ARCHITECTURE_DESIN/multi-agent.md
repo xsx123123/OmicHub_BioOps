@@ -1,4 +1,4 @@
-# OmicHub 多 Agent 并行协作：现状调查与对话内 Fan-out 设计
+# CygnusX 多 Agent 并行协作：现状调查与对话内 Fan-out 设计
 
 > 依据仓库当前实现整理，更新于 2026-07-29。本文先记录**已经运行的能力**（含 A2A 使用现状调查），
 > 再给出**待实现设计**：一个 Agent 在对话中途临时拆出多个 LLM Agent 并行干活并汇总。
@@ -32,7 +32,7 @@
 ### 1.1 MAS DAG —— 计划级并行（真并行，但执行体不是 LLM）
 
 - 计划模型是经验证的 DAG：`ExecutionPlan.nodes` 带 `depends_on`，模型层强制无环校验
-  （`src/omichub/domain/mas/models.py:124-158`）。
+  （`src/cygnusx/domain/mas/models.py:124-158`）。
 - 调度器一次放行**所有**就绪节点：`MASSchedulerService.eligible_nodes()` 返回所有上游已成功的
   pending 节点，`unlock_ready_nodes()` 为每个节点发 `NODE_READY` 事件
   （`mas_scheduler_service.py:27-75`）。
@@ -97,7 +97,7 @@ schema 见 `tool_configs/tools_schema.yaml` 的 `transfer_to_agent` 条目）。
     → mas_a2a_events 表 (delivery_status=pending)
 Celery beat: mas-outbox-publish  每 10s
   A2AEventService.publish_pending()
-    → RedisStreamPublisher.xadd → stream "omichub:mas:events"（消费组 mas-scheduler，maxlen≈100k）
+    → RedisStreamPublisher.xadd → stream "cygnusx:mas:events"（消费组 mas-scheduler，maxlen≈100k）
 Celery beat: mas-event-consume   每 5s
   RedisStreamConsumer.read() → MASEventConsumerService.consume(event_id)   # 事件行即持久幂等记录
     → PLAN_APPROVED  → 运行 queued→running + unlock_ready_nodes
@@ -198,7 +198,7 @@ fan-out 不可接受，因此**不复用**该传输层（见 §4.8 边界划分�
       需要用户确认或长耗时管道任务应改用 MAS 计划。不得用于需要与用户交互澄清的场景。
     category: agent-orchestration
     invocation_mode: backend_sync
-    service: omichub.application.services.parallel_subagent_tool_service.ParallelSubAgentToolService
+    service: cygnusx.application.services.parallel_subagent_tool_service.ParallelSubAgentToolService
     method: run_parallel_subagents
     requires_confirm: false
     annotations: {readOnlyHint: false, destructiveHint: false, openWorld: true, idempotent: false}
@@ -372,7 +372,7 @@ RNAFlow 之类长管道，子 Agent 应在结果中建议父 Agent 走 MAS 计�
 4. `core/config.py` 加 §4.7 六个开关；
 5. chat_service 工具分发处识别 `control_tool: subagent_fanout`，
    发出 §4.6 的三段 SSE chunk；
-6. **运行时冒烟**：`docker restart omichub-web` 后实跑一次双 Agent fan-out
+6. **运行时冒烟**：`docker restart cygnusx-web` 后实跑一次双 Agent fan-out
    （py_compile 不够，见记忆「Runtime smoke after signature change」）。
 
 **Phase 2 —— 治理与灰度**
@@ -428,12 +428,12 @@ RNAFlow 之类长管道，子 Agent 应在结果中建议父 Agent 走 MAS 计�
 
 | 文件 | 改动 |
 | --- | --- |
-| `src/omichub/core/config.py` | 新增 §4.7 六个配置项 |
-| `src/omichub/application/services/parallel_subagent_service.py` | ★ 新增核心运行时（校验 / 预组装 / 并行子循环 / 汇总） |
-| `src/omichub/application/services/parallel_subagent_tool_service.py` | ★ 新增工具薄壳 |
+| `src/cygnusx/core/config.py` | 新增 §4.7 六个配置项 |
+| `src/cygnusx/application/services/parallel_subagent_service.py` | ★ 新增核心运行时（校验 / 预组装 / 并行子循环 / 汇总） |
+| `src/cygnusx/application/services/parallel_subagent_tool_service.py` | ★ 新增工具薄壳 |
 | `tool_configs/tools_schema.yaml` | 注册 `parallel_subagents` 条目 |
 | `data/ai/tools/subagents.yaml` | ★ 新增工具包 |
-| `src/omichub/application/services/chat_service.py` | 特判分支 + `subagents` SSE chunk + 单轮配额 + 回灌上限放宽 |
+| `src/cygnusx/application/services/chat_service.py` | 特判分支 + `subagents` SSE chunk + 单轮配额 + 回灌上限放宽 |
 | `data/ai/general.yaml` / `code.yaml` | 挂 `subagents` 包 + `subagents_spawnable: true` |
 | `data/ai/rnaseq.yaml` / `scrna.yaml` | 仅 `subagents_spawnable: true`（可被派生、不可派生别人） |
 | `data/ai/prompts/general.md` | 新增「并行子任务分派」使用纪律段落 |
@@ -463,7 +463,7 @@ RNAFlow 之类长管道，子 Agent 应在结果中建议父 Agent 走 MAS 计�
 - 新增单测 7/7 通过（并行成立 / 失败隔离 / 防递归剥离 / 超时 / 工具回环独占 session / 开关 / 白名单 / 参数校验）；
 - 全量 unit 套件 637 通过，14 个失败与改动前基线完全一致（存量问题，非本次引入）；
 - 运行时冒烟：模块导入、schema → OpenAI 工具暴露、YAML 加载链路（tool_packs 合并 + spawnable）全部通过；
-- `docker restart omichub-web` 后容器 healthy。
+- `docker restart cygnusx-web` 后容器 healthy。
 
 ### 启用方式（双通道，任一为真即启用）
 

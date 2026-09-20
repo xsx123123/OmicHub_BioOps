@@ -1,6 +1,6 @@
 """统一 Agent 执行事件契约测试。"""
 
-from omichub.application.services.execution_events import (
+from cygnusx.application.services.execution_events import (
     EXECUTION_EVENT_TYPES,
     execution_chunk,
     execution_metadata,

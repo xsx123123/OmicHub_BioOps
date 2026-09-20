@@ -1,5 +1,5 @@
-const USER_HOME_PREFIX = /^\/data\/omichub\/users\/[^/]+(?=\/|$)/
-const USER_HOME_PREFIX_IN_TEXT = /\/data\/omichub\/users\/[^/]+(?=\/|$)/g
+const USER_HOME_PREFIX = /^\/data\/cygnusx\/users\/[^/]+(?=\/|$)/
+const USER_HOME_PREFIX_IN_TEXT = /\/data\/cygnusx\/users\/[^/]+(?=\/|$)/g
 
 /**
  * Produces the path users see in the workbench without exposing the platform's

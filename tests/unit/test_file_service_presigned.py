@@ -6,13 +6,13 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from omichub.application.services.file_service import FileService
-from omichub.core.exceptions import AuthorizationError, BusinessError, NotFoundError, ValidationError
-from omichub.domain.file.entities import DataFile
-from omichub.domain.file.value_objects import FileType, OwnerScope
-from omichub.infrastructure.config.storage_config import StorageConfig
-from omichub.infrastructure.storage.backend import LocalStorageBackend
-from omichub.infrastructure.storage.path_factory import StoragePathFactory
+from cygnusx.application.services.file_service import FileService
+from cygnusx.core.exceptions import AuthorizationError, BusinessError, NotFoundError, ValidationError
+from cygnusx.domain.file.entities import DataFile
+from cygnusx.domain.file.value_objects import FileType, OwnerScope
+from cygnusx.infrastructure.config.storage_config import StorageConfig
+from cygnusx.infrastructure.storage.backend import LocalStorageBackend
+from cygnusx.infrastructure.storage.path_factory import StoragePathFactory
 
 
 class _FakeS3Backend:

@@ -8,7 +8,7 @@
 
 ## 角色与上下文
 
-你是 OmicHub 仓库的高级全栈工程师。OmicHub 是生信分析平台（FastAPI + Celery + Vue3），
+你是 CygnusX 仓库的高级全栈工程师。CygnusX 是生信分析平台（FastAPI + Celery + Vue3），
 仓库内嵌 AgentTeams 协同栈（`integrations/agentteams/`：Bridge / Gateway / Worker 三个
 Python 子项目 + `deploy/agentteams/` 部署目录）。比赛要求以 AgentTeams 为多 Agent 协同基点，
 当前编排骨架已完成（状态机/租约/审批/审计/投影，已审核通过），缺的是**执行内核**。
@@ -25,11 +25,11 @@ Python 子项目 + `deploy/agentteams/` 部署目录）。比赛要求以 AgentT
 ### 阶段 P0（闭环必需，顺序执行）
 
 1. **P0-1 consultation 端点**（规格 §8 P0-1）：
-   - 新建 `src/omichub/application/services/agent_consultation_service.py`，复用
+   - 新建 `src/cygnusx/application/services/agent_consultation_service.py`，复用
      `AgentService.assemble_context`（`agent_service.py:758-969`）+
      `ParallelSubAgentService`（`parallel_subagent_service.py:161`，`safe_only=True`、
      `workspace_access=False`、`runtime_authorized=True`、单 task）；
-   - `src/omichub/api/v1/agentteams.py` 加 `POST /consultations/scientific-interpretation`，
+   - `src/cygnusx/api/v1/agentteams.py` 加 `POST /consultations/scientific-interpretation`，
      集成令牌认证（`X-Integration-Token` + `hmac.compare_digest`，Settings 裸名
      `AGENTTEAMS_INTEGRATION_TOKEN`，**无 env_prefix**），不得用 `CurrentUserId`；
    - Bridge/Gateway/Worker 三处透传 `requester_ref`；Bridge `config.py` 加权威
@@ -67,10 +67,10 @@ P1-9 假创建入口修复（选文案方案 (b)，一行改动）。
 ## 硬性约束（违反任何一条视为返工）
 
 1. **业务智能不进 Bridge/Gateway/Worker**：解读、质控判断、规划等 LLM 逻辑只许写在
-   OmicHub 侧（consultation 服务 + `data/ai/*.yaml` 提示词）。Bridge 只做状态机/租约/
+   CygnusX 侧（consultation 服务 + `data/ai/*.yaml` 提示词）。Bridge 只做状态机/租约/
    审批/审计/派单；Worker 保持无 LLM 薄转发。
-2. **改动服务后必须重启才生效**：后端代码 → `docker restart omichub-web`；
-   Celery 任务/投影/watch → `docker restart omichub-worker`（两个服务均无热重载）。
+2. **改动服务后必须重启才生效**：后端代码 → `docker restart cygnusx-web`；
+   Celery 任务/投影/watch → `docker restart cygnusx-worker`（两个服务均无热重载）。
    验证时必须重启后实测，不得以 py_compile/单测通过代替运行时验证。
 3. **不做赛后目标**：`update_agent.md` 的真异步、逐条点评、人格化招募等 P1-P4 内容
    一律不实现、不预留半成品代码。

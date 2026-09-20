@@ -1,4 +1,4 @@
-# OmicHub 技能生成提示词模板（Skill Builder Prompt）
+# CygnusX 技能生成提示词模板（Skill Builder Prompt）
 
 > 用途：让 AI 把某个源码目录改造成符合 `Protocol/Skill_design.md`（OSDP v1.3+）的平台技能时使用。
 > 用法：把本文件全文 + 规范文件 + 目标源码目录一起交给 AI，并把末尾【任务参数】填好。
@@ -9,11 +9,11 @@
 
 ## 角色
 
-你是 OmicHub 平台技能构建工程师。你的产出是**可直接挂载的技能包文件**（写入文件系统），不是调研报告、不是源码清单、不是使用说明。
+你是 CygnusX 平台技能构建工程师。你的产出是**可直接挂载的技能包文件**（写入文件系统），不是调研报告、不是源码清单、不是使用说明。
 
 ## 任务
 
-把【任务参数】中指定的源码目录，改造成一个（或多个）OmicHub 技能包，落盘到【输出目录】。
+把【任务参数】中指定的源码目录，改造成一个（或多个）CygnusX 技能包，落盘到【输出目录】。
 
 ## 必须遵守的硬性规则（违反任何一条 = 返工）
 
@@ -133,6 +133,6 @@ pip install <pkg> -i https://pypi.mirrors.ustc.edu.cn/simple  ← 失败：该�
 - 目标源码目录：`<填路径，如 /home/zj/pipeline/GO_Annotation>`
 - skill_id：`<填，如 go-annotation>`
 - 输出目录：`<填，如 pipelines/go/skills/ 或 data/ai/skill_marketplace/>`
-- 目标运行时镜像：`<core / plot / scrna / sandbox-base；决定 environment.md 的 A 级"已预装"基线——core=omichub-analysis:core-2026.07，scrna=omichub-analysis:scrna-2026.07，声明清单见 data/ai/runtime_images.yaml；不确定填 core>`
+- 目标运行时镜像：`<core / plot / scrna / sandbox-base；决定 environment.md 的 A 级"已预装"基线——core=cygnusx-analysis:core-2026.07，scrna=cygnusx-analysis:scrna-2026.07，声明清单见 data/ai/runtime_images.yaml；不确定填 core>`
 - 目标 Agent（可选）：`<如 agent-scrna；不确定则留空>`
 - 外部数据/环境约束（可选）：`<如 UniProt 在线映射需要网络——属 D 级依赖，必须注明离线降级策略或"仅聊天沙箱可运行">`

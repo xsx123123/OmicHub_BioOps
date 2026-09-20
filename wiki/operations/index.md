@@ -10,8 +10,8 @@
 ## 关键目录
 
 ```text
-/data/omichub/
-├── omichub_data/       # 集中数据区（DB、Redis、JBrowse、知识库、欢迎词）
+/data/cygnusx/
+├── cygnusx_data/       # 集中数据区（DB、Redis、JBrowse、知识库、欢迎词）
 ├── users/<user_id>/    # 用户私有数据
 ├── uploads/            # 分片上传中转
 ├── bin/                # 外置二进制（EBIDownload、ossutil 等）
@@ -23,14 +23,14 @@
 
 ```bash
 # 实时跟踪应用日志
-tail -f /data/omichub/logs/app/omichub.log
+tail -f /data/cygnusx/logs/app/cygnusx.log
 
 # 只看 ERROR
-tail -f /data/omichub/logs/app/error.log
+tail -f /data/cygnusx/logs/app/error.log
 
 # 按任务查 Celery 日志
-tail -f /data/omichub/logs/celery/tasks/{task_id}.log
+tail -f /data/cygnusx/logs/celery/tasks/{task_id}.log
 
 # Nginx 5xx
-jq 'select(.status >= 500)' /data/omichub/logs/nginx/access.log
+jq 'select(.status >= 500)' /data/cygnusx/logs/nginx/access.log
 ```

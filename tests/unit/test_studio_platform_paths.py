@@ -5,16 +5,16 @@ from pathlib import Path
 
 import pytest
 
-from omichub.infrastructure.config.storage_config import StorageConfig
-from omichub.infrastructure.storage.backend import LocalStorageBackend
-from omichub.infrastructure.storage.path_factory import StoragePathFactory
-from omichub.infrastructure.studio.paths import (
+from cygnusx.infrastructure.config.storage_config import StorageConfig
+from cygnusx.infrastructure.storage.backend import LocalStorageBackend
+from cygnusx.infrastructure.storage.path_factory import StoragePathFactory
+from cygnusx.infrastructure.studio.paths import (
     PLATFORM_CONTAINER_MOUNT,
     PathEscapeError,
     resolve_workspace_path,
     resolve_workspace_read_path,
 )
-from omichub.infrastructure.studio.workspace import (
+from cygnusx.infrastructure.studio.workspace import (
     disk_read_file,
     link_platform_file,
     list_input_links,

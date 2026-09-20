@@ -57,7 +57,7 @@ make docker-dev-refresh
 
 # 或手动
 make frontend-build
-docker restart omichub-nginx
+docker restart cygnusx-nginx
 
 # 浏览器强制刷新
 Ctrl+Shift+R
@@ -68,12 +68,12 @@ Ctrl+Shift+R
 | 回滚场景 | 操作 |
 |---|---|
 | 代码回滚 | 切回上一个镜像或上一个 commit，重启容器 |
-| 数据库回滚 | `docker exec omichub-web uv run alembic downgrade -1` |
-| 完全回滚 | 使用备份的 `/data/omichub` 与数据库 dump 恢复 |
+| 数据库回滚 | `docker exec cygnusx-web uv run alembic downgrade -1` |
+| 完全回滚 | 使用备份的 `/data/cygnusx` 与数据库 dump 恢复 |
 
 生产环境建议每次部署前备份：
 
 ```bash
-docker exec omichub-db pg_dump -U omichub -d omichub > omichub_$(date +%F).sql
-sudo rsync -aP /data/omichub/ /backup/omichub_$(date +%F)/
+docker exec cygnusx-db pg_dump -U cygnusx -d cygnusx > cygnusx_$(date +%F).sql
+sudo rsync -aP /data/cygnusx/ /backup/cygnusx_$(date +%F)/
 ```

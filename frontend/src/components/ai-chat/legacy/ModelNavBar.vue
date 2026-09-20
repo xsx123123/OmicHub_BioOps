@@ -160,7 +160,7 @@ function handleShare() {
             <div
               v-for="m in groupedModels.fav"
               :key="m.id"
-              class="model-item omichub-selectable-card"
+              class="model-item cygnusx-selectable-card"
               :class="{ selected: m.id === chatSessionStore.selectedModelId, 'is-selected': m.id === chatSessionStore.selectedModelId }"
               role="option"
               tabindex="0"
@@ -191,7 +191,7 @@ function handleShare() {
           <div
             v-for="m in groupedModels.general"
             :key="m.id"
-            class="model-item omichub-selectable-card"
+            class="model-item cygnusx-selectable-card"
             :class="{ selected: m.id === chatSessionStore.selectedModelId, 'is-selected': m.id === chatSessionStore.selectedModelId }"
             role="option"
             tabindex="0"
@@ -230,7 +230,7 @@ function handleShare() {
             <div
               v-for="m in groupedModels.bio"
               :key="m.id"
-              class="model-item omichub-selectable-card"
+              class="model-item cygnusx-selectable-card"
               :class="{ selected: m.id === chatSessionStore.selectedModelId, 'is-selected': m.id === chatSessionStore.selectedModelId }"
               role="option"
               tabindex="0"

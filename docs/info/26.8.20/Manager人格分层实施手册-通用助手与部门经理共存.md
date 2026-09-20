@@ -71,7 +71,7 @@ Spec：以后端 agent YAML 的 `display_name` 为唯一权威来源，通过协
    - prompt_file 指向新建的 data/ai/prompts/agentteams_manager.md，
      禁止复用或 include prompts/general.md；
    - 在 capability registry 中声明 planner_eligible。
-2. src/omichub/application/services/agentteams_room_response_service.py：
+2. src/cygnusx/application/services/agentteams_room_response_service.py：
    - :66 _PREFERRED_MANAGER_AGENT_ID 硬编码改为配置项
      agentteams.manager_agent_id（默认 agentteams-manager），配置加载失败时
      报错而非静默回退；

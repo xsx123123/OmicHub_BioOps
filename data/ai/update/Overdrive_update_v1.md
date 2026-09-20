@@ -3,7 +3,7 @@
 > 文档性质：施工规格，供 Codex 直接施工。  
 > 编写日期：2026-08-11。  
 > 问题动机：用户发起"TnpD 序列对 20 个基因组建树"任务，收到的回复"已按系统发育领域契约固定执行链：……"是 `chat_service.py` 里的硬编码模板——**用户感知到超频模式不是真 AI 在规划**，要求"让 AI 真正根据不同任务进行 multi-agent 分析"。  
-> 与 AgentTeams 文档族的关系：本文针对的是 OmicHub 侧超频（overdrive）Manager 规划层，不涉及 Bridge/Gateway/Worker 契约。
+> 与 AgentTeams 文档族的关系：本文针对的是 CygnusX 侧超频（overdrive）Manager 规划层，不涉及 Bridge/Gateway/Worker 契约。
 
 ---
 
@@ -13,7 +13,7 @@
 
 | # | 证据 | 出处 |
 |---|---|---|
-| E1 | 回复文案逐字硬编码，命中权威契约即覆盖 LLM 输出 | `src/omichub/application/services/chat_service.py:3178-3183` |
+| E1 | 回复文案逐字硬编码，命中权威契约即覆盖 LLM 输出 | `src/cygnusx/application/services/chat_service.py:3178-3183` |
 | E2 | DB 时间戳：用户消息 12:22:21.560 → 助手回复 12:22:21.569，**间隔 9.7ms**，物理上不可能是 LLM 往返 | `chat_messages` 表，session `1147829a-…` |
 | E3 | 同一模板 1 小时内在 3 个会话重复出现 5 次，全部秒回 | `chat_messages` LIKE '%固定执行链%' |
 | E4 | 权威规则定义在领域包 YAML，`phylo.yaml` 有 2 条 `authoritative: true` 规则 | `data/ai/domains/phylo.yaml:93-111` |
@@ -55,7 +55,7 @@
 
 ### P0-1 规划模式配置开关
 
-**施工**：`src/omichub/core/config.py` 新增（裸名无前缀）：
+**施工**：`src/cygnusx/core/config.py` 新增（裸名无前缀）：
 
 ```python
 overdrive_authoritative_mode: str = "constraint"   # constraint | override | off
@@ -66,7 +66,7 @@ overdrive_plan_repair_enabled: bool = True          # LLM 计划违规时给一�
 - `override`：旧行为（整体替换），用于快速回滚；
 - `off`：完全不用权威规则（调试用）。
 
-`.env.example` 同步。改完 `docker restart omichub-web`。
+`.env.example` 同步。改完 `docker restart cygnusx-web`。
 
 ### P0-2 核心改造：authoritative 从"替换"改为"校验+补缺"
 
@@ -109,7 +109,7 @@ validate_llm_plan(assignments, authoritative_rules) → violations[]
 ### P0-3 领域包 schema 扩展：authoritative 规则声明"锚点"语义
 
 **施工**：
-1. `src/omichub/domain/domains/schema.py` 的 `AssignmentRule` 增加字段：
+1. `src/cygnusx/domain/domains/schema.py` 的 `AssignmentRule` 增加字段：
    ```yaml
    authoritative: true
    required: true            # 该阶段锚点必须出现在最终计划中
@@ -178,13 +178,13 @@ validate_llm_plan(assignments, authoritative_rules) → violations[]
 ⬜ **护栏有效**：mock LLM 缺锚点 → 修复或 rule_merge，最终计划必含必需阶段且顺序正确。  
 ⬜ **可回滚**：`override` 模式行为与现状逐字节一致。  
 ⬜ **可观测**：planning_mode 分布可查；speech 覆盖计数恒 0。  
-⬜ **不回归**：普通 chat（非超频）路径不受影响；`docker restart omichub-web` 后超频端到端跑通一次建树 Case。
+⬜ **不回归**：普通 chat（非超频）路径不受影响；`docker restart cygnusx-web` 后超频端到端跑通一次建树 Case。
 
 ---
 
 ## 5. 施工纪律
 
-- 改 `chat_service.py` / schema / prompt → `docker restart omichub-web`（uvicorn 无 reload）；本项目无热重载，`docker exec` 看的是磁盘不是内存。
+- 改 `chat_service.py` / schema / prompt → `docker restart cygnusx-web`（uvicorn 无 reload）；本项目无热重载，`docker exec` 看的是磁盘不是内存。
 - 注意 chat_service 有 **LangGraph 与 legacy 双执行路径**：超频规划入口若两条路径都有，必须两边都改或确认只有一条生效（grep `authoritative_only` 与 `OVERDRIVE_MANAGER_PROMPT` 的全部调用点）。
 - 前端构建：`vue-tsc -b` + `vite build`；报"找不到名字"幻影错误先删 `frontend/tsconfig*.tsbuildinfo`。
 - 禁止 git commit（用户自行审查提交）；发现规格错误在交付报告中提出，不擅自改设计。
@@ -220,9 +220,9 @@ validate_llm_plan(assignments, authoritative_rules) → violations[]
 
 | 文件 | 改动 |
 |---|---|
-| `src/omichub/application/services/chat_service.py` | P0-2 重构 3168-3199；删模板话术；metadata 写 planning_mode；P0-4 |
-| `src/omichub/domain/domains/schema.py` | AssignmentRule 新增 required/allow_split/allow_reorder |
-| `src/omichub/infrastructure/config/domain_pack_loader.py` | 新字段校验与默认值 |
+| `src/cygnusx/application/services/chat_service.py` | P0-2 重构 3168-3199；删模板话术；metadata 写 planning_mode；P0-4 |
+| `src/cygnusx/domain/domains/schema.py` | AssignmentRule 新增 required/allow_split/allow_reorder |
+| `src/cygnusx/infrastructure/config/domain_pack_loader.py` | 新字段校验与默认值 |
 | `data/ai/domains/phylo.yaml`（+自查 omics.yaml） | 补锚点语义字段 |
-| `src/omichub/core/config.py` / `.env.example` | overdrive_authoritative_mode 等开关 |
+| `src/cygnusx/core/config.py` / `.env.example` | overdrive_authoritative_mode 等开关 |
 | `frontend/src/components/ai-chat/PlanConfirmationCard.vue` | 规划来源标记 |

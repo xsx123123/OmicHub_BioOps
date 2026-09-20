@@ -6,10 +6,10 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from omichub.application.services.agent_memory_service import AgentMemoryService
-from omichub.application.services.agent_memory_tool_service import AgentMemoryToolService
-from omichub.core.exceptions import BusinessError
-from omichub.infrastructure.database.models.agent_memory import (
+from cygnusx.application.services.agent_memory_service import AgentMemoryService
+from cygnusx.application.services.agent_memory_tool_service import AgentMemoryToolService
+from cygnusx.core.exceptions import BusinessError
+from cygnusx.infrastructure.database.models.agent_memory import (
     EMBEDDING_DIMENSIONS,
     AgentMemoryModel,
 )
@@ -64,7 +64,7 @@ async def test_semantic_rank_prefers_embedding_similarity(monkeypatch) -> None:
         agent_memory_semantic_candidate_limit=100,
     )
     monkeypatch.setattr(
-        "omichub.application.services.agent_memory_service.get_settings", lambda: settings
+        "cygnusx.application.services.agent_memory_service.get_settings", lambda: settings
     )
 
     class EmbeddingClient:
@@ -102,7 +102,7 @@ async def test_embedding_failure_returns_empty_vector_for_keyword_fallback(monke
         agent_memory_semantic_candidate_limit=100,
     )
     monkeypatch.setattr(
-        "omichub.application.services.agent_memory_service.get_settings", lambda: settings
+        "cygnusx.application.services.agent_memory_service.get_settings", lambda: settings
     )
 
     class BrokenEmbeddingClient:
@@ -122,7 +122,7 @@ async def test_wrong_dimension_embedding_returns_empty_vector_for_keyword_fallba
         agent_memory_semantic_candidate_limit=100,
     )
     monkeypatch.setattr(
-        "omichub.application.services.agent_memory_service.get_settings", lambda: settings
+        "cygnusx.application.services.agent_memory_service.get_settings", lambda: settings
     )
 
     class WrongDimensionEmbeddingClient:
@@ -133,3 +133,216 @@ async def test_wrong_dimension_embedding_returns_empty_vector_for_keyword_fallba
     service = AgentMemoryService(AsyncMock(), embedding_client=WrongDimensionEmbeddingClient())
 
     assert await service._embed("测试") == []
+
+
+# --- M1：v2 共享分区召回两路合并 ---
+
+def _v2_settings(**overrides) -> SimpleNamespace:
+    base = {
+        "memory_v2_enabled": True,
+        "memory_fact_time_decay_lambda": 0.02,
+        "agent_memory_embedding_model": "text-embedding-3-small",
+        "agent_memory_semantic_retrieval_enabled": True,
+        "agent_memory_semantic_candidate_limit": 100,
+    }
+    base.update(overrides)
+    return SimpleNamespace(**base)
+
+
+class _FixedEmbeddingClient:
+    async def embeddings(self, _text: str, *, model: str) -> list[float]:
+        return [1.0, *([0.0] * (EMBEDDING_DIMENSIONS - 1))]
+
+
+def _fact(
+    fact_id: int,
+    agent_id: str,
+    scope: str,
+    content: str,
+    *,
+    similarity: float = 0.9,
+) -> SimpleNamespace:
+    return SimpleNamespace(
+        id=fact_id,
+        user_id="user-1",
+        agent_id=agent_id,
+        scope=scope,
+        content=content,
+        keywords=[],
+        embedding=None,
+        embedding_model=None,
+        source_session_id=None,
+        source_message_ids=[],
+        confidence=1.0,
+        status="active",
+        created_at=datetime.now(UTC),
+        last_recalled_at=None,
+        superseded_by=None,
+        similarity=similarity,
+    )
+
+
+def _patch_fact_store(monkeypatch, partitions: dict[str, list]) -> list[str]:
+    """按分区返回预置事实的 FakeStore；返回每次召回命中的分区序列。"""
+    calls: list[str] = []
+
+    class FakeStore:
+        def __init__(self, _db) -> None:
+            pass
+
+        async def search(self, user_id, agent_id, query_vector, limit=10):
+            calls.append(agent_id)
+            return list(partitions.get(agent_id, []))[:limit]
+
+    monkeypatch.setattr(
+        "cygnusx.application.services.agent_memory_service.PostgresFactStore", FakeStore
+    )
+    return calls
+
+
+class _FakeScalars:
+    def __init__(self, rows: list) -> None:
+        self._rows = rows
+
+    def all(self) -> list:
+        return self._rows
+
+
+def _block(block_id: int, agent_id: str, name: str, content: str) -> SimpleNamespace:
+    return SimpleNamespace(
+        id=block_id, agent_id=agent_id, block_name=name, content=content, char_limit=2000
+    )
+
+
+@pytest.mark.asyncio
+async def test_v2_search_merges_shared_partition_across_agents(monkeypatch) -> None:
+    """agent A 写入共享偏好（agent_id=""），agent B 召回可见，且共享层结果优先。"""
+    monkeypatch.setattr(
+        "cygnusx.application.services.agent_memory_service.get_settings",
+        lambda: _v2_settings(),
+    )
+    shared_pref = _fact(1, "", "preference", "结果图都用英文标注")
+    b_project = _fact(2, "agent-b", "project", "agent-b 的项目事实")
+    calls = _patch_fact_store(monkeypatch, {"": [shared_pref], "agent-b": [b_project]})
+
+    service = AgentMemoryService(AsyncMock(), embedding_client=_FixedEmbeddingClient())
+    result = await service.search_memory(user_id="user-1", query="绘图偏好", agent_id="agent-b")
+
+    assert [m["content"] for m in result["memories"]] == [
+        "结果图都用英文标注",
+        "agent-b 的项目事实",
+    ]
+    assert calls == ["", "agent-b"]
+
+
+@pytest.mark.asyncio
+async def test_v2_search_keeps_agent_partition_isolated(monkeypatch) -> None:
+    """agent 分区事实（project/summary）不被其他 agent 召回。"""
+    monkeypatch.setattr(
+        "cygnusx.application.services.agent_memory_service.get_settings",
+        lambda: _v2_settings(),
+    )
+    a_project = _fact(3, "agent-a", "project", "agent-a 的项目事实")
+    calls = _patch_fact_store(monkeypatch, {"agent-a": [a_project]})
+
+    service = AgentMemoryService(AsyncMock(), embedding_client=_FixedEmbeddingClient())
+    result = await service.search_memory(user_id="user-1", query="项目", agent_id="agent-b")
+
+    assert result["memories"] == []
+    assert "agent-a" not in calls
+
+
+@pytest.mark.asyncio
+async def test_v2_search_dedupes_when_current_agent_is_shared_partition(monkeypatch) -> None:
+    """当前 agent 即共享分区时两路命中同一事实，去重后不重复返回。"""
+    monkeypatch.setattr(
+        "cygnusx.application.services.agent_memory_service.get_settings",
+        lambda: _v2_settings(),
+    )
+    shared_pref = _fact(1, "", "preference", "结果图都用英文标注")
+    calls = _patch_fact_store(monkeypatch, {"": [shared_pref]})
+
+    service = AgentMemoryService(AsyncMock(), embedding_client=_FixedEmbeddingClient())
+    result = await service.search_memory(user_id="user-1", query="绘图偏好", agent_id=None)
+
+    assert [m["id"] for m in result["memories"]] == ["1"]
+    assert calls == [""]
+
+
+@pytest.mark.asyncio
+async def test_v2_prompt_context_merges_shared_blocks_and_facts(monkeypatch) -> None:
+    """build_prompt_context_v2：共享层块 + 当前 agent 块、共享事实 + 分区事实均注入。"""
+    monkeypatch.setattr(
+        "cygnusx.application.services.agent_memory_service.get_settings",
+        lambda: _v2_settings(),
+    )
+    blocks = [
+        _block(1, "", "profile", "用户画像：肿瘤方向 PI"),
+        _block(2, "agentteams-manager", "current_focus", "当前关注：协作室交付"),
+    ]
+    shared_pref = _fact(1, "", "preference", "结果图都用英文标注")
+    mgr_fact = _fact(2, "agentteams-manager", "summary", "manager 分区摘要")
+    _patch_fact_store(monkeypatch, {"": [shared_pref], "agentteams-manager": [mgr_fact]})
+
+    db = AsyncMock()
+    db.scalars = AsyncMock(return_value=_FakeScalars(blocks))
+    service = AgentMemoryService(db, embedding_client=_FixedEmbeddingClient())
+
+    content = await service.build_prompt_context_v2("user-1", "agentteams-manager", "画图")
+
+    assert content.startswith("<user_memory>")
+    assert content.rstrip().endswith("</user_memory>")
+    assert "用户画像：肿瘤方向 PI" in content
+    assert "当前关注：协作室交付" in content
+    assert "结果图都用英文标注" in content
+    assert "manager 分区摘要" in content
+    # 共享层块排前
+    assert content.index("用户画像") < content.index("当前关注")
+
+
+@pytest.mark.asyncio
+async def test_v2_prompt_context_enforces_3200_byte_budget(monkeypatch) -> None:
+    """注入预算截断生效：超长块被截到 3200 字节以内且包装完整。"""
+    monkeypatch.setattr(
+        "cygnusx.application.services.agent_memory_service.get_settings",
+        lambda: _v2_settings(),
+    )
+    blocks = [_block(1, "", "profile", "长" * 5000)]
+    _patch_fact_store(monkeypatch, {})
+
+    db = AsyncMock()
+    db.scalars = AsyncMock(return_value=_FakeScalars(blocks))
+    service = AgentMemoryService(db, embedding_client=_FixedEmbeddingClient())
+
+    content = await service.build_prompt_context_v2("user-1", "agent-b", "任意问题")
+
+    assert len(content.encode("utf-8")) <= 3200
+    assert content.startswith("<user_memory>")
+
+
+@pytest.mark.asyncio
+async def test_v2_off_search_does_not_touch_fact_store(monkeypatch) -> None:
+    """v2 off 回归：旧 agent_memories 链路不变，完全不经过 v2 FactStore。"""
+    monkeypatch.setattr(
+        "cygnusx.application.services.agent_memory_service.get_settings",
+        lambda: _v2_settings(
+            memory_v2_enabled=False,
+            agent_memory_semantic_retrieval_enabled=False,
+            agent_memory_embedding_model="",
+        ),
+    )
+
+    class _ForbiddenStore:
+        def __init__(self, _db) -> None:
+            raise AssertionError("v2 off 不应触达 FactStore")
+
+    monkeypatch.setattr(
+        "cygnusx.application.services.agent_memory_service.PostgresFactStore", _ForbiddenStore
+    )
+    db = AsyncMock()
+    db.scalars = AsyncMock(return_value=_FakeScalars([]))
+    service = AgentMemoryService(db, embedding_client=_FixedEmbeddingClient())
+
+    result = await service.search_memory(user_id="user-1", query="偏好", agent_id="agent-b")
+
+    assert result == {"memories": [], "count": 0}

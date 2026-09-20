@@ -6,9 +6,9 @@ from uuid import UUID
 
 import pytest
 
-from omichub.domain.file.value_objects import FileSource
-from omichub.infrastructure.celery_app.tasks.analysis import _register_pipeline_outputs
-from omichub.infrastructure.storage.file_registry import FileRegistry
+from cygnusx.domain.file.value_objects import FileSource
+from cygnusx.infrastructure.celery_app.tasks.analysis import _register_pipeline_outputs
+from cygnusx.infrastructure.storage.file_registry import FileRegistry
 
 
 @pytest.mark.unit

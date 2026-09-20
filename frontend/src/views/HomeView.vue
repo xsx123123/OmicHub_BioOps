@@ -27,7 +27,7 @@ import { displayName as getDisplayName } from '@/utils/displayName'
 // 默认文案兜底：API 拉取失败时保证首页仍可正常渲染
 const DEFAULT_CONTENT: SiteContent = {
   hero: {
-    title: '欢迎使用 OmicHub',
+    title: '欢迎使用 CygnusX',
     description: '华中农业大学园艺林学学院私有化多组学分析平台。从数据上传、流程分析到结果交付，一站式完成您的组学研究。',
   },
   quick_entries: [
@@ -119,7 +119,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="home-page" role="main" aria-label="OmicHub 首页">
+  <div class="home-page" role="main" aria-label="CygnusX 首页">
     <!-- Hero 欢迎区 -->
     <section class="hero animate-fade-in-up">
       <OmicBackgroundAnimation context="hero" />
@@ -292,7 +292,7 @@ onMounted(async () => {
   flex-wrap: wrap;
 }
 
-/* Hero 渐变背景上的按钮：毛玻璃 + 高亮边框方案（规范见 ARCHITECTURE_DESIN/fontend.md §5.7）。
+/* Hero 渐变背景上的按钮：毛玻璃 + 高亮边框方案（规范见 ARCHITECTURE_DESIN/frontend.md §5.7）。
    注意：Naive 将 --n-* 变量内联在元素上，class 级变量覆盖无效；
    这里直接用 CSS 属性 + 双类选择器提高特异性覆盖。 */
 .n-button.hero-btn-primary {

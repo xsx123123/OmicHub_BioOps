@@ -4,7 +4,7 @@ from pathlib import Path
 
 import yaml
 
-from omichub.application.services.site_content_service import (
+from cygnusx.application.services.site_content_service import (
     DEFAULT_CONTENT,
     SiteContentService,
 )
@@ -18,7 +18,7 @@ def _write_yaml(path: Path, data: dict) -> Path:
 def test_get_content_returns_yaml_values(tmp_path: Path):
     """yaml 完整时返回 yaml 中的文案。"""
     yaml_path = _write_yaml(
-        tmp_path / "OmicHub.yaml",
+        tmp_path / "CygnusX.yaml",
         {
             "hero": {"title": "自定义标题", "description": "自定义标语"},
             "quick_entries": [{"key": "rna-seq", "title": "RNA", "desc": "转录组"}],
@@ -44,7 +44,7 @@ def test_get_content_falls_back_when_file_missing(tmp_path: Path):
 def test_get_content_fills_missing_fields_from_default(tmp_path: Path):
     """yaml 仅给出部分字段时，缺失字段由默认补齐，不报错。"""
     yaml_path = _write_yaml(
-        tmp_path / "OmicHub.yaml",
+        tmp_path / "CygnusX.yaml",
         {
             "hero": {"title": "只有标题"},  # 缺 description
             "quick_entries": [{"key": "ai", "title": "AI", "desc": "助手"}],
@@ -60,7 +60,7 @@ def test_get_content_fills_missing_fields_from_default(tmp_path: Path):
 
 def test_get_content_falls_back_on_wrong_type(tmp_path: Path):
     """yaml 字段类型错误（hero 为字符串）时整体回退默认，不抛异常。"""
-    yaml_path = _write_yaml(tmp_path / "OmicHub.yaml", {"hero": "不是字典"})
+    yaml_path = _write_yaml(tmp_path / "CygnusX.yaml", {"hero": "不是字典"})
     content = SiteContentService(yaml_path).get_content()
     assert content.hero.title == DEFAULT_CONTENT["hero"]["title"]
     assert content.hero.description == DEFAULT_CONTENT["hero"]["description"]
@@ -68,7 +68,7 @@ def test_get_content_falls_back_on_wrong_type(tmp_path: Path):
 
 def test_get_content_falls_back_on_invalid_syntax(tmp_path: Path):
     """yaml 语法错误时回退默认文案，不抛异常。"""
-    bad = tmp_path / "OmicHub.yaml"
+    bad = tmp_path / "CygnusX.yaml"
     bad.write_text("hero: [unclosed bracket\n", encoding="utf-8")
     content = SiteContentService(bad).get_content()
     assert content.hero.title == DEFAULT_CONTENT["hero"]["title"]
@@ -77,7 +77,7 @@ def test_get_content_falls_back_on_invalid_syntax(tmp_path: Path):
 def test_get_content_includes_registration_defaults(tmp_path: Path):
     """yaml 未配置 registration 时，回退默认提示文案与管理员联系方式。"""
     yaml_path = _write_yaml(
-        tmp_path / "OmicHub.yaml",
+        tmp_path / "CygnusX.yaml",
         {"hero": {"title": "t", "description": "d"}},
     )
     content = SiteContentService(yaml_path).get_content()
@@ -90,7 +90,7 @@ def test_get_content_includes_registration_defaults(tmp_path: Path):
 def test_get_content_reads_registration_from_yaml(tmp_path: Path):
     """yaml 配置 registration 时返回其中的文案与联系方式。"""
     yaml_path = _write_yaml(
-        tmp_path / "OmicHub.yaml",
+        tmp_path / "CygnusX.yaml",
         {
             "hero": {"title": "t", "description": "d"},
             "registration": {
@@ -107,7 +107,7 @@ def test_get_content_reads_registration_from_yaml(tmp_path: Path):
 def test_get_content_fills_partial_registration_from_default(tmp_path: Path):
     """yaml 仅给出 admin_contact 时，disabled_message 由默认补齐。"""
     yaml_path = _write_yaml(
-        tmp_path / "OmicHub.yaml",
+        tmp_path / "CygnusX.yaml",
         {
             "hero": {"title": "t", "description": "d"},
             "registration": {"admin_contact": "admin@hzau.edu.cn"},

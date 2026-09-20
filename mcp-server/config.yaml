@@ -1,18 +1,21 @@
-# OmicHub MCP Server 配置
-# 环境变量优先级高于此文件 (OMICSHUB_BASE_URL > server.base_url)
+# CygnusX MCP Server 配置
+# 环境变量优先级高于此文件 (CYGNUSX_BASE_URL > server.base_url)
 
 server:
-  name: "OmicHub"
-  description: "OmicHub 多组学分析平台 MCP Server — 任务管理、数据下载、流程分析、结果解读、沙箱执行"
+  name: "CygnusX"
+  description: "CygnusX 多组学分析平台 MCP Server — 任务管理、数据下载、流程分析、结果解读、沙箱执行"
   # 传输模式: stdio (默认, CLI 助手) | sse (远程访问)
+  # ⚠️ SSE 模式当前无鉴权：默认仅绑定 127.0.0.1 本机回环。
+  #    改为 0.0.0.0 等对外地址时任何可达本端口的人都可操作本平台 API Key，
+  #    仅在内网可信环境使用，公网暴露前必须加反向代理鉴权或改为 stdio。
   transport: "stdio"
-  host: "0.0.0.0"
+  host: "127.0.0.1"
   port: 8900
 
 connection:
   # 平台 API 地址
   base_url: "http://localhost:8000"
-  # API Key (建议通过环境变量 OMICSHUB_API_KEY 传入，不要提交到版本控制)
+  # API Key (建议通过环境变量 CYGNUSX_API_KEY 传入，不要提交到版本控制)
   api_key: ""
   # HTTP 请求超时 (秒)
   request_timeout: 60
@@ -36,3 +39,4 @@ tool_groups:
   sandbox: true      # 沙箱执行 (create/execute/list/destroy)
   platform: true     # 平台信息 (user_info/platform_status)
   pipelines: true    # 完整分析流程 (RNA-seq/ATAC-seq prepare/submit/status/results)
+  seqout: true       # 公共数据库检索 (seqout_search/project_detail/sample_manifest/resolve)

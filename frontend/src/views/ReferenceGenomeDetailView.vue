@@ -27,6 +27,7 @@ import { LegendComponent, TooltipComponent } from 'echarts/components'
 import {
   CopyOutline,
   DownloadOutline,
+  FlashOutline,
   SearchOutline,
   SwapHorizontalOutline,
 } from '@vicons/ionicons5'
@@ -40,6 +41,8 @@ import {
   fetchKeggPathways,
   mapIds,
 } from '@/api/referenceGenomes'
+import { jbrowseApi } from '@/api/jbrowse'
+import { storeSequenceHandoff } from '@/engine/ecosystemLinks'
 import type {
   ApiGene,
   BuildStatus,
@@ -52,6 +55,7 @@ import type {
   KeggPathwayItem,
   SequenceResult,
   SpeciesDatabase,
+  Transcript,
   VersionDetailResponse,
 } from '@/types/referenceGenomes'
 import PageHeader from '@/components/PageHeader.vue'
@@ -86,7 +90,7 @@ let geneSearchTimer: ReturnType<typeof setTimeout> | null = null
 const drawerVisible = ref(false)
 const drawerGene = ref<GeneDetail | null>(null)
 const drawerLoading = ref(false)
-const seqType = ref<'genomic' | 'cds' | 'protein'>('genomic')
+const seqType = ref<'genomic' | 'cds' | 'protein' | 'promoter'>('genomic')
 const seqData = ref<SequenceResult | null>(null)
 const seqLoading = ref(false)
 
@@ -163,6 +167,7 @@ const seqAvailable = computed(() => {
     genomic: sa?.genomic ?? true,
     cds: sa?.cds ?? false,
     protein: sa?.protein ?? false,
+    promoter: sa?.promoter ?? sa?.genomic ?? false,
   }
 })
 
@@ -322,6 +327,7 @@ async function openGeneDetail(geneId: string) {
     const sa = detail.sequenceAvailable
     seqType.value = sa.genomic ? 'genomic' : sa.cds ? 'cds' : 'protein'
     await loadSequence()
+    resolveJbrowseAssembly()
   } catch {
     message.error('加载基因详情失败')
   } finally {
@@ -344,7 +350,7 @@ async function loadSequence() {
   }
 }
 
-function onSeqTypeChange(type: 'genomic' | 'cds' | 'protein') {
+function onSeqTypeChange(type: 'genomic' | 'cds' | 'protein' | 'promoter') {
   seqType.value = type
   loadSequence()
 }
@@ -462,6 +468,122 @@ function goNamespaceLabel(namespace: 'BP' | 'MF' | 'CC') {
   if (namespace === 'BP') return '生物过程'
   if (namespace === 'MF') return '分子功能'
   return '细胞组分'
+}
+
+/* ────── 基因模型图（CDS / UTR / 外显子分段） ────── */
+interface ModelSegment {
+  kind: 'cds' | 'utr' | 'exon' | 'intron'
+  start: number
+  end: number
+}
+
+function geneModelSegments(tx: Transcript): ModelSegment[] {
+  const exons = [...tx.exons].sort((a, b) => a.start - b.start)
+  if (!exons.length) return []
+  const cds = tx.features?.cds ?? []
+  const utr = [...(tx.features?.five_prime_utr ?? []), ...(tx.features?.three_prime_utr ?? [])]
+
+  const segs: ModelSegment[] = []
+  if (!cds.length && !utr.length) {
+    // 旧索引无结构特征：退化为纯外显子示意
+    exons.forEach((exon, i) => {
+      if (i > 0) segs.push({ kind: 'intron', start: exons[i - 1].end + 1, end: exon.start - 1 })
+      segs.push({ kind: 'exon', start: exon.start, end: exon.end })
+    })
+    return segs
+  }
+
+  const inRanges = (pos: number, ranges: Array<[number, number]>) =>
+    ranges.some(([s, e]) => pos >= s && pos <= e)
+
+  exons.forEach((exon, i) => {
+    if (i > 0) segs.push({ kind: 'intron', start: exons[i - 1].end + 1, end: exon.start - 1 })
+    const cuts = new Set<number>([exon.start, exon.end + 1])
+    for (const [s, e] of [...cds, ...utr]) {
+      if (e < exon.start || s > exon.end) continue
+      cuts.add(Math.max(s, exon.start))
+      cuts.add(Math.min(e + 1, exon.end + 1))
+    }
+    const sorted = [...cuts].sort((a, b) => a - b)
+    for (let j = 0; j + 1 < sorted.length; j++) {
+      const s = sorted[j]
+      const e = sorted[j + 1] - 1
+      if (s > e) continue
+      const mid = Math.floor((s + e) / 2)
+      const kind: ModelSegment['kind'] = inRanges(mid, cds) ? 'cds' : inRanges(mid, utr) ? 'utr' : 'exon'
+      segs.push({ kind, start: s, end: e })
+    }
+  })
+  return segs
+}
+
+function segmentTitle(seg: ModelSegment) {
+  const label = { cds: 'CDS', utr: 'UTR', exon: '外显子', intron: '内含子' }[seg.kind]
+  return `${label}: ${seg.start.toLocaleString()}-${seg.end.toLocaleString()} (${(seg.end - seg.start + 1).toLocaleString()} bp)`
+}
+
+function segmentFlex(seg: ModelSegment) {
+  const len = seg.end - seg.start + 1
+  // 内含子压缩显示，外显子区域按长度比例
+  return seg.kind === 'intron' ? Math.min(len, 500) / 50 : Math.max(len / 10, 1)
+}
+
+/* ────── 外部数据库链接 ────── */
+const externalLinks = computed(() => {
+  const gene = drawerGene.value?.gene
+  if (!gene) return []
+  const id = gene.geneId
+  const links: Array<{ label: string; url: string }> = []
+  if (species.value?.id === 'arabidopsis' || /^AT[1-5MC]G\d+/i.test(id)) {
+    links.push({ label: 'TAIR', url: `https://www.arabidopsis.org/servlets/TairObject?type=locus&name=${encodeURIComponent(id)}` })
+    links.push({ label: 'Ensembl Plants', url: `https://plants.ensembl.org/Arabidopsis_thaliana/Gene/Summary?g=${encodeURIComponent(id)}` })
+  }
+  links.push({ label: 'NCBI Gene', url: `https://www.ncbi.nlm.nih.gov/gene/?term=${encodeURIComponent(id)}` })
+  return links
+})
+
+/* ────── JBrowse 2 联动 ────── */
+const jbrowseAssemblyId = ref<string | null>(null)
+
+async function resolveJbrowseAssembly() {
+  try {
+    const res = await jbrowseApi.listAssemblies()
+    const match = res.assemblies.find(
+      (a) =>
+        (a.version_id === versionId.value || a.id === versionId.value) &&
+        a.fasta_exists &&
+        a.status === 'active',
+    )
+    jbrowseAssemblyId.value = match?.id ?? null
+  } catch {
+    jbrowseAssemblyId.value = null
+  }
+}
+
+function openInJbrowse() {
+  const gene = drawerGene.value?.gene
+  if (!gene || !jbrowseAssemblyId.value) return
+  router.push({
+    path: '/tools/jbrowse',
+    query: {
+      assembly: jbrowseAssemblyId.value,
+      region: `${gene.chromosome}:${gene.start}-${gene.end}`,
+    },
+  })
+}
+
+/* ────── BLAST 联动 ────── */
+function blastSequence() {
+  if (!seqData.value || !drawerGene.value) return
+  storeSequenceHandoff('blast', {
+    id: `${drawerGene.value.gene.geneId}_${seqType.value}`,
+    header: seqData.value.header,
+    sequence: seqData.value.sequence,
+    type: seqType.value === 'protein' ? 'protein' : 'dna',
+    length: seqData.value.length,
+  })
+  router.push('/tools/blast')
+  message.success('已载入 BLAST 查询序列')
 }
 
 async function copyText(text: string, label = '内容') {
@@ -763,7 +885,16 @@ async function copyText(text: string, label = '内容') {
                 <div class="gene-symbol">{{ drawerGene.gene.geneName }}</div>
                 <div class="gene-name">{{ drawerGene.gene.annotation }}</div>
               </div>
-              <NTag size="small" type="success" round>{{ drawerGene.gene.geneType }}</NTag>
+              <div class="gene-card-actions">
+                <NTag size="small" type="success" round>{{ drawerGene.gene.geneType }}</NTag>
+                <NButton
+                  v-if="jbrowseAssemblyId"
+                  size="tiny"
+                  tertiary
+                  type="primary"
+                  @click="openInJbrowse"
+                >JBrowse 查看</NButton>
+              </div>
             </div>
 
             <NTabs type="segment" animated>
@@ -772,34 +903,89 @@ async function copyText(text: string, label = '内容') {
                   <div><span>基因类型</span><strong>{{ geneTypeText(drawerGene.gene.geneType) }}</strong></div>
                   <div><span>位置</span><strong class="mono">{{ drawerGene.gene.chromosome }}:{{ drawerGene.gene.start.toLocaleString() }}-{{ drawerGene.gene.end.toLocaleString() }} ({{ drawerGene.gene.strand }})</strong></div>
                   <div><span>长度</span><strong>{{ drawerGene.gene.length.toLocaleString() }} bp</strong></div>
+                  <div v-if="externalLinks.length">
+                    <span>外部链接</span>
+                    <strong class="external-links">
+                      <NButton
+                        v-for="link in externalLinks"
+                        :key="link.label"
+                        text
+                        type="primary"
+                        tag="a"
+                        :href="link.url"
+                        target="_blank"
+                      >{{ link.label }}</NButton>
+                    </strong>
+                  </div>
                 </div>
 
-                <div v-if="drawerGene.transcripts[0]?.exons" class="gene-structure-section">
-                  <div class="drawer-section-title">外显子结构</div>
+                <div v-if="drawerGene.transcripts[0]?.exons?.length" class="gene-structure-section">
+                  <div class="drawer-section-title">基因结构（{{ drawerGene.transcripts[0].transcriptId }}）</div>
                   <div class="gene-structure">
                     <div class="strand-arrow">{{ drawerGene.gene.strand === '+' ? '→' : '←' }}</div>
                     <div class="exon-track">
-                      <template v-for="exon in drawerGene.transcripts[0].exons" :key="exon.rank">
-                        <div v-if="exon.rank > 1" class="intron" />
-                        <div class="exon" :title="`E${exon.rank}`" />
-                      </template>
+                      <div
+                        v-for="(seg, i) in geneModelSegments(drawerGene.transcripts[0])"
+                        :key="i"
+                        :class="['model-seg', `model-seg-${seg.kind}`]"
+                        :style="{ flexGrow: segmentFlex(seg) }"
+                        :title="segmentTitle(seg)"
+                      />
                     </div>
+                  </div>
+                  <div class="gene-structure-axis">
+                    <span class="mono">{{ drawerGene.transcripts[0].chromosome || drawerGene.gene.chromosome }}:{{ drawerGene.transcripts[0].start.toLocaleString() }}</span>
+                    <span>{{ drawerGene.gene.strand === '+' ? '正链 (+)' : '负链 (-)' }}</span>
+                    <span class="mono">{{ drawerGene.transcripts[0].end.toLocaleString() }}</span>
+                  </div>
+                  <div class="gene-model-legend">
+                    <span><i class="legend-swatch legend-cds" />CDS</span>
+                    <span><i class="legend-swatch legend-utr" />UTR</span>
+                    <span><i class="legend-swatch legend-exon" />外显子（非编码）</span>
+                    <span><i class="legend-line" />内含子</span>
                   </div>
                 </div>
               </NTabPane>
 
               <NTabPane name="transcripts" tab="Transcripts">
-                <div v-for="tx in drawerGene.transcripts" :key="tx.transcriptId" class="tx-row">
-                  <div>
-                    <div class="mono strong">{{ tx.transcriptId }}</div>
-                    <div class="file-meta">{{ tx.biotype }} · {{ tx.length.toLocaleString() }} bp · {{ tx.exonCount }} exons</div>
+                <div v-for="tx in drawerGene.transcripts" :key="tx.transcriptId" class="tx-card">
+                  <div class="tx-row">
+                    <div>
+                      <div class="mono strong">{{ tx.transcriptId }}</div>
+                      <div class="file-meta">{{ tx.biotype }} · {{ tx.length.toLocaleString() }} bp · {{ tx.exonCount }} exons</div>
+                      <div class="file-meta mono">{{ tx.chromosome }}:{{ tx.start.toLocaleString() }}-{{ tx.end.toLocaleString() }} ({{ tx.strand }})</div>
+                    </div>
+                    <NTag v-if="tx.canonical" size="tiny" type="success" round>Canonical</NTag>
                   </div>
-                  <NTag v-if="tx.canonical" size="tiny" type="success" round>Canonical</NTag>
+                  <div v-if="tx.exons.length" class="tx-exons">
+                    <div v-for="exon in tx.exons" :key="exon.rank" class="tx-exon-row">
+                      <span class="mono strong">E{{ exon.rank }}</span>
+                      <span class="mono">{{ tx.chromosome }}:{{ exon.start.toLocaleString() }}-{{ exon.end.toLocaleString() }}</span>
+                      <span class="file-meta">{{ (exon.end - exon.start + 1).toLocaleString() }} bp</span>
+                    </div>
+                  </div>
                 </div>
                 <NEmpty v-if="!drawerGene.transcripts.length" description="无转录本数据" />
               </NTabPane>
 
               <NTabPane name="go" tab="GO">
+                <div v-if="drawerGene.go.some((g) => g.evidenceCode === 'ND')" class="go-nd-hint">
+                  ND（No biological Data available）表示数据库中该基因暂无此层面的功能证据，并非数据被省略。
+                </div>
+                <div v-if="drawerGene.goslim?.length" class="drawer-annotation-group">
+                  <div class="drawer-section-title">GO Slim 功能分类</div>
+                  <div class="drawer-annotation-list">
+                    <div
+                      v-for="item in drawerGene.goslim"
+                      :key="item.goId"
+                      class="drawer-annotation-row"
+                    >
+                      <span class="mono strong">{{ item.goId }}</span>
+                      <span>{{ item.name }}</span>
+                      <span class="annotation-source">{{ goNamespaceLabel(item.namespace) }} · {{ item.slimCategory }}</span>
+                    </div>
+                  </div>
+                </div>
                 <div v-for="namespace in (['MF', 'BP', 'CC'] as const)" :key="namespace" class="drawer-annotation-group">
                   <div class="drawer-section-title">{{ goNamespaceLabel(namespace) }}</div>
                   <div
@@ -812,7 +998,7 @@ async function copyText(text: string, label = '内容') {
                       class="drawer-annotation-row"
                     >
                       <span class="mono strong">{{ item.goId }}</span>
-                      <span>{{ item.term }}</span>
+                      <span :title="item.definition || undefined">{{ item.term }}</span>
                       <span class="annotation-source">{{ item.evidenceCode }} · {{ item.source }}</span>
                     </div>
                   </div>
@@ -853,6 +1039,12 @@ async function copyText(text: string, label = '内容') {
                       :disabled="!seqAvailable.protein"
                       @click="onSeqTypeChange('protein')"
                     >Protein</NButton>
+                    <NButton
+                      :type="seqType === 'promoter' ? 'primary' : 'default'"
+                      :disabled="!seqAvailable.promoter"
+                      title="转录起始位点上游 2000 bp"
+                      @click="onSeqTypeChange('promoter')"
+                    >Promoter</NButton>
                   </NButtonGroup>
                 </div>
                 <NSpin :show="seqLoading">
@@ -868,6 +1060,10 @@ async function copyText(text: string, label = '内容') {
                       <NButton size="small" quaternary @click="downloadFasta">
                         <template #icon><NIcon><DownloadOutline /></NIcon></template>
                         下载 FASTA
+                      </NButton>
+                      <NButton size="small" quaternary @click="blastSequence">
+                        <template #icon><NIcon><FlashOutline /></NIcon></template>
+                        去 BLAST
                       </NButton>
                     </div>
                   </div>
@@ -1375,19 +1571,126 @@ async function copyText(text: string, label = '内容') {
   height: 28px;
 }
 
-.exon {
-  flex: 0 0 30px;
+.model-seg {
+  flex-shrink: 1;
+  flex-basis: 0;
+  min-width: 2px;
+  border-radius: 3px;
+  align-self: center;
+}
+
+.model-seg-cds {
   height: 20px;
-  border-radius: 4px;
   background: linear-gradient(135deg, #165dff, #722ed1);
 }
 
-.intron {
-  flex: 1;
-  min-width: 16px;
+.model-seg-utr {
+  height: 12px;
+  background: #7bc7c2;
+}
+
+.model-seg-exon {
+  height: 12px;
+  background: #94a3b8;
+}
+
+.model-seg-intron {
   height: 2px;
-  margin: 0 3px;
+  margin: 0 1px;
+  border-radius: 0;
   background: #c9cdd4;
+}
+
+.gene-model-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--db-muted);
+}
+
+.gene-model-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-swatch {
+  display: inline-block;
+  width: 14px;
+  border-radius: 2px;
+}
+
+.legend-cds {
+  height: 12px;
+  background: linear-gradient(135deg, #165dff, #722ed1);
+}
+
+.legend-utr {
+  height: 8px;
+  background: #7bc7c2;
+}
+
+.legend-exon {
+  height: 8px;
+  background: #94a3b8;
+}
+
+.legend-line {
+  display: inline-block;
+  width: 14px;
+  height: 2px;
+  background: #c9cdd4;
+}
+
+.gene-card-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.external-links {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.gene-structure-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--db-muted);
+}
+
+.tx-card + .tx-card {
+  margin-top: 10px;
+}
+
+.tx-exons {
+  display: grid;
+  gap: 4px;
+  margin: 6px 4px 0;
+}
+
+.tx-exon-row {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  font-size: 12px;
+}
+
+.go-nd-hint {
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--db-soft);
+  color: var(--db-muted);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .tx-row,

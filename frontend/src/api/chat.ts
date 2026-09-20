@@ -1,5 +1,6 @@
 import apiClient from './client'
 import type { PlanDecisionAction } from '@/components/ai-chat/types'
+import type { ResearchModeSettings } from '@/types/chat'
 
 export interface OverdriveApprovalRecord {
   approval_id: string
@@ -130,6 +131,66 @@ export const chatApi = {
       { reason },
     )
     return response.data
+  },
+  async renameSession(
+    sessionId: string,
+    title: string,
+  ): Promise<{ session_id: string; title: string; title_locked?: boolean }> {
+    const response = await apiClient.patch(`/chat/sessions/${sessionId}`, { title })
+    return response.data
+  },
+  /**
+   * 人类（JWT 会话）批准一次待确认的工具/流程调用。
+   * 优先用服务端确认卡下发的人类通道 URL（tool-invocations 或 tool-confirmations），
+   * 缺省时回退到通用工具批准端点。apiClient 的 baseURL 已含 /api/v1，需剥离前缀。
+   */
+  async approveToolConfirmation(
+    confirmationId: string,
+    actionUrl?: string,
+  ): Promise<Record<string, unknown>> {
+    const path = (actionUrl || `/api/v1/ai/tool-invocations/${confirmationId}/approve`)
+      .replace(/^\/api\/v1/, '')
+    const response = await apiClient.post(path)
+    return response.data
+  },
+  async rejectToolConfirmation(
+    confirmationId: string,
+    reason?: string,
+    actionUrl?: string,
+  ): Promise<Record<string, unknown>> {
+    const path = (actionUrl || `/api/v1/ai/tool-invocations/${confirmationId}/reject`)
+      .replace(/^\/api\/v1/, '')
+    const response = await apiClient.post(path, null, { params: { reason } })
+    return response.data
+  },
+  async deleteSession(sessionId: string): Promise<void> {
+    await apiClient.delete(`/chat/sessions/${sessionId}`)
+  },
+  /**
+   * 科研模式设置（WP3 任务 3）：PUT 后 200 回显生效值。
+   * 后端未上线时调用会失败，调用方负责回滚 UI 状态。
+   */
+  async updateResearchMode(
+    sessionId: string,
+    settings: ResearchModeSettings,
+  ): Promise<ResearchModeSettings> {
+    const response = await apiClient.put<ResearchModeSettings>(
+      `/chat/sessions/${sessionId}/research-mode`,
+      settings,
+    )
+    return response.data
+  },
+  /** 会话生命周期：active → archived（归档后可从活跃列表隐藏） */
+  async archiveSession(sessionId: string): Promise<void> {
+    await apiClient.post(`/chat/sessions/${sessionId}/archive`)
+  },
+  /** 会话生命周期：archived → active */
+  async unarchiveSession(sessionId: string): Promise<void> {
+    await apiClient.post(`/chat/sessions/${sessionId}/unarchive`)
+  },
+  /** 会话生命周期：deleted → active（回收站恢复） */
+  async restoreSession(sessionId: string): Promise<void> {
+    await apiClient.post(`/chat/sessions/${sessionId}/restore`)
   },
   async submitMessageFeedback(
     sessionId: string,

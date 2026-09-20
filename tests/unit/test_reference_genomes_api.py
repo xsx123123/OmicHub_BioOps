@@ -15,11 +15,11 @@ import yaml
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from omichub.api.deps import get_current_user_id
-from omichub.middleware.rbac import require_admin
-from omichub.reference_genomes import indexer, service
-from omichub.reference_genomes.api import router
-from omichub.reference_genomes.config import ConfigManager
+from cygnusx.api.deps import get_current_user_id
+from cygnusx.middleware.rbac import require_admin
+from cygnusx.reference_genomes import indexer, service
+from cygnusx.reference_genomes.api import router
+from cygnusx.reference_genomes.config import ConfigManager
 
 FIXTURE_DIR = Path(__file__).parent / "reference_genomes" / "fixtures"
 
@@ -102,12 +102,12 @@ def client(built_env: Path, monkeypatch) -> TestClient:
     app = FastAPI()
     app.include_router(router, prefix="/api/v1/reference-genomes")
 
-    # 复现 main.py 的全局异常处理（OmicHubError → status_code/detail）
+    # 复现 main.py 的全局异常处理（CygnusXError → status_code/detail）
     from fastapi.responses import JSONResponse
 
-    from omichub.core.exceptions import OmicHubError
+    from cygnusx.core.exceptions import CygnusXError
 
-    @app.exception_handler(OmicHubError)
+    @app.exception_handler(CygnusXError)
     async def _omic_error_handler(request, exc):  # noqa: ANN001
         return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 

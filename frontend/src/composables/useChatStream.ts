@@ -11,6 +11,10 @@ import { ref } from 'vue'
 export interface ChatStreamOptions {
   messages: { role: string; content: string }[]
   modelId: string
+  /** 传入则走 Agent 调度中枢（如通用助手 agent-general），否则按 modelId 直连模型 */
+  agentId?: string
+  /** 用户当前页面上下文（名称/路径/参数），后端注入系统提示词 */
+  pageContext?: string
   sessionId?: string
   assistantId?: string
   systemPrompt?: string
@@ -46,6 +50,8 @@ export function useChatStream() {
         body: JSON.stringify({
           messages: options.messages,
           model_id: options.modelId,
+          agent_id: options.agentId,
+          page_context: options.pageContext,
           session_id: options.sessionId,
           assistant_id: options.assistantId,
           system_prompt: options.systemPrompt,
@@ -69,6 +75,8 @@ export function useChatStream() {
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
       let buffer = ''
+      // 是否已收到 done/error 终态事件；Agent 链路可能以 agent_turn_failed 等事件收尾后关闭流
+      let terminalSeen = false
 
       while (true) {
         const { done, value } = await reader.read()
@@ -85,11 +93,16 @@ export function useChatStream() {
           const data = trimmed.slice(6)
           try {
             const parsed = JSON.parse(data)
-            handleStreamEvent(parsed, callbacks)
+            if (handleStreamEvent(parsed, callbacks)) terminalSeen = true
           } catch {
             // 忽略不完整的 JSON
           }
         }
+      }
+
+      // 流已关闭但未收到终态事件：主动收尾，避免消息永远停在"正在思考…"
+      if (!terminalSeen) {
+        callbacks.onError?.('连接已中断，回答可能不完整，请重试')
       }
     } catch (err: unknown) {
       if (err instanceof DOMException && err.name === 'AbortError') {
@@ -103,7 +116,8 @@ export function useChatStream() {
     }
   }
 
-  function handleStreamEvent(data: Record<string, unknown>, callbacks: StreamCallbacks): void {
+  /** 处理单条 SSE 事件；返回 true 表示该事件是 done/error 终态 */
+  function handleStreamEvent(data: Record<string, unknown>, callbacks: StreamCallbacks): boolean {
     const type = data.type as string
     const content = (data.content as string) || ''
     const sessionId = data.session_id as string | undefined
@@ -116,15 +130,20 @@ export function useChatStream() {
         if (sessionId && messageId) {
           callbacks.onSessionCreated?.(sessionId, messageId)
         }
-        break
+        return false
       case 'error':
         callbacks.onError?.(content)
-        break
+        return true
       case 'done':
+        // Agent 链路的 text 帧不一定带 session_id/message_id，done 帧兜底补发
         if (sessionId && messageId) {
+          callbacks.onSessionCreated?.(sessionId, messageId)
           callbacks.onDone?.(sessionId, messageId)
         }
-        break
+        return true
+      default:
+        // tool_call / tool_result / web_search / ask_request 等事件侧边栏不渲染，忽略
+        return false
     }
   }
 

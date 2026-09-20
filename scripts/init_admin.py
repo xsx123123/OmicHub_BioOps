@@ -3,7 +3,7 @@
 用法:
   python scripts/init_admin.py
   uv run python scripts/init_admin.py
-  docker exec omichub-web python scripts/init_admin.py
+  docker exec cygnusx-web python scripts/init_admin.py
 
 环境变量:
   OMICHBUB_INIT_ADMIN_USERNAME   管理员用户名 (默认: admin)
@@ -22,14 +22,14 @@ import sys
 
 
 async def main() -> None:
-    from omichub.core.config import get_settings
-    from omichub.core.security import hash_password
-    from omichub.domain.user.entities import User
-    from omichub.domain.user.value_objects import Role, UserStatus
-    from omichub.infrastructure.database.repositories.user_repository import (
+    from cygnusx.core.config import get_settings
+    from cygnusx.core.security import hash_password
+    from cygnusx.domain.user.entities import User
+    from cygnusx.domain.user.value_objects import Role, UserStatus
+    from cygnusx.infrastructure.database.repositories.user_repository import (
         SqlAlchemyUserRepository,
     )
-    from omichub.infrastructure.database.session import get_session_factory
+    from cygnusx.infrastructure.database.session import get_session_factory
 
     settings = get_settings()
 
@@ -77,7 +77,7 @@ async def main() -> None:
 
         # 如果启用饼干系统，自动创建饼干账户
         if settings.enable_cookie_system:
-            from omichub.application.services.cookie_service import CookieService
+            from cygnusx.application.services.cookie_service import CookieService
 
             cookie_service = CookieService(session)
             await cookie_service.get_or_create_account(created.id)

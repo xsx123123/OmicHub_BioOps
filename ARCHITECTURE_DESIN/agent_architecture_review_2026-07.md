@@ -1,8 +1,10 @@
-# OmicHub Agent 架构审核与升级方案：检索增强的计划生成
+# CygnusX Agent 架构审核与升级方案：检索增强的计划生成
+
+> **时点说明**：本文件为 2026-07-28 时点的快照/评审稿，记录当时的设计与实现状态。此后代码已持续演进，部分细节（行号、清单、状态）可能已过期；当前实现以代码及本目录中更新的基线文档（如 database_architecture.md）为准。
 
 > **审核日期**：2026-07-28
 > **依据**：本文全部内容均对照仓库当前代码核实，引用位置使用 `path:line` 格式。
-> **定位**：Part 1 供架构审核使用，描述"现状"（与 `agent_architecture_and_extension_guide.md`、`agent_framework_final_baseline.md` 术语一致，不重复其内容而是补充分层与数据流视角）；§1.6 为 2026-07-28 新增的会话上下文治理与鲁棒性机制；Part 2 为待评审的升级方案，尚未实施。
+> **定位**：Part 1 供架构审核使用，描述"现状"（与 `agent_framework_baseline.md` 术语一致——原 `agent_architecture_and_extension_guide.md` 已于 2026-09-18 并入其中——不重复其内容而是补充分层与数据流视角）；§1.6 为 2026-07-28 新增的会话上下文治理与鲁棒性机制；Part 2 为待评审的升级方案，尚未实施。
 
 ---
 
@@ -14,10 +16,10 @@
 前端（SSE）
    │  /api/v1/chat、/api/v1/mas、/api/v1/studio ...
    ▼
-API 层                src/omichub/api/v1/（chat.py、mas.py、studio.py、agents.py 等路由）
+API 层                src/cygnusx/api/v1/（chat.py、mas.py、studio.py、agents.py 等路由）
    │
    ▼
-应用服务层            src/omichub/application/services/
+应用服务层            src/cygnusx/application/services/
    │  ├─ chat_service.py        聊天调度总入口：路由、预搜索、工具循环（轮次治理/上下文压缩）、SSE、Studio 分流
    │  ├─ agent_service.py       内置 Agent 同步、运行时上下文装配（模型/工具/Skill/Studio）
    │  ├─ studio_tools.py        Studio 内置工具集（schema + dispatcher）
@@ -26,7 +28,7 @@ API 层                src/omichub/api/v1/（chat.py、mas.py、studio.py、agen
    │  ├─ mas_service.py         MAS Run / 审批 / Artifact / 进度 API 服务
    │  └─ tool_bridge_service.py 内置 ToolBridge 工具分发执行
    ▼
-基础设施层            src/omichub/infrastructure/
+基础设施层            src/cygnusx/infrastructure/
    │  ├─ config/prompt_loader.py  Prompt Registry（registry.yaml 加载、热重载、变量渲染）
    │  ├─ execution/               LangGraph ReAct 状态图与节点
    │  ├─ mas/                     MAS 执行器（rnaflow、volcano、ebi、scanpy…）、能力清单加载
@@ -47,7 +49,7 @@ API 层                src/omichub/api/v1/（chat.py、mas.py、studio.py、agen
 
 ### 1.2.1 Chat 专家模式
 
-- 内置专家定义在 `data/ai/<name>.yaml`，提示词在 `data/ai/prompts/`（`general.md`、`rnaseq.md`、`scrna.md` 等），经 `data/OmicHub.yaml` 的 `agents.enabled` 启用，由 `infrastructure/config/agent_loader.py` 加载并幂等写入 `agent_templates` 表；运行时以数据库记录为准（详见基线文档 §2.1，本文不重复）。
+- 内置专家定义在 `data/ai/<name>.yaml`，提示词在 `data/ai/prompts/`（`general.md`、`rnaseq.md`、`scrna.md` 等），经 `data/CygnusX.yaml` 的 `agents.enabled` 启用，由 `infrastructure/config/agent_loader.py` 加载并幂等写入 `agent_templates` 表；运行时以数据库记录为准（详见基线文档 §2.1，本文不重复）。
 - `chat_service.py:108` 定义 `DEFAULT_SYSTEM_PROMPT = get_prompt("agents.general")` 作为兜底；`chat_service.py:154-180` 的 `BUILTIN_ASSISTANTS` 为 legacy 助手清单，每个助手通过 `get_prompt("agents.xxx")` 取提示词。`chat_service.py:721-728` 按"请求参数 > 助手配置 > 默认"三级确定最终系统提示词。
 - 专家切换有两条路径：用户直接选择专家；或经 `agent-router`（`chat_service.py:111-121` 的路由提示词 + `chat_service.py:124-138` 的容错 JSON 提取）单次分派，失败回退通用专家。路由是单次分派，不是多专家并行。
 
@@ -227,11 +229,11 @@ sequenceDiagram
 
 **改动文件**：
 
-- `src/omichub/application/services/chat_service.py`：
+- `src/cygnusx/application/services/chat_service.py`：
   - 在判定 `mas_plan_tool_enabled` 且本轮为计划类请求时（或更稳妥地：在 `_attach_mas_plan_tool` 挂载计划工具的同一时机），自动调用知识库检索（复用/抽取 `studio_tools.py:768-824` 的 `_knowledge_search` 逻辑为可共享的服务函数，避免直接 import Studio 工具模块），将结果注入系统提示词；
   - 注入内容**结构化标注**为三个区块：`【背景知识】`（命中的 SOP/方法文档摘录）、`【推荐流程】`（知识库中匹配到的流程类文档，可作为计划骨架）、`【来源】`（doc_id + 标题 + `/knowledge/{doc_id}` 链接）；无命中时显式注入"知识库无相关结果"标记，让模型可以据此转向 web_search 或 ask_user，而不是静默缺席；
   - 检索失败按 web_search 同款降级路径处理：注入降级说明并通过 SSE 通知前端，不阻断对话。
-- `src/omichub/application/services/studio_tools.py`：把 `_knowledge_search` 的核心查询逻辑抽取为独立函数（如 `search_published_kb(db, query, limit)`），供工具执行器与 chat_service 预检索共用，保持工具行为不变。
+- `src/cygnusx/application/services/studio_tools.py`：把 `_knowledge_search` 的核心查询逻辑抽取为独立函数（如 `search_published_kb(db, query, limit)`），供工具执行器与 chat_service 预检索共用，保持工具行为不变。
 - （可选）`chat_service.py` 的 SSE 事件：新增 `kb_search` / `kb_search_results` 事件类型，与 `web_search` 事件对称，前端可展示"计划已参考 N 篇知识库文档"。
 
 **预期收益**：
@@ -250,7 +252,7 @@ sequenceDiagram
 
 **改动文件**：
 
-- `src/omichub/application/services/studio_tools.py`（`_knowledge_search` 及抽取后的共享函数）：从子串匹配升级为向量检索——文档写入/发布时异步生成 embedding（可复用 P4 语义记忆已引入的 Embedding 配置与 JSONB 向量持久化模式，见扩展指南 §0），查询时向量召回 + 子串匹配混合排序。
+- `src/cygnusx/application/services/studio_tools.py`（`_knowledge_search` 及抽取后的共享函数）：从子串匹配升级为向量检索——文档写入/发布时异步生成 embedding（可复用 P4 语义记忆已引入的 Embedding 配置与 JSONB 向量持久化模式，见扩展指南 §0），查询时向量召回 + 子串匹配混合排序。
 - 知识库写入链路（`knowledge_audit_service.py` 等）：发布文档时触发 embedding 生成任务；存量文档一次性回填。
 - "无结果"判定阈值设计：
   - 向量相似度低于阈值（如 cosine < 0.55，需按实际 embedding 模型标定）且子串匹配也无命中时，判定为"真无结果"，注入"知识库无相关内容"并引导 web_search；

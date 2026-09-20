@@ -43,7 +43,7 @@ const navItems = ref<KnowledgeItem[]>([])
 const activeDoc = ref<KnowledgeDoc | null>(null)
 const isEditMode = ref(false)
 // 侧边栏默认折叠（图6 窄条样式），并把用户的展开/折叠选择持久化到 localStorage
-const isNavigationCollapsed = useStorage('omichub:knowledge:sider-collapsed', true)
+const isNavigationCollapsed = useStorage('cygnusx:knowledge:sider-collapsed', true)
 
 const loadingNav = ref(false)
 const loadingDoc = ref(false)

@@ -7,10 +7,10 @@ from uuid import uuid4
 
 import pytest
 
-from omichub.application.services.cookie_service import CookieService
-from omichub.domain.cookie.entities import CookieAccount
-from omichub.domain.cookie.value_objects import TransactionType
-from omichub.infrastructure.database.models.cookie import CookieDiscountModel
+from cygnusx.application.services.cookie_service import CookieService
+from cygnusx.domain.cookie.entities import CookieAccount
+from cygnusx.domain.cookie.value_objects import TransactionType
+from cygnusx.infrastructure.database.models.cookie import CookieDiscountModel
 
 
 def _service_with_account(balance: str) -> tuple[CookieService, CookieAccount]:
@@ -111,11 +111,11 @@ def test_discount_window_supports_overnight_period():
 
 @pytest.mark.asyncio
 async def test_chat_gate_blocks_when_balance_empty():
-    from omichub.application.services.chat_service import ChatService
+    from cygnusx.application.services.chat_service import ChatService
 
     svc = ChatService(db=MagicMock())
     with patch(
-        "omichub.application.services.cookie_service.CookieService.check_balance",
+        "cygnusx.application.services.cookie_service.CookieService.check_balance",
         AsyncMock(return_value=Decimal("0")),
     ):
         message = await svc._ensure_cookie_balance(str(uuid4()))
@@ -126,11 +126,11 @@ async def test_chat_gate_blocks_when_balance_empty():
 
 @pytest.mark.asyncio
 async def test_chat_gate_passes_with_balance():
-    from omichub.application.services.chat_service import ChatService
+    from cygnusx.application.services.chat_service import ChatService
 
     svc = ChatService(db=MagicMock())
     with patch(
-        "omichub.application.services.cookie_service.CookieService.check_balance",
+        "cygnusx.application.services.cookie_service.CookieService.check_balance",
         AsyncMock(return_value=Decimal("3.5")),
     ):
         assert await svc._ensure_cookie_balance(str(uuid4())) is None

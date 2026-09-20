@@ -1,6 +1,6 @@
 # Author  : JZHANG
 # Date    : 2025-12-23
-# Version : v4.1.1-alpha
+# Version : v4.1.2-alpha
 
 # ---------------------------------------------------------
 # 1. Base Image
@@ -11,7 +11,7 @@ FROM mambaorg/micromamba:latest
 LABEL org.opencontainers.image.authors="zhang jian zhangjian199567@outlook.com"
 LABEL org.opencontainers.image.title="scRNAseqMulticommand Docker Image"
 LABEL org.opencontainers.image.description="Docker image for scRNAseqMulticommand analysis."
-LABEL org.opencontainers.image.version="0.4.8v"
+LABEL org.opencontainers.image.version="v4.1.2-alpha"
 
 # ---------------------------------------------------------
 # 2. System Dependencies & Timezone (Run as root)

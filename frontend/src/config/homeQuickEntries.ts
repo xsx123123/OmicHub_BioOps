@@ -266,7 +266,7 @@ export const homeQuickRouteCatalog: HomeQuickEntry[] = [
   },
   {
     key: 'about',
-    title: '关于 OmicHub',
+    title: '关于 CygnusX',
     desc: '了解平台与项目信息',
     to: '/about',
     icon: 'InformationCircleOutline',

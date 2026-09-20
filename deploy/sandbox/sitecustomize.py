@@ -1,4 +1,4 @@
-"""OmicHub 沙盒启动注入模块（sitecustomize）。
+"""CygnusX 沙盒启动注入模块（sitecustomize）。
 
 Python 启动时自动执行（对 `docker exec -i <c> python -` 投递的用户代码生效）。
 后端池每次执行都 fork 新 Python 进程，因此启动开销必须极小。
@@ -148,6 +148,6 @@ _builtins.show_plotly = show_plotly
 _builtins.show_df = show_df
 
 print(
-    "[omichub-sandbox] 就绪：show_echarts/show_image/show_plotly/show_df 已注入，sc/np/pd 懒加载",
+    "[cygnusx-sandbox] 就绪：show_echarts/show_image/show_plotly/show_df 已注入，sc/np/pd 懒加载",
     file=_sys.stderr,
 )

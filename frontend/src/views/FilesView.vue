@@ -651,7 +651,7 @@ onUnmounted(() => {
               <div
                 v-for="f in displayFiles"
                 :key="f.id"
-                class="grid-card omichub-card"
+                class="grid-card cygnusx-card"
                 :class="{ active: selectedFile?.id === f.id, 'is-selected': selectedFile?.id === f.id }"
                 role="button"
                 tabindex="0"

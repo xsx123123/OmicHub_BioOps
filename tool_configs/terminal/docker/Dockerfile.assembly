@@ -1,6 +1,6 @@
-# OmicHub 基因组组装沙盒镜像
-# 构建: docker build -t omichub/sandbox-assembly:latest -f tool_configs/terminal/docker/Dockerfile.assembly tool_configs/terminal/docker/
-FROM omichub/sandbox-terminal:latest
+# CygnusX 基因组组装沙盒镜像
+# 构建: docker build -t cygnusx-sandbox-assembly:v0.0.2dev -f tool_configs/terminal/docker/Dockerfile.assembly tool_configs/terminal/docker/
+FROM cygnusx-sandbox-terminal:v0.0.2dev
 
 USER root
 
@@ -18,8 +18,8 @@ ENV MAMBA_ROOT_PREFIX=/opt/conda \
     MAMBA_NO_BANNER=1
 
 # 预置中科大镜像源（见 Protocol/镜像构建国内加速规范_v1.md §4）
-# 注意：基础镜像设了 ENV HOME=/home/omichub，即使 USER root，micromamba 也按 HOME 找
-# .condarc——必须写进 /home/omichub（2026-07-28 实测：写 /root/.condarc 会被完全忽略，
+# 注意：基础镜像设了 ENV HOME=/home/cygnusx，即使 USER root，micromamba 也按 HOME 找
+# .condarc——必须写进 /home/cygnusx（2026-07-28 实测：写 /root/.condarc 会被完全忽略，
 # 静默回退 conda.anaconda.org 境外下载）。
 RUN printf '%s\n' \
       'show_channel_urls: true' \
@@ -38,9 +38,9 @@ RUN printf '%s\n' \
       '  - bioconda' \
       '  - menpo' \
       '  - defaults' \
-      > /home/omichub/.condarc \
-    && cp /home/omichub/.condarc /root/.condarc \
-    && chown omichub:omichub /home/omichub/.condarc
+      > /home/cygnusx/.condarc \
+    && cp /home/cygnusx/.condarc /root/.condarc \
+    && chown cygnusx:cygnusx /home/cygnusx/.condarc
 
 RUN micromamba create -y -n asm -c conda-forge -c bioconda \
       flye quast \

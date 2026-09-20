@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 
-# OmicHub R Docker entrypoint for a single, already-filtered Gene ID list.
+# CygnusX R Docker entrypoint for a single, already-filtered Gene ID list.
 # GO uses local OBO + gene-to-GO annotations. KEGG uses a local gene-to-NCBI/KEGG
 # mapping before clusterProfiler::enrichKEGG. Results and figures are written to
 # the same directory as --output.

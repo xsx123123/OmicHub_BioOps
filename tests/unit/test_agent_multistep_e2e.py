@@ -16,9 +16,9 @@ import json
 from collections.abc import AsyncIterator
 from typing import Any
 
-from omichub.infrastructure.ai_provider.openai_compatible import ChatChunk
-from omichub.infrastructure.execution.langgraph_nodes import NodeDeps
-from omichub.infrastructure.execution.langgraph_runtime import LangGraphRuntimeService
+from cygnusx.infrastructure.ai_provider.openai_compatible import ChatChunk
+from cygnusx.infrastructure.execution.langgraph_nodes import NodeDeps
+from cygnusx.infrastructure.execution.langgraph_runtime import LangGraphRuntimeService
 
 USAGE = {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}
 EXPECTED_ANSWER = 19  # (2 + 3) * 4 - 1

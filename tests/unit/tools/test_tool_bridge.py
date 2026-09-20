@@ -6,12 +6,23 @@ import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from omichub.application.services.tool_bridge_service import ToolBridgeService
-from omichub.infrastructure.config.storage_config import StorageConfig
-from omichub.infrastructure.storage import LocalStorageBackend
-from omichub.infrastructure.storage.path_factory import StoragePathFactory
-from omichub.tools.schema_loader import ToolSchema, ToolsSchemaLoader
+from cygnusx.application.schemas.tool_invocation import ToolInvocationContext
+from cygnusx.application.services.tool_bridge_service import ToolBridgeService
+from cygnusx.infrastructure.config.storage_config import StorageConfig
+from cygnusx.infrastructure.storage import LocalStorageBackend
+from cygnusx.infrastructure.storage.path_factory import StoragePathFactory
+from cygnusx.tools.schema_loader import ToolSchema, ToolsSchemaLoader
+
+
+class _FakeAsyncSession(AsyncSession):
+    def __init__(self):
+        pass
+
+
+def _make_context(user_id: str = "u1", session_id: str = "s-test") -> ToolInvocationContext:
+    return ToolInvocationContext(user_id=user_id, session_id=session_id, db=_FakeAsyncSession())
 
 
 class _FakeLoader(ToolsSchemaLoader):
@@ -24,7 +35,7 @@ class _FakeLoader(ToolsSchemaLoader):
         self._tools_by_name = {t.name: t for t in tools}
 
     def get_config(self):
-        from omichub.tools.schema_loader import ToolsSchemaRegistry
+        from cygnusx.tools.schema_loader import ToolsSchemaRegistry
 
         return ToolsSchemaRegistry(tools=self._tools)
 
@@ -38,10 +49,10 @@ class _FakeLoader(ToolsSchemaLoader):
 def _volcano_schema() -> ToolSchema:
     return ToolSchema(
         key="volcano",
-        name="omichub_plot_volcano",
+        name="cygnusx_plot_volcano",
         description="火山图",
         invocation_mode="backend_shim",
-        shim_module="omichub.tools.shims.volcano",
+        shim_module="cygnusx.tools.shims.volcano",
         input_schema={
             "type": "object",
             "properties": {
@@ -61,7 +72,7 @@ async def test_volcano_shim_returns_dual_payload() -> None:
     loader = _FakeLoader([_volcano_schema()])
     service = ToolBridgeService(loader)
     sample = "gene\tlog2FoldChange\tpadj\nTP53\t2.5\t0.001\nBRCA1\t-3.0\t0.0001\nGene_X\t0.1\t0.5"
-    result = await service.execute("u1", "omichub_plot_volcano", {"data_text": sample})
+    result = await service.execute("u1", "cygnusx_plot_volcano", {"data_text": sample})
 
     assert result["success"] is True
     assert result["is_error"] is False
@@ -76,7 +87,7 @@ async def test_volcano_shim_returns_dual_payload() -> None:
 async def test_missing_required_argument_returns_error() -> None:
     loader = _FakeLoader([_volcano_schema()])
     service = ToolBridgeService(loader)
-    result = await service.execute("u1", "omichub_plot_volcano", {})
+    result = await service.execute("u1", "cygnusx_plot_volcano", {})
 
     assert result["success"] is False
     assert result["is_error"] is True
@@ -87,7 +98,7 @@ async def test_missing_required_argument_returns_error() -> None:
 async def test_unknown_tool_returns_error() -> None:
     loader = _FakeLoader([])
     service = ToolBridgeService(loader)
-    result = await service.execute("u1", "omichub_not_exist", {})
+    result = await service.execute("u1", "cygnusx_not_exist", {})
 
     assert result["success"] is False
     assert result["is_error"] is True
@@ -99,7 +110,7 @@ async def test_error_envelope_exposes_top_level_error_for_event_summary() -> Non
     """BUG-E2E-05：错误信封必须带顶层 error，事件流摘要才能拿到真实失败原因。"""
     loader = _FakeLoader([])
     service = ToolBridgeService(loader)
-    result = await service.execute("u1", "omichub_not_exist", {})
+    result = await service.execute("u1", "cygnusx_not_exist", {})
 
     assert result["error"] == result["llm_payload"]["error"]
     assert "未知工具" in result["error"]
@@ -109,7 +120,7 @@ async def test_error_envelope_exposes_top_level_error_for_event_summary() -> Non
 async def test_toolbox_search_returns_catalog_matches() -> None:
     schema = ToolSchema(
         key="toolbox-search",
-        name="omichub_toolbox_search",
+        name="cygnusx_toolbox_search",
         description="检索工具。适用于查找工具；已知工具不要使用。输入 query。",
         keywords=["工具检索"],
         invocation_mode="backend_sync",
@@ -123,17 +134,17 @@ async def test_toolbox_search_returns_catalog_matches() -> None:
     )
     enrichment = ToolSchema(
         key="kegg-enrichment",
-        name="omichub_run_kegg_enrichment",
+        name="cygnusx_run_kegg_enrichment",
         description="对基因列表做 GO/KEGG 富集。适用于通路富集；排序列表用 GSEA。输入 gene_text。",
         keywords=["GO", "KEGG", "富集"],
         invocation_mode="backend_sync",
     )
     result = await ToolBridgeService(_FakeLoader([schema, enrichment])).execute(
-        "u1", "omichub_toolbox_search", {"query": "基因富集通路"}
+        "u1", "cygnusx_toolbox_search", {"query": "基因富集通路"}
     )
 
     assert result["success"] is True
-    assert result["llm_payload"]["matches"][0]["name"] == "omichub_run_kegg_enrichment"
+    assert result["llm_payload"]["matches"][0]["name"] == "cygnusx_run_kegg_enrichment"
 
 
 @pytest.mark.asyncio
@@ -141,10 +152,10 @@ async def test_backend_sync_passes_context_when_service_declares_it(monkeypatch)
     """需要数据库事务的 builtin 工具可安全取得内部调用上下文。"""
     schema = ToolSchema(
         key="memory-search",
-        name="omichub_search_memory",
+        name="cygnusx_search_memory",
         description="检索记忆",
         invocation_mode="backend_sync",
-        service="omichub.application.services.agent_memory_tool_service.AgentMemoryToolService",
+        service="cygnusx.application.services.agent_memory_tool_service.AgentMemoryToolService",
         method="search_memory",
         input_schema={
             "type": "object",
@@ -161,12 +172,12 @@ async def test_backend_sync_passes_context_when_service_declares_it(monkeypatch)
         return {"success": True, "summary": "找到 1 条记忆"}
 
     monkeypatch.setattr(
-        "omichub.application.services.agent_memory_tool_service.AgentMemoryToolService.search_memory",
+        "cygnusx.application.services.agent_memory_tool_service.AgentMemoryToolService.search_memory",
         fake_search,
     )
     context = MagicMock()
     result = await ToolBridgeService(_FakeLoader([schema])).execute(
-        "user-1", "omichub_search_memory", {"query": "小鼠脑"}, context=context
+        "user-1", "cygnusx_search_memory", {"query": "小鼠脑"}, context=context
     )
 
     assert result["success"] is True
@@ -177,11 +188,11 @@ async def test_backend_sync_passes_context_when_service_declares_it(monkeypatch)
 async def test_celery_backed_async_tool_uses_service_context(monkeypatch) -> None:
     schema = ToolSchema(
         key="gsea",
-        name="omichub_run_gsea",
+        name="cygnusx_run_gsea",
         description="执行 GSEA。适用于排序基因列表；无排序列表用富集。输入 gene_ranking。",
         keywords=["GSEA"],
         invocation_mode="backend_async",
-        service="omichub.tools.gsea.service.GseaService",
+        service="cygnusx.tools.gsea.service.GseaService",
         method="submit",
         extra={"celery_service": True},
         input_schema={"type": "object", "properties": {"gene_ranking": {"type": "string"}}},
@@ -193,10 +204,10 @@ async def test_celery_backed_async_tool_uses_service_context(monkeypatch) -> Non
         assert db == "session"
         return {"task_id": "task-1", "gene_ranking": gene_ranking}
 
-    monkeypatch.setattr("omichub.tools.gsea.service.GseaService.submit", fake_submit)
+    monkeypatch.setattr("cygnusx.tools.gsea.service.GseaService.submit", fake_submit)
     context = MagicMock(db="session")
     result = await ToolBridgeService(_FakeLoader([schema])).execute(
-        "user-1", "omichub_run_gsea", {"gene_ranking": "gene\t1"}, context=context
+        "user-1", "cygnusx_run_gsea", {"gene_ranking": "gene\t1"}, context=context
     )
 
     assert result["success"] is True
@@ -213,17 +224,17 @@ async def test_llm_payload_size_limit() -> None:
 
     # shim 返回中不包含 big_field，所以这里直接测 _package 的兜底逻辑
     sample = "gene\tlog2FoldChange\tpadj\nTP53\t2.5\t0.001"
-    result = await service.execute("u1", "omichub_plot_volcano", {"data_text": sample})
+    result = await service.execute("u1", "cygnusx_plot_volcano", {"data_text": sample})
     assert result["success"] is True
 
 
 def test_schema_loader_reads_yaml() -> None:
-    from omichub.tools.schema_loader import schema_loader
+    from cygnusx.tools.schema_loader import schema_loader
 
     tools = schema_loader.list_tools()
     names = {t.name for t in tools}
-    assert "omichub_run_kegg_enrichment" in names
-    assert "omichub_plot_volcano" in names
+    assert "cygnusx_run_kegg_enrichment" in names
+    assert "cygnusx_plot_volcano" in names
 
 
 @pytest.mark.asyncio
@@ -240,13 +251,13 @@ async def test_upload_ref_resolution(tmp_path, monkeypatch) -> None:
     backend = LocalStorageBackend(path_factory=path_factory)
 
     monkeypatch.setattr(
-        "omichub.application.services.tool_bridge_service.get_path_factory",
+        "cygnusx.application.services.tool_bridge_service.get_path_factory",
         lambda: path_factory,
     )
 
     loader = _FakeLoader([_volcano_schema()])
     service = ToolBridgeService(loader, backend=backend)
-    result = await service.execute(user_id, "omichub_plot_volcano", {"data_text": "upload://abc123"})
+    result = await service.execute(user_id, "cygnusx_plot_volcano", {"data_text": "upload://abc123"})
 
     assert result["success"] is True
     assert result["llm_payload"]["stats"]["total"] == 1
@@ -265,13 +276,13 @@ async def test_workspace_file_ref_resolution(tmp_path, monkeypatch) -> None:
         }
     )
     monkeypatch.setattr(
-        "omichub.application.services.tool_bridge_service.resolve_workspace_file_refs",
+        "cygnusx.application.services.tool_bridge_service.resolve_workspace_file_refs",
         resolve_refs,
     )
 
     result = await service.execute(
         user_id,
-        "omichub_plot_volcano",
+        "cygnusx_plot_volcano",
         {"data_text": f"file://{file_id}"},
         context=context,
     )
@@ -289,10 +300,10 @@ async def test_manhattan_shim_via_bridge() -> None:
     """曼哈顿图 shim 走 ToolBridge 应返回双通道结果。"""
     schema = ToolSchema(
         key="manhattan",
-        name="omichub_plot_manhattan",
+        name="cygnusx_plot_manhattan",
         description="曼哈顿图",
         invocation_mode="backend_shim",
-        shim_module="omichub.tools.shims.manhattan",
+        shim_module="cygnusx.tools.shims.manhattan",
         input_schema={
             "type": "object",
             "properties": {"data_text": {"type": "string"}},
@@ -304,7 +315,7 @@ async def test_manhattan_shim_via_bridge() -> None:
     loader = _FakeLoader([schema])
     service = ToolBridgeService(loader)
     sample = "SNP\tChromosome\tPosition\tP-value\nrs1\t1\t1000000\t0.5\nrs2\t1\t2000000\t1e-10"
-    result = await service.execute("u1", "omichub_plot_manhattan", {"data_text": sample})
+    result = await service.execute("u1", "cygnusx_plot_manhattan", {"data_text": sample})
 
     assert result["success"] is True
     assert result["llm_payload"]["stats"]["significant"] == 1
@@ -313,17 +324,61 @@ async def test_manhattan_shim_via_bridge() -> None:
 
 @pytest.mark.asyncio
 async def test_requires_confirm_returns_confirm_card() -> None:
-    """requires_confirm 工具在未确认时返回 confirm_card。"""
+    """requires_confirm 工具首次调用返回带 confirmation_id 的 confirm_card。"""
     schema = _volcano_schema()
     schema.requires_confirm = True
     loader = _FakeLoader([schema])
     service = ToolBridgeService(loader)
-    result = await service.execute("u1", "omichub_plot_volcano", {"data_text": "gene\tlog2FC\tpadj\nA\t1\t0.01"})
+    args = {"data_text": "gene\tlog2FC\tpadj\nA\t1\t0.01"}
+    result = await service.execute("u1", "cygnusx_plot_volcano", args, context=_make_context())
 
     assert result["success"] is True
     assert result["is_error"] is False
     assert result["llm_payload"].get("needs_confirm") is True
     assert result["ui_payload"].get("confirm_card") is True
+    confirmation_id = result["ui_payload"].get("confirmation_id")
+    assert confirmation_id
+
+    # 未经人类批准直接携带凭证重试 → 服务端拒绝（模型无法自证确认）
+    from cygnusx.application.services.tool_confirmation_service import (
+        ConfirmationError,
+        get_tool_confirmation_service,
+    )
+
+    with pytest.raises(ConfirmationError) as exc_info:
+        await get_tool_confirmation_service().consume_tool_confirmation(
+            "u1", str(confirmation_id), "cygnusx_plot_volcano", args
+        )
+    assert exc_info.value.code == "CONFIRMATION_REQUIRED"
+
+    # 人类点卡置 APPROVED 后，同参数消费成功
+    await get_tool_confirmation_service().approve_by_human(
+        user_id="u1", confirmation_id=str(confirmation_id)
+    )
+    record = await get_tool_confirmation_service().consume_tool_confirmation(
+        "u1", str(confirmation_id), "cygnusx_plot_volcano", args
+    )
+    assert record.status == "CONSUMED"
+
+    # 一次性凭证：重复消费报 ALREADY_CONSUMED
+    with pytest.raises(ConfirmationError) as exc_info:
+        await get_tool_confirmation_service().consume_tool_confirmation(
+            "u1", str(confirmation_id), "cygnusx_plot_volcano", args
+        )
+    assert exc_info.value.code == "ALREADY_CONSUMED"
+
+    # 参数被改动：新的确认记录消费时报 ARGS_CHANGED
+    fresh = await get_tool_confirmation_service().create_for_tool(
+        "u1", "cygnusx_plot_volcano", args
+    )
+    await get_tool_confirmation_service().approve_by_human(
+        user_id="u1", confirmation_id=fresh.confirmation_id
+    )
+    with pytest.raises(ConfirmationError) as exc_info:
+        await get_tool_confirmation_service().consume_tool_confirmation(
+            "u1", fresh.confirmation_id, "cygnusx_plot_volcano", {**args, "pval_cutoff": 0.001}
+        )
+    assert exc_info.value.code == "ARGS_CHANGED"
 
 
 @pytest.mark.asyncio
@@ -331,7 +386,7 @@ async def test_open_page_payload() -> None:
     """open_page 工具返回路由引导。"""
     schema = ToolSchema(
         key="manhattan",
-        name="omichub_open_manhattan_page",
+        name="cygnusx_open_manhattan_page",
         description="前往曼哈顿图工具页",
         invocation_mode="open_page",
         route="/tools/manhattan",
@@ -341,32 +396,20 @@ async def test_open_page_payload() -> None:
     )
     loader = _FakeLoader([schema])
     service = ToolBridgeService(loader)
-    result = await service.execute("u1", "omichub_open_manhattan_page", {})
+    result = await service.execute("u1", "cygnusx_open_manhattan_page", {})
 
     assert result["success"] is True
     assert result["ui_payload"].get("route") == "/tools/manhattan"
 
 
 @pytest.mark.asyncio
-async def test_phylogenetic_tree_schema_uses_unified_page_entry() -> None:
-    """发育树 AI 工具只负责打开页面，实际计算统一走页面的 Celery API。"""
+async def test_phylogenetic_tree_tool_temporarily_offline() -> None:
+    """系统发育树工具已暂时下线：LLM schema 中不再暴露 cygnusx_build_phylogenetic_tree。
+
+    恢复上线时需同步还原 tools_schema.yaml 中被注释的 phylogenetic-tree 条目。
+    """
     loader = ToolsSchemaLoader("tool_configs/tools_schema.yaml")
-    schema = loader.get_tool("omichub_build_phylogenetic_tree")
-
-    assert schema is not None
-    assert schema.invocation_mode == "open_page"
-    assert schema.route == "/tools/phylogenetic-tree"
-    assert "生物信息工具箱 · 系统发育树构建" in schema.description
-    assert "系统发育树工作台" not in schema.description
-
-    service = ToolBridgeService(loader)
-    result = await service.execute(
-        "u1", "omichub_build_phylogenetic_tree", {"layout": "circular"}
-    )
-
-    assert result["success"] is True
-    assert result["ui_payload"]["route"] == "/tools/phylogenetic-tree"
-    assert result["ui_payload"]["arguments"] == {"layout": "circular"}
+    assert loader.get_tool("cygnusx_build_phylogenetic_tree") is None
 
 
 @pytest.mark.asyncio
@@ -374,7 +417,7 @@ async def test_backend_async_submits_arq_job() -> None:
     """backend_async 工具应投递 ARQ 任务并返回 task_id 与进度 URL。"""
     schema = ToolSchema(
         key="phylo",
-        name="omichub_build_phylogenetic_tree",
+        name="cygnusx_build_phylogenetic_tree",
         description="构建系统发育树",
         invocation_mode="backend_async",
         input_schema={
@@ -394,12 +437,12 @@ async def test_backend_async_submits_arq_job() -> None:
     fake_pool.enqueue_job = AsyncMock(return_value=fake_job)
 
     with patch(
-        "omichub.infrastructure.task_queue.arq_pool.get_arq_pool",
+        "cygnusx.infrastructure.task_queue.arq_pool.get_arq_pool",
         new_callable=AsyncMock,
         return_value=fake_pool,
     ):
         result = await service.execute(
-            "u1", "omichub_build_phylogenetic_tree", {"file_id": "f1"}
+            "u1", "cygnusx_build_phylogenetic_tree", {"file_id": "f1"}
         )
 
     assert result["success"] is True
@@ -413,7 +456,7 @@ async def test_backend_async_handles_enqueue_failure() -> None:
     """ARQ 入队返回 None 时应返回错误。"""
     schema = ToolSchema(
         key="phylo",
-        name="omichub_build_phylogenetic_tree",
+        name="cygnusx_build_phylogenetic_tree",
         description="构建系统发育树",
         invocation_mode="backend_async",
         input_schema={
@@ -431,12 +474,12 @@ async def test_backend_async_handles_enqueue_failure() -> None:
     fake_pool.enqueue_job = AsyncMock(return_value=None)
 
     with patch(
-        "omichub.infrastructure.task_queue.arq_pool.get_arq_pool",
+        "cygnusx.infrastructure.task_queue.arq_pool.get_arq_pool",
         new_callable=AsyncMock,
         return_value=fake_pool,
     ):
         result = await service.execute(
-            "u1", "omichub_build_phylogenetic_tree", {"file_id": "f1"}
+            "u1", "cygnusx_build_phylogenetic_tree", {"file_id": "f1"}
         )
 
     assert result["success"] is False

@@ -7,14 +7,14 @@
 
 from __future__ import annotations
 
-from omichub.application.services.agentteams_capability_registry import (
+from cygnusx.application.services.agentteams_capability_registry import (
     AgentTeamsCapabilityRegistry,
 )
-from omichub.application.services.agentteams_intent_router import infer_intent_route
-from omichub.application.services.agentteams_route_decision import build_route_decision
-from omichub.application.services.domain_registry import DomainRegistry
-from omichub.application.services.flow_registry import FlowRegistry
-from omichub.application.services.overdrive_planning_service import (
+from cygnusx.application.services.agentteams_intent_router import infer_intent_route
+from cygnusx.application.services.agentteams_route_decision import build_route_decision
+from cygnusx.application.services.domain_registry import DomainRegistry
+from cygnusx.application.services.flow_registry import FlowRegistry
+from cygnusx.application.services.overdrive_planning_service import (
     OverdrivePlanningService,
     get_domain_hints,
 )

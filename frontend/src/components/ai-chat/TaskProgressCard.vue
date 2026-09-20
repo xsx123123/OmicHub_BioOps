@@ -200,6 +200,15 @@ onUnmounted(() => {
   border-color: #ffccc7;
   background: #fff2f0;
 }
+/* 深色模式：状态底色跟随全局 danger/success 浅底变量 */
+:root[data-theme="dark"] .task-progress-card.success {
+  border-color: color-mix(in srgb, var(--arco-success, #22c55e) 40%, transparent);
+  background: var(--arco-success-light, rgba(34, 197, 94, 0.15));
+}
+:root[data-theme="dark"] .task-progress-card.error {
+  border-color: color-mix(in srgb, var(--arco-danger, #ef4444) 40%, transparent);
+  background: var(--arco-danger-light, rgba(239, 68, 68, 0.15));
+}
 .task-header {
   display: flex;
   align-items: center;

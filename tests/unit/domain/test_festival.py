@@ -4,13 +4,13 @@ from datetime import date
 
 import pytest
 
-from omichub.domain.festival import (
+from cygnusx.domain.festival import (
     ActiveRange,
     CalendarType,
     FestivalCategory,
     FestivalConfig,
 )
-from omichub.domain.festival.services import FestivalCalendarService
+from cygnusx.domain.festival.services import FestivalCalendarService
 
 
 @pytest.fixture

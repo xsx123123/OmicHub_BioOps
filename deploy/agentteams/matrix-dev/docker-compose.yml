@@ -5,7 +5,7 @@
 services:
   synapse:
     image: matrixdotorg/synapse:latest
-    container_name: omichub-matrix-dev-synapse
+    container_name: cygnusx-matrix-dev-synapse
     restart: unless-stopped
     volumes:
       - ./synapse-data:/data
@@ -14,13 +14,17 @@ services:
 
   element:
     image: vectorim/element-web:latest
-    container_name: omichub-matrix-dev-element
+    container_name: cygnusx-matrix-dev-element
     restart: unless-stopped
     volumes:
       - ./element-config.json:/app/config.json:ro
-      # element-web 镜像默认带 X-Frame-Options: SAMEORIGIN,不允许被 OmicHub 页面 iframe 嵌入;
+      # element-web 镜像默认带 X-Frame-Options: SAMEORIGIN,不允许被 CygnusX 页面 iframe 嵌入;
       # 开发环境挂载去掉该头的 nginx 配置(由 setup 脚本从镜像提取并改写)
       - ./nginx-no-xfo.conf:/etc/nginx/nginx.conf:ro
+      # CygnusX 免登录跳板页:凭据经 URL fragment 写入 localStorage 后跳转房间深链
+      - ./cygnusx-login.html:/usr/share/nginx/html/cygnusx-login.html:ro
+      # insecure context 兼容补丁(经 nginx sub_filter 注入 index.html)
+      - ./cygnusx-compat.js:/usr/share/nginx/html/cygnusx-compat.js:ro
     ports:
       - "127.0.0.1:8081:80"
     depends_on:

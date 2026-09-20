@@ -161,7 +161,7 @@ onMounted(fetchTrend)
     <div class="arco-card-header">
       <span class="arco-card-title">任务提交趋势</span>
       <div class="trend-controls">
-        <div class="omichub-segmented-toggle chart-toggle" role="group" aria-label="趋势图形态切换">
+        <div class="cygnusx-segmented-toggle chart-toggle" role="group" aria-label="趋势图形态切换">
           <button
             type="button"
             :class="{ active: chartMode === 'bar' }"

@@ -1,6 +1,6 @@
-# OmicHub JBrowse 2 基因组浏览器集成实现指南
+# CygnusX JBrowse 2 基因组浏览器集成实现指南
 
-> 目标：将 JBrowse 2 嵌入 OmicHub 平台，支持外置 YAML 配置、自动扫描用户目录、网页上传文件。
+> 目标：将 JBrowse 2 嵌入 CygnusX 平台，支持外置 YAML 配置、自动扫描用户目录、网页上传文件。
 > 作者：Kimi
 > 说明：本指南提供完整代码框架，供 CC 优化和适配现有架构。
 
@@ -24,7 +24,7 @@
 ## 1. 项目结构规划
 
 ```
-omichub/
+cygnusx/
 ├── pipelines/
 │   └── jbrowse2/                    # JBrowse 2 静态产物 (下载至此)
 │       ├── index.html
@@ -154,7 +154,7 @@ location /jbrowse2/ {
 
 # 数据文件访问 (支持 Range Request)
 location /tracks/ {
-    alias /data/omichub/;
+    alias /data/cygnusx/;
     add_header Access-Control-Allow-Origin *;
     add_header Access-Control-Allow-Methods "GET, HEAD, OPTIONS";
     add_header Accept-Ranges bytes;
@@ -181,7 +181,7 @@ services:
       # 新增：JBrowse 2 产物
       - ./pipelines/jbrowse2:/usr/share/nginx/html/jbrowse2:ro
       # 新增：数据文件访问
-      - /data/omichub:/data/omichub:ro
+      - /data/cygnusx:/data/cygnusx:ro
       # 现有挂载保持不变...
 ```
 

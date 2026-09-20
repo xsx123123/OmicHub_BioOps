@@ -1,7 +1,7 @@
 from datetime import datetime
 from unittest.mock import MagicMock
 
-from omichub.application.services.ai_metrics_service import AiMetricsService
+from cygnusx.application.services.ai_metrics_service import AiMetricsService
 
 
 def test_daily_cost_alert_is_deduplicated_for_the_current_calendar_day():

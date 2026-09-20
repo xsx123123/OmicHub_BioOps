@@ -1,11 +1,16 @@
 import type { DataFile } from '@/types'
 import type { AgentTemplate, SkillItem } from '@/types/agent'
+import type { SuggestedFollowUp } from '@/utils/nextStepSuggestions'
 
 // ===== Token 统计 =====
 export interface TokenInfo {
   input?: number
   output?: number
   total?: number
+  /** 缓存命中的输入 tokens，费用按输入缓存单价单独计价 */
+  cached?: number
+  /** 缓存命中的输出 tokens，费用按输出缓存单价单独计价 */
+  cachedOutput?: number
 }
 
 export interface WebSearchSource {
@@ -191,6 +196,11 @@ export interface ChatMessage {
   tokens?: TokenInfo
   /** 消息状态，用于流式错误/空内容识别 */
   status?: 'complete' | 'streaming' | 'error' | 'empty'
+  /** 建议追问 Chips（AI 消息专属）：后端 done 事件下发的结构化建议，
+   *  随消息 metadata 持久化；存在时优先于"可选下一步"正则解析兜底 */
+  suggestions?: SuggestedFollowUp[]
+  /** 错误原因（AI 消息专属）：出错时 content 保留已累计正文，错误信息单独存放于此 */
+  error?: string
   /** 模型结束原因（done 事件透传），length 表示输出预算耗尽 */
   finishReason?: string
   createdAt: string
@@ -236,12 +246,23 @@ export interface SkillInvocationCard {
   ts: number
 }
 
+/** tool_invocations 落库截断标记（信封层级，payload_truncated / original_bytes / truncation_note） */
+export interface PayloadTruncationMeta {
+  payload_truncated?: boolean
+  original_bytes?: number
+  truncation_note?: string
+}
+
 export interface ToolCall {
   id: string
   name: string
   arguments: Record<string, unknown>
   result?: unknown
   uiPayload?: Record<string, unknown>
+  /** 落库信封 ui_payload_truncation：历史重建时 ui_payload 曾被 200KB 护栏截断 */
+  uiPayloadTruncation?: PayloadTruncationMeta
+  /** 落库信封 result_truncation：历史重建时 result 曾被 200KB 护栏截断 */
+  resultTruncation?: PayloadTruncationMeta
   mcpServer?: string
   /** 调用理由（后端 tool_call 事件 metadata.purpose 透传） */
   purpose?: string
@@ -250,6 +271,12 @@ export interface ToolCall {
   output?: string
   /** Studio 代码卡片的语言（python / r / bash） */
   language?: string
+  /**
+   * 科研模式信封字段（metadata_json.tool_invocations 条目，WP3 任务 1）：
+   * 落库信封的 cell_index / language，与 result/ui_payload 平级；旧数据无此字段。
+   * cell_index 相同的工具卡在 cell 时间线形态下归入同一 cell 组；null=非代码工具。
+   */
+  cellIndex?: number | null
   /** Studio HITL 审批状态（内存态；刷新/断流后由 loadSessionMessages 从 Redis 重建） */
   approval?: ToolApproval
   checkpointId?: string

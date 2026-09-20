@@ -270,6 +270,7 @@ async function reconcileCase(totpCode: string) {
 const CASE_STATUS_MAP: Record<string, { label: string; type: 'default' | 'info' | 'success' | 'warning' | 'error' }> = {
   received: { label: '已接收', type: 'default' },
   waiting_for_correction: { label: '待修正', type: 'warning' },
+  planning_failed: { label: '规划失败', type: 'error' },
   preflight_blocked: { label: '预检拦截', type: 'error' },
   approval_pending: { label: '待审批', type: 'warning' },
   executing: { label: '执行中', type: 'info' },

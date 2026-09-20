@@ -10,14 +10,16 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-import omichub.application.services.chat_service as chat_module
-from omichub.application.services.chat_service import (
+import cygnusx.application.services.chat_service as chat_module
+from cygnusx.application.services.chat_service import (
     ChatService,
+    _extract_route_json,
+)
+from cygnusx.application.services.chat.overdrive_control import (
     _build_overdrive_followup_assignments,
     _default_overdrive_assignments,
     _effective_overdrive,
     _extract_overdrive_intake_slots,
-    _extract_route_json,
     _filter_overdrive_questions,
     _normalize_overdrive_assignments,
     _overdrive_assignment_waves,
@@ -28,8 +30,8 @@ from omichub.application.services.chat_service import (
     _resolve_overdrive_keyword_toggle,
     _resolve_overdrive_router_toggle,
 )
-from omichub.application.services.domain_registry import get_domain_registry
-from omichub.infrastructure.ai_provider.openai_compatible import ChatChunk
+from cygnusx.application.services.domain_registry import get_domain_registry
+from cygnusx.infrastructure.ai_provider.openai_compatible import ChatChunk
 
 legacy_preconfirmation_execution = pytest.mark.skip(
     reason="retired: Overdrive now freezes a plan and waits for user confirmation before worker dispatch"
@@ -46,7 +48,13 @@ class _FakeAgentService:
         assert active_only
         return self.agents
 
-    async def assemble_context(self, _agent_id: str, *, user_id: str | None = None):
+    async def assemble_context(
+        self,
+        _agent_id: str,
+        *,
+        user_id: str | None = None,
+        tool_query: str | None = None,
+    ):
         return None
 
 
@@ -344,7 +352,7 @@ async def test_overdrive_executes_dependency_chain_and_passes_upstream_outputs(m
         _agent("agent-viz", "可视化助手", category="visualization"),
     ]
     monkeypatch.setattr(
-        "omichub.application.services.agent_service.AgentService", _FakeAgentService
+        "cygnusx.application.services.agent_service.AgentService", _FakeAgentService
     )
     manager_outputs = iter(
         [
@@ -389,7 +397,7 @@ async def test_overdrive_executes_dependency_chain_and_passes_upstream_outputs(m
     session = SimpleNamespace(sandbox_meta={})
     monkeypatch.setattr(chat_module.provider_manager, "chat_stream", fake_stream)
     monkeypatch.setattr(
-        "omichub.application.services.parallel_subagent_tool_service.ParallelSubAgentToolService.run_parallel_subagents",
+        "cygnusx.application.services.parallel_subagent_tool_service.ParallelSubAgentToolService.run_parallel_subagents",
         fake_fanout,
     )
     service = ChatService(MagicMock(spec=AsyncSession))
@@ -437,7 +445,7 @@ async def test_budget_exhausted_code_task_blocks_visualization_wave(monkeypatch)
         _agent("agent-viz", "可视化助手", category="visualization"),
     ]
     monkeypatch.setattr(
-        "omichub.application.services.agent_service.AgentService", _FakeAgentService
+        "cygnusx.application.services.agent_service.AgentService", _FakeAgentService
     )
     manager_outputs = iter(
         [
@@ -486,7 +494,7 @@ async def test_budget_exhausted_code_task_blocks_visualization_wave(monkeypatch)
 
     monkeypatch.setattr(chat_module.provider_manager, "chat_stream", fake_stream)
     monkeypatch.setattr(
-        "omichub.application.services.parallel_subagent_tool_service.ParallelSubAgentToolService.run_parallel_subagents",
+        "cygnusx.application.services.parallel_subagent_tool_service.ParallelSubAgentToolService.run_parallel_subagents",
         fake_fanout,
     )
     service = ChatService(MagicMock(spec=AsyncSession))
@@ -523,7 +531,7 @@ async def test_budget_exhausted_user_request_pauses_visualization_instead_of_ski
         _agent("agent-viz", "可视化助手", category="visualization"),
     ]
     monkeypatch.setattr(
-        "omichub.application.services.agent_service.AgentService", _FakeAgentService
+        "cygnusx.application.services.agent_service.AgentService", _FakeAgentService
     )
     session = SimpleNamespace(sandbox_meta={})
 
@@ -568,7 +576,7 @@ async def test_budget_exhausted_user_request_pauses_visualization_instead_of_ski
 
     monkeypatch.setattr(chat_module.provider_manager, "chat_stream", fake_stream)
     monkeypatch.setattr(
-        "omichub.application.services.parallel_subagent_tool_service.ParallelSubAgentToolService.run_parallel_subagents",
+        "cygnusx.application.services.parallel_subagent_tool_service.ParallelSubAgentToolService.run_parallel_subagents",
         fake_fanout,
     )
     service = ChatService(MagicMock(spec=AsyncSession))
@@ -611,7 +619,7 @@ async def test_budget_exhausted_user_request_pauses_visualization_instead_of_ski
 async def test_overdrive_worker_reasoning_stream_is_persisted_separately(monkeypatch) -> None:
     _FakeAgentService.agents = [_agent("agent-general", "通用助手", category="general")]
     monkeypatch.setattr(
-        "omichub.application.services.agent_service.AgentService", _FakeAgentService
+        "cygnusx.application.services.agent_service.AgentService", _FakeAgentService
     )
     manager_outputs = iter(
         [
@@ -672,7 +680,7 @@ async def test_overdrive_worker_reasoning_stream_is_persisted_separately(monkeyp
 
     monkeypatch.setattr(chat_module.provider_manager, "chat_stream", fake_stream)
     monkeypatch.setattr(
-        "omichub.application.services.parallel_subagent_tool_service.ParallelSubAgentToolService.run_parallel_subagents",
+        "cygnusx.application.services.parallel_subagent_tool_service.ParallelSubAgentToolService.run_parallel_subagents",
         fake_fanout,
     )
     service = ChatService(MagicMock(spec=AsyncSession))
@@ -733,7 +741,7 @@ async def test_overdrive_followup_saves_report_then_executes_and_visualizes(monk
         _agent("agent-viz", "可视化助手", category="visualization"),
     ]
     monkeypatch.setattr(
-        "omichub.application.services.agent_service.AgentService", _FakeAgentService
+        "cygnusx.application.services.agent_service.AgentService", _FakeAgentService
     )
     session = SimpleNamespace(
         sandbox_meta={
@@ -788,7 +796,7 @@ async def test_overdrive_followup_saves_report_then_executes_and_visualizes(monk
     monkeypatch.setattr(chat_module, "execute_studio_tool", fake_execute_studio_tool)
     monkeypatch.setattr(chat_module.provider_manager, "chat_stream", fake_stream)
     monkeypatch.setattr(
-        "omichub.application.services.parallel_subagent_tool_service.ParallelSubAgentToolService.run_parallel_subagents",
+        "cygnusx.application.services.parallel_subagent_tool_service.ParallelSubAgentToolService.run_parallel_subagents",
         fake_fanout,
     )
     service = ChatService(MagicMock(spec=AsyncSession))
@@ -864,7 +872,7 @@ async def test_overdrive_room_speech_sequence_and_persistence(
     candidates = [_agent(f"agent-{index}", f"专家{index}") for index in range(5)]
     _FakeAgentService.agents = candidates
     monkeypatch.setattr(
-        "omichub.application.services.agent_service.AgentService", _FakeAgentService
+        "cygnusx.application.services.agent_service.AgentService", _FakeAgentService
     )
 
     manager_response = {
@@ -903,7 +911,7 @@ async def test_overdrive_room_speech_sequence_and_persistence(
         }
 
     monkeypatch.setattr(
-        "omichub.application.services.parallel_subagent_tool_service.ParallelSubAgentToolService.run_parallel_subagents",
+        "cygnusx.application.services.parallel_subagent_tool_service.ParallelSubAgentToolService.run_parallel_subagents",
         fake_fanout,
     )
 
@@ -951,7 +959,7 @@ async def test_overdrive_room_speech_sequence_and_persistence(
 async def test_overdrive_peer_review_shares_all_expert_conclusions(monkeypatch) -> None:
     _FakeAgentService.agents = [_agent("agent-a", "专家A"), _agent("agent-b", "专家B")]
     monkeypatch.setattr(
-        "omichub.application.services.agent_service.AgentService", _FakeAgentService
+        "cygnusx.application.services.agent_service.AgentService", _FakeAgentService
     )
     outputs = iter(
         [
@@ -989,7 +997,7 @@ async def test_overdrive_peer_review_shares_all_expert_conclusions(monkeypatch) 
 
     monkeypatch.setattr(chat_module.provider_manager, "chat_stream", fake_stream)
     monkeypatch.setattr(
-        "omichub.application.services.parallel_subagent_tool_service.ParallelSubAgentToolService.run_parallel_subagents",
+        "cygnusx.application.services.parallel_subagent_tool_service.ParallelSubAgentToolService.run_parallel_subagents",
         fake_fanout,
     )
     service = ChatService(MagicMock(spec=AsyncSession))
@@ -1035,7 +1043,7 @@ async def test_overdrive_excludes_non_spawnable_agents_from_manager_catalog(monk
         _agent("agent-disabled", "不可派生专家", spawnable=False),
     ]
     monkeypatch.setattr(
-        "omichub.application.services.agent_service.AgentService", _FakeAgentService
+        "cygnusx.application.services.agent_service.AgentService", _FakeAgentService
     )
 
     async def fake_stream(**kwargs):
@@ -1071,7 +1079,7 @@ async def test_overdrive_excludes_non_spawnable_agents_from_manager_catalog(monk
 async def test_overdrive_preflight_emits_manager_question_before_dispatch(monkeypatch) -> None:
     _FakeAgentService.agents = [_agent("agent-1", "专家1")]
     monkeypatch.setattr(
-        "omichub.application.services.agent_service.AgentService", _FakeAgentService
+        "cygnusx.application.services.agent_service.AgentService", _FakeAgentService
     )
 
     async def should_not_call_model(**_kwargs):
@@ -1115,7 +1123,7 @@ async def test_tnpd_request_asks_for_real_phylogeny_inputs_before_freezing_plan(
         _agent("agent-viz", "可视化助手", category="visualization"),
     ]
     monkeypatch.setattr(
-        "omichub.application.services.agent_service.AgentService", _FakeAgentService
+        "cygnusx.application.services.agent_service.AgentService", _FakeAgentService
     )
 
     async def should_not_call_model(**_kwargs):
@@ -1167,7 +1175,7 @@ async def test_tnpd_invalid_manager_plan_repairs_then_rule_merges_authoritative_
         _agent("agent-viz", "可视化助手", category="visualization"),
     ]
     monkeypatch.setattr(
-        "omichub.application.services.agent_service.AgentService", _FakeAgentService
+        "cygnusx.application.services.agent_service.AgentService", _FakeAgentService
     )
     monkeypatch.setattr(
         _FakeAgentService,
@@ -1200,11 +1208,11 @@ async def test_tnpd_invalid_manager_plan_repairs_then_rule_merges_authoritative_
     )
     monkeypatch.setattr(chat_module.provider_manager, "chat_stream", fake_stream)
     monkeypatch.setattr(
-        "omichub.application.services.overdrive_run_service.OverdriveRunService.get_active_for_session",
+        "cygnusx.application.services.overdrive_run_service.OverdriveRunService.get_active_for_session",
         AsyncMock(return_value=None),
     )
     monkeypatch.setattr(
-        "omichub.application.services.overdrive_run_service.OverdriveRunService.create_run",
+        "cygnusx.application.services.overdrive_run_service.OverdriveRunService.create_run",
         AsyncMock(return_value=run),
     )
     captured: dict[str, object] = {}
@@ -1296,7 +1304,7 @@ async def test_tnpd_invalid_manager_plan_repairs_then_rule_merges_authoritative_
 async def test_overdrive_manager_failure_uses_honest_neutral_fallback(monkeypatch) -> None:
     _FakeAgentService.agents = [_agent("agent-general", "通用助手", category="general")]
     monkeypatch.setattr(
-        "omichub.application.services.agent_service.AgentService", _FakeAgentService
+        "cygnusx.application.services.agent_service.AgentService", _FakeAgentService
     )
     monkeypatch.setattr(
         chat_module.OverdrivePlanningTelemetryService,
@@ -1336,7 +1344,7 @@ async def test_overdrive_preflight_is_generated_by_manager_and_persists_intake(m
         _agent("agent-scrna", "单细胞专家"),
     ]
     monkeypatch.setattr(
-        "omichub.application.services.agent_service.AgentService", _FakeAgentService
+        "cygnusx.application.services.agent_service.AgentService", _FakeAgentService
     )
 
     manager_prompts: list[str] = []
@@ -1359,7 +1367,7 @@ async def test_overdrive_preflight_is_generated_by_manager_and_persists_intake(m
     session = SimpleNamespace(sandbox_meta={})
     monkeypatch.setattr(chat_module.provider_manager, "chat_stream", fake_stream)
     monkeypatch.setattr(
-        "omichub.application.services.parallel_subagent_tool_service.ParallelSubAgentToolService.run_parallel_subagents",
+        "cygnusx.application.services.parallel_subagent_tool_service.ParallelSubAgentToolService.run_parallel_subagents",
         fake_fanout,
     )
     service = ChatService(MagicMock(spec=AsyncSession))
@@ -1390,7 +1398,7 @@ async def test_overdrive_preflight_is_generated_by_manager_and_persists_intake(m
 async def test_overdrive_preflight_uses_safe_fallback_when_manager_omits_questions(monkeypatch) -> None:
     _FakeAgentService.agents = [_agent("agent-general", "通用助手")]
     monkeypatch.setattr(
-        "omichub.application.services.agent_service.AgentService", _FakeAgentService
+        "cygnusx.application.services.agent_service.AgentService", _FakeAgentService
     )
 
     async def invalid_preflight_stream(**_kwargs):
@@ -1429,7 +1437,7 @@ async def test_overdrive_resumes_pending_intake_with_original_and_user_answer(mo
         _agent("agent-rnaseq", "RNA专家"),
     ]
     monkeypatch.setattr(
-        "omichub.application.services.agent_service.AgentService", _FakeAgentService
+        "cygnusx.application.services.agent_service.AgentService", _FakeAgentService
     )
     session = SimpleNamespace(
         sandbox_meta={
@@ -1471,7 +1479,7 @@ async def test_overdrive_resumes_pending_intake_with_original_and_user_answer(mo
 
     monkeypatch.setattr(chat_module.provider_manager, "chat_stream", fake_stream)
     monkeypatch.setattr(
-        "omichub.application.services.parallel_subagent_tool_service.ParallelSubAgentToolService.run_parallel_subagents",
+        "cygnusx.application.services.parallel_subagent_tool_service.ParallelSubAgentToolService.run_parallel_subagents",
         fake_fanout,
     )
     service = ChatService(MagicMock(spec=AsyncSession))
@@ -1508,7 +1516,7 @@ async def test_overdrive_tree_intake_keeps_root_slots_and_dispatches_visualizati
         _agent("agent-viz", "可视化助手", category="visualization"),
     ]
     monkeypatch.setattr(
-        "omichub.application.services.agent_service.AgentService", _FakeAgentService
+        "cygnusx.application.services.agent_service.AgentService", _FakeAgentService
     )
     session = SimpleNamespace(sandbox_meta={})
     manager_prompts: list[str] = []
@@ -1580,7 +1588,7 @@ async def test_overdrive_tree_intake_keeps_root_slots_and_dispatches_visualizati
 
     monkeypatch.setattr(chat_module.provider_manager, "chat_stream", fake_stream)
     monkeypatch.setattr(
-        "omichub.application.services.parallel_subagent_tool_service.ParallelSubAgentToolService.run_parallel_subagents",
+        "cygnusx.application.services.parallel_subagent_tool_service.ParallelSubAgentToolService.run_parallel_subagents",
         fake_fanout,
     )
     service = ChatService(MagicMock(spec=AsyncSession))
@@ -1630,7 +1638,7 @@ async def test_tp53_ambiguous_request_reaches_frozen_plan_after_intake(monkeypat
         _agent("agent-viz", "可视化专家"),
     ]
     monkeypatch.setattr(
-        "omichub.application.services.agent_service.AgentService", _FakeAgentService
+        "cygnusx.application.services.agent_service.AgentService", _FakeAgentService
     )
     session = SimpleNamespace(sandbox_meta={})
     manager_prompts: list[str] = []
@@ -1677,7 +1685,7 @@ async def test_tp53_ambiguous_request_reaches_frozen_plan_after_intake(monkeypat
 
     monkeypatch.setattr(chat_module.provider_manager, "chat_stream", fake_stream)
     monkeypatch.setattr(
-        "omichub.application.services.overdrive_run_service.OverdriveRunService.get_active_for_session",
+        "cygnusx.application.services.overdrive_run_service.OverdriveRunService.get_active_for_session",
         fake_active_run,
     )
     service = ChatService(MagicMock(spec=AsyncSession))
@@ -1728,7 +1736,7 @@ async def test_tp53_ambiguous_request_reaches_frozen_plan_after_intake(monkeypat
 async def test_overdrive_worker_failure_becomes_room_speech(monkeypatch) -> None:
     _FakeAgentService.agents = [_agent("agent-1", "专家1"), _agent("agent-2", "专家2")]
     monkeypatch.setattr(
-        "omichub.application.services.agent_service.AgentService", _FakeAgentService
+        "cygnusx.application.services.agent_service.AgentService", _FakeAgentService
     )
 
     responses = iter(
@@ -1754,7 +1762,7 @@ async def test_overdrive_worker_failure_becomes_room_speech(monkeypatch) -> None
 
     monkeypatch.setattr(chat_module.provider_manager, "chat_stream", fake_stream)
     monkeypatch.setattr(
-        "omichub.application.services.parallel_subagent_tool_service.ParallelSubAgentToolService.run_parallel_subagents",
+        "cygnusx.application.services.parallel_subagent_tool_service.ParallelSubAgentToolService.run_parallel_subagents",
         fake_fanout,
     )
 
@@ -1788,7 +1796,7 @@ async def test_overdrive_same_agent_clones_run_independent_tasks(monkeypatch) ->
     """同一专家可被指派多个独立子任务（分身并行）：结果按下标对齐，身份以 #n 区分。"""
     _FakeAgentService.agents = [_agent("agent-1", "专家1")]
     monkeypatch.setattr(
-        "omichub.application.services.agent_service.AgentService", _FakeAgentService
+        "cygnusx.application.services.agent_service.AgentService", _FakeAgentService
     )
 
     responses = iter(
@@ -1815,7 +1823,7 @@ async def test_overdrive_same_agent_clones_run_independent_tasks(monkeypatch) ->
 
     monkeypatch.setattr(chat_module.provider_manager, "chat_stream", fake_stream)
     monkeypatch.setattr(
-        "omichub.application.services.parallel_subagent_tool_service.ParallelSubAgentToolService.run_parallel_subagents",
+        "cygnusx.application.services.parallel_subagent_tool_service.ParallelSubAgentToolService.run_parallel_subagents",
         fake_fanout,
     )
 
@@ -1857,7 +1865,7 @@ def test_overdrive_turn_has_no_external_room_side_effects() -> None:
 
 
 def test_chat_api_no_longer_exposes_matrix_room_event_stream() -> None:
-    import omichub.api.v1.chat as chat_api
+    import cygnusx.api.v1.chat as chat_api
 
     assert "/sessions/{session_id}/room-events" not in {
         route.path for route in chat_api.router.routes
@@ -1869,7 +1877,7 @@ def test_chat_api_no_longer_exposes_matrix_room_event_stream() -> None:
 async def test_overdrive_does_not_repeat_worker_request_for_user_input(monkeypatch) -> None:
     _FakeAgentService.agents = [_agent("agent-1", "专家1")]
     monkeypatch.setattr(
-        "omichub.application.services.agent_service.AgentService", _FakeAgentService
+        "cygnusx.application.services.agent_service.AgentService", _FakeAgentService
     )
 
     manager_calls = 0
@@ -1912,7 +1920,7 @@ async def test_overdrive_does_not_repeat_worker_request_for_user_input(monkeypat
 
     monkeypatch.setattr(chat_module.provider_manager, "chat_stream", fake_stream)
     monkeypatch.setattr(
-        "omichub.application.services.parallel_subagent_tool_service.ParallelSubAgentToolService.run_parallel_subagents",
+        "cygnusx.application.services.parallel_subagent_tool_service.ParallelSubAgentToolService.run_parallel_subagents",
         fake_fanout,
     )
     service = ChatService(MagicMock(spec=AsyncSession))
@@ -1952,7 +1960,7 @@ async def test_overdrive_does_not_repeat_worker_request_for_user_input(monkeypat
 async def test_overdrive_persists_approval_and_skips_manager_summary(monkeypatch) -> None:
     _FakeAgentService.agents = [_agent("agent-1", "专家1")]
     monkeypatch.setattr(
-        "omichub.application.services.agent_service.AgentService", _FakeAgentService
+        "cygnusx.application.services.agent_service.AgentService", _FakeAgentService
     )
 
     calls = 0
@@ -1988,7 +1996,7 @@ async def test_overdrive_persists_approval_and_skips_manager_summary(monkeypatch
 
     monkeypatch.setattr(chat_module.provider_manager, "chat_stream", fake_stream)
     monkeypatch.setattr(
-        "omichub.application.services.parallel_subagent_tool_service.ParallelSubAgentToolService.run_parallel_subagents",
+        "cygnusx.application.services.parallel_subagent_tool_service.ParallelSubAgentToolService.run_parallel_subagents",
         fake_fanout,
     )
     db = MagicMock(spec=AsyncSession)
@@ -2034,7 +2042,7 @@ async def test_approve_overdrive_approval_executes_original_call_once(monkeypatc
         execute=AsyncMock(return_value={"success": True, "llm_payload": {"summary": "submitted"}})
     )
     monkeypatch.setattr(
-        "omichub.application.services.tool_bridge_service.get_tool_bridge_service", lambda: bridge
+        "cygnusx.application.services.tool_bridge_service.get_tool_bridge_service", lambda: bridge
     )
 
     resolved = await service.approve_overdrive_approval(
@@ -2054,7 +2062,7 @@ async def test_manager_planning_streams_reasoning_as_thought_delta(monkeypatch) 
         _agent("agent-code", "代码助手", category="code"),
     ]
     monkeypatch.setattr(
-        "omichub.application.services.agent_service.AgentService", _FakeAgentService
+        "cygnusx.application.services.agent_service.AgentService", _FakeAgentService
     )
     plan_json = (
         '{"speech":"按依赖顺序执行。","assignments":['
@@ -2078,11 +2086,11 @@ async def test_manager_planning_streams_reasoning_as_thought_delta(monkeypatch) 
     )
     monkeypatch.setattr(chat_module.provider_manager, "chat_stream", fake_stream)
     monkeypatch.setattr(
-        "omichub.application.services.overdrive_run_service.OverdriveRunService.get_active_for_session",
+        "cygnusx.application.services.overdrive_run_service.OverdriveRunService.get_active_for_session",
         AsyncMock(return_value=None),
     )
     monkeypatch.setattr(
-        "omichub.application.services.overdrive_run_service.OverdriveRunService.create_run",
+        "cygnusx.application.services.overdrive_run_service.OverdriveRunService.create_run",
         AsyncMock(return_value=run),
     )
 

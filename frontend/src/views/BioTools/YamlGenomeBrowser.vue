@@ -245,7 +245,7 @@ function buildJbrowseConfig(id: string, entry: GenomeEntry, locationStr: string)
     // 初始轨道为空，后续可动态添加
     tracks: [],
     defaultSession: {
-      name: `OmicHub-${id}`,
+      name: `CygnusX-${id}`,
       view: {
         id: 'linearGenomeView',
         type: 'LinearGenomeView',

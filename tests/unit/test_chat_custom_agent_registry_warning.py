@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock
 import pytest
 from loguru import logger
 
-from omichub.application.services import chat_service
+from cygnusx.application.services.chat import routing_observability
 
 
 def _db_with_agent_ids(agent_ids: list[str]) -> SimpleNamespace:
@@ -19,7 +19,7 @@ def _db_with_agent_ids(agent_ids: list[str]) -> SimpleNamespace:
 
 @pytest.fixture(autouse=True)
 def _reset_warn_throttle(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setattr(chat_service, "_custom_agent_registry_warned_at", 0.0)
+    monkeypatch.setattr(routing_observability, "_custom_agent_registry_warned_at", 0.0)
 
 
 @pytest.mark.asyncio
@@ -28,7 +28,7 @@ async def test_warns_when_db_custom_agent_missing_from_registry() -> None:
     logs: list[str] = []
     sink = logger.add(lambda message: logs.append(str(message)), level="WARNING")
     try:
-        missing = await chat_service._warn_custom_agents_missing_from_registry(
+        missing = await routing_observability.warn_custom_agents_missing_from_registry(
             db, {"agent-general"}
         )
     finally:
@@ -44,7 +44,7 @@ async def test_no_warning_when_all_custom_agents_registered() -> None:
     logs: list[str] = []
     sink = logger.add(lambda message: logs.append(str(message)), level="WARNING")
     try:
-        missing = await chat_service._warn_custom_agents_missing_from_registry(
+        missing = await routing_observability.warn_custom_agents_missing_from_registry(
             db, {"agent-general"}
         )
     finally:
@@ -58,8 +58,8 @@ async def test_no_warning_when_all_custom_agents_registered() -> None:
 async def test_warning_is_throttled() -> None:
     db = _db_with_agent_ids(["agent-custom-1"])
 
-    first = await chat_service._warn_custom_agents_missing_from_registry(db, set())
-    second = await chat_service._warn_custom_agents_missing_from_registry(db, set())
+    first = await routing_observability.warn_custom_agents_missing_from_registry(db, set())
+    second = await routing_observability.warn_custom_agents_missing_from_registry(db, set())
 
     assert first == ["agent-custom-1"]
     assert second == []
@@ -72,7 +72,7 @@ async def test_db_failure_is_logged_not_raised() -> None:
     logs: list[str] = []
     sink = logger.add(lambda message: logs.append(str(message)), level="WARNING")
     try:
-        missing = await chat_service._warn_custom_agents_missing_from_registry(db, set())
+        missing = await routing_observability.warn_custom_agents_missing_from_registry(db, set())
     finally:
         logger.remove(sink)
 

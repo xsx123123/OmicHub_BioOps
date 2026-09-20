@@ -180,6 +180,7 @@ watch(() => props.show, (show) => {
                 </button>
                 <span v-if="item.mode === 'studio' || store.studioSessionIds.has(item.id)" class="mode-dot">工作台</span>
                 <span v-if="item.overdrive" class="mode-dot mode-dot--overdrive">超频模式</span>
+                <span v-if="item.workspace_archive" class="mode-dot mode-dot--archived">已归档</span>
                 <div class="history-actions">
                   <NButton text size="tiny" title="重命名" @click.stop="startRename(item)"><NIcon><CreateOutline /></NIcon></NButton>
                   <NButton text size="tiny" title="删除" @click.stop="removeSession(item)"><NIcon><CloseOutline /></NIcon></NButton>
@@ -225,6 +226,14 @@ watch(() => props.show, (show) => {
 .history-item:hover .history-actions { opacity: 1; }
 .mode-dot { flex-shrink: 0; color: var(--brand-primary); font-size: 10px; }
 .mode-dot--overdrive { color: #e6a23c; }
+.mode-dot--archived {
+  padding: 0 6px;
+  border: 1px solid var(--neutral-border, var(--chat-border));
+  border-radius: 999px;
+  color: var(--text-tertiary, var(--neutral-text-3));
+  background: color-mix(in srgb, var(--neutral-text-3, #86909c) 8%, transparent);
+  line-height: 15px;
+}
 .history-state { display: grid; flex: 1; place-content: center; justify-items: center; gap: 10px; color: var(--text-tertiary); font-size: 12px; text-align: center; line-height: 1.6; }
 .history-empty-art { color: var(--brand-primary); font-size: 28px; }
 .content-match { display: flex; flex-direction: column; gap: 4px; padding: 9px 10px; border: 1px solid var(--brand-primary-light); border-radius: 8px; background: var(--bg-card); text-align: left; cursor: pointer; }

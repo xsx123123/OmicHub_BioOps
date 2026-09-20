@@ -263,7 +263,7 @@ function apiErrorMessage(e: unknown): string {
 
     <!-- Channel mode -->
     <template v-else>
-      <div class="omichub-segmented-toggle channel-toggle" role="group" aria-label="导入方式">
+      <div class="cygnusx-segmented-toggle channel-toggle" role="group" aria-label="导入方式">
         <button :class="{ active: channel === 'zip' }" :aria-pressed="channel === 'zip'" @click="channel = 'zip'">
           <NIcon :component="CloudUploadOutline" /> 本地 ZIP
         </button>

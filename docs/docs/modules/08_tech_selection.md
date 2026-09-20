@@ -1,4 +1,4 @@
-# OmicHub "AI Copilot 与交互式代码执行沙盒"模块技术栈选型与评估报告
+# CygnusX "AI Copilot 与交互式代码执行沙盒"模块技术栈选型与评估报告
 
 > **文档版本**: v1.0  
 > **评估日期**: 2025年7月  
@@ -47,7 +47,7 @@
 
 1. **Vue 3 生态原生契合**：CodeMirror 6 的 ESM 模块化架构与 Vite 的 tree-shaking 完美配合，而 Monaco 需要复杂的 Worker 加载配置
 2. **包体积差距悬殊**：基础功能仅 ~50KB vs Monaco ~2MB，对于侧边栏编辑器场景至关重要
-3. **多实例友好**：OmicHub 需要同时展示多个代码片段（对话历史中的代码块），CodeMirror 6 的轻量实例更符合需求
+3. **多实例友好**：CygnusX 需要同时展示多个代码片段（对话历史中的代码块），CodeMirror 6 的轻量实例更符合需求
 4. **触屏支持**：未来可能需要在平板设备上使用
 5. **维护简单**：升级通过 npm 即可完成，无需处理 Worker 文件路径问题
 
@@ -103,7 +103,7 @@ const option = {
 
 ### 1.3 代码展示UI设计（Claude Artifacts 风格）
 
-参考 Claude Artifacts、Vercel v0、E2B Fragments 的交互模式，针对 OmicHub 场景的定制化设计：
+参考 Claude Artifacts、Vercel v0、E2B Fragments 的交互模式，针对 CygnusX 场景的定制化设计：
 
 ```
 +-----------------------------------------------------------+
@@ -149,7 +149,7 @@ const option = {
 | 底部面板 (Bottom Panel) | 屏幕下方可拖拽面板 | 类似JupyterLab，空间大 | 需重新布局整个页面 | 复杂 |
 | 内联卡片 (Inline Card) | 对话流中直接展开小编辑器 | 最轻量，不离开对话 | 编辑空间极小 | 仅展示 |
 
-**OmicHub 推荐方案**：**侧边栏编辑器为主 + 主区域弹窗为辅**
+**CygnusX 推荐方案**：**侧边栏编辑器为主 + 主区域弹窗为辅**
 
 - **默认状态**：AI 生成的代码在侧边栏以只读卡片展示（带运行按钮）
 - **编辑模式**：点击"编辑" → 侧边栏切换为 CodeMirror 6 编辑器，支持修改
@@ -197,7 +197,7 @@ const option = {
 | 维度 | JupyterHub | Jupyter Kernel Gateway | 自定义 Kernel 管理 |
 |------|-----------|----------------------|-------------------|
 | **架构重量** | 重，多用户Hub + Proxy + Spawner | 中等，独立Kernel网关 | 轻量，直接管理 |
-| **用户认证** | 内置完善 | 需额外实现 | 复用 OmicHub 认证 |
+| **用户认证** | 内置完善 | 需额外实现 | 复用 CygnusX 认证 |
 | **并发能力** | 强，为教学场景设计 | 中等 | 满足 <20 并发 |
 | **与 FastAPI 集成** | 独立服务，耦合困难 | 需适配 | 完全内嵌 |
 | **资源占用** | 高（多个进程） | 中等 | 最低 |
@@ -209,7 +209,7 @@ const option = {
 **结论：不引入 JupyterHub/Kernel Gateway，采用自定义轻量 Kernel 管理。**
 
 理由：
-1. OmicHub 不需要 Jupyter 的笔记本界面，只需要**代码执行**能力
+1. CygnusX 不需要 Jupyter 的笔记本界面，只需要**代码执行**能力
 2. Jupyter 的完整消息协议过于复杂，实际需要只是：发送代码 → 获取输出/图表
 3. JupyterHub 的资源占用和维护复杂度对单维护者不可承受
 4. **自定义方案**：FastAPI WebSocket 直接转发到 Docker 容器内的 Python 进程，协议简单可控
@@ -237,7 +237,7 @@ const option = {
 **结论：直接 Docker API 调度。**
 
 理由：
-1. **数据挂载是刚需**：OmicHub 需要挂载几GB到几十GB的 h5ad/rds 文件，Docker bind mount 是最直接方案
+1. **数据挂载是刚需**：CygnusX 需要挂载几GB到几十GB的 h5ad/rds 文件，Docker bind mount 是最直接方案
 2. **包安装灵活性**：生信分析经常需要安装新的 Bioconda 包，容器内自由 pip/conda 安装至关重要
 3. **维护极简**：一人维护场景下，Docker API 是最简单、文档最完善的选择
 4. **性能可接受**：通过容器预热池，可将启动延迟控制在 1s 以内
@@ -255,7 +255,7 @@ const option = {
 | **并发能力** | 受限于服务器内存 | 高（快速轮换） | 受池大小限制 |
 | **安全隔离** | 需定时回收 | 每次全新环境 | 池内定时回收 |
 | **实现复杂度** | 低 | 中等 | 中等但最优 |
-| **适合场景** | Jupyter Notebook 长期交互 | 无状态API调用 | **OmicHub 最佳平衡** |
+| **适合场景** | Jupyter Notebook 长期交互 | 无状态API调用 | **CygnusX 最佳平衡** |
 
 **结论：预热容器池 + 会话亲和性 (Session Affinity)。**
 
@@ -333,9 +333,9 @@ const option = {
 
 ---
 
-### 3.2 针对 OmicHub 场景的深度分析
+### 3.2 针对 CygnusX 场景的深度分析
 
-#### OmicHub 场景特殊需求清单
+#### CygnusX 场景特殊需求清单
 
 | 需求 | 优先级 | 说明 |
 |------|--------|------|
@@ -367,7 +367,7 @@ const option = {
 
 #### 方案A：Docker API（推荐）
 
-**为什么 Docker API 是 OmicHub 的最佳选择：**
+**为什么 Docker API 是 CygnusX 的最佳选择：**
 
 1. **数据挂载是生信平台的刚需**：组学数据文件 (h5ad/rds) 通常在 1GB-50GB，不可能打包进容器镜像。Docker 的 `bind mount` 可以直接挂载宿主目录：`-v /data/omics:/data:ro`，这是 Firecracker/E2B 难以做到的（它们使用 9P/VirtioFS，大文件IO性能差）。
 
@@ -390,7 +390,7 @@ const option = {
 - Jupyter Kernel 本质上是 Python 进程，**隔离级别远低于容器**（仅进程级，无 namespace/cgroup）
 - 需要额外搭建 `jupyter_client` + `jupyter_kernel_gateway` 的复杂基础设施
 - 多人共享 Kernel Gateway 时存在资源竞争和安全隐患
-- **优势场景**是长期交互式 Notebook，而 OmicHub 需要的是**受控的代码执行沙盒**
+- **优势场景**是长期交互式 Notebook，而 CygnusX 需要的是**受控的代码执行沙盒**
 
 #### 方案C：Firecracker 微VM
 
@@ -469,13 +469,13 @@ const option = {
 
 ```dockerfile
 # ============================================
-# OmicHub 生信分析沙盒镜像
+# CygnusX 生信分析沙盒镜像
 # 基于 mambaforge 预装常用生信工具链
 # ============================================
 FROM condaforge/mambaforge:24.3.0-0
 
-LABEL maintainer="OmicHub"
-LABEL description="Bioinformatics sandbox for OmicHub AI Copilot"
+LABEL maintainer="CygnusX"
+LABEL description="Bioinformatics sandbox for CygnusX AI Copilot"
 
 # 系统依赖
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -490,9 +490,9 @@ RUN conda config --add channels bioconda \
     && conda config --add channels conda-forge \
     && conda config --set channel_priority strict
 
-# 创建 omichub 环境 (Python 3.11)，预装核心生信工具链
-RUN mamba create -n omichub python=3.11 -y \
-    && mamba install -n omichub -y \
+# 创建 cygnusx 环境 (Python 3.11)，预装核心生信工具链
+RUN mamba create -n cygnusx python=3.11 -y \
+    && mamba install -n cygnusx -y \
         scanpy=1.10 anndata=0.10 muon=0.1 \
         matplotlib=3.8 seaborn=0.13 \
         numpy=1.26 pandas=2.2 scipy=1.13 scikit-learn=1.5 \
@@ -501,7 +501,7 @@ RUN mamba create -n omichub python=3.11 -y \
     && mamba clean --all -y
 
 # pip 安装 conda 中缺少的包
-SHELL ["conda", "run", "-n", "omichub", "/bin/bash", "-c"]
+SHELL ["conda", "run", "-n", "cygnusx", "/bin/bash", "-c"]
 RUN pip install --no-cache-dir \
     "squidpy>=1.4.0" "scvi-tools>=1.1.0" "celltypist>=1.6.0" \
     "decoupler>=1.6.0" "scanorama>=1.7" "scarches>=0.6" \
@@ -524,8 +524,8 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD python -c "import scanpy, numpy, pandas; print('OK')" || exit 1
 
 EXPOSE 8888
-ENV PATH=/opt/conda/envs/omichub/bin:$PATH
-ENV CONDA_DEFAULT_ENV=omichub
+ENV PATH=/opt/conda/envs/cygnusx/bin:$PATH
+ENV CONDA_DEFAULT_ENV=cygnusx
 WORKDIR /workspace
 
 ENTRYPOINT ["python", "/opt/sandbox_entrypoint.py"]
@@ -538,7 +538,7 @@ ENTRYPOINT ["python", "/opt/sandbox_entrypoint.py"]
 ```python
 #!/usr/bin/env python3
 """
-OmicHub 沙盒容器入口脚本
+CygnusX 沙盒容器入口脚本
 功能：WebSocket 服务端，接收前端发送的 Python 代码，
       在容器内安全执行并返回结果/图表
 """
@@ -663,7 +663,7 @@ async def handle_websocket(websocket, path):
 
 async def main():
     port = int(os.environ.get('SANDBOX_PORT', 8888))
-    print(f"OmicHub Sandbox starting on port {port}")
+    print(f"CygnusX Sandbox starting on port {port}")
     async with websockets.serve(handle_websocket, '0.0.0.0', port):
         await asyncio.Future()
 
@@ -699,7 +699,7 @@ services:
       - /data/reference:/reference:ro  # 参考基因组
       - sandbox-tmp:/tmp               # 临时文件
       - sandbox-pip:/root/.cache/pip   # pip缓存持久化
-      - sandbox-conda:/opt/conda/envs/omichub/lib/python3.11/site-packages
+      - sandbox-conda:/opt/conda/envs/cygnusx/lib/python3.11/site-packages
     networks:
       - sandbox-net
     environment:
@@ -789,9 +789,9 @@ volumes:
 
 #### LangChain / LangGraph
 
-**不推荐理由（对 OmicHub 场景）**：
+**不推荐理由（对 CygnusX 场景）**：
 
-1. **过度设计**：LangChain 的抽象层级（Chains → LCEL → LangGraph）对于 OmicHub 的"代码生成→执行→返回结果"这一简单流程来说是严重的过度工程。LangChain 的设计目标是覆盖**所有**LLM应用场景（RAG、Agent、记忆、工具调用），而 OmicHub 只需要其中一个子集。
+1. **过度设计**：LangChain 的抽象层级（Chains → LCEL → LangGraph）对于 CygnusX 的"代码生成→执行→返回结果"这一简单流程来说是严重的过度工程。LangChain 的设计目标是覆盖**所有**LLM应用场景（RAG、Agent、记忆、工具调用），而 CygnusX 只需要其中一个子集。
 
 2. **版本不稳定**：LangChain 以频繁引入 Breaking Change 著称，v0.1 → v0.2 → v0.3 的迁移成本高昂。单维护者无法承担跟进版本更新的工作量。
 
@@ -805,11 +805,11 @@ volumes:
 
 **不推荐理由**：
 
-1. **多 Agent 协作不适合代码执行场景**：CrewAI 的核心价值是"角色扮演"式的多 Agent 协作（研究员→写作者→编辑），而 OmicHub 的核心需求是**单 Agent 代码生成与执行**，不需要复杂的多 Agent 编排。
+1. **多 Agent 协作不适合代码执行场景**：CrewAI 的核心价值是"角色扮演"式的多 Agent 协作（研究员→写作者→编辑），而 CygnusX 的核心需求是**单 Agent 代码生成与执行**，不需要复杂的多 Agent 编排。
 
 2. **隐藏依赖**：虽然 CrewAI 已脱离 LangChain 独立发展，但仍存在隐性的生态依赖。
 
-3. **流式输出支持有限**：CrewAI 的流式输出能力较弱，不适合 OmicHub 的实时代码执行反馈需求。
+3. **流式输出支持有限**：CrewAI 的流式输出能力较弱，不适合 CygnusX 的实时代码执行反馈需求。
 
 > **适合场景**：内容生成管道（研究→写作→编辑）、多角色协作的自动化工作流、快速原型验证。
 
@@ -831,7 +831,7 @@ volumes:
 
 1. **封闭生态**：绑定 OpenAI 服务，不支持私有化部署的 Kimi API 等国产模型。
 2. **无代码执行隔离**：Assistants API 的 Code Interpreter 运行在 OpenAI 的服务器上，数据离开本地，违反生信数据的隐私要求。
-3. **与 OmicHub 后端集成困难**：Assistants API 的 Thread/Run 模型与 OmicHub 的 FastAPI 架构不匹配。
+3. **与 CygnusX 后端集成困难**：Assistants API 的 Thread/Run 模型与 CygnusX 的 FastAPI 架构不匹配。
 
 > **适合场景**：快速原型、无数据隐私要求的通用代码执行、ChatGPT 插件开发。
 
@@ -843,7 +843,7 @@ volumes:
 
 ```
 +---------------------------------------------------------------+
-|                    OmicHub Agent 架构                          |
+|                    CygnusX Agent 架构                          |
 +---------------------------------------------------------------+
 |                                                               |
 |  前端 Vue 3                                                    |
@@ -896,7 +896,7 @@ volumes:
 ```python
 # agent_orchestrator.py - 简化的Agent编排器
 """
-OmicHub Agent 编排器
+CygnusX Agent 编排器
 - 支持代码生成、代码执行、结果分析的状态机
 - 流式输出到前端 WebSocket
 - 与 MCP 工具集成
@@ -930,10 +930,10 @@ class AgentContext:
     state: AgentState = AgentState.IDLE
 
 
-class OmicHubAgent:
-    """OmicHub 代码执行 Agent"""
+class CygnusXAgent:
+    """CygnusX 代码执行 Agent"""
 
-    SYSTEM_PROMPT = """你是 OmicHub AI Copilot，一个专业的生物信息学分析助手。
+    SYSTEM_PROMPT = """你是 CygnusX AI Copilot，一个专业的生物信息学分析助手。
 你的核心能力是根据用户的自然语言描述，生成可执行的 Python 代码（基于 Scanpy/Seurat 生态）。
 
 规则：
@@ -1062,7 +1062,7 @@ class OmicHubAgent:
 ```python
 # mcp_integration.py
 """
-OmicHub MCP (Model Context Protocol) 集成
+CygnusX MCP (Model Context Protocol) 集成
 功能：
 - 暴露 Nextflow/Snakemake 工作流作为 MCP 工具
 - 允许 Agent 调用底层流程编排
@@ -1076,7 +1076,7 @@ from mcp.server.sse import SseServerTransport
 import json
 
 mcp_router = APIRouter(prefix="/mcp", tags=["MCP"])
-mcp_server = Server("omichub-workflows")
+mcp_server = Server("cygnusx-workflows")
 
 @mcp_server.tool()
 async def run_nextflow_workflow(workflow_name: str, params: dict, profile: str = "docker") -> str:
@@ -1332,5 +1332,5 @@ async def mcp_sse_endpoint(request: Request):
 
 ---
 
-> **最终结论**：OmicHub "AI Copilot 与交互式代码执行沙盒"模块的推荐技术栈以 **"极简运维、单维护者友好、生信场景专用"** 为核心原则。前端采用 CodeMirror 6 + ECharts GL，后端保持 Python FastAPI，沙盒采用 Docker API + 预热容器池，Agent 采用原生实现 + MCP SDK。这套方案在当前约束条件下是**技术可行性和维护可持续性的最佳平衡点**。
+> **最终结论**：CygnusX "AI Copilot 与交互式代码执行沙盒"模块的推荐技术栈以 **"极简运维、单维护者友好、生信场景专用"** 为核心原则。前端采用 CodeMirror 6 + ECharts GL，后端保持 Python FastAPI，沙盒采用 Docker API + 预热容器池，Agent 采用原生实现 + MCP SDK。这套方案在当前约束条件下是**技术可行性和维护可持续性的最佳平衡点**。
 

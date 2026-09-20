@@ -6,17 +6,16 @@
 
 from __future__ import annotations
 
-import json
-
 import asyncio
+import json
 import time
 from types import SimpleNamespace
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from omichub.application.services import parallel_subagent_service as pss
-from omichub.infrastructure.ai_provider.openai_compatible import ChatChunk
+from cygnusx.application.services import parallel_subagent_service as pss
+from cygnusx.infrastructure.ai_provider.openai_compatible import ChatChunk
 
 # --- 桩件 -----------------------------------------------------------------
 
@@ -112,7 +111,7 @@ def env(monkeypatch, tmp_path):
     )
     bridge = FakeBridge()
     monkeypatch.setattr(
-        "omichub.application.services.tool_bridge_service.get_tool_bridge_service",
+        "cygnusx.application.services.tool_bridge_service.get_tool_bridge_service",
         lambda: bridge,
     )
     FakeSession.created = 0
@@ -129,7 +128,7 @@ def env(monkeypatch, tmp_path):
             return type(self).db_flag
 
     monkeypatch.setattr(
-        "omichub.application.services.site_settings_service.SiteSettingsService",
+        "cygnusx.application.services.site_settings_service.SiteSettingsService",
         SiteSettingsServiceStub,
     )
     return SimpleNamespace(
@@ -331,6 +330,8 @@ async def test_fanout_emits_correlated_tool_reinjection_events(env, monkeypatch)
 
 @pytest.mark.asyncio
 async def test_worker_loop_guard_stops_duplicate_tool_calls(env, monkeypatch) -> None:
+    # 生产阈值为 100，测试用小阈值快速触发保护逻辑。
+    monkeypatch.setattr(pss, "_MAX_DUPLICATE_TOOL_CALLS", 2)
     contexts = {"agent-code": _ctx("agent-code", tools=[{"function": {"name": "workspace_read"}}])}
     monkeypatch.setattr(pss, "AgentService", lambda db: AgentServiceStub(contexts))
     events: list[dict] = []
@@ -417,6 +418,8 @@ async def test_worker_no_progress_is_reported_as_partial_success(env, monkeypatc
     assert result["llm_payload"]["results"][0]["guard_triggered"] is True
     assert result["llm_payload"]["results"][0].get("error") is None
     assert "已停止重复调用" in result["llm_payload"]["results"][0]["answer"]
+    envelope = json.loads(result["llm_payload"]["results"][0]["answer"])
+    assert envelope["risks"] == ["工具连续返回相同结果，未继续执行重复调用。"]
 
 
 @pytest.mark.asyncio
@@ -696,6 +699,71 @@ def test_goal_safe_child_tools_only_keep_read_only_capabilities(monkeypatch) -> 
     )
 
 
+def test_child_tools_safe_only_keeps_readonly_annotated_mcp_tools() -> None:
+    """safe_only 只读会诊放行声明 readOnlyHint 的 MCP 工具（能力目录/房间状态查询）。"""
+    readonly_tool = SimpleNamespace(
+        tool_name="ability_catalog_query",
+        annotations={"readOnlyHint": True, "destructiveHint": False},
+    )
+    unannotated_tool = SimpleNamespace(tool_name="remote_lookup", annotations={})
+    legacy_tool = SimpleNamespace(tool_name="legacy_lookup")  # 无 annotations 属性
+    destructive_tool = SimpleNamespace(
+        tool_name="dangerous_mcp",
+        annotations={"readOnlyHint": True, "destructiveHint": True},
+    )
+    ctx = _ctx(
+        "agent-manager",
+        tools=[
+            {"function": {"name": "ability_catalog_query"}},
+            {"function": {"name": "remote_lookup"}},
+            {"function": {"name": "legacy_lookup"}},
+            {"function": {"name": "dangerous_mcp"}},
+        ],
+    )
+    ctx.mcp_servers = [
+        SimpleNamespace(tools=[readonly_tool, unannotated_tool, legacy_tool, destructive_tool])
+    ]
+
+    tools = pss.ParallelSubAgentService._prepare_child_tools(ctx, safe_only=True)
+    names = {(tool.get("function") or {}).get("name") for tool in tools}
+
+    assert "ability_catalog_query" in names
+    assert {"remote_lookup", "legacy_lookup", "dangerous_mcp"}.isdisjoint(names)
+
+
+def test_manager_safe_only_keeps_explicit_memory_management_tools(monkeypatch) -> None:
+    """Manager 可按用户明确指令管理本人记忆，普通只读工具仍受 safe_only 约束。"""
+    schema = SimpleNamespace(
+        invocation_mode="backend_sync",
+        requires_confirm=False,
+        annotations=SimpleNamespace(read_only_hint=False),
+    )
+    monkeypatch.setattr(
+        pss,
+        "schema_loader",
+        SimpleNamespace(get_tool=lambda name: schema if name.startswith("cygnusx_") else None),
+    )
+    ctx = _ctx(
+        "agentteams-manager",
+        tools=[
+            {"function": {"name": "cygnusx_save_memory"}},
+            {"function": {"name": "cygnusx_update_memory"}},
+            {"function": {"name": "cygnusx_forget_memory"}},
+            {"function": {"name": "cygnusx_update_memory_block"}},
+        ],
+    )
+
+    tools = pss.ParallelSubAgentService._prepare_child_tools(ctx, safe_only=True)
+    names = {(tool.get("function") or {}).get("name") for tool in tools}
+
+    assert {
+        "cygnusx_save_memory",
+        "cygnusx_update_memory",
+        "cygnusx_forget_memory",
+        "cygnusx_update_memory_block",
+    } <= names
+
+
 @pytest.mark.asyncio
 async def test_child_workspace_tool_uses_parent_workspace_after_user_confirmation(
     env, monkeypatch
@@ -739,7 +807,7 @@ async def test_child_executes_bound_mcp_tool_with_child_context(env, monkeypatch
             calls.append((tool_name, arguments, context.session_id))
             return {"success": True, "result": {"source": server.name}}
 
-    monkeypatch.setattr("omichub.infrastructure.mcp.client.MCPClient", FakeMCPClient)
+    monkeypatch.setattr("cygnusx.infrastructure.mcp.client.MCPClient", FakeMCPClient)
     server = SimpleNamespace(
         name="research-mcp",
         tools=[SimpleNamespace(tool_name="remote_lookup")],
@@ -1083,3 +1151,12 @@ async def test_fanout_validation_rules(env, monkeypatch) -> None:
         tasks=[{"agent_id": "a", "task": "x"}, {"agent_id": "", "task": "y"}], **kwargs
     )
     assert missing["success"] is False and "缺少" in missing["llm_payload"]["error"]
+
+
+def test_has_unfinished_json_fence_detects_truncated_envelope() -> None:
+    assert pss._has_unfinished_json_fence('前文 ```json { "conclusion": "写到一半') is True
+
+
+def test_has_unfinished_json_fence_ignores_closed_blocks_and_plain_text() -> None:
+    assert pss._has_unfinished_json_fence('```json {"a": 1} ``` 后续说明') is False
+    assert pss._has_unfinished_json_fence("普通文本结论") is False

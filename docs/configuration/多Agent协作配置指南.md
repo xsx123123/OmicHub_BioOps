@@ -1,6 +1,6 @@
 # 多 Agent 协作配置指南
 
-OmicHub 将协作入口统一为 Router 决策，但不会合并既有机制：**Handoff**、**多专家会诊**、**对话内 Fan-out**、**AgentTeams Case** 和 **MAS 工作流**仍有各自边界。
+CygnusX 将协作入口统一为 Router 决策，但不会合并既有机制：**Handoff**、**多专家会诊**、**对话内 Fan-out**、**AgentTeams Case** 和 **MAS 工作流**仍有各自边界。
 
 当 Router 判定为 `dag` 时，系统会优先使用当前会话可用的 MAS 计划预览能力；未配置 MAS 时会明确说明需要管理员启用 MAS，并引导用户先准备流程输入，而不会把工作流请求静默改成普通聊天。
 
@@ -30,7 +30,7 @@ OmicHub 将协作入口统一为 Router 决策，但不会合并既有机制：*
 ```dotenv
 AGENTTEAMS_BRIDGE_ENABLED=true
 AGENTTEAMS_CHAT_ENTRY_ENABLED=true
-AGENTTEAMS_BRIDGE_URL=http://omichub-agentteams-bridge:8080
+AGENTTEAMS_BRIDGE_URL=http://cygnusx-agentteams-bridge:8080
 AGENTTEAMS_BRIDGE_MANAGER_TOKEN=...
 AGENTTEAMS_BRIDGE_DATA_STEWARD_TOKEN=...
 AGENTTEAMS_BRIDGE_APPROVAL_TOKEN=...
@@ -47,11 +47,11 @@ deploy/agentteams/check_setup.sh deploy/agentteams/bridge.env
 
 脚本会检查身份、Bridge 连通性（若提供 URL）和流程白名单。它会提示 `scrna_seq` 是否仍不在 `BRIDGE_ALLOWED_FLOW_IDS` 中；不在白名单时，单细胞专家仍可咨询/领取只读工作项，但不能提交单细胞流程。
 
-Bridge 运行后，管理页与脚本还会实际验证四个 OmicHub 身份令牌，并根据 `agent-code`、`agent-viz`、`agent-scrna` 最近一次认证拉取 `/v1/work-items/assigned` 的时间判断 Worker 心跳。未在 `BRIDGE_WORKER_HEARTBEAT_TTL_SECONDS`（默认 180 秒）内轮询的 Worker 会报红。
+Bridge 运行后，管理页与脚本还会实际验证四个 CygnusX 身份令牌，并根据 `agent-code`、`agent-viz`、`agent-scrna` 最近一次认证拉取 `/v1/work-items/assigned` 的时间判断 Worker 心跳。未在 `BRIDGE_WORKER_HEARTBEAT_TTL_SECONDS`（默认 180 秒）内轮询的 Worker 会报红。
 
 ## Worker 部署边界
 
-`agent-code`、`agent-viz`、`agent-scrna` 的 Worker 由 AgentTeams 控制面独立部署。仅更新 OmicHub 数据库或 `.env` **不会**启动 Worker。Worker 必须使用自己的 Bridge 身份轮询 `GET /v1/work-items/assigned`，并只能认领和回写分配给自己的只读 Work Item。
+`agent-code`、`agent-viz`、`agent-scrna` 的 Worker 由 AgentTeams 控制面独立部署。仅更新 CygnusX 数据库或 `.env` **不会**启动 Worker。Worker 必须使用自己的 Bridge 身份轮询 `GET /v1/work-items/assigned`，并只能认领和回写分配给自己的只读 Work Item。
 
 ## 用户体验与回退
 

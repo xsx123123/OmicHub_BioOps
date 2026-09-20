@@ -3,7 +3,7 @@ import type { ConditionOperator, ConditionRule, FormValues } from '@/types/schem
 /**
  * 条件渲染评估器
  *
- * 与后端 omichub/domain/flow/condition.py 对齐，支持：
+ * 与后端 cygnusx/domain/flow/condition.py 对齐，支持：
  * - 简单条件：field + operator + value
  * - 复合条件：and_rules / or_rules 嵌套
  */

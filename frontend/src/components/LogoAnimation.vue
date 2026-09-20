@@ -23,7 +23,7 @@ function handleLogoClick() {
   resetTimer = setTimeout(() => { logoClicks = 0 }, 1800)
   if (logoClicks < 5) return
   logoClicks = 0
-  window.dispatchEvent(new Event('omicHub:triggerMeteorShower'))
+  window.dispatchEvent(new Event('cygnusX:triggerMeteorShower'))
 }
 
 onUnmounted(() => {
@@ -32,7 +32,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="logo-container" role="button" tabindex="0" aria-label="OmicHub Logo 彩蛋" @click="handleLogoClick" @keydown.enter="handleLogoClick">
+  <div class="logo-container" role="button" tabindex="0" aria-label="CygnusX Logo 彩蛋" @click="handleLogoClick" @keydown.enter="handleLogoClick">
     <!-- 底层：旋转地球 -->
     <div class="globe-wrapper">
       <Vue3Lottie

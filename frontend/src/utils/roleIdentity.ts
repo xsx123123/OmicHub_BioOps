@@ -7,7 +7,7 @@ export interface RoleIdentity {
 
 const FALLBACK_IDENTITIES: Record<string, RoleIdentity> = {
   'agent-general': { name: '星尘 AI', avatar: '✨', color: '#4f8ef7', role: 'manager' },
-  'bioops-manager': { name: 'Manager', avatar: '🧭', color: '#4f8ef7', role: 'manager' },
+  'bioops-manager': { name: 'Manager', avatar: '🧑‍🔬', color: '#4f8ef7', role: 'manager' },
   'agent-rnaseq': { name: 'RNA-seq 分析师', avatar: '🧬', color: '#7c3aed', role: 'worker' },
   'agent-scrna': { name: '单细胞分析师', avatar: '🔬', color: '#0891b2', role: 'worker' },
   'agent-atacseq': { name: 'ATAC-seq 分析师', avatar: '🧫', color: '#0f766e', role: 'worker' },

@@ -1,0 +1,15 @@
+software:
+  version: "0.1.0"
+  app_name: cygnusxtools
+  author: "CygnusX Team"
+  email: ""
+  url: ""
+  description: "CygnusX offline maintenance and database build toolkit"
+  rice_color: "bold cyan"
+
+external_tools:
+  - name: samtools
+    cmd: samtools
+    version_flag: --version
+    required: false
+    description: "Optional FASTA .fai builder for compressed FASTA files"

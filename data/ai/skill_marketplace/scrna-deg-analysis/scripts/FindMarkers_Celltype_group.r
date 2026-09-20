@@ -3,7 +3,7 @@
 # version :  1.2.1v
 # description : this is patch celltype levels deg scripts
 #--------------------------#
-# [skill 改造记录] skills/scrna-deg-analysis (OmicHub OSDP v1.0), 2026-08-03:
+# [skill 改造记录] skills/scrna-deg-analysis (CygnusX OSDP v1.0), 2026-08-03:
 #   1. 移除 mus_gene_infor / human_gene_infor 默认参数中的 /titan3/ 硬编码路径,
 #      改为从环境变量 SCRNA_DEG_REF_DIR 拼接 (默认相对目录 DEG_Annotation_reference);
 #   2. DEG_annotation 读注释文件前新增文件存在性检查, 缺失时给出设置

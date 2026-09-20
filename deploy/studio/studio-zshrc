@@ -1,11 +1,11 @@
 # OmicStudio 沙盒交互终端 zsh 配置（zsh + oh-my-zsh + oh-my-posh）
-# 由 sandbox_agent 以 ZDOTDIR=/opt/omichub/zdotdir 启动 zsh 时加载；
+# 由 sandbox_agent 以 ZDOTDIR=/opt/cygnusx/zdotdir 启动 zsh 时加载；
 # HOME 指向会话工作区 /workspace（bind-mount，可写），参考 tool_configs/terminal/docker/zshrc。
 
 export LANG=C.UTF-8
 export LC_ALL=C.UTF-8
 
-# 缓存 / 历史写入可写目录（/opt/omichub 只读语义，缓存一律落到 HOME 下）
+# 缓存 / 历史写入可写目录（/opt/cygnusx 只读语义，缓存一律落到 HOME 下）
 export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
 export OMP_CACHE_DIR="${OMP_CACHE_DIR:-$XDG_CACHE_HOME}"
 export ZSH_CACHE_DIR="$XDG_CACHE_HOME/oh-my-zsh"
@@ -14,14 +14,14 @@ export HISTFILE="$HOME/.zsh_history"
 mkdir -p "$XDG_CACHE_HOME/zsh" "$ZSH_CACHE_DIR" 2>/dev/null
 
 # oh-my-zsh（沙盒可能无外网，关闭自动更新避免启动卡顿）
-export ZSH=/opt/omichub/oh-my-zsh
+export ZSH=/opt/cygnusx/oh-my-zsh
 DISABLE_AUTO_UPDATE="true"
 ZSH_THEME="robbyrussell"
 plugins=(git)
 source "$ZSH/oh-my-zsh.sh"
 
 # oh-my-posh 提示符（自带 minimal 主题，无 Nerd Font 依赖，避免 xterm.js 缺字体乱码）
-eval "$(oh-my-posh init zsh --config /opt/omichub/themes/studio.omp.json)"
+eval "$(oh-my-posh init zsh --config /opt/cygnusx/themes/studio.omp.json)"
 
 # 常用别名
 alias ll='ls -alF'

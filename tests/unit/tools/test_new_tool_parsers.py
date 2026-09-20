@@ -1,5 +1,5 @@
-from omichub.tools.gsea.service import GseaService
-from omichub.tools.synteny.service import SyntenyService
+from cygnusx.tools.gsea.service import GseaService
+from cygnusx.tools.synteny.service import SyntenyService
 
 
 def test_gsea_example_ranking_parser() -> None:

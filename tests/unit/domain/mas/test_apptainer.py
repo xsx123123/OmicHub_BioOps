@@ -3,11 +3,11 @@ from uuid import uuid4
 
 import pytest
 
-from omichub.domain.mas.workspace import WorkspaceLayout
-from omichub.infrastructure.mas.apptainer import ApptainerExecutionError, build_rnaflow_command
-from omichub.infrastructure.mas.rnaflow import RNAFlowPreflightError, validate_mas_rnaflow_config
-from omichub.infrastructure.mas.volcano import render_deg_volcano
-from omichub.infrastructure.mas.ebi import build_ebi_download_command, write_download_manifest
+from cygnusx.domain.mas.workspace import WorkspaceLayout
+from cygnusx.infrastructure.mas.apptainer import ApptainerExecutionError, build_rnaflow_command
+from cygnusx.infrastructure.mas.rnaflow import RNAFlowPreflightError, validate_mas_rnaflow_config
+from cygnusx.infrastructure.mas.volcano import render_deg_volcano
+from cygnusx.infrastructure.mas.ebi import build_ebi_download_command, write_download_manifest
 
 
 def test_apptainer_command_uses_only_run_and_pipeline_binds(tmp_path: Path) -> None:
@@ -29,7 +29,7 @@ def test_apptainer_command_uses_only_run_and_pipeline_binds(tmp_path: Path) -> N
     assert "--no-home" in command
     assert "/var/run/docker.sock" not in " ".join(command)
     assert f"{workspace.run_root(run_id)}:/workspace:rw" in command
-    assert f"{pipeline_root.resolve()}:/opt/omichub/pipelines/RNAFlow:ro" in command
+    assert f"{pipeline_root.resolve()}:/opt/cygnusx/pipelines/RNAFlow:ro" in command
     assert "analysisyaml=/workspace/workflow/config.yaml" in command
 
 

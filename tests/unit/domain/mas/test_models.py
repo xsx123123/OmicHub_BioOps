@@ -3,7 +3,7 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError
 
-from omichub.domain.mas.models import (
+from cygnusx.domain.mas.models import (
     A2AEvent,
     A2AEventType,
     AgentRecipient,

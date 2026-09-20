@@ -26,7 +26,7 @@ worker 容器(空壳轮询) → bridge POST .../execute-readonly → gateway(白
       └─ Skill：use_skill / read_skill_resource
 ```
 
-- 会诊请求已携带 `case_id` + `work_item_id` + `execution_mode`（`src/omichub/api/v1/agentteams.py:97-119`）。
+- 会诊请求已携带 `case_id` + `work_item_id` + `execution_mode`（`src/cygnusx/api/v1/agentteams.py:97-119`）。
 - `ParallelSubAgentService.run` 已支持 `on_event` 回调并发出 `worker_started / worker_tool_call / worker_finished / worker_heartbeat` 事件（`parallel_subagent_service.py:190,490,566,644`）——**会诊路径目前没有传 on_event**，这就是工具过程不可见的原因。
 - Bridge 已有证据事件入口 `POST /v1/cases/{id}/evidence`（`bridge/.../app.py:549`），event_type 自由字符串（pattern `^[a-z0-9_.-]+$`），证据事件会进 audit 流，`GET /v1/cases/{id}/events/stream` SSE 可推到前端。
 - 主后端 → bridge 的客户端 `AgentTeamsService`（`agentteams_service.py`）**尚无 evidence 方法**，需新增。
@@ -37,7 +37,7 @@ worker 容器(空壳轮询) → bridge POST .../execute-readonly → gateway(白
 - 多数 agent（rnaseq、scrna×3、cloud_ops、mcp_builder、data、general 等）已在 `data/ai/*.yaml` 声明 `features.agentteams.execution_modes: [readonly_consultation, workspace_execution]`。
 - capability registry 已把 `execution_modes` 暴露进 `/capabilities` 快照的 `agent_capabilities`（`agentteams_capability_registry.py:80-106`）。
 - 但 worker 端硬编码拦截：`integrations/agentteams/worker/production_runner.py:194-199` 只允许 `agent-code`/`agent-viz` 跑 workspace_execution——与 YAML 声明矛盾，是本方案要解除的核心限制。
-- 安全边界保留：workspace_execution 的 workdir 禁锢在 `/data/omichub/output/agentteams/{case}/{work_item}`（`agent_consultation_service.py:121-124`），不可移除。
+- 安全边界保留：workspace_execution 的 workdir 禁锢在 `/data/cygnusx/output/agentteams/{case}/{work_item}`（`agent_consultation_service.py:121-124`），不可移除。
 
 ### 2.3 前端资产
 
@@ -55,7 +55,7 @@ worker 容器(空壳轮询) → bridge POST .../execute-readonly → gateway(白
   - `task_file_preview`：预览任务目录内文本产物头部（禁路径穿越/符号链接）
   - `workspace_file_preview`：按 requester_ref 隔离预览用户 workspace 文件
   - `artifact_fetch` / `task_compare_metrics` / `rule_threshold_lookup`
-- 扩展读能力**不需要新代码**：在 agent YAML 绑定只读 MCP 工具包（builtin presets：omichub-tools / omichub-platform）即可，`parallel_subagent_service._prepare_child_tools` 会保留 MCP 工具。
+- 扩展读能力**不需要新代码**：在 agent YAML 绑定只读 MCP 工具包（builtin presets：cygnusx-tools / cygnusx-platform）即可，`parallel_subagent_service._prepare_child_tools` 会保留 MCP 工具。
 - 即：房间 agent 默认"能看用户的任务、文件、产物、指标，但不能改"；要写只有 `workspace_execution` 模式且禁锢在 case 专属 workdir。
 
 ### 2.5 治理缺陷现状
@@ -72,7 +72,7 @@ worker 容器(空壳轮询) → bridge POST .../execute-readonly → gateway(白
 
 后端：
 
-1. **新增用户态 role-labels 端点**：`src/omichub/api/v1/agentteams.py`
+1. **新增用户态 role-labels 端点**：`src/cygnusx/api/v1/agentteams.py`
    - `GET /api/v1/agent-teams/role-labels`（用户 JWT），返回 `get_agentteams_capability_registry().snapshot()` 的 `role_labels` + `role_agent_map` 子集，供房间渲染发言人名/头像/颜色。
 2. **Case 列表带会话关联**（可选，M1 简化版可跳过）：`list_cases` 响应补充 `session_id`——聊天侧绑定存在 `ChatSessionModel.sandbox_meta.agentteams_case_ids`（`agentteams_case_tool_service.py:296-327`），反向索引即可。M1 先按 requester_ref 全部列出。
 
@@ -113,9 +113,9 @@ worker 容器(空壳轮询) → bridge POST .../execute-readonly → gateway(白
 
 后端：
 
-6. **`AgentTeamsService` 新增 `post_case_evidence`**：`src/omichub/application/services/agentteams_service.py`
+6. **`AgentTeamsService` 新增 `post_case_evidence`**：`src/cygnusx/application/services/agentteams_service.py`
    - `POST /v1/cases/{case_id}/evidence`（bridge app.py:549，用 manager 身份 token），body `{event_type, payload, actor}`。
-7. **会诊路径接 on_event 投影**：`src/omichub/application/services/agent_consultation_service.py` `run_consultation`(:81)
+7. **会诊路径接 on_event 投影**：`src/cygnusx/application/services/agent_consultation_service.py` `run_consultation`(:81)
    - 构造 `on_event` 回调传给 `ParallelSubAgentService.run`（:190 参数已存在）。
    - 映射：`worker_started` → evidence `agent.started`；`worker_tool_call` → `agent.tool_call`（payload: `{tool, args_summary(截断200字符), work_item_id, agent_id}`）；`worker_finished` → `agent.finished`（payload: `{status, tool_call_count, duration_ms}`）。
    - 工具执行成功后补 `agent.tool_result`（若 run 的事件流不区分结果，在 M2 内给 `ParallelSubAgentService` 的工具执行完成处（:763 附近）加发 `worker_tool_result` 事件，同样转发）。
@@ -140,7 +140,7 @@ worker 容器(空壳轮询) → bridge POST .../execute-readonly → gateway(白
 11. **Case GC**：`bridge/.../app.py` + `service.py`
     - 新增 `POST /v1/maintenance/case-gc`（manager 身份）：删除 `status ∈ {cancelled, failed, closed}` 且 `updated_at` 早于 N 天前的 case 及其 audit 事件；N 由 env `BRIDGE_CASE_GC_DAYS`（默认 7，0=禁用）。
     - 仅在 `BRIDGE_ENVIRONMENT != production` 默认启用启动时+每日定时执行；生产只提供手动端点。
-12. **心跳面板别名聚合**：`src/omichub/application/services/agentteams_service.py` `admin_resource_snapshot`(:100)
+12. **心跳面板别名聚合**：`src/cygnusx/application/services/agentteams_service.py` `admin_resource_snapshot`(:100)
     - 统计缺心跳 worker 前，先用 registry 的 `role_alias_map()` 把别名 identity 归并到 canonical role（data-steward→agent-data 等），消除误报。
 13. **worker 部署缺口收口**（配置决策，二选一）：
     - 方案 a：给 `agent-router`、`shania` 补 professional-pool identity（`deploy/agentteams/docker-compose.agentteams.yml:137-157` 的 `AGENTTEAMS_WORKER_IDENTITIES` + token env）。
@@ -228,7 +228,7 @@ worker 容器(空壳轮询) → bridge POST .../execute-readonly → gateway(白
 
 现状问题（2026-08-13 截图 docs/26.8.13/image.png）：大面积留白浪费、每条 agent 发言挂着无意义的点赞/点踩/复制按钮、system 行过淡难以追踪流程、worker 折叠卡片信息密度低且重复、顶部缺少 Case 状态与进度总览、整体视觉与"团队协作室"叙事不符。
 
-- 重设计 `AgentTeamsRoomView.vue`：顶部 Case 状态条（状态机进度：计划→审批→执行→质控→交付）；发言流按 role 分组着色、去掉无效动作按钮；worker 卡片内联展示工具调用进度（M2 投影数据）；system 行改为时间轴节点样式；左栏 Case 列表增加状态过滤与搜索；视觉对齐项目 `skills/omichub-frontend-design` 规范。
+- 重设计 `AgentTeamsRoomView.vue`：顶部 Case 状态条（状态机进度：计划→审批→执行→质控→交付）；发言流按 role 分组着色、去掉无效动作按钮；worker 卡片内联展示工具调用进度（M2 投影数据）；system 行改为时间轴节点样式；左栏 Case 列表增加状态过滤与搜索；视觉对齐项目 `skills/cygnusx-frontend-design` 规范。
 
 **M5：Matrix 进数据通路（第一~五刀已实施，剩余反向同步加固）**
 
@@ -238,7 +238,7 @@ worker 容器(空壳轮询) → bridge POST .../execute-readonly → gateway(白
 
 - 建房：两条用户态创建路径（`POST /cases`、`/cases/confirm` 经 `AgentTeamsCaseToolService.run`）在 Case 创建成功后经 `AgentTeamsService.provision_case_room` 建房；失败仅 log warning，Case 照常返回（降级事件流模式）。房间标识以 `room.created` Case 级证据事件（`work_item_id="case"`，bridge 对 manager 放行、不要求同名 work item）持久化——bridge 审计流即 case_id → room_id 映射存储，未给 bridge 加 schema 字段。
 - 镜像：接入点选 bridge 侧 audit append 钩子（`AuditStore.on_event` → `AuditRoomMirror`，fire-and-forget，失败仅 log），覆盖面为全部审计事件（主后端 consumer 路径只覆盖 chat 绑定且在线的 Case）。Gateway 只写本地审计不回写 Bridge，无循环镜像（`matrix.*` 事件类型显式跳过兜底）；重启后经 `AuditStore.all_events()` 重放 `room.created` 重建绑定。
-- 用户发言：`POST /api/v1/agent-teams/cases/{id}/messages`（JWT，限长 4000，非归属 403）记 `room.user_message` 审计事件（payload.actor=requester）；有房间时由 bridge 镜像钩子以 `omichub-user` 身份发进 Matrix，Matrix 失败不影响事件记录。前端输入框启用（非终态可发），`room.user_message` 投影为"我"的气泡，`room.created` 投影为折叠 system 行。
+- 用户发言：`POST /api/v1/agent-teams/cases/{id}/messages`（JWT，限长 4000，非归属 403）记 `room.user_message` 审计事件（payload.actor=requester）；有房间时由 bridge 镜像钩子以 `cygnusx-user` 身份发进 Matrix，Matrix 失败不影响事件记录。前端输入框启用（非终态可发），`room.user_message` 投影为"我"的气泡，`room.created` 投影为折叠 system 行。
 - 开关：`agentteams_gateway_enabled` 默认关闭；未建房成功时 Matrix 部分完全不激活，`room.user_message` 审计始终记录。
 
 第二刀（2026-08-13 已实施）：房间内自由对话的 Manager 响应回路。
@@ -251,13 +251,13 @@ worker 容器(空壳轮询) → bridge POST .../execute-readonly → gateway(白
 
 - Typing：响应任务拿锁且通过终态/manager 检查后落 `room.typing` `{typing:true}`，完成/失败 finally 落 `{typing:false}`；被锁丢弃的消息不发 typing 事件，天然不残留（前端另有 3 分钟新鲜度兜底，`room.agent_message` 到达即视为输入结束）。前端 `resolveManagerTyping` 从原始事件流推导，消息流底部渲染三点脉冲指示（语义令牌 + prefers-reduced-motion 回退）；`room.typing` 不进消息列表、不镜像进 Matrix。
 - 反向同步：`AgentTeamsRoomSyncService`（主后端 Celery beat 任务 `sync_case_rooms`，全局互斥锁 + 有界 SSE，复用 `agentteams_case_event_stream_*` 节奏配置）。建房时 `record_room_binding` 把 `case→room|requester` 登记进 Redis hash；任务为每个绑定房间开 Gateway `/rooms/{id}/sync` SSE，sync cursor 持久化 Redis（`agentteams:room-sync:cursor:{case_id}`），终态 Case 自动移除绑定；断线由 beat 间隔自然重连。
-- 防回声：Gateway matrix_client 给平台镜像消息打 `com.omichub.source=omichub` 标记，SSE 载荷 `origin != "external"` 一律不回投；回投事件 payload 带 `via="matrix"`，bridge room_mirror 据此跳过——双向均无循环。Element 侧发言回投为 `room.user_message`（payload.actor=Matrix sender，带 matrix_event_id）并同样触发 `respond_to_room_message`，与房间页发言语义一致。
+- 防回声：Gateway matrix_client 给平台镜像消息打 `com.cygnusx.source=cygnusx` 标记，SSE 载荷 `origin != "external"` 一律不回投；回投事件 payload 带 `via="matrix"`，bridge room_mirror 据此跳过——双向均无循环。Element 侧发言回投为 `room.user_message`（payload.actor=Matrix sender，带 matrix_event_id）并同样触发 `respond_to_room_message`，与房间页发言语义一致。
 
 第四刀（2026-08-13 已实施）：Element 嵌入 + AppService 批量供给用户 + 正式部署资产。
 
 - Element 嵌入：Gateway 建房响应的 `element_room_url`（`GATEWAY_ELEMENT_BASE_URL` + `#/room/{room_id}` 深链）早已随 `room.created` 证据事件下发，本刀前端直接消费——`resolveElementRoomUrl`（仅接受 http/https，取最新一条）从事件流解析深链，房间页顶部出现"消息流 / Element 视图"切换；Element 视图以 sandbox iframe（`allow-scripts allow-same-origin allow-forms allow-popups allow-downloads` + `referrerpolicy="no-referrer"`）嵌入深链，并附"在新标签页打开"出口。未建房/Gateway 未配置 Element 地址时入口不出现（无 room.created 即无 URL）。前端不新增配置项，URL 单一来源是 Gateway 配置。
-- 用户供给：映射规则 platform user → `omichub-user-<sanitized user_id>`（清洗为 Matrix localpart 安全字符，空则回退共享 `omichub-user`），主后端 `agentteams_service.matrix_identity_for_requester` 与 bridge `room_mirror` 各持一份同规则实现（跨进程无共享包）。Gateway 新增 `matrix_server_name` 配置与 `matrix_user_for_identity`（静态 map 优先，动态前缀兜底）+ 反向解析 `matrix_identity_by_user_dynamic`（sync 事件归源）；新增幂等端点 `POST /users/ensure`。建房路径：`provision_case_room` 先 best-effort 调 `ensure_users` 预热账号（失败不阻断，create_room 内部仍 ensure），再带 per-user 身份 invite 建房；bridge 镜像用户发言改以 per-user 身份发送，Element 侧可区分发言人。
-- 部署资产：`deploy/agentteams/kubernetes/` 新增 `tuwunel.yaml`（Tuwunel 单副本 + Recreate + RWO PVC + AppService 注册文件 Secret 模板，users 正则覆盖 `omichub-user-*`）、`gateway.yaml`（Gateway Deployment/Service/PDB + ConfigMap/Secret 模板）、NetworkPolicy 补充（gateway/tuwunel 进出规则 + bridge→gateway 放行）与 README（与 matrix-dev 的分工、配置联动、镜像加速约定）；风格对齐 bridge-cluster.yaml 安全基线。matrix-dev 的 Synapse 仅保留开发用。
+- 用户供给：映射规则 platform user → `cygnusx-user-<sanitized user_id>`（清洗为 Matrix localpart 安全字符，空则回退共享 `cygnusx-user`），主后端 `agentteams_service.matrix_identity_for_requester` 与 bridge `room_mirror` 各持一份同规则实现（跨进程无共享包）。Gateway 新增 `matrix_server_name` 配置与 `matrix_user_for_identity`（静态 map 优先，动态前缀兜底）+ 反向解析 `matrix_identity_by_user_dynamic`（sync 事件归源）；新增幂等端点 `POST /users/ensure`。建房路径：`provision_case_room` 先 best-effort 调 `ensure_users` 预热账号（失败不阻断，create_room 内部仍 ensure），再带 per-user 身份 invite 建房；bridge 镜像用户发言改以 per-user 身份发送，Element 侧可区分发言人。
+- 部署资产：`deploy/agentteams/kubernetes/` 新增 `tuwunel.yaml`（Tuwunel 单副本 + Recreate + RWO PVC + AppService 注册文件 Secret 模板，users 正则覆盖 `cygnusx-user-*`）、`gateway.yaml`（Gateway Deployment/Service/PDB + ConfigMap/Secret 模板）、NetworkPolicy 补充（gateway/tuwunel 进出规则 + bridge→gateway 放行）与 README（与 matrix-dev 的分工、配置联动、镜像加速约定）；风格对齐 bridge-cluster.yaml 安全基线。matrix-dev 的 Synapse 仅保留开发用。
 
 第五刀（2026-08-13 已实施）：房间页聊天式创建 Case + 通用 Case 自动确认。
 
@@ -270,7 +270,7 @@ worker 容器(空壳轮询) → bridge POST .../execute-readonly → gateway(白
 剩余条目（后续刀）：
 
 1. 反向同步加固：Redis 绑定丢失时从审计流 `room.created` 重建（当前仅建房时登记）；回投至少一次语义下的去重（matrix_event_id 幂等）；显式指数退避（当前依赖 beat 间隔）；
-2. Element 内发言的终端用户登录：AppService 供给的 `omichub-user-*` 账号无密码，iframe 内目前只能以已有 Matrix 账号旁观/介入，面向平台用户的 SSO/token 下发未做；
+2. Element 内发言的终端用户登录：AppService 供给的 `cygnusx-user-*` 账号无密码，iframe 内目前只能以已有 Matrix 账号旁观/介入，面向平台用户的 SSO/token 下发未做；
 3. 开关 `agentteams_gateway_enabled` 默认关闭，未配置时降级为现有事件流投影模式（第一刀已落实降级语义）。
 
 **M6：Worker 凭证收敛（2026-08-13 已实施）**
@@ -309,7 +309,7 @@ worker 容器(空壳轮询) → bridge POST .../execute-readonly → gateway(白
    - 镜像：`room_mirror` 双路由（case 房 + 该 case `team_id` 对应 team 房），约 30 行；
    - 前端：房间页加 team 房 Tab，约 100 行；
    - 合计约 0.5 天。**触发条件：出现第二个团队或真实多 Case 同屏诉求，否则不做。**
-3. **每 agent 独立 Matrix 身份**（官方拓扑对平台唯一有真实增量的部分：Element 侧发言人真实身份）已由 M5 第四刀的动态身份映射（`omichub-user-*` 前缀 + AppService 注册文件 users 正则）覆盖，不在 M7 重复立项。
+3. **每 agent 独立 Matrix 身份**（官方拓扑对平台唯一有真实增量的部分：Element 侧发言人真实身份）已由 M5 第四刀的动态身份映射（`cygnusx-user-*` 前缀 + AppService 注册文件 users 正则）覆盖，不在 M7 重复立项。
 
 ### M7.4 明确拒绝项与决策理由（归档备查）
 

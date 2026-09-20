@@ -1,6 +1,7 @@
 services:
-  omichub-agentteams-gateway:
-    container_name: omichub-agentteams-gateway
+  cygnusx-agentteams-gateway:
+    container_name: cygnusx-agentteams-gateway
+    image: ${AGENTTEAMS_GATEWAY_IMAGE:-cygnusx-agentteams-gateway:v0.0.2dev}
     build:
       context: ../../integrations/agentteams/gateway
     env_file:
@@ -8,10 +9,10 @@ services:
     ports:
       - "${AGENTTEAMS_GATEWAY_BIND_HOST:-127.0.0.1}:${AGENTTEAMS_GATEWAY_PORT:-8089}:8081"
     volumes:
-      - agentteams_gateway_audit:/var/lib/omichub-agent-gateway
-    networks: [agentteams_control, agentteams_bridge_state, omichub_bridge_gateway, agentteams_matrix_dev, omichub_net]
+      - agentteams_gateway_audit:/var/lib/cygnusx-agent-gateway
+    networks: [agentteams_control, agentteams_bridge_state, cygnusx_bridge_gateway, agentteams_matrix_dev, cygnusx_net]
     depends_on:
-      omichub-agentteams-state:
+      cygnusx-agentteams-state:
         condition: service_healthy
     read_only: true
     tmpfs: [/tmp]
@@ -24,8 +25,9 @@ services:
       retries: 5
       start_period: 10s
 
-  omichub-agentteams-bridge:
-    container_name: omichub-agentteams-bridge
+  cygnusx-agentteams-bridge:
+    container_name: cygnusx-agentteams-bridge
+    image: ${AGENTTEAMS_BRIDGE_IMAGE:-cygnusx-agentteams-bridge:v0.0.2dev}
     build:
       context: ../../integrations/agentteams/bridge
       args:
@@ -34,12 +36,12 @@ services:
         BRIDGE_BUILD_TIME: ${BRIDGE_BUILD_TIME:-unknown}
         # 国内构建默认走阿里云 PyPI 镜像；可通过环境变量切换为其他镜像或官方源。
         PIP_INDEX_URL: ${PIP_INDEX_URL:-https://mirrors.aliyun.com/pypi/simple/}
-    command: ["uvicorn", "omichub_agentteams_bridge.app:app", "--host", "0.0.0.0", "--port", "8080"]
+    command: ["uvicorn", "cygnusx_agentteams_bridge.app:app", "--host", "0.0.0.0", "--port", "8080"]
     env_file:
       - ${BRIDGE_ENV_FILE:-./bridge.env}
     environment:
       BRIDGE_CASE_GC_DAYS: ${BRIDGE_CASE_GC_DAYS:-7}
-      # MinIO 持久层（事实源）：bridge 已加入 omichub_net，经服务名直连主栈 minio 容器；
+      # MinIO 持久层（事实源）：bridge 已加入 cygnusx_net，经服务名直连主栈 minio 容器；
       # 凭证引用主栈 .env 的 MINIO_ROOT_USER/MINIO_ROOT_PASSWORD，bucket 由主栈 minio-init 创建。
       BRIDGE_MINIO_ENDPOINT: ${BRIDGE_MINIO_ENDPOINT:-http://minio:9000}
       BRIDGE_MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-}
@@ -49,11 +51,11 @@ services:
     ports:
       - "${AGENTTEAMS_BRIDGE_BIND_HOST:-127.0.0.1}:${AGENTTEAMS_BRIDGE_PORT:-8088}:8080"
     volumes:
-      - agentteams_bridge_audit:/var/lib/omichub-agentteams-bridge
+      - agentteams_bridge_audit:/var/lib/cygnusx-agentteams-bridge
     depends_on:
-      omichub-agentteams-state:
+      cygnusx-agentteams-state:
         condition: service_healthy
-    networks: [agentteams_control, agentteams_bridge_state, omichub_bridge_gateway, omichub_net]
+    networks: [agentteams_control, agentteams_bridge_state, cygnusx_bridge_gateway, cygnusx_net]
     read_only: true
     tmpfs: [/tmp]
     security_opt: [no-new-privileges:true]
@@ -65,8 +67,8 @@ services:
       retries: 5
       start_period: 10s
 
-  omichub-agentteams-state:
-    container_name: omichub-agentteams-state
+  cygnusx-agentteams-state:
+    container_name: cygnusx-agentteams-state
     image: redis:7.4-alpine
     command: ["redis-server", "--appendonly", "yes", "--save", "60", "1"]
     volumes:
@@ -83,19 +85,20 @@ services:
 
   agentteams-worker-code:
     container_name: agentteams-worker-code
+    image: ${AGENTTEAMS_WORKER_IMAGE:-cygnusx-agentteams-worker:v0.0.2dev}
     profiles: [agentteams-acceptance]
     build:
       context: ../../integrations/agentteams/worker
     environment:
       AGENTTEAMS_WORKER_MODE: acceptance
-      AGENTTEAMS_BRIDGE_BASE_URL: http://omichub-agentteams-bridge:8080/v1
+      AGENTTEAMS_BRIDGE_BASE_URL: http://cygnusx-agentteams-bridge:8080/v1
       AGENTTEAMS_WORKER_IDENTITY: agent-code
       AGENTTEAMS_BRIDGE_TOKEN: ${AGENTTEAMS_AGENT_CODE_TOKEN:-}
       AGENTTEAMS_WORKER_AUTOCOMPLETE_DEMO: "true"
       AGENTTEAMS_WORKER_ACCEPT_CASE_PREFIX: agentteams-acceptance-
       AGENTTEAMS_WORKER_POLL_SECONDS: "2"
     depends_on:
-      omichub-agentteams-bridge:
+      cygnusx-agentteams-bridge:
         condition: service_healthy
     networks: [agentteams_control]
     read_only: true
@@ -104,19 +107,20 @@ services:
 
   agentteams-worker-viz:
     container_name: agentteams-worker-viz
+    image: ${AGENTTEAMS_WORKER_IMAGE:-cygnusx-agentteams-worker:v0.0.2dev}
     profiles: [agentteams-acceptance]
     build:
       context: ../../integrations/agentteams/worker
     environment:
       AGENTTEAMS_WORKER_MODE: acceptance
-      AGENTTEAMS_BRIDGE_BASE_URL: http://omichub-agentteams-bridge:8080/v1
+      AGENTTEAMS_BRIDGE_BASE_URL: http://cygnusx-agentteams-bridge:8080/v1
       AGENTTEAMS_WORKER_IDENTITY: agent-viz
       AGENTTEAMS_BRIDGE_TOKEN: ${AGENTTEAMS_AGENT_VIZ_TOKEN:-}
       AGENTTEAMS_WORKER_AUTOCOMPLETE_DEMO: "true"
       AGENTTEAMS_WORKER_ACCEPT_CASE_PREFIX: agentteams-acceptance-
       AGENTTEAMS_WORKER_POLL_SECONDS: "2"
     depends_on:
-      omichub-agentteams-bridge:
+      cygnusx-agentteams-bridge:
         condition: service_healthy
     networks: [agentteams_control]
     read_only: true
@@ -125,19 +129,20 @@ services:
 
   agentteams-worker-scrna:
     container_name: agentteams-worker-scrna
+    image: ${AGENTTEAMS_WORKER_IMAGE:-cygnusx-agentteams-worker:v0.0.2dev}
     profiles: [agentteams-acceptance]
     build:
       context: ../../integrations/agentteams/worker
     environment:
       AGENTTEAMS_WORKER_MODE: acceptance
-      AGENTTEAMS_BRIDGE_BASE_URL: http://omichub-agentteams-bridge:8080/v1
+      AGENTTEAMS_BRIDGE_BASE_URL: http://cygnusx-agentteams-bridge:8080/v1
       AGENTTEAMS_WORKER_IDENTITY: agent-scrna
       AGENTTEAMS_BRIDGE_TOKEN: ${AGENTTEAMS_AGENT_SCRNA_TOKEN:-}
       AGENTTEAMS_WORKER_AUTOCOMPLETE_DEMO: "true"
       AGENTTEAMS_WORKER_ACCEPT_CASE_PREFIX: agentteams-acceptance-
       AGENTTEAMS_WORKER_POLL_SECONDS: "2"
     depends_on:
-      omichub-agentteams-bridge:
+      cygnusx-agentteams-bridge:
         condition: service_healthy
     networks: [agentteams_control]
     read_only: true
@@ -145,6 +150,7 @@ services:
     security_opt: [no-new-privileges:true]
 
   agentteams-worker-professional-pool:
+    image: ${AGENTTEAMS_WORKER_IMAGE:-cygnusx-agentteams-worker:v0.0.2dev}
     profiles: [agentteams-production]
     build:
       context: ../../integrations/agentteams/worker
@@ -152,14 +158,14 @@ services:
       - ${WORKER_ENV_FILE:-./worker.env}
     environment:
       AGENTTEAMS_WORKER_MODE: production
-      AGENTTEAMS_BRIDGE_BASE_URL: http://omichub-agentteams-bridge:8080/v1
+      AGENTTEAMS_BRIDGE_BASE_URL: http://cygnusx-agentteams-bridge:8080/v1
       AGENTTEAMS_WORKER_IDENTITIES: agent-data,agent-rnaseq,agent-atacseq,agent-scrna,agent-scrna-upstream,agent-scrna-integration,agent-scrna-advanced,agent-code,agent-viz,agent-qc,agent-delivery,agent-cloud-ops,agent-general,agent-mcp-builder
       AGENTTEAMS_WORKER_MAX_CONCURRENT: ${AGENTTEAMS_PROFESSIONAL_POOL_CONCURRENCY:-4}
       AGENTTEAMS_WORKER_POLL_SECONDS: "2"
     deploy:
       replicas: ${AGENTTEAMS_PROFESSIONAL_POOL_REPLICAS:-2}
     depends_on:
-      omichub-agentteams-bridge:
+      cygnusx-agentteams-bridge:
         condition: service_healthy
     networks: [agentteams_control]
     read_only: true
@@ -168,6 +174,7 @@ services:
 
   agentteams-worker-analysis-production:
     container_name: agentteams-worker-analysis
+    image: ${AGENTTEAMS_WORKER_IMAGE:-cygnusx-agentteams-worker:v0.0.2dev}
     profiles: [agentteams-production]
     build:
       context: ../../integrations/agentteams/worker
@@ -175,12 +182,12 @@ services:
       - ${WORKER_ENV_FILE:-./worker.env}
     environment:
       AGENTTEAMS_WORKER_MODE: analysis
-      AGENTTEAMS_BRIDGE_BASE_URL: http://omichub-agentteams-bridge:8080/v1
+      AGENTTEAMS_BRIDGE_BASE_URL: http://cygnusx-agentteams-bridge:8080/v1
       AGENTTEAMS_WORKER_IDENTITY: analysis-worker
       AGENTTEAMS_BRIDGE_TOKEN: ${AGENTTEAMS_ANALYSIS_WORKER_TOKEN:-}
       AGENTTEAMS_WORKER_POLL_SECONDS: "2"
     depends_on:
-      omichub-agentteams-bridge:
+      cygnusx-agentteams-bridge:
         condition: service_healthy
     networks: [agentteams_control]
     read_only: true
@@ -189,6 +196,7 @@ services:
 
   agentteams-worker-quality-production:
     container_name: agentteams-worker-quality
+    image: ${AGENTTEAMS_WORKER_IMAGE:-cygnusx-agentteams-worker:v0.0.2dev}
     profiles: [agentteams-production]
     build:
       context: ../../integrations/agentteams/worker
@@ -196,12 +204,12 @@ services:
       - ${WORKER_ENV_FILE:-./worker.env}
     environment:
       AGENTTEAMS_WORKER_MODE: quality
-      AGENTTEAMS_BRIDGE_BASE_URL: http://omichub-agentteams-bridge:8080/v1
+      AGENTTEAMS_BRIDGE_BASE_URL: http://cygnusx-agentteams-bridge:8080/v1
       AGENTTEAMS_WORKER_IDENTITY: quality-auditor
       AGENTTEAMS_BRIDGE_TOKEN: ${AGENTTEAMS_AGENT_QC_TOKEN:-}
       AGENTTEAMS_WORKER_POLL_SECONDS: "5"
     depends_on:
-      omichub-agentteams-bridge:
+      cygnusx-agentteams-bridge:
         condition: service_healthy
     networks: [agentteams_control]
     read_only: true
@@ -210,6 +218,7 @@ services:
 
   agentteams-worker-delivery-production:
     container_name: agentteams-worker-delivery
+    image: ${AGENTTEAMS_WORKER_IMAGE:-cygnusx-agentteams-worker:v0.0.2dev}
     profiles: [agentteams-production]
     build:
       context: ../../integrations/agentteams/worker
@@ -217,12 +226,12 @@ services:
       - ${WORKER_ENV_FILE:-./worker.env}
     environment:
       AGENTTEAMS_WORKER_MODE: delivery
-      AGENTTEAMS_BRIDGE_BASE_URL: http://omichub-agentteams-bridge:8080/v1
+      AGENTTEAMS_BRIDGE_BASE_URL: http://cygnusx-agentteams-bridge:8080/v1
       AGENTTEAMS_WORKER_IDENTITY: delivery-reporter
       AGENTTEAMS_BRIDGE_TOKEN: ${AGENTTEAMS_AGENT_DELIVERY_TOKEN:-}
       AGENTTEAMS_WORKER_POLL_SECONDS: "5"
     depends_on:
-      omichub-agentteams-bridge:
+      cygnusx-agentteams-bridge:
         condition: service_healthy
     networks: [agentteams_control]
     read_only: true
@@ -231,16 +240,16 @@ services:
 
 networks:
   agentteams_control:
-    name: omichub_agentteams_control
+    name: cygnusx_agentteams_control
     internal: true
   agentteams_bridge_state:
-    name: omichub_agentteams_bridge_state
+    name: cygnusx_agentteams_bridge_state
     internal: true
-  omichub_bridge_gateway:
-    name: ${OMICHUB_BRIDGE_GATEWAY_NETWORK:-omichub_bridge_gateway}
+  cygnusx_bridge_gateway:
+    name: ${CYGNUSX_BRIDGE_GATEWAY_NETWORK:-cygnusx_bridge_gateway}
     external: true
-  omichub_net:
-    name: omichub_net
+  cygnusx_net:
+    name: cygnusx_net
     external: true
   agentteams_matrix_dev:
     name: matrix-dev_default

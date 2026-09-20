@@ -1,9 +1,9 @@
-# OmicHub Agent 架构现状与扩展指南
+# CygnusX Agent 架构现状与扩展指南
 
 > 依据仓库当前实现整理，更新于 2026-07-26。本文区分“已经运行的能力”“受开关控制的能力”和“尚未形成默认工作流的能力”，避免把设计目标误写为现状。
 
 > 后续能力演进（长期记忆、Agent Handoff、MAS 产品化）的实施路线见
-> [`docs/26.7.26/ai_agent/OmicHub平台Agent能力优化方案-记忆与多Agent协作.md`](../docs/26.7.26/ai_agent/OmicHub平台Agent能力优化方案-记忆与多Agent协作.md)。
+> [`docs/26.7.26/ai_agent/CygnusX平台Agent能力优化方案-记忆与多Agent协作.md`](../docs/26.7.26/ai_agent/CygnusX平台Agent能力优化方案-记忆与多Agent协作.md)。
 > 该方案是未来目标，不应反向作为本文件“当前已实现”的证据。
 
 ## 0. 2026-07-26 实施状态
@@ -24,7 +24,7 @@ P3 为 DAG 节点增加了产物 Schema 边校验、失败节点手动重试和�
 
 ## 1. 结论：当前是否真的使用了 Agent 架构？
 
-**结论：是，OmicHub 已实现了可配置、可调用工具、可多轮行动的单 Agent 架构；但默认产品路径还不是完整的多专家自治协作系统。**
+**结论：是，CygnusX 已实现了可配置、可调用工具、可多轮行动的单 Agent 架构；但默认产品路径还不是完整的多专家自治协作系统。**
 
 当前默认入口的核心形态是：
 
@@ -48,7 +48,7 @@ P3 为 DAG 节点增加了产物 Schema 边校验、失败节点手动重试和�
 | MCP / Skill 工具生态 | 已落地 | MCP Server、内置工具 schema、Skill 渐进披露、工具包白名单均已实现。 |
 | Studio 代码执行 Agent | 已落地 | 启用 Studio 时，沙盒能力按会话和 runtime profile 装配。 |
 | 受审计 MAS DAG | 已实现但默认关闭 | 有 Plan、审批、Run、Node、Artifact、A2A Event、Celery 调度、产物契约、进度/下载/重试界面；`MAS_ENABLED=false` 时不可用。 |
-| 多专家自动协作 | 未作为默认入口落地 | 当前 router 后通常只执行一个 Agent；编排器也不在 `data/OmicHub.yaml` 的 enabled 列表内。 |
+| 多专家自动协作 | 未作为默认入口落地 | 当前 router 后通常只执行一个 Agent；编排器也不在 `data/CygnusX.yaml` 的 enabled 列表内。 |
 
 ## 2. 当前目录与配置职责
 
@@ -56,7 +56,7 @@ AI 相关静态资产均位于 `data/ai/`：
 
 ```text
 data/
-├── OmicHub.yaml                    # enabled Agent 名称列表和站点配置
+├── CygnusX.yaml                    # enabled Agent 名称列表和站点配置
 └── ai/
     ├── *.yaml                      # 内置 Agent 声明
     ├── prompts/
@@ -74,7 +74,7 @@ data/
     └── skill_marketplace/          # 内置 Skill 市场
 ```
 
-已启用的内置 Agent 来自 `data/OmicHub.yaml` 的 `agents.enabled`：
+已启用的内置 Agent 来自 `data/CygnusX.yaml` 的 `agents.enabled`：
 
 | YAML 名称 | Agent ID | 角色 | 主要运行形态 |
 | --- | --- | --- | --- |
@@ -123,7 +123,7 @@ ChatService.stream_agent_chat()
 
 ### 3.1 配置加载与数据库边界
 
-`src/omichub/infrastructure/config/agent_loader.py` 从 `data/OmicHub.yaml` 找到启用项，再读取 `data/ai/<name>.yaml`。加载器会：
+`src/cygnusx/infrastructure/config/agent_loader.py` 从 `data/CygnusX.yaml` 找到启用项，再读取 `data/ai/<name>.yaml`。加载器会：
 
 - 读取 `prompt_file`，并拒绝越出 Agent YAML 所在目录的路径；
 - 将 `tool_packs` 展开成内置工具、平台 MCP、外部 MCP 和 Skill 的授权信息；
@@ -149,7 +149,7 @@ ChatService.stream_agent_chat()
 
 两种执行器的工具语义一致：模型请求 function call，服务端检查工具来源并执行，结果作为 `role: tool` 消息回灌。
 
-- **LangGraph**：`src/omichub/infrastructure/execution/langgraph_runtime.py` 中的状态图固定为 `llm_call → tool_exec → llm_call`，最大轮数由调用方传入（与手写循环对齐：默认 100 轮，前端确认续轮后 1000 轮），触顶时产出 `round_limit` 事件；适用于标记 `features.engine: langgraph` 的非 Studio Agent。
+- **LangGraph**：`src/cygnusx/infrastructure/execution/langgraph_runtime.py` 中的状态图固定为 `llm_call → tool_exec → llm_call`，最大轮数由调用方传入（与手写循环对齐：默认 100 轮，前端确认续轮后 1000 轮），触顶时产出 `round_limit` 事件；适用于标记 `features.engine: langgraph` 的非 Studio Agent。
 - **手写 ReAct**：`ChatService.stream_agent_chat()` 中保留的循环（默认 100 轮，确认续轮后 1000 轮）；Studio 会话和未设置 LangGraph 的 Agent 使用它。
 
 这意味着当前 LangGraph 是对 ReAct 控制流的图化，不是一个“自动规划—多节点任务编排图”。
@@ -165,7 +165,7 @@ ChatService.stream_agent_chat()
 | 来源 | 注册位置 | 运行位置 | 授权方式 |
 | --- | --- | --- | --- |
 | 内置 ToolBridge 工具 | `tool_configs/tools_schema.yaml` | `ToolBridgeService` / 后端服务 / 异步任务 / Flow | `tool_packs.*.builtin_tools` |
-| 平台 MCP 工具 | `src/omichub/infrastructure/mcp/presets.py` | OmicHub 内部 handler | `platform_tools` |
+| 平台 MCP 工具 | `src/cygnusx/infrastructure/mcp/presets.py` | CygnusX 内部 handler | `platform_tools` |
 | 外部或自建 MCP | 管理端 MCP Server 数据库记录 | `MCPClient` | `mcp_ids` + 可选 `mcp_tools` 白名单 |
 | Skill | `data/ai/skills/` / 数据库 | `use_skill`、`skill_resource` 等按需读取 | `skill_ids` |
 
@@ -209,7 +209,7 @@ ChatService.stream_agent_chat()
 
 1. 在 `data/ai/prompts/` 新建提示词，例如 `atac.md`；
 2. 新建 `data/ai/atac.yaml`，设置唯一 `agent_id`、`prompt_file`、模型、`features`、`tool_packs` 和可选 Studio 配置；
-3. 在 `data/OmicHub.yaml` 的 `agents.enabled` 加入 `atac`；
+3. 在 `data/CygnusX.yaml` 的 `agents.enabled` 加入 `atac`；
 4. 重启应用或触发内置 Agent 初始化，让 `ensure_builtin_agents()` 创建数据库记录；
 5. 在 Agent 列表、路由和工具调用场景验证。
 
@@ -239,7 +239,7 @@ studio:
 当前没有“把 `prompt_file` 自动覆盖发布到数据库”的管理动作。建议后续新增一个管理员专用发布接口或 CLI，例如：
 
 ```text
-omichub agents publish-yaml agent-rnaseq --fields system_prompt,features
+cygnusx agents publish-yaml agent-rnaseq --fields system_prompt,features
 ```
 
 它应展示 diff，并要求确认后才覆盖选定字段。不要把每次启动都改成强制覆盖，否则管理员在 UI 中的紧急修订会被 YAML 静默覆盖。
@@ -255,7 +255,7 @@ omichub agents publish-yaml agent-rnaseq --fields system_prompt,features
 id: atac
 description: ATAC-seq 分析所需工具。
 builtin_tools:
-  - omichub_run_kegg_enrichment
+  - cygnusx_run_kegg_enrichment
 platform_tools:
   - list_workspace_files
   - search_workspace_files
@@ -270,7 +270,7 @@ tool_packs: [workspace, atac]
 
 ### 7.2 新增内置后端工具
 
-适用于已有 OmicHub 后端服务、分析 Flow 或可审计异步任务：
+适用于已有 CygnusX 后端服务、分析 Flow 或可审计异步任务：
 
 1. 在 `tool_configs/tools_schema.yaml` 定义工具名、描述、JSON Schema、`invocation_mode`、权限/确认要求及执行信息；
 2. 在 `ToolBridgeService` 对应的服务、shim、异步任务或 `analysis_flow` 中实现执行逻辑；
@@ -331,16 +331,16 @@ mcp_tools:
 
 | 目的 | 文件 |
 | --- | --- |
-| 内置 Agent YAML 加载、提示词文件与工具包展开 | `src/omichub/infrastructure/config/agent_loader.py` |
-| Agent 数据库同步与运行时上下文装配 | `src/omichub/application/services/agent_service.py` |
-| 路由、搜索、工具循环、SSE 和 Studio 分流 | `src/omichub/application/services/chat_service.py` |
-| LangGraph ReAct 状态图 | `src/omichub/infrastructure/execution/langgraph_runtime.py` |
-| LangGraph LLM/工具节点 | `src/omichub/infrastructure/execution/langgraph_nodes.py` |
+| 内置 Agent YAML 加载、提示词文件与工具包展开 | `src/cygnusx/infrastructure/config/agent_loader.py` |
+| Agent 数据库同步与运行时上下文装配 | `src/cygnusx/application/services/agent_service.py` |
+| 路由、搜索、工具循环、SSE 和 Studio 分流 | `src/cygnusx/application/services/chat_service.py` |
+| LangGraph ReAct 状态图 | `src/cygnusx/infrastructure/execution/langgraph_runtime.py` |
+| LangGraph LLM/工具节点 | `src/cygnusx/infrastructure/execution/langgraph_nodes.py` |
 | 内置工具 schema | `tool_configs/tools_schema.yaml` |
-| 内置平台 MCP handler | `src/omichub/infrastructure/mcp/presets.py` |
-| 工具 schema 分发执行 | `src/omichub/application/services/tool_bridge_service.py` |
-| MAS Run / 审批 / Artifact API | `src/omichub/application/services/mas_service.py` |
-| MAS DAG 调度 | `src/omichub/application/services/mas_scheduler_service.py` |
+| 内置平台 MCP handler | `src/cygnusx/infrastructure/mcp/presets.py` |
+| 工具 schema 分发执行 | `src/cygnusx/application/services/tool_bridge_service.py` |
+| MAS Run / 审批 / Artifact API | `src/cygnusx/application/services/mas_service.py` |
+| MAS DAG 调度 | `src/cygnusx/application/services/mas_scheduler_service.py` |
 | Agent 工具包说明 | `data/ai/tools/README.md` |
 
 ## 10. 与优化方案的实现边界

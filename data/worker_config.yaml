@@ -2,7 +2,7 @@
 #
 # 迁移到新的计算节点时，只需修改此文件中的宿主机路径，再执行
 # `make docker-up-worker`。流程目录会只读挂载到容器的
-# `/opt/omichub/pipelines`；Conda/Mamba 缓存则位于共享数据盘。
+# `/opt/cygnusx/pipelines`；Conda/Mamba 缓存则位于共享数据盘。
 paths:
-  shared_data_dir: /data/omichub
+  shared_data_dir: /data/cygnusx
   pipeline_dir: /home/zj/pipeline

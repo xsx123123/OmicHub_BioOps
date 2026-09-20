@@ -1,7 +1,7 @@
 [project]
-name = "omichub-agentteams-bridge"
+name = "cygnusx-agentteams-bridge"
 version = "0.1.0"
-description = "Non-invasive AgentTeams control-plane bridge for OmicHub"
+description = "Non-invasive AgentTeams control-plane bridge for CygnusX"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.110.0",

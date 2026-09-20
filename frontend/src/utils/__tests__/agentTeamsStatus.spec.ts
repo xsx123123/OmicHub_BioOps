@@ -12,7 +12,7 @@ import type { AgentTeamsCaseStatus } from '@/api/agentTeams'
 describe('agentTeamsCaseStageMap', () => {
   it('covers every case status exactly once', () => {
     const statuses = Object.keys(agentTeamsCaseStageMap) as AgentTeamsCaseStatus[]
-    expect(statuses).toHaveLength(16)
+    expect(statuses).toHaveLength(17)
   })
 
   it('maps statuses onto the five stages of the case lifecycle', () => {
@@ -77,6 +77,10 @@ describe('formatAgentTeamsStatus', () => {
 
   it('falls back to waiting_for_correction base text without payload', () => {
     expect(formatAgentTeamsStatus('waiting_for_correction')).toBe('等待修正')
+  })
+
+  it('formats planning_failed as terminal failure', () => {
+    expect(formatAgentTeamsStatus('planning_failed')).toBe('规划失败')
   })
 
   it('warns in dev and returns a fallback for unknown statuses', () => {

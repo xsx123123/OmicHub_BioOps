@@ -1,4 +1,4 @@
-# OmicHub「协作室」（AgentTeams Room）框架：最终架构（2026-08 升级后）
+# CygnusX「协作室」（AgentTeams Room）框架：最终架构（2026-08 升级后）
 
 > 初稿调研：2026-08-20；**本文档已于 2026-08-21 重写为升级后的最终框架**，并于同日经
 > L4 愿景符合度审查 + 审查修复（安全止血/工程地基/正确性加固）后回写状态口径。
@@ -35,7 +35,7 @@
 浏览器前端
    │ （只接触主后端，永远不接触 Bridge/Gateway 凭证）
    ▼
-OmicHub 主后端 (FastAPI + Celery + Redis + PG + MinIO)
+CygnusX 主后端 (FastAPI + Celery + Redis + PG + MinIO)
    │  httpx 代理 + 四身份令牌
    ▼
 AgentTeams Bridge (integrations/agentteams/bridge/)   ← 独立部署、无状态 FastAPI 服务
@@ -55,20 +55,20 @@ Matrix/Element（房间镜像，可选 iframe 嵌入）
 - **房间实体化**：主库新增 `agentteams_rooms` 表（room_id/title/owner/case_id 可空/origin/origin_ref/时间戳），房间先于 Case 存在；纯聊天阶段事件落 Bridge **房间命名空间事件流**（`room-<room_id>` 命名空间记录，`record_kind="room_namespace"`），不进用户 Case 列表/配额/GC/指标。
 - **协作室业务状态的事实源在 MinIO**：Case 状态快照与审计事件流全部对象化到 MinIO `agentteams` bucket；Bridge 容器重建后零状态损失。主库表只存游标（`agentteams_case_cursors`）、配置（`agentteams_bridge_settings`）与房间元数据（`agentteams_rooms`）。
 - **Matrix 房间只是镜像**：Bridge 的 `AuditRoomMirror` 正向把 `room.*` 事件镜像进 Matrix；`agentteams_room_sync_service.py` 反向把 Element 侧发言回投，双向防回声（`via=matrix` 标记）。房间命名空间消息的 Matrix 回投改派 `respond_to_room_namespace_message` 任务。
-- Bridge 是**完全独立的服务**（不 import OmicHub 任何代码），自带 16 态 Case 状态机（`queued→received→planning_running→…→delivery_ready→closed`）+ Work Item 状态机（租约 claim、重试预算、审批信封）。
+- Bridge 是**完全独立的服务**（不 import CygnusX 任何代码），自带 16 态 Case 状态机（`queued→received→planning_running→…→delivery_ready→closed`）+ Work Item 状态机（租约 claim、重试预算、审批信封）。
 
 ## 三、后端核心模块清单
 
 ### API 层
 
-- `src/omichub/api/v1/agentteams.py`（挂 `prefix="/agent-teams"`）：三类端点
+- `src/cygnusx/api/v1/agentteams.py`（挂 `prefix="/agent-teams"`）：三类端点
   - 集成端点（`X-Integration-Token` 认证，供 Gateway 回调）：`GET /capabilities`、`POST /consultations/scientific-interpretation`
   - **房间端点（2026-08-21 新增，`CurrentUserId` 认证 + owner 归属校验）**：`POST /rooms`（建房即供给 Matrix 房间，**不建 Case**）、`GET /rooms` / `GET /rooms/{id}`、`POST /rooms/{id}/messages`、`POST /rooms/{id}/confirm-proposal`（立项确认/修改/取消）、`GET /rooms/{id}/events`（复合游标 `ns:<id>|case:<id>` 双流归并分页）、`GET /rooms/{id}/events/stream`（SSE）
   - 用户端点（Case 级，旧路径保留兼容）：Case CRUD、审批/修订/变更决策、`POST /cases/{id}/messages`、`GET /cases/{id}/events[ /stream]`、产物受控读取、`GET /cases/{id}/audit-chain`（**审计链统一查询入口，新增**）、`GET /role-labels`、`GET /status`
-- `src/omichub/api/v1/chat.py`：新增 `POST /sessions/{session_id}/agentteams-upgrade`（L2→L4 升级决策 accept/dismiss）
-- `src/omichub/api/v1/admin/agentteams_bridge.py`：管理员配置 Bridge 接入（URL + 四个身份令牌，加密落库）
+- `src/cygnusx/api/v1/chat.py`：新增 `POST /sessions/{session_id}/agentteams-upgrade`（L2→L4 升级决策 accept/dismiss）
+- `src/cygnusx/api/v1/admin/agentteams_bridge.py`：管理员配置 Bridge 接入（URL + 四个身份令牌，加密落库）
 
-### Application 服务层（`src/omichub/application/services/`）
+### Application 服务层（`src/cygnusx/application/services/`）
 
 | 文件 | 职责 |
 |---|---|
@@ -92,14 +92,14 @@ Matrix/Element（房间镜像，可选 iframe 嵌入）
 
 ### 异步任务层
 
-`src/omichub/infrastructure/celery_app/tasks/agentteams.py`：
+`src/cygnusx/infrastructure/celery_app/tasks/agentteams.py`：
 
 - `respond_to_room_message`（Case 房间）与 `respond_to_room_namespace_message`（**新增**，未立项房间）→ `AgentTeamsRoomResponseService.respond` / `respond_room`
 - beat 周期任务：`watch_cases`、`consume_case_events`、`sync_case_rooms`、`requeue_stale_tasks`、`reconcile_approval_timeouts`、`cleanup_evidence`，全部用 Redis 分布式锁防多 worker 并发
 
 ### 独立部署组件（`integrations/agentteams/`）
 
-- **`bridge/`**（独立 FastAPI 服务，不 import OmicHub 任何代码，**2026-08-21 起无状态化**）：
+- **`bridge/`**（独立 FastAPI 服务，不 import CygnusX 任何代码，**2026-08-21 起无状态化**）：
   - `app.py`：全部 REST 端点；`/healthz` 增加 `minio_enabled/minio_reachable/minio_last_write_latency_ms`
   - `service.py`（`BridgeService`）：Case 状态机、Work Item 租约、审批信封、质量门禁、交付 manifest；`create_case` 分流 `_create_room_namespace`（房间命名空间记录不排队、不转 planning、不进用户 Case 列表/配额/GC/指标）
   - `minio_store.py`（**新增**，MinIO 适配层）：事件流 append（读-改-写尾卷 + per-case asyncio 锁，超 50MB 按天分卷）、快照 envelope（version/case_id/saved_at/last_event_id/case）、启动恢复（读快照→校验 last_event_id→重放增量，任何失败拒绝启动）
@@ -153,7 +153,7 @@ payload = {agent_id, role, causation_event_id,
 - **append 实现**：S3 无原生 append → 读-改-写尾卷 + per-case asyncio 锁；`record()` 返回前必须已落盘。
 - **噪音治理**：operational 事件（`worker.inbox_polled / worker.heartbeat / room.typing`）不进 MinIO 事件流，只 `INCR <prefix>:metrics:events:{type}`（无 Redis 时进程内计数）；`metrics()` 暴露聚合计数供监控面板。
 - **配置**：`BRIDGE_MINIO_ENDPOINT / ACCESS_KEY / SECRET_KEY / BUCKET(默认 agentteams) / SECURE(false)`；生产校验器强制 endpoint 非空；未配置时非生产回退旧模式并打 warning。compose 已接线（bridge 服务注入 `BRIDGE_MINIO_*`，endpoint `http://minio:9000`，凭证引用 `MINIO_ROOT_USER/PASSWORD`）。
-- **迁移**：`python -m omichub_agentteams_bridge.migrate_to_minio` 一次性迁移既有本地 JSON → MinIO，逐 case 对账（事件数不平非零退出），旧文件保留人工归档。
+- **迁移**：`python -m cygnusx_agentteams_bridge.migrate_to_minio` 一次性迁移既有本地 JSON → MinIO，逐 case 对账（事件数不平非零退出），旧文件保留人工归档。
 
 ## 六、消息流转全链路（升级后）
 

@@ -1,8 +1,8 @@
 import pytest
 
-from omichub.application.services.mas_plan_validator import MASPlanValidator
-from omichub.core.exceptions import ValidationError
-from omichub.domain.mas.models import ExecutionPlan, MASNode
+from cygnusx.application.services.mas_plan_validator import MASPlanValidator
+from cygnusx.core.exceptions import ValidationError
+from cygnusx.domain.mas.models import ExecutionPlan, MASNode
 
 
 def test_plan_validator_requires_registered_agent_capabilities() -> None:

@@ -1,6 +1,6 @@
-# OmicHub 变异检测 GATK & PLINK 沙盒镜像
-# 构建: docker build -t omichub/sandbox-gatk:latest -f tool_configs/terminal/docker/Dockerfile.gatk tool_configs/terminal/docker/
-FROM omichub/sandbox-terminal:latest
+# CygnusX 变异检测 GATK & PLINK 沙盒镜像
+# 构建: docker build -t cygnusx-sandbox-gatk:v0.0.2dev -f tool_configs/terminal/docker/Dockerfile.gatk tool_configs/terminal/docker/
+FROM cygnusx-sandbox-terminal:v0.0.2dev
 
 USER root
 

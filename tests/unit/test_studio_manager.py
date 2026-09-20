@@ -6,11 +6,11 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from omichub.infrastructure.config.storage_config import StorageConfig
-from omichub.infrastructure.config.studio_loader import StudioConfigManager
-from omichub.infrastructure.storage.path_factory import StoragePathFactory
-from omichub.infrastructure.studio import manager as manager_module
-from omichub.infrastructure.studio.manager import (
+from cygnusx.infrastructure.config.storage_config import StorageConfig
+from cygnusx.infrastructure.config.studio_loader import StudioConfigManager
+from cygnusx.infrastructure.storage.path_factory import StoragePathFactory
+from cygnusx.infrastructure.studio import manager as manager_module
+from cygnusx.infrastructure.studio.manager import (
     StudioSandboxManager,
     StudioSandboxUnavailableError,
 )
@@ -117,8 +117,43 @@ def test_remove_user_root_only_removes_user_directory(tmp_path: Path):
 
 @pytest.mark.unit
 def test_container_name_uses_session_prefix():
-    """容器命名 studio-{session_id[:8]}"""
-    assert StudioSandboxManager.container_name("abcdefgh-ijkl") == "studio-abcdefgh"
+    """UUID 会话容器命名 studio-{session_id[:8]}（兼容存量容器）"""
+    assert (
+        StudioSandboxManager.container_name("760b23db-d668-4746-b372-2822b6026222")
+        == "studio-760b23db"
+    )
+
+
+@pytest.mark.unit
+def test_container_name_hashes_non_uuid_session_id():
+    """非 UUID 会话 ID 用哈希后缀，避免短前缀碰撞（agentteams:{case_id} 前缀恒为 agenttea）"""
+    name_a = StudioSandboxManager.container_name("agentteams:case-a")
+    name_b = StudioSandboxManager.container_name("agentteams:case-b")
+    assert name_a != name_b
+    assert name_a == StudioSandboxManager.container_name("agentteams:case-a")
+    assert ":" not in name_a
+
+
+@pytest.mark.unit
+def test_container_mounts_match():
+    """平台只读挂载基线：缺失/源不匹配返回 False，无期望时不强制"""
+
+    class _Container:
+        def __init__(self, mounts):
+            self.attrs = {"Mounts": mounts}
+
+    expected = "/data/cygnusx/users/u-1"
+    ok = _Container(
+        [{"Destination": "/data/platform", "Source": expected, "Mode": "ro"}]
+    )
+    missing = _Container([{"Destination": "/workspace", "Source": "/x", "Mode": "rw"}])
+    wrong_source = _Container(
+        [{"Destination": "/data/platform", "Source": "/data/cygnusx/users/u-2"}]
+    )
+    assert StudioSandboxManager._container_mounts_match(ok, expected) is True
+    assert StudioSandboxManager._container_mounts_match(missing, expected) is False
+    assert StudioSandboxManager._container_mounts_match(wrong_source, expected) is False
+    assert StudioSandboxManager._container_mounts_match(missing, None) is True
 
 
 @pytest.mark.unit
@@ -160,6 +195,101 @@ def test_validate_container_network_rejects_none_mode_on_bridge(tmp_path: Path):
 
     with pytest.raises(StudioSandboxUnavailableError, match="network_mode=none"):
         manager._validate_container_network(container, config, "sess-1")
+
+
+@pytest.mark.unit
+def test_validate_container_security_requires_hardening(tmp_path: Path):
+    manager = _make_manager(tmp_path)
+    config = manager._config()
+    container = MagicMock()
+    container.attrs = {
+        "HostConfig": {
+            "NanoCpus": 2_000_000_000,
+            "PidsLimit": 512,
+            "ReadonlyRootfs": True,
+            "CapDrop": ["ALL"],
+            "SecurityOpt": ["no-new-privileges:true", "seccomp=default"],
+        },
+        "Config": {"User": "10001:10001"},
+    }
+
+    manager._validate_container_security(container, config)
+
+    container.attrs["HostConfig"]["NanoCpus"] = 0
+    with pytest.raises(StudioSandboxUnavailableError, match="硬 CPU"):
+        manager._validate_container_security(container, config)
+
+
+@pytest.mark.unit
+def test_seccomp_security_opt_mapping():
+    # daemon 只接受 unconfined 或字面 JSON；default/空值表示省略选项、用 daemon 内置默认 profile
+    assert manager_module._seccomp_security_opt("default") is None
+    assert manager_module._seccomp_security_opt("") is None
+    assert manager_module._seccomp_security_opt("  DEFAULT ") is None
+    assert manager_module._seccomp_security_opt("unconfined") == "seccomp=unconfined"
+    assert manager_module._seccomp_security_opt('{"defaultAction":"SCMP_ACT_ERRNO"}') == (
+        'seccomp={"defaultAction":"SCMP_ACT_ERRNO"}'
+    )
+
+
+@pytest.mark.unit
+def test_validate_container_security_allows_daemon_default_seccomp(tmp_path: Path):
+    manager = _make_manager(tmp_path)
+    config = manager._config()
+    assert config.sandbox.seccomp_profile == "default"
+    container = MagicMock()
+    container.attrs = {
+        "HostConfig": {
+            "NanoCpus": 2_000_000_000,
+            "PidsLimit": 512,
+            "ReadonlyRootfs": True,
+            "CapDrop": ["ALL"],
+            "SecurityOpt": ["no-new-privileges:true"],
+        },
+        "Config": {"User": "10001:10001"},
+    }
+
+    manager._validate_container_security(container, config)
+
+
+@pytest.mark.unit
+def test_validate_container_security_enforces_explicit_seccomp(tmp_path: Path):
+    manager = _make_manager(tmp_path)
+    config = manager._config()
+    config.sandbox.seccomp_profile = "unconfined"
+    container = MagicMock()
+    container.attrs = {
+        "HostConfig": {
+            "NanoCpus": 2_000_000_000,
+            "PidsLimit": 512,
+            "ReadonlyRootfs": True,
+            "CapDrop": ["ALL"],
+            "SecurityOpt": ["no-new-privileges:true"],
+        },
+        "Config": {"User": "10001:10001"},
+    }
+
+    with pytest.raises(StudioSandboxUnavailableError, match="seccomp"):
+        manager._validate_container_security(container, config)
+
+    container.attrs["HostConfig"]["SecurityOpt"].append("seccomp=unconfined")
+    manager._validate_container_security(container, config)
+
+
+@pytest.mark.unit
+def test_tmpfs_mounts_include_agent_cache_dir(tmp_path: Path):
+    manager = _make_manager(tmp_path)
+    config = manager._config()
+
+    tmpfs = manager_module._tmpfs_mounts(config)
+
+    assert tmpfs["/tmp"].startswith("rw,nosuid,nodev,noexec,size=")
+    assert tmpfs["/home/mambauser/.cache"] == "rw,uid=10001,gid=10001,size=256m"
+
+    config.sandbox.agent_cache_dir = ""
+    assert manager_module._tmpfs_mounts(config) == {
+        "/tmp": tmpfs["/tmp"],
+    }
 
 
 @pytest.mark.unit

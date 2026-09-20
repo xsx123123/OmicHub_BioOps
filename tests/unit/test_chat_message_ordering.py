@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from types import SimpleNamespace
 
-from omichub.application.services.chat_service import ChatService
+from cygnusx.application.services.chat_service import ChatService
 
 
 def test_same_timestamp_places_user_before_assistant() -> None:

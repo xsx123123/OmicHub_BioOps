@@ -2,8 +2,8 @@ from uuid import uuid4
 
 import pytest
 
-from omichub.domain.mas.workspace import WorkspaceLayout
-from omichub.infrastructure.mas.scanpy import ScanpyQCError, build_scanpy_qc_command
+from cygnusx.domain.mas.workspace import WorkspaceLayout
+from cygnusx.infrastructure.mas.scanpy import ScanpyQCError, build_scanpy_qc_command
 
 
 def test_scanpy_qc_command_is_workspace_scoped(tmp_path):

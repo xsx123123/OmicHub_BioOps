@@ -1,15 +1,15 @@
 # ============================================
-# OmicHub JBrowse 2 基因组浏览器配置
+# CygnusX JBrowse 2 基因组浏览器配置
 # ============================================
 # 修改本文件后：调用 POST /api/v1/jbrowse/config/reload 即时生效，
 # 或等待配置加载器基于 mtime 自动热重载。无需重启后端。
 #
 # 路径约定（重要）：
 #   - fasta / fai / file / index 均填【绝对路径】，运行时由 web 容器的
-#     /data/omichub 挂载解析（与 data/OmicHub.yaml 的 storage.data_root 一致）。
+#     /data/cygnusx 挂载解析（与 data/CygnusX.yaml 的 storage.data_root 一致）。
 #   - 这些文件会经 nginx 的 /tracks/ 路径对外暴露，供 JBrowse 2 通过 HTTP Range
-#     Request 流式读取。故 /data/omichub 下的引用组与轨道文件必须对 nginx 可读。
-#     （参考基因组与预设轨道已迁至 /data/omichub/omichub_data/jbrowse/，仍位于
+#     Request 流式读取。故 /data/cygnusx 下的引用组与轨道文件必须对 nginx 可读。
+#     （参考基因组与预设轨道已迁至 /data/cygnusx/cygnusx_data/jbrowse/，仍位于
 #     data_root 之下，/tracks/ 换算与 nginx alias 无需改动。）
 #   - 索引缺失时，可由「我的文件」面板或 POST /api/v1/jbrowse/index/create 触发
 #     Celery 任务生成（需 worker 镜像内装好 samtools / bcftools / tabix）。
@@ -44,20 +44,61 @@ assemblies:
       n50: "145 Mb"
     data_files:
       fasta:
-        path: "/data/omichub/omichub_data/jbrowse/ref/human_hg38/GRCh38.p14.genome.fa"
-        index_path: "/data/omichub/omichub_data/jbrowse/ref/human_hg38/GRCh38.p14.genome.fa.fai"
+        path: "/data/cygnusx/cygnusx_data/jbrowse/ref/human_hg38/GRCh38.p14.genome.fa"
+        index_path: "/data/cygnusx/cygnusx_data/jbrowse/ref/human_hg38/GRCh38.p14.genome.fa.fai"
         format: "fasta"
         build_required: true
         build_tool: "samtools faidx"
         build_status: "ready"
       gff:
-        path: "/data/omichub/omichub_data/jbrowse/tracks/human_hg38/gencode.v50.basic.annotation.gff3"
+        path: "/data/cygnusx/cygnusx_data/jbrowse/tracks/human_hg38/gencode.v50.basic.annotation.gff3"
         format: "gff3"
         build_required: true
         build_tool: "gffutils"
         build_status: "ready"
-    fasta: "/data/omichub/omichub_data/jbrowse/ref/human_hg38/GRCh38.p14.genome.fa"
-    fai: "/data/omichub/omichub_data/jbrowse/ref/human_hg38/GRCh38.p14.genome.fa.fai"
+    fasta: "/data/cygnusx/cygnusx_data/jbrowse/ref/human_hg38/GRCh38.p14.genome.fa"
+    fai: "/data/cygnusx/cygnusx_data/jbrowse/ref/human_hg38/GRCh38.p14.genome.fa.fai"
+
+  # 拟南芥 TAIR10 —— 与 refdata/reference_genomes.yaml 的 tair10 版本通过 version_id 关联，
+  # 基因详情抽屉的「JBrowse 查看」按钮按 version_id 匹配本条目。
+  # 注意：fasta 直接复用参考基因组库的 FASTA（相对 reference_genomes.yaml 的 data_dir），
+  # 部署环境若 data_root 不是 /data/cygnusx 需同步调整（如本地为 /data/omichub/omichub_data/...）。
+  - id: arabidopsis_tair10
+    name: "拟南芥 (TAIR10)"
+    species: "Arabidopsis thaliana"
+    common_name: "拟南芥"
+    taxonomy_id: "3702"
+    version_id: "tair10"
+    version_name: "TAIR10"
+    assembly_name: "TAIR10"
+    category: "plant"
+    icon: "🌱"
+    is_default: false
+    status: "active"
+    release_date: "2010-12"
+    description: "拟南芥参考基因组 TAIR10（基因结构 + GO/KEGG 注释）"
+    stats:
+      chromosomes: 7
+      total_genes: 28775
+      protein_coding: 27655
+      genome_size: "119.7 Mb"
+      n50: "23.5 Mb"
+    data_files:
+      fasta:
+        path: "/data/cygnusx/cygnusx_data/reference/TAIR10/TAIR10_chr_all.fas"
+        index_path: "/data/cygnusx/cygnusx_data/reference/TAIR10/TAIR10_chr_all.fas.fai"
+        format: "fasta"
+        build_required: true
+        build_tool: "samtools faidx"
+        build_status: "ready"
+      gff:
+        path: "/data/cygnusx/cygnusx_data/reference/TAIR10/TAIR10_GFF3_genes.gff"
+        format: "gff3"
+        build_required: true
+        build_tool: "gffutils"
+        build_status: "ready"
+    fasta: "/data/cygnusx/cygnusx_data/reference/TAIR10/TAIR10_chr_all.fas"
+    fai: "/data/cygnusx/cygnusx_data/reference/TAIR10/TAIR10_chr_all.fas.fai"
 
 # --------------------------------------------
 # 预设轨道（公共/共享数据，所有用户可见）
@@ -66,7 +107,7 @@ assemblies:
 preset_tracks:
   human_hg38:
     - name: "基因注释"
-      file: "/data/omichub/omichub_data/jbrowse/tracks/human_hg38/gencode.v50.basic.annotation.gff3"
+      file: "/data/cygnusx/cygnusx_data/jbrowse/tracks/human_hg38/gencode.v50.basic.annotation.gff3"
       type: "gff3"
       color: "#2E7D32"
 
@@ -80,7 +121,7 @@ auto_scan:
   # 覆盖 raw/ 上传、results/{task}/ 分析产物、用户自定义子目录，找到所有可加载轨道文件。
   # 旧的 bam/、bigwig/、vcf/ 子目录写法是非递归的，会漏掉 raw/ 里的上传文件。
   scan_paths:
-    - "/data/omichub/users/{user_id}"
+    - "/data/cygnusx/users/{user_id}"
   extensions:
     - ".bam"
     - ".cram"
@@ -97,7 +138,7 @@ auto_scan:
 # 上传配置
 # --------------------------------------------
 upload:
-  upload_dir: "/data/omichub/users/{user_id}/uploads/"
+  upload_dir: "/data/cygnusx/users/{user_id}/uploads/"
   max_file_size: 10  # GB
   allowed_types:
     - ".bam"

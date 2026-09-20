@@ -1,4 +1,4 @@
-# OmicHub 统一下载器配置
+# CygnusX 统一下载器配置
 # 修改后由 DownloadConfigManager 按文件 mtime 自动热重载，无需重启。
 
 features:
@@ -6,6 +6,8 @@ features:
   cloud_storage: false
   direct_link: false
 
+# ⚠️ 二进制路径须与容器内实际挂载一致（/data/omichub/bin）；此处路径优先级高于
+#    env（EBI_DOWNLOAD_BINARY 等），改容器路径时必须同步这里。
 binaries:
   ebi: "/data/omichub/bin/EBIDownload"
   ebi_config: "/data/omichub/bin/EBIDownload.yaml"

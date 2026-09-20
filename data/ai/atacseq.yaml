@@ -6,11 +6,12 @@ avatar: "\U0001F9EC"
 color: "#7c3aed"
 category: analysis
 is_active: true
-model: qwen3.7-plus
+model: qdoubao-seed-evolving
 prompt_file: prompts/atacseq.md
 welcome_message: "你好！我是 ATAC-seq 分析师。可以讨论染色质开放性原理与实验设计，也可以使用 FASTQ、BAM、peak 或 fragments 文件开展正式分析。"
 temperature: 0.4
-max_tokens: 32768
+max_tokens: 65536
+package_catalogs: [genomics, epigenomics, r-bio, io, visualization]
 mcp_ids: []
 skill_ids:
   - atacflow

@@ -5,9 +5,9 @@ from uuid import uuid4
 
 import pytest
 
-import omichub.api.deps as api_deps
-from omichub.core.security import create_access_token
-from omichub.tools.blast.schema import (
+import cygnusx.api.deps as api_deps
+from cygnusx.core.security import create_access_token
+from cygnusx.tools.blast.schema import (
     BlastTaskListResponse,
     BlastTaskResponse,
 )
@@ -49,7 +49,7 @@ async def test_submit_blast_task_endpoint(client, auth_headers) -> None:
         submitted_at=datetime.now(UTC),
     )
     with patch(
-        "omichub.tools.blast.api.blast_service.submit",
+        "cygnusx.tools.blast.api.blast_service.submit",
         new=AsyncMock(return_value=response_model),
     ):
         response = await client.post(
@@ -72,7 +72,7 @@ async def test_submit_blast_task_endpoint(client, auth_headers) -> None:
 @pytest.mark.integration
 async def test_list_blast_tasks_supports_search(client, auth_headers) -> None:
     with patch(
-        "omichub.tools.blast.api.blast_service.list_user_tasks",
+        "cygnusx.tools.blast.api.blast_service.list_user_tasks",
         new=AsyncMock(return_value=BlastTaskListResponse(items=[], total=0)),
     ) as mocked:
         response = await client.get(
@@ -97,11 +97,11 @@ async def test_blast_task_event_stream_returns_terminal_snapshot(client, auth_he
 
     with (
         patch(
-            "omichub.tools.blast.api.blast_service.get_status",
+            "cygnusx.tools.blast.api.blast_service.get_status",
             new=AsyncMock(return_value=terminal),
         ),
         patch(
-            "omichub.tools.blast.api.subscribe_blast_events",
+            "cygnusx.tools.blast.api.subscribe_blast_events",
             new=AsyncMock(return_value=pubsub),
         ),
     ):

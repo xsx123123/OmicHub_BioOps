@@ -6,21 +6,21 @@ services:
     image: pgvector/pgvector:pg14
     healthcheck:
       test:
-        ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-omichub} -d ${POSTGRES_DB:-omichub} && psql -U ${POSTGRES_USER:-omichub} -d ${POSTGRES_DB:-omichub} -tAc \"SELECT 1 FROM pg_available_extensions WHERE name='vector'\" | grep -q 1"]
+        ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cygnusx} -d ${POSTGRES_DB:-cygnusx} && psql -U ${POSTGRES_USER:-cygnusx} -d ${POSTGRES_DB:-cygnusx} -tAc \"SELECT 1 FROM pg_available_extensions WHERE name='vector'\" | grep -q 1"]
       interval: 10s
       timeout: 5s
       retries: 10
 
   pgbouncer:
     image: edoburu/pgbouncer:v1.25.2-p0
-    container_name: omichub-pgbouncer
+    container_name: cygnusx-pgbouncer
     restart: unless-stopped
     environment:
       DB_HOST: db
       DB_PORT: 5432
-      DB_USER: ${POSTGRES_USER:-omichub}
-      DB_PASSWORD: ${POSTGRES_PASSWORD:-omichub_dev_password}
-      DB_NAME: ${POSTGRES_DB:-omichub}
+      DB_USER: ${POSTGRES_USER:-cygnusx}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-cygnusx_dev_password}
+      DB_NAME: ${POSTGRES_DB:-cygnusx}
       POOL_MODE: transaction
       MAX_CLIENT_CONN: ${PGBOUNCER_MAX_CLIENT_CONN:-300}
       DEFAULT_POOL_SIZE: ${PGBOUNCER_DEFAULT_POOL_SIZE:-30}
@@ -29,26 +29,26 @@ services:
       db:
         condition: service_healthy
     ports:
-      - "${OMICHUB_PGBOUNCER_BIND_HOST:-127.0.0.1}:${OMICHUB_PGBOUNCER_PORT:-6432}:5432"
+      - "${CYGNUSX_PGBOUNCER_BIND_HOST:-127.0.0.1}:${CYGNUSX_PGBOUNCER_PORT:-6432}:5432"
     networks:
       - data_net
-      - omichub_net
+      - cygnusx_net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 5432 -U ${POSTGRES_USER:-omichub} -d ${POSTGRES_DB:-omichub}"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 5432 -U ${POSTGRES_USER:-cygnusx} -d ${POSTGRES_DB:-cygnusx}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   postgres-exporter:
     image: prometheuscommunity/postgres-exporter:v0.17.1
-    container_name: omichub-postgres-exporter
+    container_name: cygnusx-postgres-exporter
     restart: unless-stopped
     environment:
-      DATA_SOURCE_NAME: postgresql://${POSTGRES_USER:-omichub}:${POSTGRES_PASSWORD:-omichub_dev_password}@db:5432/${POSTGRES_DB:-omichub}?sslmode=disable
+      DATA_SOURCE_NAME: postgresql://${POSTGRES_USER:-cygnusx}:${POSTGRES_PASSWORD:-cygnusx_dev_password}@db:5432/${POSTGRES_DB:-cygnusx}?sslmode=disable
     depends_on:
       db:
         condition: service_healthy
     ports:
-      - "${OMICHUB_POSTGRES_EXPORTER_BIND_HOST:-127.0.0.1}:${OMICHUB_POSTGRES_EXPORTER_PORT:-9187}:9187"
+      - "${CYGNUSX_POSTGRES_EXPORTER_BIND_HOST:-127.0.0.1}:${CYGNUSX_POSTGRES_EXPORTER_PORT:-9187}:9187"
     networks:
       - data_net

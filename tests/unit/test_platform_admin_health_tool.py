@@ -3,9 +3,9 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from omichub.infrastructure.config.agent_loader import load_agent_configs
-from omichub.infrastructure.mcp.presets import (
-    OMICHUB_PLATFORM_SERVER_ID,
+from cygnusx.infrastructure.config.agent_loader import load_agent_configs
+from cygnusx.infrastructure.mcp.presets import (
+    CYGNUSX_PLATFORM_SERVER_ID,
     PLATFORM_HANDLERS,
     PLATFORM_PRESET_TOOLS,
     _platform_admin_health_check,
@@ -27,8 +27,8 @@ def test_cloud_ops_agent_mounts_admin_health_tool() -> None:
     )
     cloud_pack = next(pack for pack in cloud["features"]["tool_packs"] if pack["id"] == "cloud_ops")
 
-    assert str(OMICHUB_PLATFORM_SERVER_ID) in cloud["mcp_ids"]
-    assert "platform_admin_health_check" in cloud_pack["mcp_tools"][str(OMICHUB_PLATFORM_SERVER_ID)]
+    assert str(CYGNUSX_PLATFORM_SERVER_ID) in cloud["mcp_ids"]
+    assert "platform_admin_health_check" in cloud_pack["mcp_tools"][str(CYGNUSX_PLATFORM_SERVER_ID)]
 
 
 @pytest.mark.asyncio
@@ -71,9 +71,9 @@ async def test_platform_admin_health_tool_returns_read_only_snapshot(tmp_path, m
         Result(scalar=23),
         Result(scalar=126),
     ]
-    monkeypatch.setattr("omichub.infrastructure.cache.redis_client.get_redis", lambda: Redis())
+    monkeypatch.setattr("cygnusx.infrastructure.cache.redis_client.get_redis", lambda: Redis())
     monkeypatch.setattr(
-        "omichub.core.config.get_settings", lambda: SimpleNamespace(storage_path=str(tmp_path))
+        "cygnusx.core.config.get_settings", lambda: SimpleNamespace(storage_path=str(tmp_path))
     )
 
     result = await _platform_admin_health_check(

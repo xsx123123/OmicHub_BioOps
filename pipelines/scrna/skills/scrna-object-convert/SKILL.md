@@ -1,7 +1,7 @@
 ---
 name: 单细胞对象格式转换与RDS工具
 description: 当用户需要对 scRNA-seq 的 Seurat RDS 对象做格式转换（RDS↔H5AD/Loom/SCE/MTX），或对 RDS 做查看信息/按条件子集/多样本合并/压缩优化/提取表达矩阵与降维组件时触发。输入为 RDS/H5AD 等对象文件路径与目标格式或操作参数。端到端全流程分析（QC、整合、注释）不在本技能范围，走 scrna-pipeline-overview。
-version: 0.9.0
+version: 0.9.1
 author: "zj"
 icon: 🔄
 category: analysis
@@ -47,37 +47,37 @@ skill_id: scrna-object-convert
 **格式转换**（脚本：`scripts/RDS_convert`）：
 ```bash
 # RDS → H5AD（送给 scanpy/scVI）
-Rscript scripts/RDS_convert --input {输入.rds} --output {输出.h5ad}
+Rscript /workspace/.skills/scrna-object-convert/scripts/RDS_convert --input {输入.rds} --output {输出.h5ad}
 
 # H5AD → RDS（scanpy 结果拿回 Seurat）
-Rscript scripts/RDS_convert --input {输入.h5ad} --output {输出.rds}
+Rscript /workspace/.skills/scrna-object-convert/scripts/RDS_convert --input {输入.h5ad} --output {输出.rds}
 
 # RDS → Loom / MTX（用 --format 覆盖扩展名推断）
-Rscript scripts/RDS_convert --input {输入.rds} --output {输出.loom}
-Rscript scripts/RDS_convert --input {输入.rds} --output {输出目录/prefix} --format mtx
+Rscript /workspace/.skills/scrna-object-convert/scripts/RDS_convert --input {输入.rds} --output {输出.loom}
+Rscript /workspace/.skills/scrna-object-convert/scripts/RDS_convert --input {输入.rds} --output {输出目录/prefix} --format mtx
 ```
 
 **RDS 五合一工具**（脚本：`scripts/RDS_utility`）：
 ```bash
 # 1. 查看对象信息
-Rscript scripts/RDS_utility --input {输入.rds} --operation info
+Rscript /workspace/.skills/scrna-object-convert/scripts/RDS_utility --input {输入.rds} --operation info
 
 # 2. 子集：推荐 metadata 方式（任意列+值）
-Rscript scripts/RDS_utility --input {输入.rds} --operation subset \
+Rscript /workspace/.skills/scrna-object-convert/scripts/RDS_utility --input {输入.rds} --operation subset \
   --metadata {列名} --metadata-value {目标值} --output {输出.rds}
 # 子集：按细胞类型
-Rscript scripts/RDS_utility --input {输入.rds} --operation subset \
+Rscript /workspace/.skills/scrna-object-convert/scripts/RDS_utility --input {输入.rds} --operation subset \
   --cell-type {细胞类型名} --output {输出.rds}
 
 # 3. 合并多个样本
-Rscript scripts/RDS_utility --input {样本1.rds},{样本2.rds},{样本3.rds} \
+Rscript /workspace/.skills/scrna-object-convert/scripts/RDS_utility --input {样本1.rds},{样本2.rds},{样本3.rds} \
   --operation merge --output {输出.rds}
 
 # 4. 压缩优化（xz，报告压缩率）
-Rscript scripts/RDS_utility --input {输入.rds} --operation optimize --output {输出.rds}
+Rscript /workspace/.skills/scrna-object-convert/scripts/RDS_utility --input {输入.rds} --operation optimize --output {输出.rds}
 
 # 5. 提取组件（--output 此处为输出目录）
-Rscript scripts/RDS_utility --input {输入.rds} --operation extract --output {输出目录}
+Rscript /workspace/.skills/scrna-object-convert/scripts/RDS_utility --input {输入.rds} --operation extract --output {输出目录}
 ```
 
 3. 结果读取与汇报：两脚本均不写 summary.json（见输出契约偏差说明）。执行后改为：①检查退出码为 0；②检查声明的输出文件/目录确实存在且非空（`ls -lh {输出}`）；③读取当前目录下 `RDS_convert-<时间戳>-<用户>.log`（仅转换脚本生成）与 stdout 汇报关键统计量（细胞数、基因数、压缩率等）。

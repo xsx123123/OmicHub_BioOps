@@ -1,12 +1,12 @@
 # 项目结构
 
-OmicHub 采用前后端分离 + DDD 分层 + 配置外置的目录组织方式。
+CygnusX 采用前后端分离 + DDD 分层 + 配置外置的目录组织方式。
 
 ## 顶层目录
 
 ```text
-OmicHub/
-├── src/omichub/            # 后端 Python 包 (DDD 分层)
+CygnusX/
+├── src/cygnusx/            # 后端 Python 包 (DDD 分层)
 ├── frontend/               # 前端 Vue 3 项目
 ├── deploy/docker/          # Docker 部署配置
 ├── flows/                  # Snakemake 流程 YAML
@@ -17,14 +17,14 @@ OmicHub/
 │   └── knowledge/          # 实验室知识库 Markdown
 ├── tests/                  # 单元测试与集成测试
 ├── alembic/                # 数据库迁移
-├── scripts/                # 管理脚本与 omichubtools CLI
+├── scripts/                # 管理脚本与 cygnusxtools CLI
 └── wiki/                   # 本 Wiki
 ```
 
-## 后端结构 (`src/omichub/`)
+## 后端结构 (`src/cygnusx/`)
 
 ```text
-src/omichub/
+src/cygnusx/
 ├── api/v1/                 # 表示层 - FastAPI 路由
 │   ├── admin/              # 管理员路由
 │   └── ...                 # 业务路由

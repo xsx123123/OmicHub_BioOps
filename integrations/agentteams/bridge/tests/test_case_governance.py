@@ -5,21 +5,21 @@ from pathlib import Path
 
 import httpx
 import pytest
-from omichub_agentteams_bridge.app import case_gc_autorun_enabled, create_app
-from omichub_agentteams_bridge.audit import AuditStore
-from omichub_agentteams_bridge.case_store import CaseStore
-from omichub_agentteams_bridge.config import BridgeSettings
-from omichub_agentteams_bridge.models import (
+from cygnusx_agentteams_bridge.app import case_gc_autorun_enabled, create_app
+from cygnusx_agentteams_bridge.audit import AuditStore
+from cygnusx_agentteams_bridge.case_store import CaseStore
+from cygnusx_agentteams_bridge.config import BridgeSettings
+from cygnusx_agentteams_bridge.models import (
     CaseCancelRequest,
     CaseCreateRequest,
     ContextRef,
     WorkItemCreateRequest,
     WorkItemUpdateRequest,
 )
-from omichub_agentteams_bridge.service import BridgeService
+from cygnusx_agentteams_bridge.service import BridgeService
 
 
-class FakeOmicHubClient:
+class FakeCygnusXClient:
     def __init__(self, task_status: str = "success") -> None:
         self.task_status = task_status
 
@@ -41,7 +41,7 @@ class FakeOmicHubClient:
 
 def make_settings(tmp_path, **overrides) -> BridgeSettings:
     values = {
-        "omichub_service_token": "service-token",
+        "cygnusx_service_token": "service-token",
         "approval_signing_secret": "test-signing-secret",
         "identities": (
             "approval-authority:approval,bioops-manager:manager,data-steward:steward,"
@@ -65,7 +65,7 @@ def make_service(tmp_path, task_status: str = "success", **overrides) -> BridgeS
     settings = make_settings(tmp_path, **overrides)
     return BridgeService(
         settings,
-        FakeOmicHubClient(task_status),
+        FakeCygnusXClient(task_status),
         AuditStore(settings.audit_log_path),
         CaseStore(settings.case_store_path),
     )
@@ -299,7 +299,7 @@ async def test_case_gc_is_disabled_when_days_is_zero(tmp_path) -> None:
 @pytest.mark.asyncio
 async def test_case_gc_endpoint_is_manager_only(tmp_path) -> None:
     settings = make_settings(tmp_path)
-    app = create_app(settings, FakeOmicHubClient())
+    app = create_app(settings, FakeCygnusXClient())
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://bridge.test"
     ) as client:
@@ -364,7 +364,7 @@ async def test_delete_case_cancels_active_case_and_reclaims_work_items(tmp_path)
 @pytest.mark.asyncio
 async def test_delete_case_endpoint_is_manager_only(tmp_path) -> None:
     settings = make_settings(tmp_path)
-    app = create_app(settings, FakeOmicHubClient())
+    app = create_app(settings, FakeCygnusXClient())
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://bridge.test"
     ) as client:

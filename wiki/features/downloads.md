@@ -25,9 +25,9 @@ Celery
 cd pipelines/EBIDownload
 CC=clang cargo build -p ebidownload-cli --release
 
-mkdir -p /data/omichub/bin
-cp target/release/EBIDownload /data/omichub/bin/
-cp EBIDownload.yaml /data/omichub/bin/
+mkdir -p /data/cygnusx/bin
+cp target/release/EBIDownload /data/cygnusx/bin/
+cp EBIDownload.yaml /data/cygnusx/bin/
 ```
 
 Worker 需安装 `sra-tools`：
@@ -40,23 +40,23 @@ mamba install -n base -c bioconda sra-tools
 
 ```bash
 ENABLE_EBI_DOWNLOAD=true
-EBI_DOWNLOAD_BINARY=/data/omichub/bin/EBIDownload
-EBI_DOWNLOAD_YAML=/data/omichub/bin/EBIDownload.yaml
+EBI_DOWNLOAD_BINARY=/data/cygnusx/bin/EBIDownload
+EBI_DOWNLOAD_YAML=/data/cygnusx/bin/EBIDownload.yaml
 ```
 
 ## 云存储直拉
 
 | 云商 | URI 前缀 | 默认二进制 |
 |---|---|---|
-| 阿里云 OSS | `oss://bucket/path` | `/data/omichub/bin/ossutil` |
-| 火山引擎 TOS | `tos://bucket/path` | `/data/omichub/bin/tosutil` |
-| 华为云 OBS | `obs://bucket/path` | `/data/omichub/bin/obsutil` |
+| 阿里云 OSS | `oss://bucket/path` | `/data/cygnusx/bin/ossutil` |
+| 火山引擎 TOS | `tos://bucket/path` | `/data/cygnusx/bin/tosutil` |
+| 华为云 OBS | `obs://bucket/path` | `/data/cygnusx/bin/obsutil` |
 
 环境变量：
 
 ```bash
 ENABLE_CLOUD_STORAGE_DOWNLOAD=true
-CLOUD_OSSUTIL_BINARY=/data/omichub/bin/ossutil
-CLOUD_TOSUTIL_BINARY=/data/omichub/bin/tosutil
-CLOUD_OBSUTIL_BINARY=/data/omichub/bin/obsutil
+CLOUD_OSSUTIL_BINARY=/data/cygnusx/bin/ossutil
+CLOUD_TOSUTIL_BINARY=/data/cygnusx/bin/tosutil
+CLOUD_OBSUTIL_BINARY=/data/cygnusx/bin/obsutil
 ```

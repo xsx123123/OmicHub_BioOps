@@ -1,4 +1,4 @@
-from omichub.domain.mas.errors import ErrorCategory, classify_error
+from cygnusx.domain.mas.errors import ErrorCategory, classify_error
 
 
 def test_retry_policy_is_server_owned_and_bounded() -> None:

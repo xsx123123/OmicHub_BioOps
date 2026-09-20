@@ -7,7 +7,9 @@
  * 由本卡片接管交互：
  *  - 参数预览：CodeMirror 只读展示（sandbox_execute=code，workspace_write=content，
  *    workspace_edit=old/new，artifact_register=path+title）
- *  - 按钮组：【批准运行】【编辑后运行】（解锁编辑后以 modified_args 批准）【让 AI 修改】（填理由退回）
+ *  - 按钮组：【批准运行】【编辑后运行】（解锁编辑后以 modified_args 批准）
+ *    【本会话不再询问】（always 批准，同会话同工具后续直接放行，切换权限模式失效）
+ *    【让 AI 修改】（填理由退回）
  *  - 决议后展示终态徽标：已批准 / 已编辑后批准 / 已退回 / 已超时
  *
  * 仅依赖 agentHub store 的 approveToolCall / rejectToolCall，无需 Studio 上下文，
@@ -20,6 +22,7 @@ import {
 } from '@vicons/ionicons5'
 import CodeEditor from '@/components/sandbox/CodeEditor.vue'
 import { useAgentHubStore } from '@/stores/agentHub'
+import { approvalErrorText } from './approvalErrors'
 import type { ToolCall } from '@/components/ai-chat/types'
 
 const props = defineProps<{ tool: ToolCall }>()
@@ -29,11 +32,17 @@ const message = useMessage()
 
 const TOOL_LABELS: Record<string, string> = {
   sandbox_execute: '沙盒执行',
+  chat_sandbox_execute: '沙盒执行',
   workspace_write: '写入文件',
   workspace_edit: '修改文件',
   artifact_register: '登记产物',
+  network_request: '网络访问',
 }
 const toolLabel = computed(() => TOOL_LABELS[props.tool.name] || props.tool.name)
+/** sandbox_execute / chat_sandbox_execute 都以 code 字段预览与编辑 */
+const toolUsesCodeEditor = computed(
+  () => props.tool.name === 'sandbox_execute' || props.tool.name === 'chat_sandbox_execute',
+)
 
 const approval = computed(() => props.tool.approval)
 const isPending = computed(() => approval.value?.status === 'pending')
@@ -59,6 +68,15 @@ const LANG_BADGES: Record<string, string> = { python: 'Python', r: 'R', bash: 'B
 
 const path = computed(() => String(props.tool.arguments?.path || ''))
 const title = computed(() => String(props.tool.arguments?.title || ''))
+const networkUrl = computed(() => String(props.tool.arguments?.url || ''))
+const networkMethod = computed(() => String(props.tool.arguments?.method || 'GET').toUpperCase())
+const networkHost = computed(() => {
+  try {
+    return new URL(networkUrl.value).host || '未知主机'
+  } catch {
+    return '未知主机'
+  }
+})
 
 // ---------- 编辑态 ----------
 const editing = ref(false)
@@ -68,7 +86,7 @@ const editCode = ref(String(props.tool.arguments?.code ?? props.tool.arguments?.
 const editNewString = ref(String(props.tool.arguments?.new_string ?? ''))
 const oldString = computed(() => String(props.tool.arguments?.old_string ?? ''))
 
-const canEdit = computed(() => props.tool.name !== 'artifact_register')
+const canEdit = computed(() => !['artifact_register', 'network_request'].includes(props.tool.name))
 
 // ---------- 退回理由 ----------
 const rejecting = ref(false)
@@ -77,25 +95,27 @@ const rejectReason = ref('')
 /** modified_args = 原 arguments 替换编辑字段 */
 function buildModifiedArgs(): Record<string, unknown> {
   const args = { ...props.tool.arguments }
-  if (props.tool.name === 'sandbox_execute') args.code = editCode.value
+  if (toolUsesCodeEditor.value) args.code = editCode.value
   else if (props.tool.name === 'workspace_write') args.content = editCode.value
   else if (props.tool.name === 'workspace_edit') args.new_string = editNewString.value
   return args
 }
 
-async function handleApprove(withEdits: boolean) {
+async function handleApprove(withEdits: boolean, always = false) {
   const id = approval.value?.approval_id
   if (!id || submitting.value) return
   submitting.value = true
   try {
-    await store.approveToolCall(id, withEdits ? buildModifiedArgs() : undefined)
-    message.success(withEdits ? '已按修改后的参数批准，开始执行' : '已批准，开始执行')
-  } catch (error) {
-    message.error(
-      error instanceof Error && error.message === 'APPROVAL_STREAM_INACTIVE'
-        ? '该审批所属执行流已结束，请重新发送任务后再操作'
-        : '批准失败，审批可能已超时，请重试',
+    await store.approveToolCall(id, withEdits ? buildModifiedArgs() : undefined, always)
+    message.success(
+      always
+        ? '已批准，本会话内该工具不再询问'
+        : withEdits
+          ? '已按修改后的参数批准，开始执行'
+          : '已批准，开始执行',
     )
+  } catch (error) {
+    message.error(approvalErrorText(error, '批准失败，请重试'))
   } finally {
     submitting.value = false
   }
@@ -109,11 +129,7 @@ async function handleReject() {
     await store.rejectToolCall(id, rejectReason.value.trim() || undefined)
     message.success('已退回，等待 AI 修改')
   } catch (error) {
-    message.error(
-      error instanceof Error && error.message === 'APPROVAL_STREAM_INACTIVE'
-        ? '该审批所属执行流已结束，请重新发送任务后再操作'
-        : '退回失败，审批可能已超时，请重试',
-    )
+    message.error(approvalErrorText(error, '退回失败，请重试'))
   } finally {
     submitting.value = false
   }
@@ -133,7 +149,7 @@ const statusMeta = computed(() => STATUS_META[approval.value?.status || ''] || n
     <div class="approval-header">
       <n-icon size="15" class="shield-icon"><ShieldCheckmarkOutline /></n-icon>
       <span class="approval-title">{{ isPlanApproval ? '计划审批' : '操作审批' }} · {{ toolLabel }}</span>
-      <n-tag v-if="tool.name === 'sandbox_execute'" size="tiny" round :bordered="false" type="info">
+      <n-tag v-if="toolUsesCodeEditor" size="tiny" round :bordered="false" type="info">
         {{ LANG_BADGES[language] || language }}
       </n-tag>
       <n-tag v-if="isPending" size="tiny" round :bordered="false" type="warning">等待批准</n-tag>
@@ -156,7 +172,7 @@ const statusMeta = computed(() => STATUS_META[approval.value?.status || ''] || n
 
     <!-- 参数预览 -->
     <div class="approval-body">
-      <template v-if="tool.name === 'sandbox_execute'">
+      <template v-if="tool.name === 'sandbox_execute' || tool.name === 'chat_sandbox_execute'">
         <div class="editor-wrap" :class="{ editing }">
           <CodeEditor v-model="editCode" :readonly="!editing" />
         </div>
@@ -182,6 +198,13 @@ const statusMeta = computed(() => STATUS_META[approval.value?.status || ''] || n
           <div v-if="title" class="artifact-title">标题：{{ title }}</div>
         </div>
       </template>
+      <template v-else-if="tool.name === 'network_request'">
+        <div class="network-request-preview">
+          <div class="path-line">🌐 {{ networkMethod }} · {{ networkHost }}</div>
+          <a :href="networkUrl" target="_blank" rel="noreferrer noopener">{{ networkUrl }}</a>
+          <div class="network-request-note">仅访问公开 HTTP(S)，不携带 Cookie 或 Authorization；响应大小受限。</div>
+        </div>
+      </template>
       <pre v-else class="code-view">{{ JSON.stringify(tool.arguments, null, 2) }}</pre>
     </div>
 
@@ -195,6 +218,18 @@ const statusMeta = computed(() => STATUS_META[approval.value?.status || ''] || n
       >
         <template #icon><n-icon><CheckmarkOutline /></n-icon></template>
         {{ editing ? '以修改后参数运行' : '批准运行' }}
+      </n-button>
+      <n-button
+        v-if="!isPlanApproval && !editing"
+        size="small"
+        type="success"
+        secondary
+        :loading="submitting"
+        title="批准后本会话内该工具的后续调用不再逐次询问（切换权限模式后失效）"
+        @click="handleApprove(false, true)"
+      >
+        <template #icon><n-icon><CheckmarkOutline /></n-icon></template>
+        本会话不再询问
       </n-button>
       <n-button
         v-if="canEdit && !editing"
@@ -293,18 +328,34 @@ const statusMeta = computed(() => STATUS_META[approval.value?.status || ''] || n
   font-size: 12px;
   color: var(--chat-text-muted, #888);
 }
+.network-request-preview a {
+  display: block;
+  color: var(--chat-accent, #4f8ef7);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.network-request-note {
+  margin-top: 6px;
+  color: var(--chat-text-muted, #888);
+  font-size: 11px;
+  line-height: 1.5;
+}
 .edit-section-title {
   font-size: 11px;
   color: var(--chat-text-muted, #999);
   margin: 6px 0 4px;
 }
 .editor-wrap {
-  height: 200px;
   border: 1px solid var(--chat-border, #e5e7eb);
   border-radius: 6px;
   overflow: hidden;
 }
+/* 只读预览：高度随内容自适应，最多约 5 行，超出在编辑器内部滚动 */
+.editor-wrap:not(.editing) :deep(.cm-editor) {
+  max-height: 120px;
+}
 .editor-wrap.editing {
+  height: 200px;
   outline: 2px solid var(--chat-accent, #4f8ef7);
   outline-offset: -2px;
 }

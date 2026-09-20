@@ -1,0 +1,51 @@
+[
+  {
+    "metadata": {
+      "agent_id": "agent-general",
+      "round_number": 1
+    },
+    "type": "agent_turn_started"
+  },
+  {
+    "metadata": {
+      "arguments": {
+        "query": "TP53"
+      },
+      "tool_name": "knowledge_search"
+    },
+    "type": "tool_call"
+  },
+  {
+    "metadata": {
+      "result": {
+        "hits": 1
+      },
+      "success": true
+    },
+    "type": "tool_result"
+  },
+  {
+    "metadata": {
+      "agent_id": "agent-general",
+      "round_number": 1
+    },
+    "type": "agent_context_reinjected"
+  },
+  {
+    "metadata": {
+      "agent_id": "agent-general",
+      "round_number": 1
+    },
+    "type": "agent_turn_continued"
+  },
+  {
+    "content": "TP53 是抑癌基因。",
+    "metadata": {
+      "agent_id": "agent-general"
+    },
+    "type": "agent_final_result"
+  },
+  {
+    "type": "done"
+  }
+]

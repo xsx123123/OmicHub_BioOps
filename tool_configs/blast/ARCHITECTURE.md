@@ -1,6 +1,6 @@
-# OmicHub BLAST 模块架构说明
+# CygnusX BLAST 模块架构说明
 
-> 实现目录：`src/omichub/tools/blast/`；配置目录：`tool_configs/blast/`；API 前缀：`/api/v1/blast`。
+> 实现目录：`src/cygnusx/tools/blast/`；配置目录：`tool_configs/blast/`；API 前缀：`/api/v1/blast`。
 
 ## 1. 目标与边界
 
@@ -20,7 +20,7 @@ BLAST 模块负责本地序列检索、数据库构建、结果持久化和任�
 ## 2. 代码结构
 
 ```text
-src/omichub/tools/blast/
+src/cygnusx/tools/blast/
 ├── __init__.py
 ├── api.py          # FastAPI 用户端和管理端路由
 ├── cache.py        # SHA-256 结果缓存键与 Redis 读写
@@ -36,8 +36,8 @@ src/omichub/tools/blast/
 相关入口：
 
 ```text
-src/omichub/infrastructure/database/models/blast.py
-src/omichub/infrastructure/celery_app/celery.py
+src/cygnusx/infrastructure/database/models/blast.py
+src/cygnusx/infrastructure/celery_app/celery.py
 frontend/src/api/blast.ts
 frontend/src/views/BioTools/BlastSearchView.vue
 frontend/src/views/BioTools/BlastTaskHistoryView.vue
@@ -126,7 +126,7 @@ is_active == true
 ## 5. 存储布局
 
 ```text
-/data/omichub/blast/
+/data/cygnusx/blast/
 ├── db/{db_key}/
 │   ├── {db_key}.fasta
 │   └── {db_key}.n* / .p*       # makeblastdb 原子替换后的索引
@@ -142,7 +142,7 @@ is_active == true
     └── result.json             # 下载时按需生成
 ```
 
-Web 与 worker 必须挂载同一个 `/data/omichub`。Redis 缓存只保存结果路径和摘要，不
+Web 与 worker 必须挂载同一个 `/data/cygnusx`。Redis 缓存只保存结果路径和摘要，不
 保存大型结果内容，因此共享存储不可缺失。
 
 ## 6. 查询链路
@@ -326,7 +326,7 @@ DB 2  Celery result backend（按部署环境 URL 为准）
       `use_docker: true` 并挂载 Docker socket。
 - [ ] Worker 监听 `blast_search`、`blast_db_build`；`docker-compose.worker.yml`
       的 `command` 已包含 `-Q analysis,blast_search,blast_db_build`。
-- [ ] Web、worker 共享 `/data/omichub`。
+- [ ] Web、worker 共享 `/data/cygnusx`。
 - [ ] Redis 认证正确，缓存和 Pub/Sub 可访问。
 - [ ] `tool_configs/blast` 对同步进程可写。
 - [ ] nginx 允许数据库上传体积，并为 BLAST API 配置满足目标并发的独立限流。
@@ -342,7 +342,7 @@ limit_req_status 429;
 
 location ^~ /api/v1/blast/ {
     limit_req zone=blast_api_limit burst=100 nodelay;
-    proxy_pass http://omichub_backend;
+    proxy_pass http://cygnusx_backend;
     proxy_read_timeout 86400;
 }
 ```
@@ -355,15 +355,15 @@ location ^~ /api/v1/blast/ {
 ```bash
 uv run pytest -q tests/unit/tools/test_blast_core.py
 uv run pytest -q tests/integration/test_blast_api.py
-uv run ruff check src/omichub/tools/blast tests/unit/tools/test_blast_core.py
+uv run ruff check src/cygnusx/tools/blast tests/unit/tools/test_blast_core.py
 cd frontend && npm run type-check && npm run build
 ```
 
 性能脚本：
 
 ```bash
-OMICHUB_ACCESS_TOKEN=<token> \
-OMICHUB_BLAST_DB_ID=<db-uuid> \
+CYGNUSX_ACCESS_TOKEN=<token> \
+CYGNUSX_BLAST_DB_ID=<db-uuid> \
 uvx locust -f tests/performance/locust_blast.py \
   --host http://localhost:8888 \
   --headless --users 50 --spawn-rate 5 --run-time 10m
@@ -408,10 +408,10 @@ uvx locust -f tests/performance/locust_blast.py \
 
 ## 16. 相关文件
 
-- `docs/26.7.15/omichub_blast_upgrade_plan.md`
-- `docs/26.7.15/omichub_blast_fix_v1.3.md`
-- `docs/26.7.15/omichub_blast_fix_v1.4.md`
-- `docs/26.7.15/omichub_blast_fix_v1.5.md`
+- `docs/26.7.15/cygnusx_blast_upgrade_plan.md`
+- `docs/26.7.15/cygnusx_blast_fix_v1.3.md`
+- `docs/26.7.15/cygnusx_blast_fix_v1.4.md`
+- `docs/26.7.15/cygnusx_blast_fix_v1.5.md`
 - `tests/unit/tools/test_blast_core.py`
 - `tests/integration/test_blast_api.py`
 - `tests/performance/locust_blast.py`

@@ -1,4 +1,4 @@
-# OmicHub BLAST 外置运行配置
+# CygnusX BLAST 外置运行配置
 #
 # 路径（基于 settings.storage_path）：
 #   数据库索引：{blast_db_root}/{db_key}/
@@ -65,7 +65,7 @@ databases: []
 #   - db_key: "rice_pan_genome_v2"
 #     name: "水稻泛基因组 v2"
 #     db_type: "nucl"
-#     path: "/data/omichub/blast/db/rice_pan_genome_v2/rice_pan_genome_v2"
+#     path: "/data/cygnusx/blast/db/rice_pan_genome_v2/rice_pan_genome_v2"
 #     description: "水稻泛基因组核酸序列库"
 #     source_species: "Oryza sativa"
 #     source_version: "v2.1"

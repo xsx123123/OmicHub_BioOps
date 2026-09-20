@@ -962,13 +962,29 @@ DealPatchHarmony <- function(data, savedir, Resolute, k.weight, reduceType = 'FA
   packagelist <- as.data.frame(installed.packages())
   needlist <- c("SeuratWrappers","harmony","batchelor")
   # COMMENTS: Verify required packages are installed for Harmony integration
-  if (all(needlist %in% packagelist$Package) == T){
-    info(logger, "  DealPatch need Install SeuratWrappers & harmony Package")
-    # print_color_note_NOTE("DealPatch need Install SeuratWrappers & harmony Package")
-  }else{
-    warn(logger, "  SeuratWrappers & harmony Package not intall")
-    # print_color_note_warring("SeuratWrappers & harmony Package not intall")
-    stop()
+  miss_pkgs <- needlist[!needlist %in% packagelist$Package]
+  if (length(miss_pkgs) == 0) {
+    # 所有包都已安装的正常分支
+    info(logger, "  All required integration packages (SeuratWrappers, harmony, batchelor) are already installed.")
+  } else {
+    # 有缺失包的分支，精准打印缺失的包名
+    miss_str <- paste(miss_pkgs, collapse = "、")
+    warn(logger, paste0("  Missing required packages: ", miss_str))
+
+    # 输出对应的安装命令，更友好
+    info(logger, "  You can install missing packages with the following commands: ")
+    if ("SeuratWrappers" %in% miss_pkgs) {
+      info(logger, "  remotes::install_github('satijalab/seurat-wrappers')")
+    }
+    if ("harmony" %in% miss_pkgs) {
+      info(logger, "  install.packages('harmony') # 若CRAN安装失败，可运行 remotes::install_github('immunogenomics/harmony')")
+    }
+    if ("batchelor" %in% miss_pkgs) {
+      info(logger, "  BiocManager::install('batchelor')")
+    }
+
+    # 终止运行时带上缺失包信息，错误提示更清晰
+    stop(paste0("Missing required packages: ", miss_str, ", please install them first to continue."), call. = F)
   }
   # loading package
   info(logger, "  Loading required libraries for Harmony integration...")
@@ -1115,6 +1131,19 @@ IntergetPatch <- function(all_project,
                           k.weight = 100,
                           reduceType = "FALSE",
                           scvi_path = NULL){
+
+  # COMMENTS: Check that orig.ident contains multiple sample groups before integration.
+  if (!("orig.ident" %in% colnames(all_project@meta.data))) {
+    warn(logger, "  'orig.ident' column not found in the object meta.data, unable to perform integration.")
+    stop("Missing 'orig.ident' in meta.data, please check the input object.", call. = F)
+  }
+  n_groups <- length(unique(all_project$orig.ident))
+  if (n_groups < 2) {
+    group_str <- paste(unique(as.character(all_project$orig.ident)), collapse = "、")
+    warn(logger, paste0("  'orig.ident' contains only one group (", group_str, "), integration is meaningless and will fail."))
+    stop(paste0("'orig.ident' contains only one group (", group_str, "). Integration requires at least 2 different sample groups, please check your sample names."), call. = F)
+  }
+  info(logger, paste0("  Detected ", n_groups, " sample groups in 'orig.ident': ", paste(unique(as.character(all_project$orig.ident)), collapse = "、")))
 
   # COMMENTS: Dispatcher function to select the appropriate integration workflow.
   info(logger, paste0("  Starting Integration Pipeline with method: ", DealPatchmethod))

@@ -1,6 +1,6 @@
 # API 参考
 
-OmicHub 提供 RESTful API，所有接口均以 `/api/v1` 为前缀。
+CygnusX 提供 RESTful API，所有接口均以 `/api/v1` 为前缀。
 
 ## 认证
 

@@ -22,7 +22,9 @@ const toolCall = computed<ToolCall>(() => {
   return {
     id: `room-tool-${name}`,
     name,
-    arguments: count > 1 ? { count } : {},
+    arguments: props.debugTrace?.argsSummary
+      ? { summary: props.debugTrace.argsSummary }
+      : count > 1 ? { count } : {},
     result: props.debugTrace?.resultSummary
       ? { summary: props.debugTrace.resultSummary }
       : undefined,

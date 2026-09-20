@@ -259,7 +259,7 @@ onMounted(async () => {
               v-for="agent in visibleAgents"
               :key="agent.id"
               type="button"
-              class="agent-card omichub-selectable-card"
+              class="agent-card cygnusx-selectable-card"
               :class="{ 'is-selected': agent.id === selectedAgentId }"
               :aria-checked="agent.id === selectedAgentId"
               role="radio"

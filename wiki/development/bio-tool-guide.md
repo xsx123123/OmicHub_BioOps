@@ -45,7 +45,7 @@ YAML(`tool_configs/tools_setting.yaml`，前端卡片)
 - 按分组顺序和组内 `order` 升序展示；
 - 禁用工具不计数；
 - 未知分组归入“其他工具”；
-- 分组默认展开，折叠状态使用 `localStorage` 键 `omicHub_tools_group_collapsed` 记忆；
+- 分组默认展开，折叠状态使用 `localStorage` 键 `cygnusX_tools_group_collapsed` 记忆；
 - 卡片必须复用 `components/bio-tools/ToolCard.vue`。
 
 ## 图形绘制工具强制闭环

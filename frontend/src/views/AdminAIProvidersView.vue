@@ -51,6 +51,10 @@ const editForm = ref<Partial<AIProviderConfig> & { api_key?: string }>({
   max_tokens: 2048,
   top_p: 1.0,
   timeout: 120,
+  input_price: null,
+  output_price: null,
+  input_cache_price: null,
+  output_cache_price: null,
   is_active: true,
   extra_params: {},
 })
@@ -69,6 +73,19 @@ const columns = [
   { title: 'Base URL', key: 'base_url', ellipsis: { tooltip: true } },
   { title: '温度', key: 'temperature', width: 80 },
   { title: 'Max Tokens', key: 'max_tokens', width: 110 },
+  {
+    title: '单价 (元/M)',
+    key: 'price',
+    width: 190,
+    render: (row: AIProviderConfig) =>
+      row.input_price != null ||
+      row.output_price != null ||
+      row.input_cache_price != null ||
+      row.output_cache_price != null
+        ? `入 ${row.input_price ?? '-'} / 出 ${row.output_price ?? '-'} / ` +
+          `存入 ${row.input_cache_price ?? '-'} / 存出 ${row.output_cache_price ?? '-'}`
+        : '未配置',
+  },
   {
     title: '状态',
     key: 'is_active',
@@ -121,6 +138,10 @@ function openEdit(row?: AIProviderConfig) {
       max_tokens: 2048,
       top_p: 1.0,
       timeout: 120,
+      input_price: null,
+      output_price: null,
+      input_cache_price: null,
+      output_cache_price: null,
       is_active: true,
       extra_params: {},
     }
@@ -237,6 +258,46 @@ onMounted(fetchConfigs)
         </NFormItem>
         <NFormItem label="Timeout">
           <NInputNumber v-model:value="editForm.timeout" :min="1" :step="1" />
+        </NFormItem>
+        <NFormItem label="输入单价">
+          <NInputNumber
+            v-model:value="editForm.input_price"
+            :min="0"
+            :step="0.5"
+            :precision="4"
+            placeholder="元 / M tokens"
+            style="width: 180px"
+          />
+        </NFormItem>
+        <NFormItem label="输出单价">
+          <NInputNumber
+            v-model:value="editForm.output_price"
+            :min="0"
+            :step="0.5"
+            :precision="4"
+            placeholder="元 / M tokens"
+            style="width: 180px"
+          />
+        </NFormItem>
+        <NFormItem label="输入缓存单价">
+          <NInputNumber
+            v-model:value="editForm.input_cache_price"
+            :min="0"
+            :step="0.25"
+            :precision="4"
+            placeholder="缓存命中的输入 tokens，元 / M"
+            style="width: 180px"
+          />
+        </NFormItem>
+        <NFormItem label="输出缓存单价">
+          <NInputNumber
+            v-model:value="editForm.output_cache_price"
+            :min="0"
+            :step="0.25"
+            :precision="4"
+            placeholder="缓存命中的输出 tokens，元 / M"
+            style="width: 180px"
+          />
         </NFormItem>
         <NFormItem label="启用">
           <NSwitch v-model:value="editForm.is_active" />

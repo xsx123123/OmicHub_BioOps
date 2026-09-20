@@ -4,11 +4,12 @@ description: 负责 FASTQ、Cell Ranger、建库 chemistry、样本纳入与原�
 avatar: "🧪"
 color: "#c0392b"
 category: analysis
-model: qwen3.7-plus
+model: qdoubao-seed-evolving
 prompt_file: prompts/scrna_team/upstream.md
 welcome_message: "你好！我可以协助检查 FASTQ、Cell Ranger 配置、样本 QC 和纳入标准。"
 temperature: 0.2
-max_tokens: 32768
+max_tokens: 65536
+package_catalogs: [scrna, io, visualization]
 mcp_ids: []
 # 上游质控可执行技能：FASTQ 污染筛查 + 流程总览（规范：Protocol/Skill_design.md）
 skill_ids:

@@ -10,14 +10,14 @@
 ## 清单构成
 
 - `bridge-cluster.yaml`：Bridge + 各 Worker Deployment/HPA（既有）。
-- `gateway.yaml`：Matrix Gateway Deployment/Service/PDB + ConfigMap/Secret 模板。Gateway 是 OmicHub 侧唯一持有 Matrix 凭证（AppService token）的进程，镜像由 `integrations/agentteams/gateway/Dockerfile` 构建（`omichub-agent-gateway:0.1.0`）。
+- `gateway.yaml`：Matrix Gateway Deployment/Service/PDB + ConfigMap/Secret 模板。Gateway 是 CygnusX 侧唯一持有 Matrix 凭证（AppService token）的进程，镜像由 `integrations/agentteams/gateway/Dockerfile` 构建（当前默认 tag：`cygnusx-agent-gateway:v0.0.2dev`，可通过 `.env` 的 `CYGNUSX_IMAGE_TAG` 统一调整）。
 - `tuwunel.yaml`：Tuwunel homeserver Deployment（单副本 + Recreate，RWO PVC）+ Service + ConfigMap + AppService 注册文件 Secret 模板。
 - `network-policy.default-deny.yaml` / `network-policy.runtime.yaml`：默认拒绝 + Bridge/Worker/Gateway/Tuwunel 的精确放行。
 
 ## 部署顺序与配置联动
 
 1. `kubectl apply -f network-policy.default-deny.yaml`（如未启用）。
-2. 替换 `tuwunel.yaml` 中 `TUWUNEL_SERVER_NAME` 与 AppService 注册文件的 `as_token`/`hs_token`/users 正则域名；注册文件 users 正则必须覆盖静态身份（bioops-manager、agent-*、omichub-user）与动态平台用户账号 `omichub-user-*`。
+2. 替换 `tuwunel.yaml` 中 `TUWUNEL_SERVER_NAME` 与 AppService 注册文件的 `as_token`/`hs_token`/users 正则域名；注册文件 users 正则必须覆盖静态身份（bioops-manager、agent-*、cygnusx-user）与动态平台用户账号 `cygnusx-user-*`。
 3. `gateway.yaml` 的 `GATEWAY_MATRIX_SERVER_NAME`、`GATEWAY_MATRIX_IDENTITIES` 域名部分必须与 `TUWUNEL_SERVER_NAME` 一致；`GATEWAY_MATRIX_SERVICE_TOKEN` 必须等于注册文件的 `as_token`。
 4. `GATEWAY_ELEMENT_BASE_URL` 指向对外可访问的 Element Web（建房后该地址以 `#/room/{room_id}` 深链随 `room.created` 事件下发给前端，用于房间页 iframe 嵌入）；Element Web 本身不在本目录资产内，可复用 matrix-dev 的 Element 或独立部署，生产需自行去掉 `X-Frame-Options` 或改为允许平台来源（matrix-dev 的 `nginx-no-xfo.conf` 是参考实现）。
 5. `kubectl apply -f tuwunel.yaml -f gateway.yaml -f network-policy.runtime.yaml`。
@@ -35,4 +35,4 @@
 
 - Tuwunel 为有状态单副本（RocksDB 嵌入式存储，PVC 为 RWO），滚动升级即短暂中断；扩副本前必须迁移到外部数据库形态。
 - Gateway 审计 JSONL 落在 emptyDir（随 Pod 生命周期），需要长期留存时改挂 PVC。
-- Element iframe 内发言需用户持有可登录的 Matrix 账号；AppService 供给的 `omichub-user-*` 账号无密码，面向终端用户的 Element 登录（SSO/token 下发）是后续项。
+- Element iframe 内发言需用户持有可登录的 Matrix 账号；AppService 供给的 `cygnusx-user-*` 账号无密码，面向终端用户的 Element 登录（SSO/token 下发）是后续项。

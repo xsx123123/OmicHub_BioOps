@@ -1,6 +1,6 @@
-# 6.4 OmicsHub YAML 配置规范与动态表单架构
+# 6.4 CygnusX YAML 配置规范与动态表单架构
 
-> 本文档定义 OmicsHub 分析流程的 YAML 配置规范、Pydantic v2 数据模型、动态表单渲染架构及前后端协同校验策略。
+> 本文档定义 CygnusX 分析流程的 YAML 配置规范、Pydantic v2 数据模型、动态表单渲染架构及前后端协同校验策略。
 
 ---
 
@@ -23,7 +23,7 @@
 
 ```python
 """
-OmicsHub Flow Configuration Schema - Pydantic v2 Models
+CygnusX Flow Configuration Schema - Pydantic v2 Models
 完整定义分析流程配置的声明式数据结构
 """
 
@@ -765,10 +765,10 @@ meta:
   category: transcriptomics
   version: "2.1.0"
   description: "基于 STAR + featureCounts + DESeq2 的标准 RNA-seq 差异表达分析流程，支持多组差异比较和高级质控参数。"
-  author: "OmicsHub Team"
+  author: "CygnusX Team"
   tags: ["rnaseq", "differential-expression", "STAR", "DESeq2", "featureCounts"]
   icon: "rna"
-  docs_url: "https://docs.omicshub.org/workflows/rna_seq"
+  docs_url: "https://docs.cygnusx.org/workflows/rna_seq"
 
 parameters:
   # ----------------------------------------------------------

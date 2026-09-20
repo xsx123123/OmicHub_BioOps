@@ -24,7 +24,7 @@
 
 > **修订（2026-08-04）**：原定"第一期不碰 Matrix"的边界已在实施中突破——第二期的 Matrix 建房/消息镜像、room-events SSE 与第三期的管理面条目已随第一期**以默认关闭方式提前实现**（逐条状态见第 6、7 章标注）。以下为仍成立的边界。
 
-- ~~第一期不碰 Matrix/Element/Bridge~~（已提前实现，默认 `agentteams_gateway_enabled=false`；未配置时自动降级为内置编排语义，"房间"对未配置用户仍是 OmicHub 内置编排）。
+- ~~第一期不碰 Matrix/Element/Bridge~~（已提前实现，默认 `agentteams_gateway_enabled=false`；未配置时自动降级为内置编排语义，"房间"对未配置用户仍是 CygnusX 内置编排）。
 - 与现有 multi_agent 开关相互独立：multi_agent 控制 `parallel_subagents`/`create_agentteams_case` 工具挂载，超频控制"Manager 编排 + 多 Agent 发言"的会话形态。两者可同时开。
 - 子 Agent 发言不做 token 级流式（`parallel_subagents` 是结果粒度），后续可增强。
 - 不做常驻 Worker、不做房间成员管理——超频是"每轮消息一次编排"（Worker 自主驻留房间仍属第二期未完成项，见 6.3）。
@@ -60,7 +60,7 @@
 
 ### 2.2 后端 chat_service
 
-- 文件：`src/omichub/application/services/chat_service.py`（约 4285 行）。
+- 文件：`src/cygnusx/application/services/chat_service.py`（约 4285 行）。
 - **multi_agent 三段式写法（照抄对象）**：
   - 生效判定（:1644-1649）：请求参数优先，否则读会话 `sandbox_meta["multi_agent"]`，并写回 `session_mcp_meta`；
   - 建会话写入（:1714）；
@@ -70,7 +70,7 @@
 - **直接调并行分派的先例**（:2362-2396，统一路由 fanout，不依赖 function tools）：
   ```python
   tool_context = ToolInvocationContext(user_id=..., agent_id=..., session_id=..., db=self._db)
-  from omichub.application.services.parallel_subagent_tool_service import ParallelSubAgentToolService
+  from cygnusx.application.services.parallel_subagent_tool_service import ParallelSubAgentToolService
   fanout_result = await ParallelSubAgentToolService().run_parallel_subagents(
       context_summary=user_content, tasks=[...], context=tool_context)
   ```
@@ -85,23 +85,23 @@
   await context.db.flush()
   ```
   现有键：`image`、`mcp_mode`、`extra_mcp_servers`、`multi_agent`、`context_pack`、`permissions`、`capabilities`、`plan`、`agentteams_case_confirmation`、`agentteams_case_status`。
-- **消息落库**：`ChatMessageModel`（`src/omichub/infrastructure/database/models/chat.py`），会话 `ChatSessionModel.sandbox_meta` 在同文件（:19 附近）。ai_message 的持久化与 metadata 写法在 stream 主流程中（参考 :3179-3186 agentteams_case 卡片落 metadata 的先例）。
+- **消息落库**：`ChatMessageModel`（`src/cygnusx/infrastructure/database/models/chat.py`），会话 `ChatSessionModel.sandbox_meta` 在同文件（:19 附近）。ai_message 的持久化与 metadata 写法在 stream 主流程中（参考 :3179-3186 agentteams_case 卡片落 metadata 的先例）。
 
 ### 2.3 AgentTeams Bridge 现状与 Matrix 数据面缺口（第二期背景）
 
-- Bridge 是**纯 HTTP 代理**（`integrations/agentteams/bridge/omichub_agentteams_bridge/app.py`，405 行单文件），端点只有 Case/WorkItem/Preflight/Approval/Task/Evidence/Health，**没有任何 rooms/messages/sync 端点，没有 Matrix 客户端**。
+- Bridge 是**纯 HTTP 代理**（`integrations/agentteams/bridge/cygnusx_agentteams_bridge/app.py`，405 行单文件），端点只有 Case/WorkItem/Preflight/Approval/Task/Evidence/Health，**没有任何 rooms/messages/sync 端点，没有 Matrix 客户端**。
 - Case 模型有 `element_room_url` 纯文本字段（`models.py:170`）——只存 URL 供前端 iframe，Bridge 不创建/不读写房间。
 - 身份体系：9 个静态身份（`bioops-manager`、`data-steward`、`approval-authority`、`workflow-operator`、`quality-auditor`、`delivery-reporter`、`agent-code`、`agent-viz`、`agent-scrna`），`X-Bridge-Identity` + `X-Bridge-Token` 头认证，**≠ Matrix 账号**。
 - Worker（`integrations/agentteams/worker/worker_runner.py:65-112`）是轮询 Bridge 收件箱（`GET /v1/work-items/assigned`）的 HTTP 客户端，**不在任何 Matrix 房间里**。
-- OmicHub 侧 `AgentTeamsService.chat_room()`（`agentteams_service.py:99-129`）只返回 Element URL；前端 `AgentTeamsChatDrawer.vue:88-94` 是**纯 iframe 嵌入，无 postMessage 桥**。
+- CygnusX 侧 `AgentTeamsService.chat_room()`（`agentteams_service.py:99-129`）只返回 Element URL；前端 `AgentTeamsChatDrawer.vue:88-94` 是**纯 iframe 嵌入，无 postMessage 桥**。
 - 本地开发 homeserver 是 Synapse（`deploy/agentteams/matrix-dev/docker-compose.yml`，127.0.0.1:8008）；官方生产用 Tuwunel。设计文档 `docs/26.8.1/agent_Case.md` 8.3 节已把 Matrix Gateway 标注为"规划中"。
 - **结论**：第二期的 Matrix 数据面（服务账号、房间读写、sync→SSE、身份映射）全部需要新建，工作量集中在 Gateway 组件本身，第一期的前端渲染与契约可以直接复用。
 
 ### 2.4 Agent 注册与发现
 
-- 存储：表 `agent_templates`（`src/omichub/infrastructure/database/models/agent.py:18`），字段含 `agent_id/name/description/avatar/color/category/model_id/model_engine/system_prompt/mcp_ids/skill_ids/features(JSONB)/is_builtin/is_active/is_default`。
+- 存储：表 `agent_templates`（`src/cygnusx/infrastructure/database/models/agent.py:18`），字段含 `agent_id/name/description/avatar/color/category/model_id/model_engine/system_prompt/mcp_ids/skill_ids/features(JSONB)/is_builtin/is_active/is_default`。
 - 种子：`data/ai/*.yaml`，`AgentService.ensure_builtin_agents()`（`agent_service.py:84` 起）同步落库。
-- **星尘 AI = `agent-router`**（`data/ai/router.yaml`）：name "智能助手"、description "统一入口：自动识别你的需求并转接对应专家"、`features.router: true`。"星尘 AI"只是品牌名（`data/OmicHub.yaml:64`）。
+- **星尘 AI = `agent-router`**（`data/ai/router.yaml`）：name "智能助手"、description "统一入口：自动识别你的需求并转接对应专家"、`features.router: true`。"星尘 AI"只是品牌名（`data/CygnusX.yaml:64`）。
 - **"现阶段所有可用 agent"的权威定义**：`list_agents(active_only=True)` 排除 `features.router == true`——与路由器候选清单完全一致，无用户级权限概念。
 - 前端 agent 列表：`agentHub.ts fetchAgents()`（:441）→ `GET /agents`。
 
@@ -118,7 +118,7 @@
 
 第二期（Matrix Gateway，独立大工程）
   会话 ↔ 真实 Matrix 房间双向绑定；Manager/Worker 作为 Matrix 用户在房间发言；
-  OmicHub 聊天 UI 与房间双向同步；Element 客户端可旁观/介入
+  CygnusX 聊天 UI 与房间双向同步；Element 客户端可旁观/介入
 
 第三期（可选，管理面）
   对齐官方 AgentTeams Dashboard：Worker/Team 资源管理面板、Bridge 接入向导、Case 状态实时推送
@@ -207,10 +207,10 @@
 
 **步骤 B1 — schema 与透传**
 
-1. `src/omichub/application/schemas/chat.py`：
+1. `src/cygnusx/application/schemas/chat.py`：
    - `ChatStreamRequest`（:50 附近）加 `overdrive: bool | None = None`；
    - 会话 DTO（:111 附近）加 `overdrive: bool = False`。
-2. `src/omichub/api/v1/chat.py`（:80 附近）：把 `overdrive` 透传进 `chat_service.stream_agent_chat(...)`。
+2. `src/cygnusx/api/v1/chat.py`（:80 附近）：把 `overdrive` 透传进 `chat_service.stream_agent_chat(...)`。
 3. `chat_service.py`：
    - 在 :1644-1649 同款位置计算：
      ```python
@@ -355,32 +355,32 @@ OVERDRIVE_MANAGER_PROMPT = """你是团队房间的 Manager（人格：{manager_
 
 ### 6.1 组件与部署 ✅ 已随第一期提前实现
 
-> 实现为**自研 HTTP/AppService 客户端**（`integrations/agentteams/gateway/omichub_agent_gateway/matrix_client.py`），未引入 matrix-nio；配置见 `config.py`，部署见 `deploy/agentteams/docker-compose.agentteams.yml` 的 gateway 容器与 `gateway.env.example`，冒烟脚本 `deploy/agentteams/matrix_gateway_smoke.py`。
+> 实现为**自研 HTTP/AppService 客户端**（`integrations/agentteams/gateway/cygnusx_agent_gateway/matrix_client.py`），未引入 matrix-nio；配置见 `config.py`，部署见 `deploy/agentteams/docker-compose.agentteams.yml` 的 gateway 容器与 `gateway.env.example`，冒烟脚本 `deploy/agentteams/matrix_gateway_smoke.py`。
 
 - 新建 **Matrix Gateway** 组件（建议放 `integrations/agentteams/gateway/`，该目录已存在占位）：一个轻量 Python 服务（FastAPI），内嵌 `matrix-nio` client，持有 homeserver 服务账号（bot 或 Application Service）。
 - 配置项：homeserver URL（dev=Synapse `http://127.0.0.1:8008`，prod=Tuwunel）、服务账号 token、与 Bridge 的身份映射表。
 - 部署：加入 `deploy/agentteams/docker-compose.agentteams.yml`，与 Bridge 同网络；K8s 走官方 Helm 思路（Tuwunel + Gateway 两个 Deployment）。
-- OmicHub 侧不直接依赖 matrix-nio，只通过 Gateway 的 HTTP API 访问房间（职责边界与 Bridge 一致：OmicHub 永不持有 Matrix 凭证）。
+- CygnusX 侧不直接依赖 matrix-nio，只通过 Gateway 的 HTTP API 访问房间（职责边界与 Bridge 一致：CygnusX 永不持有 Matrix 凭证）。
 
 ### 6.2 Gateway HTTP API（新建 4 类端点）✅ 已随第一期提前实现
 
-> Gateway `app.py` 已提供 rooms 四类端点（建房/发消息/读历史/sync），OmicHub 侧经 `agentteams_room_gateway_service.py` 代理调用。
+> Gateway `app.py` 已提供 rooms 四类端点（建房/发消息/读历史/sync），CygnusX 侧经 `agentteams_room_gateway_service.py` 代理调用。
 
 | 方法+路径 | 说明 |
 |---|---|
-| `POST /rooms` | 创建房间（name=`omichub-session-{session_id}`），邀请 Manager/Worker 身份对应的 Matrix 用户，返回 `room_id` |
+| `POST /rooms` | 创建房间（name=`cygnusx-session-{session_id}`），邀请 Manager/Worker 身份对应的 Matrix 用户，返回 `room_id` |
 | `POST /rooms/{room_id}/messages` | 以指定身份（user/manager/system）发消息进房间 |
 | `GET /rooms/{room_id}/messages?since=` | 游标读房间消息历史（照 Bridge `/v1/cases/{id}/events` 的游标轮询范式） |
-| `GET /rooms/{room_id}/sync` | 长轮询 homeserver `/sync` 按 room_id 过滤，转 SSE 推给 OmicHub |
+| `GET /rooms/{room_id}/sync` | 长轮询 homeserver `/sync` 按 room_id 过滤，转 SSE 推给 CygnusX |
 
 ### 6.3 身份映射 ⚠️ 部分提前实现
 
-> 已实现：Gateway 以 AppService 方式供给/代理 Matrix 身份（`matrix_client.py`），子 agent 结果由 **OmicHub 代发**进房间（即下文"过渡"方案）。
+> 已实现：Gateway 以 AppService 方式供给/代理 Matrix 身份（`matrix_client.py`），子 agent 结果由 **CygnusX 代发**进房间（即下文"过渡"方案）。
 > 未实现：**Worker 自主驻留房间**（监听 `m.mentions` 自主发言）——目前 Worker 仍是轮询 Bridge 的 HTTP 客户端，这是第二期剩余的最大一块工作。
 
 - 建一张映射表（Gateway 配置或 DB）：Bridge 身份 ↔ Matrix 用户（如 `bioops-manager` ↔ `@bioops-manager:localhost`）。
 - Gateway 用 Application Service 可为各身份**无密码批量供给 Matrix 用户**（官方 v1.2.0-beta 的 Matrix AppService 同款做法）。
-- Worker agent 要能在房间发言，需把现有轮询 Worker（`worker_runner.py`）升级或替换为"驻房间的 agent 进程"：监听房间 `m.mentions` → 调各自能力 → 回房间发言。**这是第二期最大的一块工作量**，可先用"OmicHub 代发"过渡：子 agent 结果由 OmicHub 经 Gateway 以该 agent 的 Matrix 身份代发进房间（房间里有真实消息记录，Element 旁观可见），后续再让 Worker 自主驻留。
+- Worker agent 要能在房间发言，需把现有轮询 Worker（`worker_runner.py`）升级或替换为"驻房间的 agent 进程"：监听房间 `m.mentions` → 调各自能力 → 回房间发言。**这是第二期最大的一块工作量**，可先用"CygnusX 代发"过渡：子 agent 结果由 CygnusX 经 Gateway 以该 agent 的 Matrix 身份代发进房间（房间里有真实消息记录，Element 旁观可见），后续再让 Worker 自主驻留。
 
 ### 6.4 数据模型与绑定 ✅ 已随第一期提前实现（过渡方案）
 
@@ -390,20 +390,20 @@ OVERDRIVE_MANAGER_PROMPT = """你是团队房间的 Manager（人格：{manager_
 - 开启超频且 Gateway 可用时：无 room_id → `POST /rooms` 创建并绑定；有则复用。
 - Case 的 `element_room_url` 字段改为可解析出 room_id，Case 房间与会话房间统一。
 
-### 6.5 OmicHub 与前端改造 ✅ 已随第一期提前实现
+### 6.5 CygnusX 与前端改造 ✅ 已随第一期提前实现
 
 > 每条 speech 经 Gateway 镜像进 Matrix 房间（`chat_service.py:_run_overdrive_turn` 的 Matrix 分支，默认关闭、降级安全）；回流通道 `GET /api/v1/chat/sessions/{id}/room-events`（SSE）已实现，前端 `startRoomEvents`（agentHub.ts）照搬 agentteams-events 的 reader 模式；无房间会话返回 404 由前端静默降级。
 
-- 后端：`_run_overdrive_turn` 的每条 speech 增加"经 Gateway 写进 Matrix 房间"一步；新增房间消息回流通道——`GET /api/v1/chat/sessions/{id}/room-events`（SSE，内部桥接 Gateway `/sync`），把房间里**非 OmicHub 来源**的消息（如 Element 里用户的发言、Worker 自主发言）push 进会话消息流。前端照搬 `startAgentTeamsCaseEvents`（agentHub.ts:197-237）的 reader 模式。
+- 后端：`_run_overdrive_turn` 的每条 speech 增加"经 Gateway 写进 Matrix 房间"一步；新增房间消息回流通道——`GET /api/v1/chat/sessions/{id}/room-events`（SSE，内部桥接 Gateway `/sync`），把房间里**非 CygnusX 来源**的消息（如 Element 里用户的发言、Worker 自主发言）push 进会话消息流。前端照搬 `startAgentTeamsCaseEvents`（agentHub.ts:197-237）的 reader 模式。
 - 前端：传输层仍走 `/api/v1/chat/stream`；`AgentTeamsChatDrawer` 保留为"在 Element 中打开"的旁观入口（iframe 不动）。
 - 降级：Gateway 未配置/不可达时，超频自动回落第一期内置编排，并在 mode_changed metadata 里带 `degraded: true`。
 
 ### 6.6 第二期验收标准 ⬜ 未验收（端到端 Element 联调未做）
 
 1. 开启超频自动建房并绑定会话；会话内每条发言在 Element 客户端实时可见。
-2. Element 里用户发言能回流为 OmicHub 会话消息（双向同步）。
+2. Element 里用户发言能回流为 CygnusX 会话消息（双向同步）。
 3. Gateway 宕机时自动降级为内置编排，不报错阻断对话。
-4. OmicHub 进程与数据库中不出现任何 Matrix 凭证。
+4. CygnusX 进程与数据库中不出现任何 Matrix 凭证。
 
 ---
 
@@ -428,7 +428,7 @@ OVERDRIVE_MANAGER_PROMPT = """你是团队房间的 Manager（人格：{manager_
 5. **assignments 健壮性**：LLM 可能返回 catalog 外的 agent_id、超 5 个、重复项——全部要过滤/截断/去重。
 6. **关键词误判**：退出类短语优先判定；"超频"子串可能出现在正常语境（如"CPU 超频"），第一期可接受误判（用户再说退出即可），不要为此引入复杂意图分类。
 7. **模型差异**：编排路径不依赖 function tools（直接调服务），所以与 multi_agent 开关不同，模型不支持 tools 也能用；但 Manager 需要能稳定输出单行 JSON，prompt 里已强调"第一个字符必须是 {"。
-8. **凭证边界**：第二期 OmicHub 侧永不存 Matrix token；全部经 Gateway 代理。
+8. **凭证边界**：第二期 CygnusX 侧永不存 Matrix token；全部经 Gateway 代理。
 9. **消息条数**：一轮最多 1+5+1=7 条 room_speech，前端不要假设固定条数；`done` 事件仍是回合结束标志。
 
 ---
@@ -453,9 +453,9 @@ OVERDRIVE_MANAGER_PROMPT = """你是团队房间的 Manager（人格：{manager_
 
 - [x] G1 Matrix Gateway 服务骨架 + 配置 + 部署（6.1）—— 已随第一期提前实现（自研 AppService 客户端）
 - [x] G2 四类端点（6.2）—— 已随第一期提前实现
-- [~] G3 身份映射 + AppService 用户供给（6.3）—— AppService 供给与 OmicHub 代发已实现；**Worker 自主驻留房间未做**
+- [~] G3 身份映射 + AppService 用户供给（6.3）—— AppService 供给与 CygnusX 代发已实现；**Worker 自主驻留房间未做**
 - [x] G4 matrix_room_id 迁移与绑定（6.4）—— 已按 sandbox_meta 过渡方案实现；alembic 列迁移未做
-- [x] G5 OmicHub 桥接 + room-events SSE + 降级（6.5）—— 已随第一期提前实现（默认关闭，降级有测试覆盖）
+- [x] G5 CygnusX 桥接 + room-events SSE + 降级（6.5）—— 已随第一期提前实现（默认关闭，降级有测试覆盖）
 - [ ] G6 第二期验收（6.6）—— 端到端 Element 联调未做
 
 ### 第三期（可选）

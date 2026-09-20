@@ -14,31 +14,31 @@ from uuid import uuid4
 
 import pytest
 
-from omichub.application.services import agentteams_room_service as room_service_module
-from omichub.application.services import agentteams_service as agentteams_service_module
-from omichub.application.services.agent_consultation_service import (
+from cygnusx.application.services import agentteams_room_service as room_service_module
+from cygnusx.application.services import agentteams_service as agentteams_service_module
+from cygnusx.application.services.agent_consultation_service import (
     AgentConsultationService,
     ConsultationEnvelope,
 )
-from omichub.application.services.agentteams_audit_events import event_stream_sort_key
-from omichub.application.services.agentteams_capability_registry import (
+from cygnusx.application.services.agentteams_audit_events import event_stream_sort_key
+from cygnusx.application.services.agentteams_capability_registry import (
     AgentTeamsCapabilityRegistry,
 )
-from omichub.application.services.agentteams_room_response_service import (
+from cygnusx.application.services.agentteams_room_response_service import (
     AgentTeamsRoomResponseService,
 )
-from omichub.application.services.agentteams_room_service import (
+from cygnusx.application.services.agentteams_room_service import (
     AgentTeamsRoomService,
     build_room_proposal,
     proposal_project_name,
 )
-from omichub.application.services.agentteams_service import (
+from cygnusx.application.services.agentteams_service import (
     AgentTeamsService,
     room_namespace_case_id,
 )
-from omichub.core.config import Settings
-from omichub.core.exceptions import AuthorizationError, BusinessError
-from omichub.infrastructure.database.models.chat import AgentTeamsRoomModel
+from cygnusx.core.config import Settings
+from cygnusx.core.exceptions import AuthorizationError, BusinessError
+from cygnusx.infrastructure.database.models.chat import AgentTeamsRoomModel
 
 _STATUS_LINES = {
     key: [key]
@@ -155,6 +155,17 @@ def make_agentteams(
             return_value={"room_id": "!room:test", "element_room_url": "http://element.test/!room:test"}
         ),
         bind_case_room=AsyncMock(return_value={"room_id": "!room:test"}),
+        delete_case=AsyncMock(return_value={"deleted": True}),
+        create_element_session=AsyncMock(
+            return_value={
+                "user_id": "@cygnusx-user-user-a:test",
+                "device_id": "DEVTEST",
+                "access_token": "syt_test_token",
+                "homeserver_url": "http://synapse.test",
+                "element_base_url": "http://element.test",
+            }
+        ),
+        leave_matrix_room=AsyncMock(return_value={"left": True}),
         start_chat_planning=AsyncMock(return_value=None),
         post_room_message=AsyncMock(return_value={"event_id": "evt-msg"}),
     )
@@ -215,6 +226,144 @@ async def test_get_room_enforces_ownership() -> None:
     assert (await service.get_room(room.room_id, "user-a")) is room
     with pytest.raises(AuthorizationError):
         await service.get_room(room.room_id, "user-b")
+
+
+# ---------------------------------------------------------------------------
+# Element 视图免登录会话
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_create_element_session_returns_credentials_and_room_url() -> None:
+    agentteams = make_agentteams()
+    service = AgentTeamsRoomService(make_db(), agentteams)
+    room = make_room()
+
+    session = await service.create_element_session(room, requester_ref="user-a")
+
+    assert session["access_token"] == "syt_test_token"
+    assert session["matrix_room_id"] == "!room:test"
+    assert session["room_url"] == "http://element.test/#/room/!room:test"
+    agentteams.create_element_session.assert_awaited_once()
+    # 携带房间 id 透传给 Gateway，由其先幂等入房再签发
+    assert agentteams.create_element_session.await_args.args == ("cygnusx-user-user-a", "!room:test")
+
+
+@pytest.mark.asyncio
+async def test_create_element_session_requires_matrix_room() -> None:
+    service = AgentTeamsRoomService(make_db(), make_agentteams())
+    room = make_room(matrix_room_id=None)
+
+    with pytest.raises(BusinessError):
+        await service.create_element_session(room, requester_ref="user-a")
+
+
+# ---------------------------------------------------------------------------
+# 房间删除：清空该会话窗口全部内容（命名空间事件流 + 已绑定 Case）后移除房间行
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_delete_room_without_case_removes_namespace_and_row() -> None:
+    room = make_room(case_id=None)
+    db = make_db()
+    agentteams = make_agentteams()
+    service = AgentTeamsRoomService(db, agentteams)
+
+    result = await service.delete_room(room, "user-a")
+
+    assert result == {"room_id": room.room_id, "deleted": True, "case_id": None}
+    # 未立项房间只删房间命名空间记录（room-<room_id>），不触碰任何 Case。
+    agentteams.delete_case.assert_awaited_once_with(
+        room_namespace_case_id(room.room_id), "user-a"
+    )
+    db.delete.assert_awaited_once_with(room)
+
+
+@pytest.mark.asyncio
+async def test_delete_room_with_bound_case_removes_both_streams() -> None:
+    room = make_room(case_id="bioops_bound1")
+    db = make_db()
+    agentteams = make_agentteams()
+    service = AgentTeamsRoomService(db, agentteams)
+
+    result = await service.delete_room(room, "user-a")
+
+    assert result == {"room_id": room.room_id, "deleted": True, "case_id": "bioops_bound1"}
+    # 先删已绑定 Case（Bridge 侧先取消未结束工单），再删房间命名空间记录。
+    assert [call.args for call in agentteams.delete_case.await_args_list] == [
+        ("bioops_bound1", "user-a"),
+        (room_namespace_case_id(room.room_id), "user-a"),
+    ]
+    db.delete.assert_awaited_once_with(room)
+
+
+@pytest.mark.asyncio
+async def test_delete_room_leaves_matrix_room() -> None:
+    room = make_room(matrix_room_id="!room:test")
+    agentteams = make_agentteams()
+    service = AgentTeamsRoomService(make_db(), agentteams)
+
+    await service.delete_room(room, "user-a")
+
+    # 删除协作室时让请求者的 Matrix 身份离房，Element 房间列表随之移除。
+    agentteams.leave_matrix_room.assert_awaited_once_with("cygnusx-user-user-a", "!room:test")
+
+
+@pytest.mark.asyncio
+async def test_delete_room_tolerates_matrix_leave_failure() -> None:
+    room = make_room(matrix_room_id="!room:test")
+    agentteams = make_agentteams()
+    agentteams.leave_matrix_room = AsyncMock(side_effect=BusinessError("Agent 协作中心尚未接通"))
+    db = make_db()
+    service = AgentTeamsRoomService(db, agentteams)
+
+    result = await service.delete_room(room, "user-a")
+
+    # Matrix 离房失败（Gateway 离线等）不阻断删除。
+    assert result["deleted"] is True
+    db.delete.assert_awaited_once_with(room)
+
+
+@pytest.mark.asyncio
+async def test_delete_room_without_matrix_room_skips_leave() -> None:
+    room = make_room(matrix_room_id=None)
+    agentteams = make_agentteams()
+    service = AgentTeamsRoomService(make_db(), agentteams)
+
+    await service.delete_room(room, "user-a")
+
+    agentteams.leave_matrix_room.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_delete_room_tolerates_already_deleted_records() -> None:
+    room = make_room(case_id="bioops_gone")
+    db = make_db()
+    agentteams = make_agentteams()
+    # 重试/对账场景：Bridge 侧记录已不存在（404 → BusinessError("协作案例不存在")）时幂等放行。
+    agentteams.delete_case = AsyncMock(side_effect=BusinessError("协作案例不存在"))
+    service = AgentTeamsRoomService(db, agentteams)
+
+    result = await service.delete_room(room, "user-a")
+
+    assert result == {"room_id": room.room_id, "deleted": True, "case_id": None}
+    db.delete.assert_awaited_once_with(room)
+
+
+@pytest.mark.asyncio
+async def test_delete_room_propagates_bridge_failure_without_removing_row() -> None:
+    room = make_room(case_id="bioops_bound1")
+    db = make_db()
+    agentteams = make_agentteams()
+    agentteams.delete_case = AsyncMock(side_effect=BusinessError("Agent 协作中心暂时不可用"))
+    service = AgentTeamsRoomService(db, agentteams)
+
+    with pytest.raises(BusinessError, match="暂时不可用"):
+        await service.delete_room(room, "user-a")
+
+    # Bridge 删除失败时保留房间行，用户可重试。
+    db.delete.assert_not_awaited()
 
 
 # ---------------------------------------------------------------------------
@@ -842,6 +991,38 @@ def _owner_pending_room(**overrides) -> AgentTeamsRoomModel:
     return make_room(owner_id=_OWNER_UUID, proposal=proposal, **overrides)
 
 
+def test_room_proposal_uses_bridge_workflow_id_for_registered_flow() -> None:
+    proposal = build_room_proposal(
+        proposal_kind="new_case",
+        content="运行 RNA-seq 差异分析",
+        route_decision={"flow_id": "rnaseq", "flow_label": "bulk RNA-seq 差异分析"},
+        context_refs=[],
+        source_case_id=None,
+    )
+
+    assert proposal["flow_id"] == "rna_seq"
+    assert proposal["flow_label"] == "bulk RNA-seq 差异分析"
+
+
+@pytest.mark.asyncio
+async def test_confirm_proposal_normalizes_legacy_registry_flow_id(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    room = _owner_pending_room()
+    room.proposal["flow_id"] = "rnaseq"
+    agentteams = make_agentteams()
+    service = AgentTeamsRoomService(make_db(), agentteams)
+    allowed_flow = MagicMock()
+    _RecordingProjectService.calls = []
+    monkeypatch.setattr(room_service_module, "_assert_flow_allowed_for_room_case", allowed_flow)
+    monkeypatch.setattr(room_service_module, "ProjectService", _RecordingProjectService)
+
+    await service.confirm_proposal(room, _OWNER_UUID, decision="confirm")
+
+    allowed_flow.assert_called_once_with("rna_seq")
+    assert agentteams.create_case.await_args.kwargs["flow_id"] == "rna_seq"
+
+
 def test_proposal_project_name_matches_legacy_naming() -> None:
     """与旧直建路径前端 buildCaseProjectName 同口径：需求前 30 字符、剥非法字符。"""
     assert proposal_project_name("运行分析 matrix.csv 并生成图表", "房间") == (
@@ -1249,7 +1430,7 @@ async def test_room_events_endpoint_clamps_limit_above_100(
 ) -> None:
     """limit=101/200 不再被 Query(le=100) 422 抹平：端点钳制到 100 交给 Service，
     调用方凭 next_cursor 续拉（Bridge 自身的硬上限校验保留，不在本层）。"""
-    from omichub.api.v1 import agentteams as agentteams_api
+    from cygnusx.api.v1 import agentteams as agentteams_api
 
     captured: dict[str, Any] = {}
 

@@ -1,0 +1,4 @@
+interface:
+  display_name: "CygnusX Frontend Design"
+  short_description: "Apply CygnusX scientific-workbench UI standards."
+  default_prompt: "Use $cygnusx-frontend-design to improve this Vue frontend while following the CygnusX design system."

@@ -1,35 +1,35 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: omichub-agentteams-bridge
+  name: cygnusx-agentteams-bridge
   namespace: agentteams-system
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: omichub-agentteams-worker
+  name: cygnusx-agentteams-worker
   namespace: agentteams-system
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: omichub-agentteams-bridge
+  name: cygnusx-agentteams-bridge
   namespace: agentteams-system
   labels:
-    app.kubernetes.io/name: omichub-agentteams-bridge
-    app.kubernetes.io/part-of: omichub-agentteams
+    app.kubernetes.io/name: cygnusx-agentteams-bridge
+    app.kubernetes.io/part-of: cygnusx-agentteams
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app.kubernetes.io/name: omichub-agentteams-bridge
+      app.kubernetes.io/name: cygnusx-agentteams-bridge
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: omichub-agentteams-bridge
-        app.kubernetes.io/part-of: omichub-agentteams
+        app.kubernetes.io/name: cygnusx-agentteams-bridge
+        app.kubernetes.io/part-of: cygnusx-agentteams
     spec:
-      serviceAccountName: omichub-agentteams-bridge
+      serviceAccountName: cygnusx-agentteams-bridge
       securityContext:
         runAsNonRoot: true
         runAsUser: 10001
@@ -37,11 +37,11 @@ spec:
         seccompProfile: {type: RuntimeDefault}
       containers:
         - name: bridge
-          image: omichub-agentteams-bridge:0.1.0
+          image: cygnusx-agentteams-bridge:v0.0.2dev
           imagePullPolicy: IfNotPresent
-          args: ["uvicorn", "omichub_agentteams_bridge.app:app", "--host", "0.0.0.0", "--port", "8080"]
+          args: ["uvicorn", "cygnusx_agentteams_bridge.app:app", "--host", "0.0.0.0", "--port", "8080"]
           envFrom:
-            - secretRef: {name: omichub-agentteams-bridge-runtime}
+            - secretRef: {name: cygnusx-agentteams-bridge-runtime}
           ports: [{name: http, containerPort: 8080}]
           readinessProbe: {httpGet: {path: /healthz, port: http}, initialDelaySeconds: 5}
           livenessProbe: {httpGet: {path: /healthz, port: http}, initialDelaySeconds: 15}
@@ -58,28 +58,28 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: omichub-agentteams-bridge
+  name: cygnusx-agentteams-bridge
   namespace: agentteams-system
 spec:
-  selector: {app.kubernetes.io/name: omichub-agentteams-bridge}
+  selector: {app.kubernetes.io/name: cygnusx-agentteams-bridge}
   ports: [{name: http, port: 8080, targetPort: http}]
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: omichub-agentteams-bridge
+  name: cygnusx-agentteams-bridge
   namespace: agentteams-system
 spec:
   minAvailable: 1
-  selector: {matchLabels: {app.kubernetes.io/name: omichub-agentteams-bridge}}
+  selector: {matchLabels: {app.kubernetes.io/name: cygnusx-agentteams-bridge}}
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: omichub-agentteams-bridge
+  name: cygnusx-agentteams-bridge
   namespace: agentteams-system
 spec:
-  scaleTargetRef: {apiVersion: apps/v1, kind: Deployment, name: omichub-agentteams-bridge}
+  scaleTargetRef: {apiVersion: apps/v1, kind: Deployment, name: cygnusx-agentteams-bridge}
   minReplicas: 2
   maxReplicas: 5
   metrics:
@@ -89,28 +89,28 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: omichub-agentteams-worker-code
+  name: cygnusx-agentteams-worker-code
   namespace: agentteams-system
-  labels: {app.kubernetes.io/name: omichub-agentteams-worker-code, app.kubernetes.io/part-of: omichub-agentteams}
+  labels: {app.kubernetes.io/name: cygnusx-agentteams-worker-code, app.kubernetes.io/part-of: cygnusx-agentteams}
 spec:
   replicas: 2
-  selector: {matchLabels: {app.kubernetes.io/name: omichub-agentteams-worker-code}}
+  selector: {matchLabels: {app.kubernetes.io/name: cygnusx-agentteams-worker-code}}
   template:
     metadata:
-      labels: {app.kubernetes.io/name: omichub-agentteams-worker-code, app.kubernetes.io/component: worker, app.kubernetes.io/part-of: omichub-agentteams}
+      labels: {app.kubernetes.io/name: cygnusx-agentteams-worker-code, app.kubernetes.io/component: worker, app.kubernetes.io/part-of: cygnusx-agentteams}
     spec:
-      serviceAccountName: omichub-agentteams-worker
+      serviceAccountName: cygnusx-agentteams-worker
       securityContext: {runAsNonRoot: true, runAsUser: 10001, runAsGroup: 10001, seccompProfile: {type: RuntimeDefault}}
       containers:
         - name: worker
-          image: omichub-agentteams-worker:0.1.0
+          image: cygnusx-agentteams-worker:v0.0.2dev
           imagePullPolicy: IfNotPresent
           env:
             - {name: AGENTTEAMS_WORKER_MODE, value: production}
-            - {name: AGENTTEAMS_BRIDGE_BASE_URL, value: http://omichub-agentteams-bridge:8080/v1}
+            - {name: AGENTTEAMS_BRIDGE_BASE_URL, value: http://cygnusx-agentteams-bridge:8080/v1}
             - {name: AGENTTEAMS_WORKER_IDENTITY, value: agent-code}
             - {name: AGENTTEAMS_POD_NAME, valueFrom: {fieldRef: {fieldPath: metadata.name}}}
-            - {name: AGENTTEAMS_BRIDGE_TOKEN, valueFrom: {secretKeyRef: {name: omichub-agentteams-worker-tokens, key: agent-code-token}}}
+            - {name: AGENTTEAMS_BRIDGE_TOKEN, valueFrom: {secretKeyRef: {name: cygnusx-agentteams-worker-tokens, key: agent-code-token}}}
           resources: {requests: {cpu: 200m, memory: 128Mi}, limits: {cpu: "1", memory: 512Mi}}
           securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: ["ALL"]}}
           volumeMounts: [{name: tmp, mountPath: /tmp}]
@@ -118,9 +118,9 @@ spec:
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
-metadata: {name: omichub-agentteams-worker-code, namespace: agentteams-system}
+metadata: {name: cygnusx-agentteams-worker-code, namespace: agentteams-system}
 spec:
-  scaleTargetRef: {apiVersion: apps/v1, kind: Deployment, name: omichub-agentteams-worker-code}
+  scaleTargetRef: {apiVersion: apps/v1, kind: Deployment, name: cygnusx-agentteams-worker-code}
   minReplicas: 2
   maxReplicas: 10
   metrics: [{type: Resource, resource: {name: cpu, target: {type: Utilization, averageUtilization: 70}}}]
@@ -128,28 +128,28 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: omichub-agentteams-worker-viz
+  name: cygnusx-agentteams-worker-viz
   namespace: agentteams-system
-  labels: {app.kubernetes.io/name: omichub-agentteams-worker-viz, app.kubernetes.io/part-of: omichub-agentteams}
+  labels: {app.kubernetes.io/name: cygnusx-agentteams-worker-viz, app.kubernetes.io/part-of: cygnusx-agentteams}
 spec:
   replicas: 2
-  selector: {matchLabels: {app.kubernetes.io/name: omichub-agentteams-worker-viz}}
+  selector: {matchLabels: {app.kubernetes.io/name: cygnusx-agentteams-worker-viz}}
   template:
     metadata:
-      labels: {app.kubernetes.io/name: omichub-agentteams-worker-viz, app.kubernetes.io/component: worker, app.kubernetes.io/part-of: omichub-agentteams}
+      labels: {app.kubernetes.io/name: cygnusx-agentteams-worker-viz, app.kubernetes.io/component: worker, app.kubernetes.io/part-of: cygnusx-agentteams}
     spec:
-      serviceAccountName: omichub-agentteams-worker
+      serviceAccountName: cygnusx-agentteams-worker
       securityContext: {runAsNonRoot: true, runAsUser: 10001, runAsGroup: 10001, seccompProfile: {type: RuntimeDefault}}
       containers:
         - name: worker
-          image: omichub-agentteams-worker:0.1.0
+          image: cygnusx-agentteams-worker:v0.0.2dev
           imagePullPolicy: IfNotPresent
           env:
             - {name: AGENTTEAMS_WORKER_MODE, value: production}
-            - {name: AGENTTEAMS_BRIDGE_BASE_URL, value: http://omichub-agentteams-bridge:8080/v1}
+            - {name: AGENTTEAMS_BRIDGE_BASE_URL, value: http://cygnusx-agentteams-bridge:8080/v1}
             - {name: AGENTTEAMS_WORKER_IDENTITY, value: agent-viz}
             - {name: AGENTTEAMS_POD_NAME, valueFrom: {fieldRef: {fieldPath: metadata.name}}}
-            - {name: AGENTTEAMS_BRIDGE_TOKEN, valueFrom: {secretKeyRef: {name: omichub-agentteams-worker-tokens, key: agent-viz-token}}}
+            - {name: AGENTTEAMS_BRIDGE_TOKEN, valueFrom: {secretKeyRef: {name: cygnusx-agentteams-worker-tokens, key: agent-viz-token}}}
           resources: {requests: {cpu: 200m, memory: 128Mi}, limits: {cpu: "1", memory: 512Mi}}
           securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: ["ALL"]}}
           volumeMounts: [{name: tmp, mountPath: /tmp}]
@@ -157,9 +157,9 @@ spec:
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
-metadata: {name: omichub-agentteams-worker-viz, namespace: agentteams-system}
+metadata: {name: cygnusx-agentteams-worker-viz, namespace: agentteams-system}
 spec:
-  scaleTargetRef: {apiVersion: apps/v1, kind: Deployment, name: omichub-agentteams-worker-viz}
+  scaleTargetRef: {apiVersion: apps/v1, kind: Deployment, name: cygnusx-agentteams-worker-viz}
   minReplicas: 2
   maxReplicas: 10
   metrics: [{type: Resource, resource: {name: cpu, target: {type: Utilization, averageUtilization: 70}}}]
@@ -167,28 +167,28 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: omichub-agentteams-worker-scrna
+  name: cygnusx-agentteams-worker-scrna
   namespace: agentteams-system
-  labels: {app.kubernetes.io/name: omichub-agentteams-worker-scrna, app.kubernetes.io/part-of: omichub-agentteams}
+  labels: {app.kubernetes.io/name: cygnusx-agentteams-worker-scrna, app.kubernetes.io/part-of: cygnusx-agentteams}
 spec:
   replicas: 2
-  selector: {matchLabels: {app.kubernetes.io/name: omichub-agentteams-worker-scrna}}
+  selector: {matchLabels: {app.kubernetes.io/name: cygnusx-agentteams-worker-scrna}}
   template:
     metadata:
-      labels: {app.kubernetes.io/name: omichub-agentteams-worker-scrna, app.kubernetes.io/component: worker, app.kubernetes.io/part-of: omichub-agentteams}
+      labels: {app.kubernetes.io/name: cygnusx-agentteams-worker-scrna, app.kubernetes.io/component: worker, app.kubernetes.io/part-of: cygnusx-agentteams}
     spec:
-      serviceAccountName: omichub-agentteams-worker
+      serviceAccountName: cygnusx-agentteams-worker
       securityContext: {runAsNonRoot: true, runAsUser: 10001, runAsGroup: 10001, seccompProfile: {type: RuntimeDefault}}
       containers:
         - name: worker
-          image: omichub-agentteams-worker:0.1.0
+          image: cygnusx-agentteams-worker:v0.0.2dev
           imagePullPolicy: IfNotPresent
           env:
             - {name: AGENTTEAMS_WORKER_MODE, value: production}
-            - {name: AGENTTEAMS_BRIDGE_BASE_URL, value: http://omichub-agentteams-bridge:8080/v1}
+            - {name: AGENTTEAMS_BRIDGE_BASE_URL, value: http://cygnusx-agentteams-bridge:8080/v1}
             - {name: AGENTTEAMS_WORKER_IDENTITY, value: agent-scrna}
             - {name: AGENTTEAMS_POD_NAME, valueFrom: {fieldRef: {fieldPath: metadata.name}}}
-            - {name: AGENTTEAMS_BRIDGE_TOKEN, valueFrom: {secretKeyRef: {name: omichub-agentteams-worker-tokens, key: agent-scrna-token}}}
+            - {name: AGENTTEAMS_BRIDGE_TOKEN, valueFrom: {secretKeyRef: {name: cygnusx-agentteams-worker-tokens, key: agent-scrna-token}}}
           resources: {requests: {cpu: 200m, memory: 128Mi}, limits: {cpu: "1", memory: 512Mi}}
           securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: ["ALL"]}}
           volumeMounts: [{name: tmp, mountPath: /tmp}]
@@ -196,9 +196,9 @@ spec:
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
-metadata: {name: omichub-agentteams-worker-scrna, namespace: agentteams-system}
+metadata: {name: cygnusx-agentteams-worker-scrna, namespace: agentteams-system}
 spec:
-  scaleTargetRef: {apiVersion: apps/v1, kind: Deployment, name: omichub-agentteams-worker-scrna}
+  scaleTargetRef: {apiVersion: apps/v1, kind: Deployment, name: cygnusx-agentteams-worker-scrna}
   minReplicas: 2
   maxReplicas: 10
   metrics: [{type: Resource, resource: {name: cpu, target: {type: Utilization, averageUtilization: 70}}}]
@@ -206,28 +206,28 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: omichub-agentteams-worker-rnaseq
+  name: cygnusx-agentteams-worker-rnaseq
   namespace: agentteams-system
-  labels: {app.kubernetes.io/name: omichub-agentteams-worker-rnaseq, app.kubernetes.io/part-of: omichub-agentteams}
+  labels: {app.kubernetes.io/name: cygnusx-agentteams-worker-rnaseq, app.kubernetes.io/part-of: cygnusx-agentteams}
 spec:
   replicas: 2
-  selector: {matchLabels: {app.kubernetes.io/name: omichub-agentteams-worker-rnaseq}}
+  selector: {matchLabels: {app.kubernetes.io/name: cygnusx-agentteams-worker-rnaseq}}
   template:
     metadata:
-      labels: {app.kubernetes.io/name: omichub-agentteams-worker-rnaseq, app.kubernetes.io/component: worker, app.kubernetes.io/part-of: omichub-agentteams}
+      labels: {app.kubernetes.io/name: cygnusx-agentteams-worker-rnaseq, app.kubernetes.io/component: worker, app.kubernetes.io/part-of: cygnusx-agentteams}
     spec:
-      serviceAccountName: omichub-agentteams-worker
+      serviceAccountName: cygnusx-agentteams-worker
       securityContext: {runAsNonRoot: true, runAsUser: 10001, runAsGroup: 10001, seccompProfile: {type: RuntimeDefault}}
       containers:
         - name: worker
-          image: omichub-agentteams-worker:0.1.0
+          image: cygnusx-agentteams-worker:v0.0.2dev
           imagePullPolicy: IfNotPresent
           env:
             - {name: AGENTTEAMS_WORKER_MODE, value: production}
-            - {name: AGENTTEAMS_BRIDGE_BASE_URL, value: http://omichub-agentteams-bridge:8080/v1}
+            - {name: AGENTTEAMS_BRIDGE_BASE_URL, value: http://cygnusx-agentteams-bridge:8080/v1}
             - {name: AGENTTEAMS_WORKER_IDENTITY, value: agent-rnaseq}
             - {name: AGENTTEAMS_POD_NAME, valueFrom: {fieldRef: {fieldPath: metadata.name}}}
-            - {name: AGENTTEAMS_BRIDGE_TOKEN, valueFrom: {secretKeyRef: {name: omichub-agentteams-worker-tokens, key: agent-rnaseq-token}}}
+            - {name: AGENTTEAMS_BRIDGE_TOKEN, valueFrom: {secretKeyRef: {name: cygnusx-agentteams-worker-tokens, key: agent-rnaseq-token}}}
           resources: {requests: {cpu: 200m, memory: 128Mi}, limits: {cpu: "1", memory: 512Mi}}
           securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: ["ALL"]}}
           volumeMounts: [{name: tmp, mountPath: /tmp}]
@@ -235,9 +235,9 @@ spec:
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
-metadata: {name: omichub-agentteams-worker-rnaseq, namespace: agentteams-system}
+metadata: {name: cygnusx-agentteams-worker-rnaseq, namespace: agentteams-system}
 spec:
-  scaleTargetRef: {apiVersion: apps/v1, kind: Deployment, name: omichub-agentteams-worker-rnaseq}
+  scaleTargetRef: {apiVersion: apps/v1, kind: Deployment, name: cygnusx-agentteams-worker-rnaseq}
   minReplicas: 2
   maxReplicas: 10
   metrics: [{type: Resource, resource: {name: cpu, target: {type: Utilization, averageUtilization: 70}}}]
@@ -245,28 +245,28 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: omichub-agentteams-worker-analysis
+  name: cygnusx-agentteams-worker-analysis
   namespace: agentteams-system
-  labels: {app.kubernetes.io/name: omichub-agentteams-worker-analysis, app.kubernetes.io/part-of: omichub-agentteams}
+  labels: {app.kubernetes.io/name: cygnusx-agentteams-worker-analysis, app.kubernetes.io/part-of: cygnusx-agentteams}
 spec:
   replicas: 2
-  selector: {matchLabels: {app.kubernetes.io/name: omichub-agentteams-worker-analysis}}
+  selector: {matchLabels: {app.kubernetes.io/name: cygnusx-agentteams-worker-analysis}}
   template:
     metadata:
-      labels: {app.kubernetes.io/name: omichub-agentteams-worker-analysis, app.kubernetes.io/component: worker, app.kubernetes.io/part-of: omichub-agentteams}
+      labels: {app.kubernetes.io/name: cygnusx-agentteams-worker-analysis, app.kubernetes.io/component: worker, app.kubernetes.io/part-of: cygnusx-agentteams}
     spec:
-      serviceAccountName: omichub-agentteams-worker
+      serviceAccountName: cygnusx-agentteams-worker
       securityContext: {runAsNonRoot: true, runAsUser: 10001, runAsGroup: 10001, seccompProfile: {type: RuntimeDefault}}
       containers:
         - name: worker
-          image: omichub-agentteams-worker:0.1.0
+          image: cygnusx-agentteams-worker:v0.0.2dev
           imagePullPolicy: IfNotPresent
           env:
             - {name: AGENTTEAMS_WORKER_MODE, value: analysis}
-            - {name: AGENTTEAMS_BRIDGE_BASE_URL, value: http://omichub-agentteams-bridge:8080/v1}
+            - {name: AGENTTEAMS_BRIDGE_BASE_URL, value: http://cygnusx-agentteams-bridge:8080/v1}
             - {name: AGENTTEAMS_WORKER_IDENTITY, value: analysis-worker}
             - {name: AGENTTEAMS_POD_NAME, valueFrom: {fieldRef: {fieldPath: metadata.name}}}
-            - {name: AGENTTEAMS_BRIDGE_TOKEN, valueFrom: {secretKeyRef: {name: omichub-agentteams-worker-tokens, key: analysis-worker-token}}}
+            - {name: AGENTTEAMS_BRIDGE_TOKEN, valueFrom: {secretKeyRef: {name: cygnusx-agentteams-worker-tokens, key: analysis-worker-token}}}
           resources: {requests: {cpu: 200m, memory: 128Mi}, limits: {cpu: "1", memory: 512Mi}}
           securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: ["ALL"]}}
           volumeMounts: [{name: tmp, mountPath: /tmp}]
@@ -274,9 +274,9 @@ spec:
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
-metadata: {name: omichub-agentteams-worker-analysis, namespace: agentteams-system}
+metadata: {name: cygnusx-agentteams-worker-analysis, namespace: agentteams-system}
 spec:
-  scaleTargetRef: {apiVersion: apps/v1, kind: Deployment, name: omichub-agentteams-worker-analysis}
+  scaleTargetRef: {apiVersion: apps/v1, kind: Deployment, name: cygnusx-agentteams-worker-analysis}
   minReplicas: 2
   maxReplicas: 6
   metrics: [{type: Resource, resource: {name: cpu, target: {type: Utilization, averageUtilization: 70}}}]

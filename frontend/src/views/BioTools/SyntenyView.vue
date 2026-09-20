@@ -22,7 +22,7 @@ const exceedsPointLimit = computed(() => pairCount.value > 50_000)
 const canSubmit = computed(() => gff3Text.value.trim() && blastpText.value.trim() && !exceedsPointLimit.value)
 
 function loadExample() {
-  gff3Text.value = '##gff-version 3\nchr1\tOmicHub\tgene\t100\t500\t.\t+\t.\tID=geneA\nchr2\tOmicHub\tgene\t120\t480\t.\t+\t.\tID=geneB'
+  gff3Text.value = '##gff-version 3\nchr1\tCygnusX\tgene\t100\t500\t.\t+\t.\tID=geneA\nchr2\tCygnusX\tgene\t120\t480\t.\t+\t.\tID=geneB'
   blastpText.value = 'geneA\tgeneB\t98.0\t120\t0\t0\t1\t120\t1\t120\t1e-40\t220'
   status.value = 'ready'
 }

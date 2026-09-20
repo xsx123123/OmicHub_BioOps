@@ -1,4 +1,4 @@
-# OmicHub 主页动态欢迎词（天气 + LLM）— 执行计划
+# CygnusX 主页动态欢迎词（天气 + LLM）— 执行计划
 
 > 阶段三：主页动态看板开发（天气与 LLM 欢迎词）
 > 配套阶段四：视觉 / 性能 / 降级验收。本文档仅覆盖「欢迎词」相关范围。
@@ -49,7 +49,7 @@ DashboardView (onMounted, 异步)
 
 ### 阶段 4.1 配置项与和风天气接入
 
-**配置项**（追加到 `src/omichub/core/config.py` 的 `Settings`，仿 `welcome_yaml` 段落风格）：
+**配置项**（追加到 `src/cygnusx/core/config.py` 的 `Settings`，仿 `welcome_yaml` 段落风格）：
 
 ```python
 # ===== 主页动态欢迎词（天气 + LLM）=====
@@ -63,7 +63,7 @@ dashboard_welcome_cache_ttl: int = 21600 # 欢迎词缓存 6 小时（秒）
 dashboard_welcome_timeout: int = 3       # LLM 调用超时（秒），与前端 3s 对齐
 ```
 
-**`weather_service.py`**（新增 `src/omichub/application/services/weather_service.py`）：
+**`weather_service.py`**（新增 `src/cygnusx/application/services/weather_service.py`）：
 
 ```python
 class WeatherService:
@@ -81,7 +81,7 @@ class WeatherService:
 
 ### 阶段 4.2 LLM Prompt 组装与调用
 
-**`dashboard_welcome_service.py`**（新增 `src/omichub/application/services/dashboard_welcome_service.py`）：
+**`dashboard_welcome_service.py`**（新增 `src/cygnusx/application/services/dashboard_welcome_service.py`）：
 
 ```python
 class DashboardWelcomeService:
@@ -98,7 +98,7 @@ class DashboardWelcomeService:
 **System Prompt 模板**（学术梗人设，约束字数与随机性）：
 
 ```
-你是 OmicHub（多组学分析平台，主打 RNA-seq / ATAC-seq）的欢迎助手。
+你是 CygnusX（多组学分析平台，主打 RNA-seq / ATAC-seq）的欢迎助手。
 当前时间段：{time_slot}（早上好/下午好/晚上好）。
 当前武汉天气：{weather_text}，{temp}℃（若无天气则忽略天气相关表述）。
 
@@ -130,7 +130,7 @@ class DashboardWelcomeService:
 |---|---|---|---|
 | 后端·天气 | `weather:now:101200101` | 20 min | 全平台共享，避免高频调和风 |
 | 后端·欢迎词 | `dash_welcome:{time_slot}:{weather_text}` | 6 h | 同时段+同天气全用户复用，省 token |
-| 前端 | `omichub:dashboardWelcome` | 6 h | 同一用户 6h 内刷新不再请求后端 |
+| 前端 | `cygnusx:dashboardWelcome` | 6 h | 同一用户 6h 内刷新不再请求后端 |
 
 - 后端缓存沿用 `cached_json(ttl, key, factory)` 模式（见 `infrastructure/cache/stats_cache.py`）；`enable_stats_cache=False` 时直查。
 - 前端 LocalStorage 存 `{ ts, data }`，读取时校验 `Date.now() - ts < 6h`；过期或格式错则重取。
@@ -145,7 +145,7 @@ class DashboardWelcomeService:
 // fetch():
 //   1. 读 localStorage（6h 内）→ 命中直接 set
 //   2. 否则 apiClient.get('/dashboard/welcome', { timeout: 3000 })
-//   3. 写 localStorage；任意失败 → 降级静态文案（"欢迎来到 OmicHub"）
+//   3. 写 localStorage；任意失败 → 降级静态文案（"欢迎来到 CygnusX"）
 // 暴露 timeOfDayGreeting（早上好/...）+ username 拼接
 ```
 
@@ -176,18 +176,18 @@ class DashboardWelcomeService:
 - `weather` 可为 `null`（未启用 / 拉取失败）。
 - 响应头可加 `Cache-Control: private, max-age=21600` 提示前端。
 
-**路由文件**：新增 `src/omichub/api/v1/dashboard.py`，在 `router.py` 注册。
+**路由文件**：新增 `src/cygnusx/api/v1/dashboard.py`，在 `router.py` 注册。
 
 ## 6. 文件清单
 
 | 类型 | 路径 | 说明 |
 |---|---|---|
-| 新增 | `src/omichub/application/services/weather_service.py` | 和风天气拉取 + Redis 缓存 |
-| 新增 | `src/omichub/application/services/dashboard_welcome_service.py` | Prompt 组装 + LLM 调用 + 缓存 |
-| 新增 | `src/omichub/api/v1/dashboard.py` | `GET /dashboard/welcome` |
-| 新增 | `src/omichub/application/schemas/dashboard.py` | `DashboardWelcomeDTO` |
-| 修改 | `src/omichub/core/config.py` | 追加 6.1 节配置项 |
-| 修改 | `src/omichub/api/v1/router.py` | 注册 dashboard 路由 |
+| 新增 | `src/cygnusx/application/services/weather_service.py` | 和风天气拉取 + Redis 缓存 |
+| 新增 | `src/cygnusx/application/services/dashboard_welcome_service.py` | Prompt 组装 + LLM 调用 + 缓存 |
+| 新增 | `src/cygnusx/api/v1/dashboard.py` | `GET /dashboard/welcome` |
+| 新增 | `src/cygnusx/application/schemas/dashboard.py` | `DashboardWelcomeDTO` |
+| 修改 | `src/cygnusx/core/config.py` | 追加 6.1 节配置项 |
+| 修改 | `src/cygnusx/api/v1/router.py` | 注册 dashboard 路由 |
 | 新增 | `frontend/src/composables/useDashboardWelcome.ts` | 拉取 + LocalStorage + 降级 |
 | 修改 | `frontend/src/views/DashboardView.vue` | Banner 渲染欢迎词 + 天气 chip |
 | 修改 | `.env` / `deploy/docker/docker-compose.yml` | 注入 `QWEATHER_API_KEY` |
@@ -206,7 +206,7 @@ class DashboardWelcomeService:
 
 **降级与安全**
 - [ ] `QWEATHER_API_KEY` 缺失 → `weather=null`，Banner 隐藏天气部分，问候语仍展示。
-- [ ] LLM 超时 / 失败 → 前端 3s 超时后降级静态文案「欢迎来到 OmicHub」。
+- [ ] LLM 超时 / 失败 → 前端 3s 超时后降级静态文案「欢迎来到 CygnusX」。
 - [ ] 和风天气限流 / 网络异常 → 后端返回 `weather=null`，不抛 5xx。
 - [ ] 未登录访问 `GET /dashboard/welcome` → 401。
 - [ ] 构造过期 / 非法 JWT → 401（复用现有鉴权中间件，本计划不涉及 Ed25519 改造）。

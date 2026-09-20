@@ -3,8 +3,8 @@ from uuid import uuid4
 
 import pytest
 
-from omichub.application.services.mas_scheduler_service import MASSchedulerService
-from omichub.domain.mas.models import (
+from cygnusx.application.services.mas_scheduler_service import MASSchedulerService
+from cygnusx.domain.mas.models import (
     A2AEvent,
     A2AEventType,
     AgentRecipient,
@@ -75,7 +75,7 @@ def _scheduler(repository: _InMemoryRepository, events: _RecordedEvents) -> MASS
 
 @pytest.mark.asyncio
 async def test_scheduler_dispatches_a_ready_node_once(monkeypatch) -> None:
-    import omichub.application.services.mas_scheduler_service as scheduler_module
+    import cygnusx.application.services.mas_scheduler_service as scheduler_module
 
     enqueued: list[tuple] = []
     monkeypatch.setattr(
@@ -108,7 +108,7 @@ async def test_scheduler_dispatches_a_ready_node_once(monkeypatch) -> None:
 @pytest.mark.asyncio
 async def test_scheduler_fails_node_with_unknown_executor(monkeypatch) -> None:
     """未知/缺失 executor 的节点必须被显式判失败，不能停在 dispatched 静默悬挂。"""
-    import omichub.application.services.mas_scheduler_service as scheduler_module
+    import cygnusx.application.services.mas_scheduler_service as scheduler_module
 
     enqueued: list[tuple] = []
     monkeypatch.setattr(

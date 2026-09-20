@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from omichub.infrastructure.config.module_registry import (
+from cygnusx.infrastructure.config.module_registry import (
     DEFAULT_REGISTRY_PATH,
     ModuleRegistryError,
     load_registry,

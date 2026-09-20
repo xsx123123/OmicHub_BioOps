@@ -1,6 +1,6 @@
 # ============================================================
-# OmicHub JBrowse 2 基因组浏览器配置文件
-# 路径: /data/omichub/config/jbrowse_config.yaml
+# CygnusX JBrowse 2 基因组浏览器配置文件
+# 路径: /data/cygnusx/config/jbrowse_config.yaml
 # ============================================================
 
 # 参考基因组定义
@@ -11,8 +11,8 @@ assemblies:
     name: "水稻 (Nipponbare)"
     species: "Oryza sativa"
     description: "日本晴参考基因组 IRGSP-1.0"
-    fasta: "/data/omichub/ref/rice/IRGSP-1.0_genome.fasta"
-    fai: "/data/omichub/ref/rice/IRGSP-1.0_genome.fasta.fai"
+    fasta: "/data/cygnusx/ref/rice/IRGSP-1.0_genome.fasta"
+    fai: "/data/cygnusx/ref/rice/IRGSP-1.0_genome.fasta.fai"
     # 可选: 染色体别名映射，用于显示更友好的名称
     aliases:
       Chr1: "1号染色体"
@@ -32,49 +32,49 @@ assemblies:
     name: "水稻 (泛基因组)"
     species: "Oryza sativa"
     description: "水稻 3010 份泛基因组"
-    fasta: "/data/omichub/ref/rice_pan/pan_genome.fasta"
-    fai: "/data/omichub/ref/rice_pan/pan_genome.fasta.fai"
+    fasta: "/data/cygnusx/ref/rice_pan/pan_genome.fasta"
+    fai: "/data/cygnusx/ref/rice_pan/pan_genome.fasta.fai"
 
   - id: lettuce
     name: "生菜"
     species: "Lactuca sativa"
     description: "生菜参考基因组 v11"
-    fasta: "/data/omichub/ref/lettuce/lettuce_v11.fasta"
-    fai: "/data/omichub/ref/lettuce/lettuce_v11.fasta.fai"
+    fasta: "/data/cygnusx/ref/lettuce/lettuce_v11.fasta"
+    fai: "/data/cygnusx/ref/lettuce/lettuce_v11.fasta.fai"
 
   - id: tomato
     name: "番茄"
     species: "Solanum lycopersicum"
     description: "番茄 Heinz 1706 参考基因组 SL4.0"
-    fasta: "/data/omichub/ref/tomato/SL4.0.fasta"
-    fai: "/data/omichub/ref/tomato/SL4.0.fasta.fai"
+    fasta: "/data/cygnusx/ref/tomato/SL4.0.fasta"
+    fai: "/data/cygnusx/ref/tomato/SL4.0.fasta.fai"
 
   - id: human_hg38
     name: "人类 (GRCh38/hg38)"
     species: "Homo sapiens"
     description: "人类参考基因组 GRCh38"
-    fasta: "/data/omichub/ref/human/hg38.fa"
-    fai: "/data/omichub/ref/human/hg38.fa.fai"
+    fasta: "/data/cygnusx/ref/human/hg38.fa"
+    fai: "/data/cygnusx/ref/human/hg38.fa.fai"
 
 # 预设轨道 (公共/共享数据，所有用户可见)
 # 这些轨道会在每个参考基因组下自动挂载
 preset_tracks:
   rice_nipponbare:
     - name: "基因注释"
-      file: "/data/omichub/tracks/rice/genes.gff3.gz"
-      index: "/data/omichub/tracks/rice/genes.gff3.gz.tbi"
+      file: "/data/cygnusx/tracks/rice/genes.gff3.gz"
+      index: "/data/cygnusx/tracks/rice/genes.gff3.gz.tbi"
       type: "gene"
       color: "#2E7D32"
 
     - name: "重复序列"
-      file: "/data/omichub/tracks/rice/repeats.bw"
+      file: "/data/cygnusx/tracks/rice/repeats.bw"
       type: "bigwig"
       color: "#C62828"
 
   lettuce:
     - name: "基因注释"
-      file: "/data/omichub/tracks/lettuce/genes.gff3.gz"
-      index: "/data/omichub/tracks/lettuce/genes.gff3.gz.tbi"
+      file: "/data/cygnusx/tracks/lettuce/genes.gff3.gz"
+      index: "/data/cygnusx/tracks/lettuce/genes.gff3.gz.tbi"
       type: "gene"
       color: "#2E7D32"
 
@@ -83,9 +83,9 @@ auto_scan:
   enabled: true
   # 扫描路径模板: {user_id} 会被替换为实际用户ID
   scan_paths:
-    - "/data/omichub/users/{user_id}/bam/"
-    - "/data/omichub/users/{user_id}/bigwig/"
-    - "/data/omichub/users/{user_id}/vcf/"
+    - "/data/cygnusx/users/{user_id}/bam/"
+    - "/data/cygnusx/users/{user_id}/bigwig/"
+    - "/data/cygnusx/users/{user_id}/vcf/"
 
   # 支持的文件扩展名
   extensions:
@@ -106,7 +106,7 @@ auto_scan:
 # 上传配置
 upload:
   # 上传目录
-  upload_dir: "/data/omichub/users/{user_id}/uploads/"
+  upload_dir: "/data/cygnusx/users/{user_id}/uploads/"
 
   # 最大文件大小 (GB)
   max_file_size: 10

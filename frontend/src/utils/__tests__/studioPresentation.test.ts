@@ -48,11 +48,11 @@ describe('studio presentation helpers', () => {
 
     const knowledgeSearch: ToolCall = {
       id: 't-2', name: 'knowledge_search', arguments: { query: 'RNA-seq' }, status: 'success',
-      mcpServer: 'omichub-research',
+      mcpServer: 'cygnusx-research',
     }
     const webSearch: ToolCall = {
       id: 't-3', name: 'web_search', arguments: { query: 'RNA-seq' }, status: 'success',
-      mcpServer: 'omichub-research',
+      mcpServer: 'cygnusx-research',
     }
     expect(researchToolMeta(knowledgeSearch)).toMatchObject({ label: '检索平台知识库' })
     expect(researchToolMeta(webSearch)).toMatchObject({ label: '检索文献与资料' })

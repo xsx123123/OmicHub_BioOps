@@ -181,7 +181,7 @@ function prepareTask() {
           <h3 class="section-title">输入 FASTQ 文件</h3>
           <div class="input-grid" :class="{ paired: libraryType === 'paired' }">
             <div
-              class="fastq-dropzone omichub-selectable-card"
+              class="fastq-dropzone cygnusx-selectable-card"
               :class="{ selected: read1, 'is-selected': read1 }"
               :data-selected="read1 ? 'true' : 'false'"
               role="button"
@@ -199,7 +199,7 @@ function prepareTask() {
             </div>
             <div
               v-if="libraryType === 'paired'"
-              class="fastq-dropzone omichub-selectable-card"
+              class="fastq-dropzone cygnusx-selectable-card"
               :class="{ selected: read2, 'is-selected': read2 }"
               :data-selected="read2 ? 'true' : 'false'"
               role="button"

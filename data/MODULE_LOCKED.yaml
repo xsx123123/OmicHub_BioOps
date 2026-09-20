@@ -179,7 +179,7 @@ modules:
     ai: false
 
   - key: about
-    name: 关于 OmicHub
+    name: 关于 CygnusX
     route_prefix: /about
     api_prefix: []
     lockable: true

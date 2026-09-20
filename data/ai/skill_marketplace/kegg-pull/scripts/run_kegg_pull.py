@@ -10,7 +10,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-USER_AGENT = "OmicHub-kegg-pull/0.9"
+USER_AGENT = "CygnusX-kegg-pull/0.9"
 
 
 def fetch(url: str, timeout: float) -> str:

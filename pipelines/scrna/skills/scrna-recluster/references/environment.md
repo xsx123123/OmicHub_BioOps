@@ -15,6 +15,12 @@
 | optparse | ≥ 1.7 | CLI wrapper 参数解析（`recluster.R`） |
 | jsonlite | ≥ 1.8 | 写出 summary.json（`recluster.R`） |
 
+安装参考（Studio 沙盒 CRAN/GitHub 不可达，一律走 conda 通道）：
+
+```bash
+micromamba install -y -n base r-seurat r-log4r r-crayon r-ggplot2 r-optparse r-jsonlite
+```
+
 ## 说明
 
 - 无外部参考数据库依赖，无网络访问；

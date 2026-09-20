@@ -15,18 +15,18 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from omichub.application.services.agent_consultation_service import (
+from cygnusx.application.services.agent_consultation_service import (
     AgentConsultationService,
     ConsultationEnvelope,
 )
-from omichub.application.services.agentteams_capability_registry import (
+from cygnusx.application.services.agentteams_capability_registry import (
     AgentTeamsCapabilityRegistry,
 )
-from omichub.application.services.agentteams_execution_intent import (
+from cygnusx.application.services.agentteams_execution_intent import (
     ExecutionIntent,
     classify_execution_intent,
 )
-from omichub.application.services.agentteams_room_response_service import (
+from cygnusx.application.services.agentteams_room_response_service import (
     AgentTeamsRoomResponseService,
 )
 

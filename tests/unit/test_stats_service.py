@@ -10,8 +10,8 @@ from uuid import uuid4
 
 import pytest
 
-from omichub.application.services.stats_service import StatsService
-from omichub.domain.task.entities import Task
+from cygnusx.application.services.stats_service import StatsService
+from cygnusx.domain.task.entities import Task
 
 USER_ID = str(uuid4())
 
@@ -28,7 +28,7 @@ def service() -> StatsService:
     async def _passthrough(_key, _ttl, factory):
         return await factory()
 
-    with patch("omichub.application.services.stats_service.cached_json", _passthrough):
+    with patch("cygnusx.application.services.stats_service.cached_json", _passthrough):
         yield svc
 
 

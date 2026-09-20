@@ -81,7 +81,7 @@ fi
 
 cat <<'EOF'
 INFO External Workers must actively poll GET /v1/work-items/assigned with their own identities.
-INFO Editing OmicHub or Bridge configuration alone does not start agent-code, agent-viz, or agent-scrna Workers.
+INFO Editing CygnusX or Bridge configuration alone does not start agent-code, agent-viz, or agent-scrna Workers.
 INFO Worker health is based on their most recent authenticated inbox poll recorded by this Bridge.
 EOF
 printf 'Summary: %s OK, %s warning, %s failure\n' "$ok" "$warn" "$fail"

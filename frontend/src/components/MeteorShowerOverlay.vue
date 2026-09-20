@@ -9,7 +9,7 @@ interface Meteor {
   duration: number
 }
 
-const EVENT_NAME = 'omicHub:triggerMeteorShower'
+const EVENT_NAME = 'cygnusX:triggerMeteorShower'
 const meteors = ref<Meteor[]>([])
 const visible = ref(false)
 let timer: ReturnType<typeof setTimeout> | null = null

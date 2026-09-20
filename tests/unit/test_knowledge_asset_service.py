@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import sys
 import zipfile
 from pathlib import Path
 from types import SimpleNamespace
 
 from PIL import Image
 
-from omichub.application.services.knowledge_asset_service import KnowledgeAssetService
+from cygnusx.application.services.knowledge_asset_service import KnowledgeAssetService
 
 
 def test_asset_enrichment_indexes_referenced_and_sibling_assets(
@@ -36,7 +35,10 @@ def test_asset_enrichment_indexes_referenced_and_sibling_assets(
         def __init__(self, _path: str) -> None:
             self.pages = [FakePage(1), FakePage(2)]
 
-    monkeypatch.setitem(sys.modules, "pypdf", SimpleNamespace(PdfReader=FakeReader))
+    monkeypatch.setattr(
+        "cygnusx.infrastructure.pdf.pypdf_adapter.pypdf",
+        SimpleNamespace(PdfReader=FakeReader),
+    )
 
     enriched, report = KnowledgeAssetService().enrich_markdown(
         source.read_text(encoding="utf-8"), source_path=source

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Delivery Worker backed by the real OmicHub agent-delivery consultation."""
+"""Delivery Worker backed by the real CygnusX agent-delivery consultation."""
 
 from __future__ import annotations
 

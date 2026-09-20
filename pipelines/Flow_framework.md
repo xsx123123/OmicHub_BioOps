@@ -709,7 +709,7 @@ snakemake --cores 1 --use-conda --config analysisyaml=test_config.yaml  # 单样
 6. **依赖自动补全**——用 `MODULE_DEPENDENCIES` 避免"开下游忘开上游"
 7. **交付与报告分离**——`deliver.smk` 两个 rule（全量 + 报告专用），`Report.smk` 两步（json + docker）
 8. **改完 utils 必须 runtime 冒烟**——`py_compile` 不够，snakemake 的 import 时机和普通 Python 不同，改构造签名后必须实际跑一次 `snakemake -n` 或单样本执行
-9. **Celery/worker 类组件改完要 restart**——若 Flow 接入 OmicHub 调度，worker 不热重载，改 task 代码后必须 `docker restart omichub-worker`
+9. **Celery/worker 类组件改完要 restart**——若 Flow 接入 CygnusX 调度，worker 不热重载，改 task 代码后必须 `docker restart cygnusx-worker`
 
 ### 10.3 版本管理
 - 每个 Flow 独立版本号（`pipeline_version`），写在 `config.yaml` 和 snakefile 头部

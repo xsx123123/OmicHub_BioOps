@@ -3,7 +3,7 @@ from uuid import uuid4
 
 import pytest
 
-from omichub.infrastructure.database.repositories.report_repository import ReportRepositoryImpl
+from cygnusx.infrastructure.database.repositories.report_repository import ReportRepositoryImpl
 
 
 @pytest.mark.asyncio

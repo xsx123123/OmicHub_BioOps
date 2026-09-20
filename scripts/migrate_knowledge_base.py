@@ -19,11 +19,11 @@ import uuid
 from pathlib import Path
 
 import yaml
-from omichub.infrastructure.database.models.knowledge_document import KbDocumentModel
-from omichub.infrastructure.database.models.knowledge_editor import DocEditorModel
-from omichub.infrastructure.database.models.knowledge_revision import DocRevisionModel
-from omichub.infrastructure.database.models.user import UserModel
-from omichub.infrastructure.database.session import get_session_factory
+from cygnusx.infrastructure.database.models.knowledge_document import KbDocumentModel
+from cygnusx.infrastructure.database.models.knowledge_editor import DocEditorModel
+from cygnusx.infrastructure.database.models.knowledge_revision import DocRevisionModel
+from cygnusx.infrastructure.database.models.user import UserModel
+from cygnusx.infrastructure.database.session import get_session_factory
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 

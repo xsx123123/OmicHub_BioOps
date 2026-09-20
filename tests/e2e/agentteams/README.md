@@ -1,4 +1,4 @@
-# AgentTeams e2e 套件索引（E2E-1~E2E-7 映射表）
+# AgentTeams e2e 套件索引（E2E-1~E2E-10 映射表）
 
 > 口径来源：《协作室平台地基优化实施手册》阶段 3 任务 2（E2E-1~E2E-6）、
 > 《协作室L4审查修复与优化实施手册》阶段 1 任务 3（E2E-7）。
@@ -15,9 +15,11 @@
 | E2E-5 | 删除聊天室（含"超时但后端已删"对账场景） | `tests/unit/test_agentteams_service.py::test_delete_case_checks_owner_before_bridge_delete`（删除链路与属主校验） | 部分覆盖；"超时但后端已删"对账场景无对应用例（缺口） |
 | E2E-6 | 用户消息气泡可见性（发送→落库→渲染，防 R2-4 回归） | 发送→落库：`tests/unit/test_agentteams_room_messages.py::test_post_room_message_records_user_message_evidence`、`test_post_room_message_records_context_refs_in_payload` | 落库侧已覆盖；前端渲染侧无 e2e（缺口，候选：组件级 vitest） |
 | E2E-7 | 「hi 不建 Case」：新房间闲聊不得创建 Case、无进度条数据、只有 Manager 对话回复（防 08-21 症状回归） | 本目录 `test_hi_no_case_e2e.py`（默认进 pytest）；哨兵单测 `tests/unit/test_agentteams_rooms.py::test_unbound_room_chat_never_creates_case` | 已覆盖 |
+| E2E-10 | 真实 Case 离线流程报告：生成 `reports/flow-*.html` → JWT 受控下载 → 可打开并含环境快照与校验摘要 | `test_live_foundation_e2e.py::test_live_e2e10_flow_report_export_and_controlled_download`；报告内容裁剪与谱系登记由 `tests/unit/test_agentteams_flow_report_service.py` 覆盖 | 真实栈 opt-in；单测已覆盖 |
 
 ## 约定
 
 - 新增 e2e 用例放在本目录，标注 `@pytest.mark.e2e`，默认不依赖外部服务/凭证。
 - 真实服务版验收链路保持 opt-in：`AGENTTEAMS_ACCEPTANCE_E2E=1 uv run pytest tests/e2e/agentteams/test_acceptance_profile.py`。
+- 流程报告真实栈验收：`AGENTTEAMS_LIVE_E2E=1 CYGNUSX_E2E_BASE_URL=http://localhost:8000 CYGNUSX_E2E_TOKEN=<JWT> uv run pytest tests/e2e/agentteams/test_live_foundation_e2e.py -k e2e10 -v`。该用例实际走后端、Bridge、PostgreSQL 和 MinIO；当前登录用户必须可创建通用 Case。
 - 上表"缺口"行是后续补强的登记项，不是豁免；补用例时优先把缺口场景做成进程内默认可跑版本。

@@ -5,7 +5,11 @@ import hljs from 'highlight.js'
 import DOMPurify from 'dompurify'
 import 'highlight.js/styles/github.css'
 
-const props = defineProps<{ content: string }>()
+const props = defineProps<{
+  content: string
+  /** 在 sanitize 之前对渲染出的 HTML 做后处理（如把 [[citation:xxx]] 换成引用徽章） */
+  transform?: (html: string) => string
+}>()
 
 const md = new MarkdownIt({
   html: false,
@@ -26,7 +30,8 @@ const md = new MarkdownIt({
 
 const html = computed(() => {
   const raw = md.render(props.content || '')
-  return DOMPurify.sanitize(raw, {
+  const transformed = props.transform ? props.transform(raw) : raw
+  return DOMPurify.sanitize(transformed, {
     ADD_ATTR: ['target', 'rel'],
   })
 })

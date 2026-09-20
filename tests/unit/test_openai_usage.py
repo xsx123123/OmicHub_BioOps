@@ -1,11 +1,11 @@
 from datetime import UTC, datetime
 
-from omichub.application.services.chat_service import ChatService
-from omichub.infrastructure.ai_provider.openai_compatible import (
+from cygnusx.application.services.chat_service import ChatService
+from cygnusx.infrastructure.ai_provider.openai_compatible import (
     merge_token_usage,
     normalize_token_usage,
 )
-from omichub.infrastructure.database.models.chat import ChatMessageModel
+from cygnusx.infrastructure.database.models.chat import ChatMessageModel
 
 
 def test_normalize_qwen_input_output_tokens():
@@ -38,7 +38,45 @@ def test_merge_usage_accumulates_studio_model_rounds():
         "prompt_tokens": 280,
         "completion_tokens": 35,
         "total_tokens": 315,
+        "cached_tokens": 0,
     }
+
+
+def test_normalize_extracts_openai_cached_tokens():
+    usage = normalize_token_usage(
+        {
+            "prompt_tokens": 1000,
+            "completion_tokens": 50,
+            "prompt_tokens_details": {"cached_tokens": 800},
+        }
+    )
+
+    assert usage is not None
+    assert usage["cached_tokens"] == 800
+
+
+def test_normalize_extracts_anthropic_cache_read_tokens():
+    usage = normalize_token_usage(
+        {"input_tokens": 1000, "output_tokens": 50, "cache_read_input_tokens": 700}
+    )
+
+    assert usage is not None
+    assert usage["cached_tokens"] == 700
+
+
+def test_merge_usage_accumulates_cached_tokens():
+    usage = merge_token_usage(
+        {"prompt_tokens": 100, "completion_tokens": 10, "total_tokens": 110, "cached_tokens": 40},
+        {
+            "prompt_tokens": 1000,
+            "completion_tokens": 25,
+            "total_tokens": 1025,
+            "prompt_tokens_details": {"cached_tokens": 800},
+        },
+    )
+
+    assert usage is not None
+    assert usage["cached_tokens"] == 840
 
 
 def test_message_dto_reads_historical_qwen_usage_fields():
@@ -55,7 +93,7 @@ def test_message_dto_reads_historical_qwen_usage_fields():
 
     dto = ChatService._to_msg_dto(message)
 
-    assert dto.tokens == {"input": 42, "output": 8, "total": 50}
+    assert dto.tokens == {"input": 42, "output": 8, "total": 50, "cached": 0}
 
 
 def test_message_dto_does_not_expose_usage_on_user_message():
@@ -72,5 +110,5 @@ def test_message_dto_does_not_expose_usage_on_user_message():
 
     dto = ChatService._to_msg_dto(message)
 
-    assert dto.tokens == {"input": 0, "output": 0, "total": 0}
+    assert dto.tokens == {"input": 0, "output": 0, "total": 0, "cached": 0}
 

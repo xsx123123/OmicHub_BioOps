@@ -307,7 +307,7 @@ watch(
 
 <style scoped>
 .terminal-page {
-  /* 消费全局语义令牌，明暗主题自动适配（fontend.md §3） */
+  /* 消费全局语义令牌，明暗主题自动适配（frontend.md §3） */
   --terminal-bg: var(--neutral-bg);
   --terminal-card: var(--neutral-card);
   --terminal-primary: var(--arco-primary);

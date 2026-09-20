@@ -1,14 +1,14 @@
-# ~/.zshrc - OmicHub 沙盒终端 (zsh + oh-my-zsh + oh-my-posh)
+# ~/.zshrc - CygnusX 沙盒终端 (zsh + oh-my-zsh + oh-my-posh)
 
 export LANG=C.UTF-8
 export LC_ALL=C.UTF-8
-export HOME=/home/omichub
-export ZDOTDIR=/home/omichub
-export XDG_CACHE_HOME=/home/omichub/.cache
-export OMP_CACHE_DIR=/home/omichub/.cache
-export ZSH_CACHE_DIR=/home/omichub/.cache/oh-my-zsh
-export ZSH_COMPDUMP=/home/omichub/.cache/oh-my-zsh/.zcompdump
-export HISTFILE=/home/omichub/.cache/.zsh_history
+export HOME=/home/cygnusx
+export ZDOTDIR=/home/cygnusx
+export XDG_CACHE_HOME=/home/cygnusx/.cache
+export OMP_CACHE_DIR=/home/cygnusx/.cache
+export ZSH_CACHE_DIR=/home/cygnusx/.cache/oh-my-zsh
+export ZSH_COMPDUMP=/home/cygnusx/.cache/oh-my-zsh/.zcompdump
+export HISTFILE=/home/cygnusx/.cache/.zsh_history
 
 mkdir -p "$XDG_CACHE_HOME" "$OMP_CACHE_DIR" "$ZSH_CACHE_DIR"
 
@@ -30,7 +30,7 @@ alias l='ls -CF'
 clear
 cat <<'EOF'
 
-  OmicHub 沙盒终端
+  CygnusX 沙盒终端
   ─────────────────────────────────────
   工作目录: ~/workspace (即工作台 workspace，持久保存)
   临时目录: /tmp (容器销毁后清空)
@@ -42,7 +42,7 @@ cat <<'EOF'
 
 EOF
 
-if [[ -n "${OMICHUB_IMAGE_NOTICE:-}" ]]; then
-  echo "  注意: ${OMICHUB_IMAGE_NOTICE}"
+if [[ -n "${CYGNUSX_IMAGE_NOTICE:-}" ]]; then
+  echo "  注意: ${CYGNUSX_IMAGE_NOTICE}"
   echo ""
 fi

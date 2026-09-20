@@ -1,4 +1,4 @@
-from omichub.application.services.chat_service import _active_agentteams_case_id
+from cygnusx.application.services.chat_service import _active_agentteams_case_id
 
 
 def test_active_agentteams_case_prefers_latest_open_binding() -> None:

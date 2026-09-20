@@ -2,12 +2,12 @@ import asyncio
 from pathlib import Path
 from unittest.mock import AsyncMock
 
-from omichub.application.services.agentteams_context_refs import (
+from cygnusx.application.services.agentteams_context_refs import (
     check_context_ref,
     check_context_refs,
 )
-from omichub.application.services.agentteams_service import AgentTeamsService
-from omichub.core.config import Settings
+from cygnusx.application.services.agentteams_service import AgentTeamsService
+from cygnusx.core.config import Settings
 
 
 def test_context_ref_classifies_workspace_uri_and_unreadable(tmp_path: Path) -> None:

@@ -2,17 +2,17 @@ from pathlib import Path
 
 import pytest
 
-from omichub.core.exceptions import NotFoundError
-from omichub.infrastructure.config.storage_config import StorageConfig
-from omichub.infrastructure.storage import (
+from cygnusx.core.exceptions import NotFoundError
+from cygnusx.infrastructure.config.storage_config import StorageConfig
+from cygnusx.infrastructure.storage import (
     LocalStorageBackend,
     S3CompatibleStorageBackend,
     reset_storage_backend,
 )
-from omichub.infrastructure.storage.backend import (
+from cygnusx.infrastructure.storage.backend import (
     get_storage_backend as _backend_get_storage_backend,
 )
-from omichub.infrastructure.storage.path_factory import StoragePathFactory
+from cygnusx.infrastructure.storage.path_factory import StoragePathFactory
 
 
 def _make_factory(tmp_path: Path) -> StoragePathFactory:
@@ -25,7 +25,7 @@ def _make_factory(tmp_path: Path) -> StoragePathFactory:
 async def test_local_read_write_delete_exists(tmp_path: Path) -> None:
     backend = LocalStorageBackend(path_factory=_make_factory(tmp_path))
     rel_path = "users/u1/inbox/hello.txt"
-    content = b"hello, omichub"
+    content = b"hello, cygnusx"
 
     assert await backend.exists(rel_path) is False
 
@@ -113,11 +113,11 @@ def test_get_storage_backend_returns_local_by_default(monkeypatch, tmp_path: Pat
     factory = _make_factory(tmp_path)
 
     monkeypatch.setattr(
-        "omichub.infrastructure.storage.backend.get_storage_config",
+        "cygnusx.infrastructure.storage.backend.get_storage_config",
         lambda: StorageConfig(data_root=str(tmp_path), users_subdir="users", storage_type="local"),
     )
     monkeypatch.setattr(
-        "omichub.infrastructure.storage.backend.get_path_factory",
+        "cygnusx.infrastructure.storage.backend.get_path_factory",
         lambda: factory,
     )
 
@@ -137,11 +137,11 @@ def test_get_storage_backend_switches_to_s3(monkeypatch, tmp_path: Path) -> None
     factory = _make_factory(tmp_path)
 
     monkeypatch.setattr(
-        "omichub.infrastructure.storage.backend.get_storage_config",
+        "cygnusx.infrastructure.storage.backend.get_storage_config",
         lambda: StorageConfig(data_root=str(tmp_path), users_subdir="users", storage_type="s3"),
     )
     monkeypatch.setattr(
-        "omichub.infrastructure.storage.backend.get_path_factory",
+        "cygnusx.infrastructure.storage.backend.get_path_factory",
         lambda: factory,
     )
 

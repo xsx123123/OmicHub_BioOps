@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import yaml
-from omichub.tools.schema_loader import ToolsSchemaLoader
+from cygnusx.tools.schema_loader import ToolsSchemaLoader
 
 
 def main() -> int:

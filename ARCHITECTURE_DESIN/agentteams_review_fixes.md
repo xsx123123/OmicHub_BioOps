@@ -8,7 +8,7 @@
 
 ## 修复项 1：契约文档回写 —— SSE 线格式拍平（改文档，不改代码）
 
-**问题**：冻结契约（`ARCHITECTURE_DESIN/agentteams.md` §4.3）写的 `room_speech`/`mode_changed` 是 `metadata` 嵌套格式，但 SSE 序列化层（`src/omichub/api/v1/chat.py:100-102` 附近）对所有 chunk 执行 `data.update(chunk.metadata)` **拍平**——这是该序列化层的既有惯例（`collaboration_fanout` 等既有类型同构）。线上实际格式是拍平的，前后端自洽、功能正确。决定：**保留实现，修订文档**。
+**问题**：冻结契约（`ARCHITECTURE_DESIN/agentteams.md` §4.3）写的 `room_speech`/`mode_changed` 是 `metadata` 嵌套格式，但 SSE 序列化层（`src/cygnusx/api/v1/chat.py:100-102` 附近）对所有 chunk 执行 `data.update(chunk.metadata)` **拍平**——这是该序列化层的既有惯例（`collaboration_fanout` 等既有类型同构）。线上实际格式是拍平的，前后端自洽、功能正确。决定：**保留实现，修订文档**。
 
 **修复步骤**（只改 `ARCHITECTURE_DESIN/agentteams.md`）：
 
@@ -37,7 +37,7 @@
 
 ## 修复项 2：工具 schema 与运行时对齐（fan-out 最少 1 个子任务）
 
-**问题**：实现删除了 `src/omichub/application/services/parallel_subagent_service.py` 中"fan-out 至少 2 个子任务"的运行时校验（超频单 assignment 分派需要），但 LLM 面工具契约没同步：`tool_configs/tools_schema.yaml:73-77` 仍是 `minItems: 2`、描述仍写"2–5 个"。LLM 会被告知最少 2 个，后端实际接受 1 个。
+**问题**：实现删除了 `src/cygnusx/application/services/parallel_subagent_service.py` 中"fan-out 至少 2 个子任务"的运行时校验（超频单 assignment 分派需要），但 LLM 面工具契约没同步：`tool_configs/tools_schema.yaml:73-77` 仍是 `minItems: 2`、描述仍写"2–5 个"。LLM 会被告知最少 2 个，后端实际接受 1 个。
 
 **修复步骤**：
 
@@ -45,7 +45,7 @@
    - `minItems: 2` → `minItems: 1`；
    - 描述中"2–5 个"改为"1–5 个"（先 `Read` 确认原文再改，保持其余措辞不变）。
 2. 全局搜索同步点，逐一核对并修正过时表述：
-   - `Grep "2–5" tool_configs/ src/omichub/ ARCHITECTURE_DESIN/ Protocol/`
+   - `Grep "2–5" tool_configs/ src/cygnusx/ ARCHITECTURE_DESIN/ Protocol/`
    - `ARCHITECTURE_DESIN/multi-agent.md` 中 parallel_subagents 的"至少 2 个/2–5 个"描述 → "1–5 个"。
    - **注意区分**（不要误改）：
      - `chat_service.py` 的 `ROUTER_SYSTEM_PROMPT`（:161-181）与 `MULTI_AGENT_SYSTEM_PROMPT_SUFFIX`（:150-156）里"可拆成 2–5 个独立子任务才 fanout"是**何时拆**的语义建议，保持不变；
@@ -83,7 +83,7 @@
 
 **修复步骤**（先判对错，再改过期的一侧，禁止为通过而改）：
 
-1. 问题 A：读 `test_agent_router.py` 失败用例与 `chat_service.py` 路由意图归一化逻辑（`_route_to_agent`/RouteInfo 归一化处，`Grep -n "delivery_case\|\"case\"" src/omichub/application/services/chat_service.py tests/unit/test_agent_router.py`）。判断 `case` 与 `delivery_case` 哪个是当前设计意图（查 `ARCHITECTURE_DESIN/multi-agent.md` 的意图枚举）。若设计已统一为 `case` → 更新测试期望；若 `delivery_case` 才是契约 → 修归一化逻辑。
+1. 问题 A：读 `test_agent_router.py` 失败用例与 `chat_service.py` 路由意图归一化逻辑（`_route_to_agent`/RouteInfo 归一化处，`Grep -n "delivery_case\|\"case\"" src/cygnusx/application/services/chat_service.py tests/unit/test_agent_router.py`）。判断 `case` 与 `delivery_case` 哪个是当前设计意图（查 `ARCHITECTURE_DESIN/multi-agent.md` 的意图枚举）。若设计已统一为 `case` → 更新测试期望；若 `delivery_case` 才是契约 → 修归一化逻辑。
 2. 问题 B：`git diff HEAD -- data/ai/` 看新增的 3 个 scrna agent；对照 router 候选表来源（若候选由 `list_agents(active_only=True)` 动态生成，则测试里写死的候选清单/快照过期 → 更新测试数据；若存在 `router.md`/yaml 人工候选表 → 把新 agent 补进去）。改完跑 `pytest tests/unit/test_agent_router.py tests/unit/test_agent_router_dispatch.py -q` 全绿。
 3. 在修复汇报中写明：每处是"代码对、测试过期"还是"测试对、代码漂移"，及依据。
 
@@ -126,9 +126,9 @@
 **修复步骤**：产出一份 `git add` 分组清单（写进修复汇报，**不执行任何 git 命令**）：
 
 - **变更集 A：超频模式 + AgentTeams**
-  - `src/omichub/application/schemas/chat.py`、`api/v1/chat.py`、`application/services/chat_service.py`、`application/services/parallel_subagent_service.py`、`application/services/agentteams_room_gateway_service.py`、`application/services/agentteams_service.py`、`application/services/agentteams_case_tool_service.py`、`api/v1/agentteams.py`、`api/v1/admin/agentteams_bridge.py`、`application/schemas/agentteams_bridge.py`、`core/config.py`（仅 gateway 相关 hunk，见下）、`integrations/agentteams/`、`deploy/agentteams/`、`frontend/src/stores/agentHub.ts`、`composables/useAgentChatStream.ts`、`components/agent-workspace/OverdriveToggle.vue`、`AgentSandbox.vue`、`views/StudioView.vue`、`components/ai-chat/types.ts`、`KimiMessageItem.vue`、`views/AgentTeamsCaseView.vue`、`components/task/AgentTeamsCasesPanel.vue`、`components/admin/AgentTeamsBridgeTab.vue`、`api/admin/agentTeamsBridge.ts`、`tests/unit/test_overdrive_chat.py`、`test_agentteams_*`、`tool_configs/tools_schema.yaml`、`ARCHITECTURE_DESIN/agentteams.md`、`multi-agent.md`
+  - `src/cygnusx/application/schemas/chat.py`、`api/v1/chat.py`、`application/services/chat_service.py`、`application/services/parallel_subagent_service.py`、`application/services/agentteams_room_gateway_service.py`、`application/services/agentteams_service.py`、`application/services/agentteams_case_tool_service.py`、`api/v1/agentteams.py`、`api/v1/admin/agentteams_bridge.py`、`application/schemas/agentteams_bridge.py`、`core/config.py`（仅 gateway 相关 hunk，见下）、`integrations/agentteams/`、`deploy/agentteams/`、`frontend/src/stores/agentHub.ts`、`composables/useAgentChatStream.ts`、`components/agent-workspace/OverdriveToggle.vue`、`AgentSandbox.vue`、`views/StudioView.vue`、`components/ai-chat/types.ts`、`KimiMessageItem.vue`、`views/AgentTeamsCaseView.vue`、`components/task/AgentTeamsCasesPanel.vue`、`components/admin/AgentTeamsBridgeTab.vue`、`api/admin/agentTeamsBridge.ts`、`tests/unit/test_overdrive_chat.py`、`test_agentteams_*`、`tool_configs/tools_schema.yaml`、`ARCHITECTURE_DESIN/agentteams.md`、`multi-agent.md`
 - **变更集 B：参考基因组模块**
-  - `src/omichub/reference_genomes/`、`api/v1/router.py`（该文件两个 feature 都碰，需 `git add -p` 拆 hunk）、`core/config.py`（同上，`reference_genomes_yaml` 的 hunk 归 B）、`refdata/reference_genomes.yaml`、`frontend/src/api/referenceGenomes.ts`、`types/referenceGenomes.ts`、`views/ReferenceGenomesView.vue`、`tests/unit/reference_genomes/`、`test_reference_genomes_sequence.py`、`scripts/reference_genomes_smoke.py`
+  - `src/cygnusx/reference_genomes/`、`api/v1/router.py`（该文件两个 feature 都碰，需 `git add -p` 拆 hunk）、`core/config.py`（同上，`reference_genomes_yaml` 的 hunk 归 B）、`refdata/reference_genomes.yaml`、`frontend/src/api/referenceGenomes.ts`、`types/referenceGenomes.ts`、`views/ReferenceGenomesView.vue`、`tests/unit/reference_genomes/`、`test_reference_genomes_sequence.py`、`scripts/reference_genomes_smoke.py`
 - **需人工裁决的混杂文件**：`api/v1/router.py`、`core/config.py`、`views/ProfileView.vue`（个人页 UI 重做，与两个 feature 均无关，建议单独第三个变更集）、`docs/knowledge/getting-started.md`、`.gitignore`、`.env.example`（逐文件确认归属）。
 - 子模块变动（`pipelines/*`、`Protocol/FlowFrame` 显示 `m`）与两个 feature 无关，不要纳入。
 

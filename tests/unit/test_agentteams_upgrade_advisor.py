@@ -13,10 +13,10 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from omichub.application.services.agentteams_context_refs import check_context_refs
-from omichub.application.services.agentteams_room_service import AgentTeamsRoomService
-from omichub.application.services.agentteams_service import room_namespace_case_id
-from omichub.application.services.agentteams_upgrade_advisor import (
+from cygnusx.application.services.agentteams_context_refs import check_context_refs
+from cygnusx.application.services.agentteams_room_service import AgentTeamsRoomService
+from cygnusx.application.services.agentteams_service import room_namespace_case_id
+from cygnusx.application.services.agentteams_upgrade_advisor import (
     ROOM_ORIGIN_L2_UPGRADE,
     ROOM_UPGRADE_CONTEXT_EVENT_TYPE,
     RULE_EXPLICIT_REQUEST,
@@ -31,8 +31,8 @@ from omichub.application.services.agentteams_upgrade_advisor import (
     suggestion_message_text,
     upgrade_suggestion_allowed,
 )
-from omichub.core.exceptions import BusinessError
-from omichub.infrastructure.database.models.chat import (
+from cygnusx.core.exceptions import BusinessError
+from cygnusx.infrastructure.database.models.chat import (
     AgentTeamsRoomModel,
     ChatMessageModel,
     ChatSessionModel,
@@ -432,7 +432,7 @@ def test_consultation_veto_records_telemetry(monkeypatch: pytest.MonkeyPatch) ->
     """否决命中不再静默：记录 vetoed 事件，detail 含命中词/消息摘要/会话 id。"""
     recorded: list[tuple[str, tuple[str, ...], str]] = []
     monkeypatch.setattr(
-        "omichub.application.services.agentteams_upgrade_advisor.record_upgrade_event",
+        "cygnusx.application.services.agentteams_upgrade_advisor.record_upgrade_event",
         lambda event, *, matched_rules=(), detail="": recorded.append(
             (event, tuple(matched_rules), detail)
         ),
@@ -454,7 +454,7 @@ def test_consultation_veto_records_telemetry(monkeypatch: pytest.MonkeyPatch) ->
 def test_veto_telemetry_does_not_fire_without_veto(monkeypatch: pytest.MonkeyPatch) -> None:
     recorded: list[tuple[str, ...]] = []
     monkeypatch.setattr(
-        "omichub.application.services.agentteams_upgrade_advisor.record_upgrade_event",
+        "cygnusx.application.services.agentteams_upgrade_advisor.record_upgrade_event",
         lambda event, *, matched_rules=(), detail="": recorded.append((event,)),
     )
 

@@ -2,8 +2,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from omichub.api.v1.admin import agentteams_bridge
-from omichub.application.schemas.agentteams_bridge import AgentTeamsWorkerTokenIssueDTO
+from cygnusx.api.v1.admin import agentteams_bridge
+from cygnusx.application.schemas.agentteams_bridge import AgentTeamsWorkerTokenIssueDTO
 
 
 class _FakeSettingsService:

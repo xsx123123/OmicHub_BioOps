@@ -18,7 +18,7 @@ export interface StudioContext {
 export const StudioContextKey: InjectionKey<StudioContext> = Symbol('studio-context')
 
 /** Studio 内置工具名（与后端 STUDIO_TOOL_NAMES 对齐） */
-export const STUDIO_CODE_TOOLS = new Set(['sandbox_execute', 'workspace_write', 'workspace_edit'])
+export const STUDIO_CODE_TOOLS = new Set(['sandbox_execute', 'workspace_write', 'workspace_edit', 'tool_orchestrate'])
 
 export function isStudioCodeTool(toolName: string): boolean {
   return STUDIO_CODE_TOOLS.has(toolName)

@@ -6,11 +6,11 @@ from uuid import uuid4
 
 import pytest
 
-from omichub.application.services.agentteams_stale_task_service import (
+from cygnusx.application.services.agentteams_stale_task_service import (
     AgentTeamsStaleTaskService,
 )
-from omichub.core.exceptions import NotFoundError
-from omichub.infrastructure.database.models.task import TaskModel
+from cygnusx.core.exceptions import NotFoundError
+from cygnusx.infrastructure.database.models.task import TaskModel
 
 
 class Result:

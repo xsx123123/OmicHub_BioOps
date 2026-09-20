@@ -18,6 +18,7 @@ import type { AgentTeamsCase, AgentTeamsRoom } from '@/api/agentTeams'
 
 vi.mock('vue-router', () => ({
   useRouter: () => ({ push: vi.fn() }),
+  useRoute: () => ({ query: {} }),
 }))
 const apiClientMocks = vi.hoisted(() => ({
   get: vi.fn().mockResolvedValue({ data: {} }),

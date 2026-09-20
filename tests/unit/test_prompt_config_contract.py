@@ -2,8 +2,8 @@ from pathlib import Path
 
 import yaml
 
-from omichub.infrastructure.config.prompt_loader import PromptRegistry
-from omichub.infrastructure.config.runtime_image_loader import RuntimeImageRegistryManager
+from cygnusx.infrastructure.config.prompt_loader import PromptRegistry
+from cygnusx.infrastructure.config.runtime_image_loader import RuntimeImageRegistryManager
 
 
 def test_all_registered_prompt_files_exist():
@@ -16,7 +16,7 @@ def test_all_registered_prompt_files_exist():
 
 
 def test_all_enabled_agents_use_external_prompt_files():
-    site = yaml.safe_load(Path("data/OmicHub.yaml").read_text(encoding="utf-8"))
+    site = yaml.safe_load(Path("data/CygnusX.yaml").read_text(encoding="utf-8"))
     for name in site["agents"]["enabled"]:
         agent_path = Path(f"data/ai/{name}.yaml")
         agent = yaml.safe_load(agent_path.read_text(encoding="utf-8"))
@@ -35,3 +35,38 @@ def test_all_enabled_agents_use_external_prompt_files():
             "studio",
             studio["runtime_profile"],
         )
+
+
+def test_runtime_catalog_placeholder_is_owned_by_agent_loader():
+    prompt = Path("data/ai/prompts/shared/sandbox_protocol.md").read_text(encoding="utf-8")
+    assert "{{runtime_images}}" in prompt
+    assert "{{bio_packages}}" in prompt
+    assert "output/environment.yml" in prompt
+    assert "output/conda-explicit.txt" in prompt
+    assert "output/software-versions.txt" in prompt
+
+
+def test_bio_package_catalog_has_marked_sections_and_sandbox_safe_guidance():
+    catalog = Path("data/ai/bio_packages.md").read_text(encoding="utf-8")
+    expected_catalogs = {
+        "genomics",
+        "rnaseq",
+        "scrna",
+        "r-bio",
+        "epigenomics",
+        "proteomics",
+        "microbiome",
+        "variants",
+        "phylo",
+        "enrichment",
+        "io",
+        "visualization",
+        "machine-learning",
+        "network",
+        "cheminformatics",
+    }
+    for catalog_id in expected_catalogs:
+        assert f"<!-- package-catalog: {catalog_id} -->" in catalog
+    assert "| `pip install" not in catalog
+    assert "micromamba-forge" not in catalog
+    assert "biomicromamba" not in catalog

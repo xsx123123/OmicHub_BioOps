@@ -2,8 +2,8 @@ import json
 
 import pytest
 
-from omichub.application.services import studio_approval_service as module
-from omichub.application.services.studio_approval_service import StudioApprovalService
+from cygnusx.application.services import studio_approval_service as module
+from cygnusx.application.services.studio_approval_service import StudioApprovalService
 
 
 @pytest.mark.asyncio

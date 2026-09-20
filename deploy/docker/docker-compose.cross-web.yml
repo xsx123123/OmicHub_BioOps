@@ -1,5 +1,5 @@
 # ============================================
-# OmicHub Docker Compose - 跨机部署 Web 主栈覆盖
+# CygnusX Docker Compose - 跨机部署 Web 主栈覆盖
 # 用法:
 #   docker compose \
 #     -f deploy/docker/docker-compose.yml \
@@ -8,9 +8,9 @@
 #
 # 前置条件:
 #   1. 已配置 .env，且 POSTGRES/REDIS 密码已改为强密码。
-#   2. 设置 OMICHUB_CONTROL_HOST 为本机可被 Worker 访问的私网 IP/DNS，
-#      并将 OMICHUB_WEB_BIND_HOST / OMICHUB_POSTGRES_BIND_HOST /
-#      OMICHUB_REDIS_BIND_HOST 设置为相同地址。
+#   2. 设置 CYGNUSX_CONTROL_HOST 为本机可被 Worker 访问的私网 IP/DNS，
+#      并将 CYGNUSX_WEB_BIND_HOST / CYGNUSX_POSTGRES_BIND_HOST /
+#      CYGNUSX_REDIS_BIND_HOST 设置为相同地址。
 #   3. Worker 服务器防火墙已放行对应的 Web、PostgreSQL、Redis 端口。
 # ============================================
 
@@ -23,7 +23,7 @@ services:
       # Web 侧仍通过 Docker 服务名访问 db/cache
       - POSTGRES_HOST=db
       - REDIS_HOST=cache
-    command: uvicorn omichub.main:app --host 0.0.0.0 --port 8000 --workers 4
+    command: uvicorn cygnusx.main:app --host 0.0.0.0 --port 8000 --workers 4
   beat:
     environment:
       - SERVICE_NAME=beat
@@ -32,10 +32,10 @@ services:
 
 # 将外部网络改为本地 bridge，Web 栈内部仍可用服务名互通
 networks:
-  omichub_net:
-    name: ${OMICHUB_CONTROL_NETWORK_NAME:-omichub_control_net}
+  cygnusx_net:
+    name: ${CYGNUSX_CONTROL_NETWORK_NAME:-cygnusx_control_net}
     external: false
     driver: bridge
     ipam:
       config:
-        - subnet: ${OMICHUB_CONTROL_NETWORK_SUBNET:-172.30.0.0/16}
+        - subnet: ${CYGNUSX_CONTROL_NETWORK_SUBNET:-172.30.0.0/16}

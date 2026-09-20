@@ -27,9 +27,9 @@ export function reportChatDiagnostic(payload: ChatDiagnosticPayload): void {
     occurredAt: new Date().toISOString(),
   }
 
-  console.error('[OmicHubChatDiagnostic]', detail)
+  console.error('[CygnusXChatDiagnostic]', detail)
 
   if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('omichub:chat-diagnostic', { detail }))
+    window.dispatchEvent(new CustomEvent('cygnusx:chat-diagnostic', { detail }))
   }
 }

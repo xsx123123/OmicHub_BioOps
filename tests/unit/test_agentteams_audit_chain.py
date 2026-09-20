@@ -8,30 +8,30 @@ from uuid import uuid4
 
 import pytest
 
-from omichub.application.services.agent_consultation_service import (
+from cygnusx.application.services.agent_consultation_service import (
     AgentConsultationService,
     ConsultationEnvelope,
 )
-from omichub.application.services.agentteams_audit_chain_service import (
+from cygnusx.application.services.agentteams_audit_chain_service import (
     AgentTeamsAuditChainService,
 )
-from omichub.application.services.agentteams_audit_events import (
+from cygnusx.application.services.agentteams_audit_events import (
     OPERATIONAL_EVENT_TYPES,
     classify_event_type,
     extract_correlation,
 )
-from omichub.application.services.agentteams_capability_registry import (
+from cygnusx.application.services.agentteams_capability_registry import (
     AgentTeamsCapabilityRegistry,
 )
-from omichub.application.services.agentteams_room_response_service import (
+from cygnusx.application.services.agentteams_room_response_service import (
     AgentTeamsRoomResponseService,
 )
-from omichub.application.services.agentteams_room_service import (
+from cygnusx.application.services.agentteams_room_service import (
     AgentTeamsRoomService,
     build_room_proposal,
 )
-from omichub.application.services.agentteams_service import room_namespace_case_id
-from omichub.infrastructure.database.models.chat import AgentTeamsRoomModel
+from cygnusx.application.services.agentteams_service import room_namespace_case_id
+from cygnusx.infrastructure.database.models.chat import AgentTeamsRoomModel
 
 _STATUS_LINES = {
     key: [key]
@@ -293,7 +293,7 @@ async def test_audit_chain_merges_case_and_room_streams_in_order() -> None:
             "room.user_message",
             "2026-08-20T10:00:00+00:00",
             case_id=room_stream_id,
-            actor="omichub-user-x",
+            actor="cygnusx-user-x",
         ),
         _event(
             "evt-r2",

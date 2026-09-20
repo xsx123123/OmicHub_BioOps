@@ -1,5 +1,5 @@
 /**
- * DEG 差异表达分析工具类型定义（与后端 src/omichub/tools/deg/schema.py 对齐）
+ * DEG 差异表达分析工具类型定义（与后端 src/cygnusx/tools/deg/schema.py 对齐）
  */
 
 /** 分析方法：auto 按重复数自动路由 DESeq2 / edgeR */
