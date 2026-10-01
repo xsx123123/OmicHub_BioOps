@@ -441,6 +441,10 @@ async function handleRegenerate(messageId: string) {
   }
   const target = findSourceUserMessage(messageId)
   if (!target) return
+  const failedIndex = session.value?.messages.findIndex((item) => item.id === messageId) ?? -1
+  if (failedIndex >= 0 && session.value?.messages[failedIndex]?.status === 'error') {
+    session.value.messages.splice(failedIndex, 1)
+  }
   await store.sendMessage(target.content, {
     attachments: target.attachments,
     autoApprove: true,

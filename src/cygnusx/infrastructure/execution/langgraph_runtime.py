@@ -19,7 +19,8 @@ import contextlib
 from collections.abc import AsyncIterator
 from typing import Any, cast
 
-from langgraph.graph import END, StateGraph
+from langgraph.graph import StateGraph
+from langgraph.types import Command
 
 from cygnusx.domain.execution.agent_state import AgentState
 from cygnusx.infrastructure.ai_provider.openai_compatible import ChatChunk
@@ -55,29 +56,45 @@ class LangGraphRuntimeService:
         deps = self._deps
         max_rounds = self._max_rounds
 
-        async def _llm_call(state: AgentState) -> dict[str, Any]:
-            return await llm_call_node(state, deps)
+        def _merged_state(state: AgentState, delta: dict[str, Any]) -> AgentState:
+            """Project a node delta for routing without mutating graph state."""
+            merged = dict(state)
+            merged.update(delta)
+            if "messages" in delta:
+                merged["messages"] = [
+                    *(state.get("messages") or []),
+                    *(delta.get("messages") or []),
+                ]
+            return cast(AgentState, merged)
 
-        async def _tool_exec(state: AgentState) -> dict[str, Any]:
-            return await tool_exec_node(state, deps)
+        async def _llm_call(state: AgentState) -> Command:
+            delta = await llm_call_node(state, deps)
+            route = route_after_llm(_merged_state(state, delta))
+            return Command(
+                goto="tool_exec" if route == "tool_exec" else "finish", update=delta
+            )
 
-        def _route_after_tool(state: AgentState) -> str:
-            return route_after_tool(state, max_rounds)
+        async def _tool_exec(state: AgentState) -> Command:
+            delta = await tool_exec_node(state, deps)
+            route = route_after_tool(_merged_state(state, delta), max_rounds)
+            return Command(
+                goto="llm_call" if route == "llm_call" else "finish", update=delta
+            )
+
+        async def _finish(_state: AgentState) -> dict[str, Any]:
+            """Terminal no-op node.
+
+            The graph routes here through Command so async conditional edges
+            (which deadlock in LangGraph 1.2.x) are not needed.
+            """
+            return {}
 
         builder: StateGraph[AgentState] = StateGraph(AgentState)
         builder.add_node("llm_call", _llm_call)
         builder.add_node("tool_exec", _tool_exec)
+        builder.add_node("finish", _finish)
         builder.set_entry_point("llm_call")
-        builder.add_conditional_edges(
-            "llm_call",
-            route_after_llm,
-            {"tool_exec": "tool_exec", "end": END},
-        )
-        builder.add_conditional_edges(
-            "tool_exec",
-            _route_after_tool,
-            {"llm_call": "llm_call", "end": END},
-        )
+        builder.set_finish_point("finish")
         return builder.compile()
 
     async def stream(
@@ -122,7 +139,9 @@ class LangGraphRuntimeService:
                     AgentState,
                     await self._graph.ainvoke(
                         initial,
-                        config={"recursion_limit": 2 * self._max_rounds + 2},
+                        # Each tool round visits llm_call and tool_exec, then a
+                        # final forced llm_call and finish node.
+                        config={"recursion_limit": 2 * self._max_rounds + 4},
                     ),
                 )
                 self.last_usage = final.get("usage")

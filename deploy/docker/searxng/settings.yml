@@ -1,0 +1,109 @@
+# SearXNG 自托管实例配置（通用搜索）
+#
+# 引擎启用基于 2026-09-20 调研数据：
+#   - searx.space 93 实例聚合：Google 2/32 实例错误率≥50%、Bing 1/8、
+#     Brave 25/36、DuckDuckGo 21/40、Startpage 39/40
+#   - 本机探测：Google 200、Bing 200、DDG 202(challenge)、Brave 429
+# 结论：启用 Google/Bing/Wikipedia/GitHub 等健康引擎，禁用 Brave/DDG/Startpage，
+# 随上游修复再评估启用。
+#
+# limiter 关闭：私有实例（仅平台容器访问），limiter 会拦截无浏览器指纹的
+# JSON API 调用（官方推荐私有实例 server.limiter: false）。
+
+use_default_settings: true
+
+server:
+  port: 8080
+  bind_address: "0.0.0.0"
+  secret_key: "75b2109829ec9aec30eab6850ebb03be8d97a1ca094b35e46ab1e3b5fcabf6fa"
+  limiter: false
+  image_proxy: false
+
+search:
+  safe_search: 0
+  autocomplete: ""
+  default_lang: "auto"
+  ban_time_on_fail: 5
+  max_ban_time_on_fail: 120
+  formats:
+    - html
+    - json
+
+outgoing:
+  request_timeout: 5.0
+  max_request_timeout: 10.0
+  pool_connections: 100
+  pool_maxsize: 20
+  retries: 1
+  useragent_suffix: ""
+
+engines:
+  # === 通用搜索（当前健康）===
+  - name: google
+    engine: google
+    shortcut: go
+    disabled: false
+
+  - name: bing
+    engine: bing
+    shortcut: bi
+    disabled: false
+
+  # === 谨慎启用（当前大面积故障，随上游修复再启用）===
+  - name: brave
+    engine: brave
+    shortcut: br
+    disabled: true   # searx.space: 25/36 实例错误率≥50%（"too many requests"）
+
+  - name: duckduckgo
+    engine: duckduckgo
+    shortcut: ddg
+    disabled: true   # searx.space: 21/40 实例错误率≥50%（CAPTCHA 频发）
+
+  - name: startpage
+    disabled: true   # searx.space: 39/40 实例故障
+
+  - name: qwant
+    disabled: true   # searx.space: 30/37 实例错误率≥50%
+
+  # === 学术/垂直（直连，稳定）===
+  - name: wikipedia
+    engine: wikipedia
+    shortcut: wp
+    disabled: false
+
+  - name: wikidata
+    engine: wikidata
+    shortcut: wd
+    disabled: true   # 2026-09-20 live: Suspended too many requests
+
+  - name: github
+    engine: github
+    shortcut: gh
+    disabled: false
+
+  - name: stackoverflow
+    engine: stackoverflow
+    shortcut: st
+    disabled: false
+
+  - name: arxiv
+    engine: arxiv
+    shortcut: arx
+    disabled: false
+
+  - name: pubmed
+    engine: pubmed
+    shortcut: pub
+    disabled: false
+
+  # === 新闻 ===
+  - name: bing_news
+    engine: bing_news
+    shortcut: bin
+    disabled: false
+
+  - name: reuters
+    engine: reuters
+    shortcut: re
+    disabled: false

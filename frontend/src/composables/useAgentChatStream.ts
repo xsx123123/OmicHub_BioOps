@@ -199,6 +199,10 @@ export interface TokenUsage {
   total_tokens?: number
   /** 缓存命中的输入 tokens（OpenAI prompt_tokens_details.cached_tokens / Anthropic cache_read_input_tokens） */
   cached_tokens?: number
+  /** 缓存命中的输出 tokens（provider completion_tokens_details/cache_read_output_tokens） */
+  cached_output_tokens?: number
+  prompt_tokens_details?: { cached_tokens?: number }
+  completion_tokens_details?: { cached_tokens?: number }
 }
 
 export interface RoomSpeechEvent {
@@ -548,6 +552,7 @@ export function useAgentChatStream() {
     while (true) {
       let receivedContent = false
       let terminalEvent = false
+      let serverError: string | undefined
       let transportDropped = false
       let retryExhaustedMessage = '流式连接意外中断，请重新发送；如果频繁出现，请检查模型服务或反向代理超时配置'
 
@@ -562,6 +567,7 @@ export function useAgentChatStream() {
           handleStreamEvent(normalized, callbacks)
           if (normalized.type === 'done' || normalized.type === 'error') {
             terminalEvent = true
+            if (normalized.type === 'error') serverError = normalized.content || '生成失败'
           } else if (normalized.type) {
             receivedContent = true
           }
@@ -641,7 +647,11 @@ export function useAgentChatStream() {
           buffer += decoder.decode()
           if (buffer.trim()) processLine(buffer)
 
-          if (terminalEvent) return
+          if (terminalEvent) {
+            // 服务端明确返回 error 时，保留当前会话上下文，由 UI 提供用户主动重试。
+            if (serverError) callbacks.onError?.(serverError)
+            return
+          }
           // 流结束但未收到 done / error：连接被反向代理或网络掐断
           transportDropped = true
         }

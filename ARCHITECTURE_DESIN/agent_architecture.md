@@ -318,12 +318,37 @@ ui_payload   # 前端卡片/图表/产物/终端输出，可保留结构化展�
 
 ### 3.3 执行环境
 
-**① 轻量 Docker 沙箱**（普通聊天代码执行）—— `infrastructure/sandbox/pool.py`（697 行）
+**① 轻量 Docker 沙箱**（普通聊天代码执行）—— `infrastructure/sandbox/pool.py` + `application/services/chat_sandbox_tools.py`
 
 - warm pool 常驻容器（`sleep` 保活）+ 会话亲和（会话绑定 `container_id`，复用至超时回收）
 - **Docker SDK `exec`** 在容器内跑 base64 包裹的代码（web 容器内**无 docker CLI**，只有 `/var/run/docker.sock`，不能走 `docker exec` 子进程）
 - stdout/stderr 流式回传；图表协议：脚本输出 `%%ECHARTS%%<json>` / `%%IMAGE%%<base64>` / `%%PLOTLY%%` 标记行，由池解析为结构化输出
 - Docker 不可用时优雅降级（`is_available()` → False → 友好错误）
+
+#### 普通助手会话归档（2026-09-22 as-built）
+
+普通助手的轻量沙箱与 Studio 的执行容器保持隔离，但执行完成后复用统一项目归档文档契约：
+
+```text
+users/{user_id}/projects/{project_slug}/runs/chat-{session_prefix}-{timestamp}/
+├── input/                         # 本次会话注入的输入文件副本
+├── work/execution-0001.{py,R,sh} # 每次执行的原始代码
+├── output/                        # 会话累计产物
+├── README.md                      # 会话摘要、执行记录、产物、软件与环境
+├── environment.json               # 结构化镜像/包/资源/网络快照
+└── manifest.json                  # 累计产物 path/size/sha256
+```
+
+- 入口：`application/services/chat_archive_service.py::ensure_chat_archive()` 与 `archive_chat_execution()`。
+- 文档渲染复用 `project_archive_service.archive_run()`，普通助手不得另建 README 或 manifest 格式。
+- 运行镜像取 `settings.sandbox_image`；资源记录取 CPU、内存、PID、网络隔离和容器 UID。
+- 容器内执行受限 Python distribution 探针，将实际包版本并入环境快照；探针失败不阻断结果返回。
+- 每轮执行复用同一会话 run 目录，并扫描整个 `output/` 生成累计 manifest，避免覆盖历史产物。
+- `sandbox_meta.analysis_archive` 保存 run 目录和三个文档路径；文档注册到 `FileRegistry` 并返回下载链接。
+- 会话历史 DTO 暴露 `analysis_archive`，前端历史抽屉显示“分析记录”标记，消息产物窗口同时展示归档文档。
+- 归档是 best-effort：文档生成、环境探针或索引登记失败只记录 warning，不改变代码执行语义。
+
+该链路补齐普通助手原先只有消息级产物、没有运行级 provenance 的缺口，不改变 Studio 的审批、工作区挂载和生命周期协议。
 
 **② Studio 沙箱**（工作台重负载）—— `infrastructure/studio/manager.py`
 
@@ -363,7 +388,7 @@ class ExecutionPolicy(BaseModel):     # frozen + extra="forbid" —— 服务端
 4. 决议经 BLPOP 返回 → 下发 `approval_resolved`；`edited` 携 `modified_args` 替换参数后按 approved 处理；`approved + always` 写入流内 `always_allow`
 5. 拒绝/超时 → `record_approval_audit` 落 `audit_logs`（`method="EVENT"`）→ 返回 `{success: False, rejected: True}` 信封回灌 LLM 与前端
 
-`auto_approve=True`（AI 助手页面）时两个审批闸（`chat_sandbox_execute` / `network_request`）整体跳过；**AI 工作台页不传该标记，完全维持会话权限模式判定**，因此该开关只影响助手页，不外溢到工作台的逐次审批语义。
+`auto_approve=True`（AI 助手页面，包括 `/ai` 主页面和全局助手侧栏）时两个审批闸（`chat_sandbox_execute` / `network_request`）整体跳过；**AI 工作台页不传该标记，完全维持会话权限模式判定**，因此该开关只影响助手页，不外溢到工作台的逐次审批语义。侧栏使用的 `useChatStream` 也必须显式转发该字段，不能因复用旧流式客户端而回落到默认 `false`。
 
 ---
 

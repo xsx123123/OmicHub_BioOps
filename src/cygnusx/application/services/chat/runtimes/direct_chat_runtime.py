@@ -11,6 +11,7 @@ from loguru import logger
 from sqlalchemy import select
 
 from cygnusx.application.services.chat.next_step_suggestions import suggestions_metadata
+from cygnusx.application.services.artifact_manifest import normalize_tool_artifact_payload
 from cygnusx.application.services.chat.runtimes.base import ChatRuntime, ChatRuntimeRequest
 from cygnusx.core.config import get_settings
 from cygnusx.infrastructure.ai_provider.openai_compatible import ChatChunk, provider_manager
@@ -220,6 +221,11 @@ class DirectChatRuntime(ChatRuntime):
                     model_config=model_config,
                 )
                 web_sources = presearch_result["results"]
+                presearch_llm, presearch_ui = normalize_tool_artifact_payload(
+                    presearch_result,
+                    presearch_result,
+                    tool_name="web_search",
+                )
                 yield ChatChunk(
                     type="tool_result",
                     metadata={
@@ -227,8 +233,8 @@ class DirectChatRuntime(ChatRuntime):
                         "tool_name": "web_search",
                         "mcp_server": RESEARCH_TOOL_CHANNEL,
                         "success": True,
-                        "result": presearch_result,
-                        "ui_payload": presearch_result,
+                        "result": presearch_llm,
+                        "ui_payload": presearch_ui,
                     },
                 )
                 if web_sources:
@@ -254,6 +260,11 @@ class DirectChatRuntime(ChatRuntime):
                     content="联网搜索失败，已基于模型自身知识回答",
                     metadata={"status": "failed"},
                 )
+                error_llm, error_ui = normalize_tool_artifact_payload(
+                    {"error": str(exc)},
+                    {"error": str(exc)},
+                    tool_name="web_search",
+                )
                 yield ChatChunk(
                     type="tool_result",
                     metadata={
@@ -261,8 +272,8 @@ class DirectChatRuntime(ChatRuntime):
                         "tool_name": "web_search",
                         "mcp_server": RESEARCH_TOOL_CHANNEL,
                         "success": False,
-                        "result": {"error": str(exc)},
-                        "ui_payload": {"error": str(exc)},
+                        "result": error_llm,
+                        "ui_payload": error_ui,
                     },
                 )
         full_content = ""
@@ -397,6 +408,11 @@ class DirectChatRuntime(ChatRuntime):
                     llm_result = (
                         tool_output if isinstance(tool_output, dict) else {"result": tool_output}
                     )
+                    llm_result, ui_payload = normalize_tool_artifact_payload(
+                        llm_result,
+                        llm_result,
+                        tool_name=tool_name,
+                    )
                     yield ChatChunk(
                         type="tool_result",
                         metadata={
@@ -407,7 +423,7 @@ class DirectChatRuntime(ChatRuntime):
                             if isinstance(result, dict)
                             else True,
                             "result": llm_result,
-                            "ui_payload": llm_result,
+                            "ui_payload": ui_payload,
                         },
                     )
                     llm_messages.append(

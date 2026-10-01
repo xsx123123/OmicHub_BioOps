@@ -29,6 +29,7 @@ const configs = ref<AIProviderConfig[]>([])
 const loading = ref(false)
 const showEdit = ref(false)
 const testing = ref(false)
+const reloadingRuntime = ref(false)
 
 const providerOptions = [
   { label: 'OpenAI 兼容', value: 'openai_compatible' },
@@ -49,6 +50,7 @@ const editForm = ref<Partial<AIProviderConfig> & { api_key?: string }>({
   api_key: '',
   temperature: 0.7,
   max_tokens: 2048,
+  context_window: 262144,
   top_p: 1.0,
   timeout: 120,
   input_price: null,
@@ -73,6 +75,12 @@ const columns = [
   { title: 'Base URL', key: 'base_url', ellipsis: { tooltip: true } },
   { title: '温度', key: 'temperature', width: 80 },
   { title: 'Max Tokens', key: 'max_tokens', width: 110 },
+  {
+    title: 'Context Window',
+    key: 'context_window',
+    width: 130,
+    render: (row: AIProviderConfig) => Number(row.context_window || 262144).toLocaleString(),
+  },
   {
     title: '单价 (元/M)',
     key: 'price',
@@ -136,6 +144,7 @@ function openEdit(row?: AIProviderConfig) {
       api_key: '',
       temperature: 0.7,
       max_tokens: 2048,
+      context_window: 262144,
       top_p: 1.0,
       timeout: 120,
       input_price: null,
@@ -202,6 +211,16 @@ async function testConfig(id: string) {
   }
 }
 
+async function reloadRuntimeConfig() {
+  reloadingRuntime.value = true
+  try {
+    await apiClient.post('/admin/ai-providers/runtime/reload')
+    message.success('运行时配置已重载')
+  } finally {
+    reloadingRuntime.value = false
+  }
+}
+
 onMounted(fetchConfigs)
 </script>
 
@@ -211,7 +230,10 @@ onMounted(fetchConfigs)
     <NSpace vertical :size="24">
       <NCard title="Provider 配置" :bordered="false" class="arco-card">
         <template #header-extra>
-          <NButton type="primary" @click="openEdit()">新建配置</NButton>
+          <NSpace>
+            <NButton :loading="reloadingRuntime" @click="reloadRuntimeConfig">重载运行时配置</NButton>
+            <NButton type="primary" @click="openEdit()">新建配置</NButton>
+          </NSpace>
         </template>
         <NDataTable
           :columns="columns"
@@ -252,6 +274,14 @@ onMounted(fetchConfigs)
         </NFormItem>
         <NFormItem label="Max Tokens">
           <NInputNumber v-model:value="editForm.max_tokens" :min="1" :step="1" />
+        </NFormItem>
+        <NFormItem label="Context Window">
+          <NInputNumber
+            v-model:value="editForm.context_window"
+            :min="1"
+            :step="1024"
+            placeholder="tokens"
+          />
         </NFormItem>
         <NFormItem label="Top P">
           <NInputNumber v-model:value="editForm.top_p" :min="0" :max="1" :step="0.1" />

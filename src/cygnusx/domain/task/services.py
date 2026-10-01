@@ -35,6 +35,7 @@ class TaskDomainService:
         execution_mode: ExecutionMode = ExecutionMode.LOCAL,
         sample_count: int = 0,
         task_id: UUID | None = None,
+        idempotency_key: str | None = None,
     ) -> Task:
         """提交新任务：创建聚合根并持久化
 
@@ -51,6 +52,7 @@ class TaskDomainService:
             execution_mode=execution_mode,
             parameters=parameters,
             sample_count=sample_count,
+            idempotency_key=idempotency_key,
         )
         return await self._repo.save(task)
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import DOMPurify from 'dompurify'
 import { NButton, NIcon, NTag, NDataTable, useMessage } from 'naive-ui'
 import {
@@ -11,7 +11,7 @@ import {
 } from '@vicons/ionicons5'
 import { Vue3Lottie } from 'vue3-lottie'
 import { useRouter } from 'vue-router'
-import md, { VChart } from './setup'
+import md from './setup'
 import { stripFakeToolCallMarkup } from './messageSanitize'
 import { usePyodide } from '@/composables/usePyodide'
 import UserAvatar from '@/components/UserAvatar.vue'
@@ -24,7 +24,6 @@ import CollaborationRouteNotice from './CollaborationRouteNotice.vue'
 import RouteTransitionCard from './RouteTransitionCard.vue'
 import MessageArtifactGallery from './MessageArtifactGallery.vue'
 import AgentTeamsCaseCard from './AgentTeamsCaseCard.vue'
-import ChartPreviewModal from './ChartPreviewModal.vue'
 import AskUserCard from './AskUserCard.vue'
 import PlanConfirmationCard from './PlanConfirmationCard.vue'
 import OverdriveApprovalCard from './OverdriveApprovalCard.vue'
@@ -43,7 +42,6 @@ import type {
   ChatMessage,
   CollaborationRouteInfo,
   CopyMode,
-  ChartData,
   KnowledgeCitationSource,
   ToolCall,
   SkillInvocationCard,
@@ -148,146 +146,12 @@ const hovered = ref(false)
 const lottieRef = ref<InstanceType<typeof Vue3Lottie> | null>(null)
 const thoughtExpanded = ref(false)
 const workerExpanded = ref(false)
-const plotlyContainers = ref<Record<string, HTMLDivElement | null>>({})
-const plotlyRenderError = ref<string>('')
-
-function extractPlotlyFigures(tool: ToolCall): Record<string, unknown>[] {
-  const isFigure = (v: unknown): v is Record<string, unknown> =>
-    !!v && typeof v === 'object' && !Array.isArray(v)
-  const pick = (source: Record<string, unknown> | undefined): Record<string, unknown>[] => {
-    if (!source) return []
-    // 沙盒工具（chat_sandbox_execute / sandbox_execute）的 show_plotly 回传：数组通道
-    const many = source.plotly_figures
-    if (Array.isArray(many)) return many.filter(isFigure)
-    // 内置绘图工具（火山图/曼哈顿图）：单图通道
-    const single = source.plotly_figure
-    return isFigure(single) ? [single] : []
-  }
-  // 1. 优先走专用 uiPayload 通道
-  const fromUi = pick(tool.uiPayload as Record<string, unknown> | undefined)
-  if (fromUi.length) return fromUi
-  // 2. 兼容 result 里仍包着 ui_payload 的旧/异常封装
-  const result = tool.result as Record<string, unknown> | undefined
-  if (!result || typeof result !== 'object') return []
-  const fromNested = pick(
-    (result.ui_payload as Record<string, unknown> | undefined)
-      || (result.uiPayload as Record<string, unknown> | undefined),
-  )
-  if (fromNested.length) return fromNested
-  // 3. 兜底：result 直接就是 figure
-  if (result.data && result.layout) return [result]
-  return []
-}
-
-// 优先从工具结果的 uiPayload.plotly_figures / plotly_figure 取图，fallback 到 message.charts
-const plotlyCharts = computed(() => {
-  const fromToolCalls: ChartData[] = []
-  for (const tool of props.message.toolCalls || []) {
-    extractPlotlyFigures(tool).forEach((figure, idx) => {
-      fromToolCalls.push({
-        id: `tool-plotly-${tool.id}-${idx}`,
-        type: 'plotly',
-        option: figure,
-      })
-    })
-  }
-  const fromCharts = (props.message.charts || []).filter((c) => c.type === 'plotly')
-  return [...fromToolCalls, ...fromCharts]
-})
-
-function setPlotlyContainer(chartId: string) {
-  return (el: unknown) => {
-    if (el) plotlyContainers.value[chartId] = el as HTMLDivElement
-  }
-}
-
-async function renderPlotlyCharts() {
-  if (!plotlyCharts.value.length) return
-  plotlyRenderError.value = ''
-  try {
-    const Plotly = await import('plotly.js-dist-min')
-    await nextTick()
-    ensurePlotlyResizeObserver()
-    for (const chart of plotlyCharts.value) {
-      const el = plotlyContainers.value[chart.id]
-      if (!el) continue
-      try {
-        await Plotly.newPlot(
-          el,
-          (chart.option.data || []) as Plotly.Data[],
-          (chart.option.layout || {}) as Partial<Plotly.Layout>,
-          {
-            responsive: true,
-            displayModeBar: true,
-            displaylogo: false,
-            // 默认 600 DPI 导出（scale = 600/96）
-            toImageButtonOptions: {
-              format: 'png',
-              filename: 'cygnusx_plot_600dpi',
-              scale: 6.25,
-            } as Plotly.Config['toImageButtonOptions'],
-          },
-        )
-      } catch (e) {
-        el.textContent = `Plotly 渲染失败: ${e instanceof Error ? e.message : String(e)}`
-      }
-    }
-  } catch (e) {
-    plotlyRenderError.value = `Plotly 加载失败: ${e instanceof Error ? e.message : String(e)}`
-  }
-}
-
-// 历史消息刷新 / 虚拟列表项重挂后，容器尺寸可能变化（或 newPlot 时容器尚不可见），
-// 通过 ResizeObserver 触发 Plotly.Plots.resize 补绘
-const chartResultsRef = ref<HTMLElement | null>(null)
-let plotlyResizeObserver: ResizeObserver | null = null
-let plotlyResizeRaf: number | null = null
-
-async function resizePlotlyCharts() {
-  try {
-    const Plotly = await import('plotly.js-dist-min')
-    for (const el of Object.values(plotlyContainers.value)) {
-      if (el && (el as unknown as { data?: unknown }).data) {
-        Plotly.Plots.resize(el)
-      }
-    }
-  } catch {
-    /* 忽略 resize 期间的加载失败 */
-  }
-}
-
-function ensurePlotlyResizeObserver() {
-  if (typeof ResizeObserver === 'undefined') return
-  const wrap = chartResultsRef.value
-  if (!wrap) return
-  if (!plotlyResizeObserver) {
-    plotlyResizeObserver = new ResizeObserver(() => {
-      if (plotlyResizeRaf !== null) cancelAnimationFrame(plotlyResizeRaf)
-      plotlyResizeRaf = requestAnimationFrame(() => {
-        plotlyResizeRaf = null
-        void resizePlotlyCharts()
-      })
-    })
-  }
-  plotlyResizeObserver.observe(wrap)
-}
-
-onMounted(() => {
-  // 刷新加载历史消息时数据在挂载前已就绪，watcher 不会触发，需主动渲染一次
-  void nextTick(renderPlotlyCharts)
-})
-
-watch(() => [props.message.toolCalls, props.message.charts], renderPlotlyCharts, { deep: true })
 watch(
   () => props.message.id,
   () => {
     workerExpanded.value = false
   },
 )
-watch(workerExpanded, (expanded) => {
-  if (expanded) void nextTick(renderPlotlyCharts)
-})
-
 // 表格数据（取第一个含 table_data 的 tool result）
 const tableData = computed(() => {
   const tc = props.message.toolCalls?.find(
@@ -795,25 +659,11 @@ onUnmounted(() => {
     cancelAnimationFrame(renderRafId)
     renderRafId = null
   }
-  if (plotlyResizeRaf !== null) {
-    cancelAnimationFrame(plotlyResizeRaf)
-    plotlyResizeRaf = null
-  }
-  plotlyResizeObserver?.disconnect()
-  plotlyResizeObserver = null
   if (copyBtnTimer) clearTimeout(copyBtnTimer)
   Object.values(attachmentPreviewUrls.value).forEach((url) => URL.revokeObjectURL(url))
 })
 
 const { execute } = usePyodide()
-
-const previewChart = ref<ChartData | null>(null)
-const showChartPreview = ref(false)
-
-function openChartPreview(chart: ChartData) {
-  previewChart.value = chart
-  showChartPreview.value = true
-}
 
 function handleConfirmTool(toolName: string, args: Record<string, unknown>) {
   // 人类凭证写入已在 McpToolCallCard 点击时完成（approve POST），
@@ -879,8 +729,7 @@ const hasBodyContent = computed(() =>
   || timelineView.value.length > 0
   || !!props.message.agentTeamsCases?.length
   || visibleToolCalls.value.length > 0
-  || plotlyCharts.value.length > 0
-  || (props.message.charts?.length ?? 0) > 0
+  || !!props.message.charts?.length
   || !!tableData.value
   || (props.message.consultation?.experts.length ?? 0) > 0
   || webSources.value.length > 0
@@ -1278,36 +1127,6 @@ function handleEdit() {
           </template>
           <div v-else class="message-body markdown-body" v-html="renderedContent" @click="handleBodyClick" />
 
-          <div v-if="plotlyCharts.length" ref="chartResultsRef" class="chart-results">
-            <div
-              v-for="chart in plotlyCharts"
-              :key="chart.id"
-              class="chart-wrapper"
-            >
-              <div class="chart-actions">
-                <n-button size="tiny" @click="openChartPreview(chart)">🔍 预览</n-button>
-              </div>
-              <div
-                :ref="setPlotlyContainer(chart.id)"
-                class="plotly-container"
-              />
-            </div>
-            <div v-if="plotlyRenderError" class="plotly-render-error">{{ plotlyRenderError }}</div>
-          </div>
-
-          <div v-if="message.charts?.some((c) => c.type === 'echarts')" class="chart-results">
-            <div
-              v-for="(chart, idx) in message.charts.filter((c) => c.type === 'echarts')"
-              :key="idx"
-              class="chart-wrapper"
-            >
-              <div class="chart-actions">
-                <n-button size="tiny" @click="openChartPreview(chart)">🔍 预览</n-button>
-              </div>
-              <VChart :option="chart.option" autoresize style="height: 300px" />
-            </div>
-          </div>
-
           <div v-if="tableData" class="table-results">
             <n-data-table
               :data="tableData"
@@ -1361,6 +1180,7 @@ function handleEdit() {
           <MessageArtifactGallery
             :session-id="sessionId"
             :tools="message.toolCalls"
+            :charts="message.charts"
             :artifacts="message.overdriveArtifacts"
           />
 
@@ -1519,7 +1339,6 @@ function handleEdit() {
       </div>
     </template>
 
-    <ChartPreviewModal v-model:show="showChartPreview" :chart="previewChart" />
   </div>
 </template>
 

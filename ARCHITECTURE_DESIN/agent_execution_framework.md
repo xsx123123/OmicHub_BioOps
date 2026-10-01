@@ -4,6 +4,8 @@
 
 > 更新时间：2026-08-18
 > **演进注记（2026-09-18）**：科研闭环 WP0–WP4 已交付，执行面新增——PTC llm_query（system 锚定 + 动态白名单，门控见 research_mode）、tool_output 严格定向（无 tool_call_id 丢弃）、信封截断标记与 payload_hash、chat_message_events 过程回放、LangGraph chat_sandbox_execute 审批闸（ADR-0002）。以上及生命周期/科研形态的 as-built 详见 `research_loop_architecture_2026-09.md`。
+> **归档注记（2026-09-22）**：普通 AI 助手的 `chat_sandbox_execute` 已增加会话级分析归档：每次执行保存 input/work/output，并持续生成 `README.md`、`environment.json`、`manifest.json`；索引写入 `chat_sessions.sandbox_meta.analysis_archive`。该归档与 Studio 工作区隔离，但复用 `project_archive_service` 的文档契约。
+> **执行保护注记（2026-09-22）**：`chat_sandbox_execute` 的代码执行超时之外，流式工具任务还受整体硬 deadline（请求 timeout + 30 秒收尾宽限）保护，覆盖 Docker 会话准备、产物 copy-out、数据库提交、环境探针和归档。到期必须返回失败工具结果；Docker exec 建立/终止调用也有有界等待，超时守卫先唤醒上层再执行 best-effort kill，禁止只发 heartbeat 而永久保持 running。
 > 文档定位：记录仓库当前已经存在的 Agent 请求装配、思考—工具闭环、LangGraph、Studio、AgentTeams Worker、房间路由和前端事件投影。本文优先描述”现在代码实际怎么运行”，不把未来规划误写成已上线能力。
 
 > **合并说明（2026-09-18）**：本文档已吸收 `agent_execution_loop_observability_2026-08.md`（2026-08-18 快照）的全部独有内容，原文件已删除。对应关系：闭环统一语义与范围声明并入 §4；`degraded` 降级回退会诊路由细则并入 §5.1；统一事件契约与三级工具事件链并入 §6.1；Worker 证据投影并入 §6.4；协助室前端事件→默认文案映射并入 §6.5；Guard 与失败语义并入 §7.3；验证基线并入 §10.1。与本文原有 §2.1/§6/§11 重复的文字以本文档为准，不再重复收录。

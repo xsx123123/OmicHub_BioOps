@@ -202,11 +202,12 @@ SUBAGENT_SYSTEM_SUFFIX = (
     "\n\n## 子任务模式\n"
     "你正在执行由上级 Agent 并行分派的子任务。约束：\n"
     "1. 只专注完成本子任务，不要暴露内部推理、工具可用性或会话交接；\n"
-    "2. 优先只读操作，谨慎执行写文件或提交计算任务；\n"
-    f"3. 完成后直接输出自包含、可核验的精简结论（控制在 {_ANSWER_CAP_CHARS} 字以内），"
+    "2. 生成的一切中文内容不使用破折号\"——\"，需要解释或补充时改用逗号、冒号或括号；\n"
+    "3. 优先只读操作，谨慎执行写文件或提交计算任务；\n"
+    f"4. 完成后直接输出自包含、可核验的精简结论（控制在 {_ANSWER_CAP_CHARS} 字以内），"
     "包含关键证据与产物路径（如有）。若缺少用户必须提供的信息，只用一段简短、直接的"
     "补充请求说明缺什么；不要解释 ask_user 等工具是否可用，也不要重复上级 Agent 的分工说明。\n"
-    "4. 正式结论末尾必须增加 `## 执行摘要`，用不超过 1,500 字概括结论、关键证据、"
+    "5. 正式结论末尾必须增加 `## 执行摘要`，用不超过 1,500 字概括结论、关键证据、"
     "限制和产物路径，供下游 Agent 与折叠卡片直接读取。"
 )
 
@@ -1350,6 +1351,7 @@ class ParallelSubAgentService:
         workspace_access: bool = False,
     ) -> dict[str, Any]:
         """C1：每次工具执行独占会话；builtin、MCP、搜索和技能统一分发。"""
+        from cygnusx.application.services.artifact_manifest import normalize_tool_artifact_payload
         from cygnusx.application.services.tool_bridge_service import get_tool_bridge_service
         from cygnusx.infrastructure.mcp.client import MCPClient
         from cygnusx.infrastructure.skills import skill_store
@@ -1452,6 +1454,28 @@ class ParallelSubAgentService:
                             arguments=args,
                             context=tool_context,
                         )
+                # Worker tools share the same artifact contract as foreground
+                # chat tools; normalize before the result is reinjected into the
+                # child model so no Agent has a private output shape.
+                tool_output = result.get("result") if isinstance(result, dict) else result
+                if isinstance(tool_output, dict) and (
+                    "llm_payload" in tool_output or "ui_payload" in tool_output
+                ):
+                    llm_payload = tool_output.get("llm_payload", tool_output)
+                    ui_payload = tool_output.get("ui_payload")
+                else:
+                    llm_payload = tool_output if isinstance(tool_output, dict) else {"result": tool_output}
+                    ui_payload = None
+                normalized_llm, normalized_ui = normalize_tool_artifact_payload(
+                    llm_payload,
+                    ui_payload,
+                    tool_name=tool_name,
+                )
+                if isinstance(result, dict):
+                    result["result"] = {
+                        "llm_payload": normalized_llm,
+                        "ui_payload": normalized_ui,
+                    }
                 await session.commit()
                 return result
             except Exception as exc:  # noqa: BLE001 — 工具失败回灌模型自行决策

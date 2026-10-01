@@ -143,6 +143,18 @@ def _extract_cached_tokens(source: dict[str, Any]) -> int:
     )
 
 
+def _extract_cached_output_tokens(source: dict[str, Any]) -> int:
+    """Extract cached output tokens from provider-specific usage details."""
+    details = source.get("completion_tokens_details")
+    if isinstance(details, dict):
+        cached = _usage_int(details.get("cached_tokens"))
+        if cached > 0:
+            return cached
+    return _usage_int(
+        source.get("cached_output_tokens") or source.get("cache_read_output_tokens")
+    )
+
+
 def normalize_token_usage(usage: dict[str, Any] | None) -> dict[str, Any] | None:
     """把不同 OpenAI 兼容服务的 usage 字段统一为标准三字段。"""
     if not isinstance(usage, dict):
@@ -158,6 +170,7 @@ def normalize_token_usage(usage: dict[str, Any] | None) -> dict[str, Any] | None
     if total_tokens <= 0:
         total_tokens = prompt_tokens + completion_tokens
     cached_tokens = _extract_cached_tokens(source)
+    cached_output_tokens = _extract_cached_output_tokens(source)
     normalized = dict(usage)
     normalized.update(
         prompt_tokens=prompt_tokens,
@@ -165,6 +178,10 @@ def normalize_token_usage(usage: dict[str, Any] | None) -> dict[str, Any] | None
         total_tokens=total_tokens,
         cached_tokens=cached_tokens,
     )
+    # Keep the historical payload shape when no provider reports output-cache
+    # usage, while preserving the field whenever it is meaningful.
+    if cached_output_tokens > 0:
+        normalized["cached_output_tokens"] = cached_output_tokens
     return normalized
 
 
@@ -179,12 +196,18 @@ def merge_token_usage(
         return left
     if left is None:
         return right
-    return {
+    merged = {
         "prompt_tokens": left["prompt_tokens"] + right["prompt_tokens"],
         "completion_tokens": left["completion_tokens"] + right["completion_tokens"],
         "total_tokens": left["total_tokens"] + right["total_tokens"],
         "cached_tokens": left["cached_tokens"] + right["cached_tokens"],
     }
+    cached_output_tokens = left.get("cached_output_tokens", 0) + right.get(
+        "cached_output_tokens", 0
+    )
+    if cached_output_tokens > 0:
+        merged["cached_output_tokens"] = cached_output_tokens
+    return merged
 
 
 @dataclass
@@ -446,7 +469,7 @@ class OpenAICompatibleProvider:
         model_name = f"{self.name} {self.model}".lower()
         if deep_thinking or "deepseek-v4" in model_name:
             # DeepSeek V4 默认可能开启思考；必须显式发送 False，避免路由阶段
-            # max_tokens=200 被思考内容耗尽后没有最终正文。
+            # 较小的 max_tokens 预算被思考内容耗尽后没有最终正文。
             payload["enable_thinking"] = deep_thinking
         headers = {
             "Authorization": f"Bearer {self._api_key}",

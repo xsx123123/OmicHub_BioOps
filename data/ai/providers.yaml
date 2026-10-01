@@ -16,6 +16,7 @@ providers:
   api_key: ${DP_API_KEY}
   temperature: 0.7
   max_tokens: 8192
+  context_window: 262144
   top_p: 1.0
   timeout: 120
   is_default: false
@@ -28,6 +29,7 @@ providers:
   api_key: ${AL_API_KEY}
   temperature: 0.7
   max_tokens: 8192
+  context_window: 262144
   top_p: 1.0
   timeout: 120
   is_default: false
@@ -36,14 +38,14 @@ providers:
 - name: doubao-seed-evolving
   provider_type: openai_compatible
   model: doubao-seed-evolving
-  base_url: https://ark.cn-beijing.volces.com/api/plan/v3
+  base_url: https://ark.cn-beijing.volces.com/api/v3
   api_key: ${ARK_API_KEY}
   temperature: 0.7
   max_tokens: 8192
+  context_window: 262144
   top_p: 1.0
   timeout: 120
   is_default: true
   is_active: true
   extra_params: {}
-
 

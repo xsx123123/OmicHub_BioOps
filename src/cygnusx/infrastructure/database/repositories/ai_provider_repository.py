@@ -91,6 +91,7 @@ class SqlAlchemyAIProviderConfigRepository(IAIProviderConfigRepository):
             api_key=decrypt_value(model.api_key),
             temperature=model.temperature,
             max_tokens=model.max_tokens,
+            context_window=model.context_window,
             top_p=model.top_p,
             timeout=model.timeout,
             input_price=model.input_price,
@@ -115,6 +116,7 @@ class SqlAlchemyAIProviderConfigRepository(IAIProviderConfigRepository):
             api_key=encrypt_value(config.api_key),
             temperature=config.temperature,
             max_tokens=config.max_tokens,
+            context_window=config.context_window,
             top_p=config.top_p,
             timeout=config.timeout,
             input_price=config.input_price,
@@ -134,6 +136,7 @@ class SqlAlchemyAIProviderConfigRepository(IAIProviderConfigRepository):
         model.base_url = config.base_url
         model.temperature = config.temperature
         model.max_tokens = config.max_tokens
+        model.context_window = config.context_window
         model.top_p = config.top_p
         model.timeout = config.timeout
         model.input_price = config.input_price

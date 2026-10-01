@@ -376,7 +376,7 @@ parameters:
 # ============================================================
 execution:
   engine: snakemake
-  snakefile: "/home/zj/pipeline/RNAFlow/snakefile"
+  snakefile: "/opt/cygnusx/pipelines/RNAFlow/snakefile"
   config_file_param: "analysisyaml"
   config_file_name: "config.yaml"
   conda_env: null

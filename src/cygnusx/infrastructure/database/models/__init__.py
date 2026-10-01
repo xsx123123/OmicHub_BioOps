@@ -79,6 +79,11 @@ from cygnusx.infrastructure.database.models.mas import (
     MASReworkGuardModel,
     MASRunModel,
 )
+from cygnusx.infrastructure.database.models.mas_room import (
+    MASRoomEventModel,
+    MASRoomMessageModel,
+    MASRoomRunModel,
+)
 from cygnusx.infrastructure.database.models.mcp import MCPServerModel
 from cygnusx.infrastructure.database.models.mcp_builder import (
     MCPBuildModel,
@@ -110,6 +115,8 @@ from cygnusx.infrastructure.database.models.skill import (
     SkillVersionModel,
 )
 from cygnusx.infrastructure.database.models.task import TaskModel
+from cygnusx.infrastructure.database.models.run import RunModel
+from cygnusx.infrastructure.database.models.run_event import RunEventModel
 from cygnusx.infrastructure.database.models.team import TeamMemberModel, TeamModel
 from cygnusx.infrastructure.database.models.terminal import TerminalSessionModel
 from cygnusx.infrastructure.database.models.user import UserModel, WorkspaceModel
@@ -128,6 +135,8 @@ __all__ = [
     "WorkspaceModel",
     "WorkspaceArchiveModel",
     "TaskModel",
+    "RunModel",
+    "RunEventModel",
     "TeamModel",
     "TeamMemberModel",
     "CookieAccountModel",
@@ -181,6 +190,9 @@ __all__ = [
     "MASA2AEventModel",
     "MASApprovalModel",
     "MASReworkGuardModel",
+    "MASRoomMessageModel",
+    "MASRoomRunModel",
+    "MASRoomEventModel",
     "ReportModel",
     "ReportFileModel",
     "SandboxSessionModel",

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AgentSidebar from './AgentSidebar.vue'
 import AgentHub from './AgentHub.vue'
@@ -8,7 +8,8 @@ import SessionHistoryDrawer from './SessionHistoryDrawer.vue'
 import AppLoading from '@/components/AppLoading.vue'
 import { useAgentHubStore, type AgentSession } from '@/stores/agentHub'
 import { ArrowForwardOutline, CompassOutline } from '@vicons/ionicons5'
-import { NButton, NIcon, NModal, useMessage } from 'naive-ui'
+import { NButton, NIcon, NInput, NModal, useMessage } from 'naive-ui'
+import { agentDomainLabel } from '@/utils/agentDomainMap'
 
 const store = useAgentHubStore()
 const message = useMessage()
@@ -20,6 +21,30 @@ const historyOpen = ref(false)
 const agentPickerOpen = ref(false)
 const agentPickerIntent = ref<'new-chat' | 'agent-center'>('new-chat')
 const targetMessageId = ref('')
+const agentSearch = ref('')
+const agentDomain = ref('')
+const highlightedAgentId = ref('')
+const searchInput = ref<HTMLElement | null>(null)
+const recentAgentIds = ref<string[]>([])
+const RECENT_KEY = 'stardust.recentAgents'
+const pickerAgents = computed(() => store.activeAgents.filter((a) => a.id !== ROUTER_AGENT_ID))
+const domainOptions = computed(() => {
+  const counts = new Map<string, number>()
+  for (const agent of pickerAgents.value) {
+    const label = agentDomainLabel(agent.category)
+    counts.set(label, (counts.get(label) || 0) + 1)
+  }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1])
+})
+const recentAgents = computed(() => recentAgentIds.value.map((id) => pickerAgents.value.find((a) => a.id === id)).filter(Boolean).slice(0, 4))
+const hasPickerMatches = computed(() => pickerAgents.value.some((agent) => {
+  const domain = agentDomainLabel(agent.category)
+  if (agentDomain.value && domain !== agentDomain.value) return false
+  const q = agentSearch.value.trim().toLocaleLowerCase()
+  if (!q) return true
+  const caps = [...store.mcpsByIds(agent.mcp_ids).map((m) => m.name), ...store.skillsByIds(agent.skill_ids).map((s) => s.name)]
+  return [agent.name, agent.description, ...caps].some((v) => v.toLocaleLowerCase().includes(q))
+}))
 let agentPickerTrigger: HTMLElement | null = null
 
 const agentPickerCopy = computed(() =>
@@ -93,10 +118,42 @@ function handleOpenAgentCenter() {
 }
 
 function handleSelectAgent(agentId: string) {
+  if (agentId !== ROUTER_AGENT_ID) {
+    recentAgentIds.value = [agentId, ...recentAgentIds.value.filter((id) => id !== agentId)].slice(0, 8)
+    localStorage.setItem(RECENT_KEY, JSON.stringify(recentAgentIds.value))
+  }
   agentPickerTrigger = null
   agentPickerOpen.value = false
   store.startSessionFromAgent(agentId)
 }
+
+function moveHighlight(step: number) {
+  const visible = pickerAgents.value.filter((agent) => {
+    const q = agentSearch.value.trim().toLocaleLowerCase()
+    const domain = agentDomainLabel(agent.category)
+    if (agentDomain.value && domain !== agentDomain.value) return false
+    if (!q) return true
+    const caps = [...store.mcpsByIds(agent.mcp_ids).map((m) => m.name), ...store.skillsByIds(agent.skill_ids).map((s) => s.name)]
+    return [agent.name, agent.description, ...caps].some((v) => v.toLocaleLowerCase().includes(q))
+  })
+  if (!visible.length) return
+  const index = Math.max(0, visible.findIndex((a) => a.id === highlightedAgentId.value))
+  highlightedAgentId.value = visible[(index + step + visible.length) % visible.length].id
+}
+
+function handlePickerKeydown(event: KeyboardEvent) {
+  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); moveHighlight(event.key === 'ArrowDown' ? 1 : -1) }
+  else if (event.key === 'Enter' && highlightedAgentId.value) { event.preventDefault(); handleSelectAgent(highlightedAgentId.value) }
+  else if (event.key === 'Escape') { event.preventDefault(); agentPickerOpen.value = false }
+}
+
+watch(agentPickerOpen, async (open) => {
+  if (open) {
+    try { recentAgentIds.value = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]').filter((id: unknown) => typeof id === 'string') } catch { recentAgentIds.value = [] }
+    agentSearch.value = ''; agentDomain.value = ''; highlightedAgentId.value = ''
+    await nextTick(); searchInput.value?.focus()
+  }
+})
 
 function handleAgentPickerAfterLeave() {
   const trigger = agentPickerTrigger
@@ -166,6 +223,7 @@ function handleHistorySelect(session: AgentSession, messageId?: string) {
       :segmented="false"
       aria-labelledby="agent-picker-title"
       @after-leave="handleAgentPickerAfterLeave"
+      @keydown="handlePickerKeydown"
     >
       <div class="agent-picker-content">
         <header class="agent-picker-header">
@@ -194,6 +252,16 @@ function handleHistorySelect(session: AgentSession, messageId?: string) {
           </span>
           <NIcon class="route-action" :component="ArrowForwardOutline" aria-hidden="true" />
         </button>
+        <div class="agent-picker-tools">
+          <NInput ref="searchInput" v-model:value="agentSearch" clearable placeholder="搜索智能体名称、描述或能力…" aria-label="搜索智能体" />
+          <div class="domain-chips" role="radiogroup" aria-label="智能体领域筛选">
+            <button type="button" class="domain-chip" :class="{ active: !agentDomain }" @click="agentDomain = ''">全部 {{ pickerAgents.length }}</button>
+            <button v-for="[domain, count] in domainOptions" :key="domain" type="button" class="domain-chip" :class="{ active: agentDomain === domain }" @click="agentDomain = agentDomain === domain ? '' : domain">{{ domain }} {{ count }}</button>
+          </div>
+        </div>
+        <div v-if="!agentSearch && recentAgents.length" class="recent-agents">
+          <button v-for="agent in recentAgents" :key="agent!.id" type="button" class="recent-agent" @click="handleSelectAgent(agent!.id)"><span>{{ agent!.avatar }}</span>{{ agent!.name }}</button>
+        </div>
         <section class="agent-picker-experts" aria-labelledby="agent-picker-experts-title">
           <div class="agent-picker-section-heading">
             <div>
@@ -203,12 +271,13 @@ function handleHistorySelect(session: AgentSession, messageId?: string) {
             <span class="agent-picker-section-hint">按领域切换查看</span>
           </div>
           <div class="agent-picker-scroll">
-            <AgentHub compact :exclude-agent-ids="[ROUTER_AGENT_ID]" @select="handleSelectAgent" />
+            <div v-if="agentSearch && !hasPickerMatches" class="agent-empty">没有匹配“{{ agentSearch }}”的智能体<NButton text size="small" @click="handleSelectAgent(ROUTER_AGENT_ID)">交给星尘 AI 自动分派</NButton></div>
+            <AgentHub compact :exclude-agent-ids="[ROUTER_AGENT_ID]" :search-query="agentSearch" :category-filter="agentDomain" :highlighted-agent-id="highlightedAgentId" @select="handleSelectAgent" />
           </div>
         </section>
         <footer class="agent-picker-footer">
-          <p>选择后会开启新对话，当前会话仍可从历史记录中恢复。</p>
-          <NButton quaternary size="small" @click="agentPickerOpen = false">暂不切换</NButton>
+          <p>ⓘ 选择后会开启新对话，当前会话仍可从历史记录中恢复。</p>
+          <NButton quaternary size="small" @click="agentPickerOpen = false">取消</NButton>
         </footer>
       </div>
     </NModal>
@@ -234,6 +303,10 @@ function handleHistorySelect(session: AgentSession, messageId?: string) {
 }
 :deep(.agent-picker-modal.n-card),
 :deep(.agent-picker-modal .n-card) {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  height: min(72vh, 860px);
   max-height: calc(100dvh - 32px);
   overflow: hidden;
   border: 1px solid var(--chat-border, var(--neutral-border));
@@ -249,18 +322,28 @@ function handleHistorySelect(session: AgentSession, messageId?: string) {
 
 :deep(.agent-picker-modal .n-card__content),
 :deep(.agent-picker-modal.n-card .n-card__content) {
-  max-height: calc(100dvh - 32px);
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  box-sizing: border-box;
+  height: auto;
+  max-height: none;
   padding: var(--space-2xl, 24px) var(--space-3xl, 32px) var(--space-xl, 20px);
-  overflow-y: auto;
+  overflow: hidden;
   overscroll-behavior: contain;
 }
 
 .agent-picker-content {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
   min-height: 0;
 }
 
 .agent-picker-header {
   display: flex;
+  flex-shrink: 0;
   align-items: flex-start;
   gap: var(--space-lg, 16px);
   margin-bottom: var(--space-2xl, 24px);
@@ -314,6 +397,7 @@ function handleHistorySelect(session: AgentSession, messageId?: string) {
 .stardust-route-card {
   position: relative;
   display: flex;
+  flex-shrink: 0;
   width: 100%;
   align-items: center;
   gap: var(--space-lg, 16px);
@@ -398,8 +482,20 @@ function handleHistorySelect(session: AgentSession, messageId?: string) {
 }
 
 .agent-picker-experts {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
   margin-top: var(--space-2xl, 24px);
 }
+.agent-picker-tools { display: grid; flex-shrink: 0; gap: 10px; margin-top: 16px; }
+.domain-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.domain-chip, .recent-agent { border: 1px solid var(--chat-border, var(--neutral-border)); border-radius: 999px; color: var(--chat-text-secondary, var(--neutral-text-2)); background: transparent; cursor: pointer; font-size: 12px; line-height: 20px; padding: 3px 10px; }
+.domain-chip.active { border-color: var(--arco-primary); color: var(--arco-primary); background: color-mix(in srgb, var(--arco-primary) 8%, transparent); }
+.recent-agents { display: flex; flex-shrink: 0; gap: 8px; margin-top: 12px; overflow-x: auto; }
+.recent-agent { display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto; border-radius: 8px; }
+.recent-agent span { font-size: 20px; }
+.agent-empty { display: grid; justify-items: center; gap: 10px; padding: 28px 12px; color: var(--chat-text-muted, var(--neutral-text-3)); font-size: 13px; }
 
 .agent-picker-section-heading {
   display: flex;
@@ -430,11 +526,26 @@ function handleHistorySelect(session: AgentSession, messageId?: string) {
 }
 
 .agent-picker-scroll {
+  min-width: 0;
   min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 2px 4px 4px 0;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.agent-picker-scroll :deep(.agent-hub.compact) {
+  display: block;
+  flex: none;
+  min-height: 100%;
+}
+.agent-picker-scroll :deep(.agent-hub.compact .hub-inner) {
+  margin: 0;
 }
 
 .agent-picker-footer {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-lg, 16px);
@@ -454,6 +565,11 @@ function handleHistorySelect(session: AgentSession, messageId?: string) {
   :deep(.agent-picker-modal .n-card__content),
   :deep(.agent-picker-modal.n-card .n-card__content) {
     padding: var(--space-lg, 16px);
+  }
+
+  :deep(.agent-picker-modal.n-card),
+  :deep(.agent-picker-modal .n-card) {
+    height: calc(100dvh - 32px);
   }
 
   .agent-picker-header {

@@ -18,10 +18,8 @@ const caps = computed(() => [
   ...mountedMcps.value.map((m) => `搭载 ${m.name}`),
   ...mountedSkills.value.map((s) => s.name),
 ])
-const capabilityLabel = computed(() => {
-  if (caps.value.length) return `${caps.value.length} 项专属能力`
-  return '通用会话能力'
-})
+const visibleCaps = computed(() => caps.value.slice(0, 3))
+const extraCaps = computed(() => caps.value.slice(3))
 </script>
 
 <template>
@@ -43,8 +41,11 @@ const capabilityLabel = computed(() => {
           </div>
           <span class="enter-mark" aria-hidden="true">↗</span>
         </div>
-        <div class="desc">{{ agent.description }}</div>
-        <div class="capability">{{ capabilityLabel }}</div>
+        <div class="desc" :title="agent.description">{{ agent.description }}</div>
+        <div v-if="visibleCaps.length" class="capability-chips">
+          <span v-for="cap in visibleCaps" :key="cap" class="cap-chip">{{ cap }}</span>
+          <span v-if="extraCaps.length" class="cap-chip cap-more">+{{ extraCaps.length }}</span>
+        </div>
       </button>
     </template>
     <div class="cap-pop">
@@ -62,13 +63,13 @@ const capabilityLabel = computed(() => {
   width: 100%;
   position: relative;
   display: flex; flex-direction: column;
-  min-height: 174px;
-  padding: 20px;
+  min-height: 76px;
+  padding: 12px;
   color: inherit;
   text-align: left;
   background: var(--chat-surface, var(--neutral-card));
   border: 1px solid var(--chat-border, var(--neutral-border));
-  border-radius: 16px;
+  border-radius: 12px;
   cursor: pointer;
   transition: border-color .16s ease, box-shadow .16s ease, background-color .16s ease;
   height: 100%;
@@ -77,6 +78,7 @@ const capabilityLabel = computed(() => {
   border-color: var(--agent-color);
   background: color-mix(in srgb, var(--agent-color) 5%, var(--chat-surface, var(--neutral-card)));
 }
+.agent-card.is-highlighted { border-color: var(--arco-primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--arco-primary) 20%, transparent); }
 .agent-card:focus-visible {
   outline: 2px solid var(--agent-color);
   outline-offset: 3px;
@@ -94,15 +96,16 @@ const capabilityLabel = computed(() => {
 .category { margin-top: 2px; font-size: 12px; color: var(--chat-text-muted, var(--neutral-text-3)); }
 .enter-mark { margin-left: auto; color: var(--chat-text-muted, var(--neutral-text-3)); font-size: 16px; line-height: 1; }
 .desc {
-  display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
-  margin: 16px 0 auto; min-height: 38px;
+  overflow: hidden; margin: 8px 0 0;
+  text-overflow: ellipsis; white-space: nowrap;
   font-size: 12px; color: var(--chat-text-secondary, var(--neutral-text-2)); line-height: 1.6;
 }
-.capability { margin-top: 14px; font-size: 12px; color: var(--chat-text-muted, var(--neutral-text-3)); }
+.capability-chips { display: flex; gap: 4px; margin-top: 7px; overflow: hidden; }
+.cap-chip { max-width: 140px; overflow: hidden; padding: 2px 6px; border-radius: 4px; color: var(--chat-text-muted, var(--neutral-text-3)); background: var(--neutral-hover); font-size: 11px; line-height: 15px; text-overflow: ellipsis; white-space: nowrap; }
+.cap-more { flex: 0 0 auto; color: var(--arco-primary); }
 
-.agent-card.compact { min-height: 128px; padding: 16px; border-radius: var(--radius-lg, 14px); }
-.agent-card.compact .desc { margin-top: 11px; min-height: 34px; }
-.agent-card.compact .capability { margin-top: 9px; }
+.agent-card.compact { min-height: 76px; padding: 12px; border-radius: 10px; }
+.agent-card.compact .desc { margin-top: 8px; }
 
 .cap-pop { font-size: 13px; }
 .cap-title { font-weight: 600; margin-bottom: 8px; }

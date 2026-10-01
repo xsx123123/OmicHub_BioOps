@@ -682,7 +682,13 @@ def _tail(text: str, limit: int) -> tuple[str, bool]:
 
 def _append_bounded_text(current: str, data: str, limit: int) -> tuple[str, bool]:
     """追加输出并只保留尾部，避免慢客户端或异常工具撑大 Web 进程内存。"""
-    combined = f"{current}\n{data}" if current else data
+    # 流读取器保留行尾换行；兼容旧的无换行事件，但不为已有分隔符重复补行。
+    separator = (
+        ""
+        if not current or current.endswith(("\n", "\r")) or data.startswith(("\n", "\r"))
+        else "\n"
+    )
+    combined = f"{current}{separator}{data}" if current else data
     return _tail(combined, limit)
 
 

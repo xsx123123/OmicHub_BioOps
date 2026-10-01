@@ -47,6 +47,7 @@ def _to_dto(config: AIProviderConfig) -> AIProviderConfigDTO:
         base_url=config.base_url,
         temperature=config.temperature,
         max_tokens=config.max_tokens,
+        context_window=config.context_window,
         top_p=config.top_p,
         timeout=config.timeout,
         input_price=config.input_price,
@@ -133,6 +134,7 @@ class AIProviderConfigService:
             api_key=dto.api_key,
             temperature=dto.temperature,
             max_tokens=dto.max_tokens,
+            context_window=dto.context_window,
             top_p=dto.top_p,
             timeout=dto.timeout,
             input_price=dto.input_price,
@@ -161,6 +163,7 @@ class AIProviderConfigService:
         config.base_url = dto.base_url
         config.temperature = dto.temperature
         config.max_tokens = dto.max_tokens
+        config.context_window = dto.context_window
         config.top_p = dto.top_p
         config.timeout = dto.timeout
         config.input_price = dto.input_price

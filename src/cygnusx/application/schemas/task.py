@@ -21,6 +21,7 @@ class TaskSubmitRequest(CygnusXBaseSchema):
     sample_sheet: list[dict[str, Any]] = []
     comparisons: list[dict[str, Any]] | None = None
     execution_mode: ExecutionMode = ExecutionMode.LOCAL
+    idempotency_key: str | None = Field(default=None, max_length=128)
 
 
 class TaskLogResponse(CygnusXBaseSchema):

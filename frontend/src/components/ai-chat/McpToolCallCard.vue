@@ -400,6 +400,9 @@ function handleOpenToolPage() {
   overflow-y: auto;
   white-space: pre-wrap;
   word-break: break-all;
+  overflow-wrap: anywhere;
+  min-width: 0;
+  max-width: 100%;
 }
 
 /* 展开/折叠过渡 */

@@ -109,13 +109,18 @@ export function summarizeUsage(messages: HasTokens[], pricing: TokenPricing): Se
     if (!tokens) continue
     input += tokens.input || 0
     output += tokens.output || 0
-    cached += tokens.cached || 0
-    cachedOutput += tokens.cachedOutput || 0
+    cached += Math.max(0, tokens.cached || 0)
+    cachedOutput += Math.max(0, tokens.cachedOutput || 0)
     total += tokens.total ?? (tokens.input || 0) + (tokens.output || 0)
   }
   // 缓存 tokens 含在 input/output 内，避免重复计费：未命中部分按输入/输出单价，命中部分按对应缓存单价
-  const uncachedInput = Math.max(0, input - cached)
-  const uncachedOutput = Math.max(0, output - cachedOutput)
+  // Provider metadata must not be able to charge more cached tokens than the
+  // corresponding total. Clamp both the billable amount and the displayed
+  // counters for malformed/legacy usage payloads.
+  cached = Math.min(cached, input)
+  cachedOutput = Math.min(cachedOutput, output)
+  const uncachedInput = input - cached
+  const uncachedOutput = output - cachedOutput
   const cost =
     (uncachedInput / 1_000_000) * pricing.inputPerM +
     (cached / 1_000_000) * pricing.inputCachePerM +

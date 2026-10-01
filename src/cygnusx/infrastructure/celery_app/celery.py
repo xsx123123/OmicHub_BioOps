@@ -25,6 +25,7 @@ celery_app = Celery(
     task_cls=LoggedTask,
     include=[
         "cygnusx.infrastructure.celery_app.tasks.analysis",
+        "cygnusx.infrastructure.celery_app.tasks.run_events",
         "cygnusx.infrastructure.celery_app.tasks.cookie",
         "cygnusx.infrastructure.celery_app.tasks.download",
         "cygnusx.tools.jbrowse.tasks",
@@ -70,6 +71,7 @@ celery_app.conf.update(
 # 队列路由
 celery_app.conf.task_routes = {
     "cygnusx.infrastructure.celery_app.tasks.analysis.*": {"queue": "analysis"},
+    "cygnusx.infrastructure.celery_app.tasks.run_events.*": {"queue": "analysis"},
     "cygnusx.infrastructure.celery_app.tasks.cookie.*": {"queue": "analysis"},
     "cygnusx.infrastructure.celery_app.tasks.download.*": {"queue": "analysis"},
     "cygnusx.tools.jbrowse.tasks.*": {"queue": "analysis"},
@@ -163,6 +165,10 @@ celery_app.conf.beat_schedule = {
     "mas-outbox-publish": {
         "task": "cygnusx.infrastructure.celery_app.tasks.mas.publish_outbox",
         "schedule": 10.0,
+    },
+    "run-events-publish": {
+        "task": "cygnusx.infrastructure.celery_app.tasks.run_events.publish_pending",
+        "schedule": 5.0,
     },
     "mas-event-consume": {
         "task": "cygnusx.infrastructure.celery_app.tasks.mas.consume_events",

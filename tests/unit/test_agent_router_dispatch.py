@@ -17,7 +17,11 @@ import pytest
 
 import cygnusx.application.services.chat_service as chat_service_module
 from cygnusx.application.schemas.agent import AgentTemplateDTO
-from cygnusx.application.services.chat_service import ROUTER_SYSTEM_PROMPT, ChatService
+from cygnusx.application.services.chat_service import (
+    ROUTER_MAX_TOKENS,
+    ROUTER_SYSTEM_PROMPT,
+    ChatService,
+)
 from cygnusx.infrastructure.config import agent_loader
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -96,6 +100,7 @@ class _FakeCapabilityRegistry:
 
 
 def test_runtime_router_prompt_keeps_decision_on_stardust_ai() -> None:
+    assert ROUTER_MAX_TOKENS == 10000
     assert "星尘 AI" in ROUTER_SYSTEM_PROMPT
     assert "不要执行分析" in ROUTER_SYSTEM_PROMPT
     assert "前端关键词规则" in ROUTER_SYSTEM_PROMPT
@@ -103,6 +108,9 @@ def test_runtime_router_prompt_keeps_decision_on_stardust_ai() -> None:
     assert "领域词只用于选择合适的专家" in ROUTER_SYSTEM_PROMPT
     assert "不能仅因“单细胞”创建流程型 Case" in ROUTER_SYSTEM_PROMPT
     assert "emoji" in ROUTER_SYSTEM_PROMPT
+    assert ".qs" in ROUTER_SYSTEM_PROMPT
+    assert ".h5ad" in ROUTER_SYSTEM_PROMPT
+    assert "单细胞对象中的细胞注释" in ROUTER_SYSTEM_PROMPT
 
 
 class _FakeAgentService:
@@ -355,11 +363,15 @@ async def test_router_does_not_override_model_target_with_keyword_rules(
         json.dumps({"agent_id": "agent-general", "reason": "模型决定由通用助手处理"}),
     )
 
-    ctx, info = await service._route_to_agent(router_ctx, "请画一个火山图")
+    ctx, info = await service._route_to_agent(
+        router_ctx,
+        "@inbox/raw-data/integration_harmony.qs 帮我可视化这个细胞注释结果，并展示特定亚群的top基因",
+    )
 
     assert ctx is not None and ctx.agent_id == "agent-general"
     assert info is not None and info["agent_id"] == "agent-general"
     assert info["reason"] == "模型决定由通用助手处理"
+
 
 
 # ---------------------------------------------------------------------------

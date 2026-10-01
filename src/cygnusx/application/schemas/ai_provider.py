@@ -13,6 +13,7 @@ class AIProviderConfigBaseDTO(BaseModel):
     base_url: str = ""
     temperature: float = 0.7
     max_tokens: int = 2048
+    context_window: int = Field(default=262144, ge=1)
     top_p: float = 1.0
     timeout: int = 120
     # 输入/输出/输入缓存/输出缓存单价（元 / M tokens），工作台费用估算用；None/缺省 = 未配置

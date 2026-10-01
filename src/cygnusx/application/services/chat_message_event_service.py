@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from datetime import UTC, datetime
 from typing import Any
 
 from loguru import logger
@@ -33,6 +34,7 @@ _FLUSH_EVENT_COUNT = 8
 _FLUSH_PAYLOAD_BYTES = 32 * 1024
 
 _EVENT_TYPE_TOOL_OUTPUT = "tool_output"
+_EVENT_TYPE_CONTEXT_COMPACTED = "context_compacted"
 
 
 class _MessageEventBuffer:
@@ -61,6 +63,45 @@ class ChatMessageEventService:
         self._lock = asyncio.Lock()
 
     # ----- 写入 -----
+
+    async def append_compaction_event(
+        self,
+        message_id: str,
+        *,
+        tokens_before: int,
+        tokens_after: int,
+        yield_ratio: float,
+        archived_count: int = 0,
+        note_preview_sha256: str = "",
+        archive_ref: str = "",
+    ) -> bool:
+        """Append a best-effort context compaction audit event."""
+        if not message_id:
+            return False
+        try:
+            async with self._lock:
+                buffer = self._buffers.setdefault(message_id, _MessageEventBuffer())
+                buffer.append(
+                    {
+                        "event_type": _EVENT_TYPE_CONTEXT_COMPACTED,
+                        "payload": {
+                            "tokens_before": int(tokens_before),
+                            "tokens_after": int(tokens_after),
+                            "yield_ratio": float(yield_ratio),
+                            "archived_count": int(archived_count),
+                            "note_preview_sha256": note_preview_sha256,
+                            "created_at": datetime.now(UTC).isoformat(),
+                            "archive_ref": archive_ref,
+                        },
+                    }
+                )
+                events = list(buffer.events)
+                self._buffers.pop(message_id, None)
+            await self._flush_events(message_id, events)
+            return True
+        except Exception as exc:  # noqa: BLE001 - event audit must not block chat
+            logger.warning(f"[Events] context_compacted 事件写入失败（降级丢弃）: {exc}")
+            return False
 
     async def append_tool_output(
         self,

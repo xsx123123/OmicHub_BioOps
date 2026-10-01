@@ -20,6 +20,36 @@
 - 面向开发者和部署脚本的稳定入口必须是 Make target，不在文档中依赖容易失效的裸 `docker build` 路径。
 - 高计算量工具镜像必须在对应 Worker 启动前完成构建；`make docker-up-worker` 和 `make docker-start` 应自动满足该依赖。
 
+## Studio/沙盒镜像映射与更新流程
+
+镜像 tag 与配置的唯一登记表是 [`deploy/image-mapping.yaml`](../image-mapping.yaml)。当前映射如下：
+
+| 用途 | 镜像 | Dockerfile | 主要配置来源 |
+|---|---|---|---|
+| 通用分析 | `cygnusx-analysis:core-v0.0.2dev` | `deploy/runtime-images/core.Dockerfile` | `data/ai/runtime_images.yaml`、`data/ai/studio.yaml` |
+| 绘图分析 | `cygnusx-analysis:plot-v0.0.2dev` | `deploy/runtime-images/plot.Dockerfile` | `data/ai/runtime_images.yaml`、`data/ai/studio.yaml` |
+| 单细胞分析 | `cygnusx-analysis:scrna-v0.0.3dev` | `deploy/runtime-images/scrna.Dockerfile` | `data/ai/runtime_images.yaml`、`data/ai/studio.yaml`、`.env.example` |
+| Studio base | `cygnusx-sandbox-base:v0.0.2dev` | `deploy/studio/base.Dockerfile` | `data/ai/runtime_images.yaml`、`data/ai/studio.yaml` |
+| Studio bio | `cygnusx-sandbox-bio:v0.0.2dev` | `deploy/studio/bio.Dockerfile` | `data/ai/runtime_images.yaml`、`data/ai/studio.yaml` |
+| 浏览器/办公 | `cygnusx-sandbox-browser-office:v0.0.2dev` | `deploy/studio/browser-office.Dockerfile` | `data/ai/runtime_images.yaml`、`data/ai/studio.yaml` |
+| Copilot 执行沙盒 | `cygnusx-sandbox-copilot:v0.0.2dev` | `deploy/sandbox/Dockerfile` | `src/cygnusx/core/config.py` |
+| 终端基础/子镜像 | `cygnusx-sandbox-terminal:*` | `tool_configs/terminal/docker/` | `tool_configs/terminal/terminal_images.yaml` |
+
+Agent 的选择链是：`data/ai/<agent>.yaml` 中的 `studio.runtime_profile` ->
+`data/ai/runtime_images.yaml` 的 `profiles.<profile>.image`。例如 `agent-scrna` 使用
+`analysis-scrna`，`agent-viz` 使用 `analysis-plot`；不要直接在 Agent 文件中写另一个镜像 tag。
+
+更新镜像时按以下顺序操作：
+
+1. 先修改 `deploy/image-mapping.yaml` 中的最终镜像名和 tag。
+2. 同步修改清单指出的 runtime/Studio/终端配置、`.env.example`、构建脚本和 Makefile 检查列表。
+3. 运行 `make validate-image-mapping`；该命令同时检查 19 个启用 Agent 的 profile 映射。
+4. 运行 `make docker-build-sandboxes` 构建并检查本地镜像；部署主机还应执行
+   `python deploy/validate_image_mapping.py --check-local`。
+
+如果只更新了 Dockerfile 或只更新了 `data/ai/*.yaml`，校验会失败并列出未同步的文件，
+这样可以在运行时之前发现 `pull access denied`、错误 tag 或错误 Agent 镜像映射。
+
 ## 沙盒镜像 UID/GID 与挂载权限规范
 
 所有会被 Studio、聊天沙盒或分析运行时挂载工作区的镜像，统一使用以下数值身份：

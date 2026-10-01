@@ -22,6 +22,8 @@ export interface ChatSessionDTO {
   last_message_at: string | null
   /** 科研模式设置（后端契约新增字段；旧数据无此字段时为 null/undefined） */
   research_mode?: ResearchModeSettings | null
+  /** 普通 AI 助手会话级分析归档索引 */
+  analysis_archive?: Record<string, unknown> | null
 }
 
 export interface ChatMessageDTO {
@@ -37,6 +39,7 @@ export interface ChatMessageDTO {
     output: number
     total: number
     cached?: number
+    cachedOutput?: number
   }
 }
 

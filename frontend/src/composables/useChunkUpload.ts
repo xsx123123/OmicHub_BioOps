@@ -234,6 +234,9 @@ export function useChunkUpload(options: UseChunkUploadOptions = {}) {
         const mergeResp = (
           await apiClient.post<UploadMergeResponse>('/files/upload/merge', {
             upload_id: initResp.upload_id,
+          }, {
+            // 合并大文件可能持续数分钟，不能使用普通 API 的 30 秒超时。
+            timeout: 10 * 60 * 1000,
           })
         ).data
         item.status = 'completed'

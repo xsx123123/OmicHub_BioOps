@@ -1,6 +1,9 @@
 # syntax=docker/dockerfile:1.7
-ARG CYGNUSX_IMAGE_TAG=v0.0.3dev
-FROM cygnusx-analysis:scrna-${CYGNUSX_IMAGE_TAG}
+# The single-cell image extends the plotting runtime.  Using ``scrna-*`` here
+# would make the image inherit from itself and force Docker to pull a
+# non-existent registry repository when the tag is not already present.
+ARG CYGNUSX_IMAGE_TAG=v0.0.2dev
+FROM cygnusx-analysis:plot-${CYGNUSX_IMAGE_TAG}
 
 ARG SANDBOX_GID=10001
 

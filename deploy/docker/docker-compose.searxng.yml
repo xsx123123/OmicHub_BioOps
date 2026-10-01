@@ -1,0 +1,60 @@
+# SearXNG 自托管搜索实例 —— 接入 CygnusX 网络搜索
+#
+# 部署（先启动主栈以创建共享网络）：
+#   docker compose -f deploy/docker/docker-compose.yml up -d web
+#   docker compose -f deploy/docker/docker-compose.searxng.yml up -d
+# 验证：curl "http://localhost:8898/search?q=test&format=json" | jq '.results | length'
+# 平台侧：管理后台 → 搜索服务商 → SearXNG 自建 → base_url 填 http://searxng:8080 → 启用
+#
+# 引擎可用性基于 2026-09-20 调研（searx.space 93 实例聚合 + 本机探测）：
+#   Google/Bing 健康；Brave(25/36 实例错误率≥50%)/DuckDuckGo(21/40) 大面积故障，
+#   Startpage 39/40 故障 —— 故禁用，随上游修复再启用。
+# 注意：不挂只读卷到 /etc/searxng 之外的可写路径；settings.yml 首次启动前必须存在
+#（SearXNG 不会自动生成 secret_key）。
+
+services:
+  searxng:
+    image: searxng/searxng:2026.9.19-e831fc2a1  # pin 日期+commit digest，升级前先做 live 引擎对比
+    container_name: cygnusx-searxng
+    ports:
+      - "8898:8080"
+    volumes:
+      - ./searxng:/etc/searxng:rw
+    environment:
+      - SEARXNG_BASE_URL=http://searxng:8080/
+      - SEARXNG_REDIS_URL=redis://cygnusx-searxng-cache:6379/0
+    networks:
+      - cygnusx_app_net
+      - searxng_internal
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  searxng-cache:
+    image: redis:7-alpine
+    container_name: cygnusx-searxng-cache
+    networks:
+      - searxng_internal
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    command: redis-server --maxmemory 100mb --maxmemory-policy allkeys-lru
+    restart: unless-stopped
+
+networks:
+  # 与 cygnusx-web 共享稳定网络，平台容器内经 http://searxng:8080 访问
+  cygnusx_app_net:
+    name: ${CYGNUSX_APP_NETWORK_NAME:-cygnusx_app_net}
+    external: true
+  # Redis 只在内部网络，不暴露端口
+  searxng_internal:
+    driver: bridge

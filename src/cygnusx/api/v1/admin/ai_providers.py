@@ -17,6 +17,7 @@ from cygnusx.application.schemas.ai_provider import (
     AIProviderTemplate,
 )
 from cygnusx.application.services.ai_provider_service import AIProviderConfigService
+from cygnusx.core.config import reload_settings
 
 router = APIRouter()
 
@@ -56,6 +57,16 @@ async def create_config(
     req: AIProviderConfigCreateDTO,
 ) -> AIProviderConfigDTO:
     return await service.create_config(req)
+
+
+@router.post("/runtime/reload", summary="重载聊天运行时配置")
+async def reload_runtime_config(_admin: AdminRequired) -> dict[str, Any]:
+    """Re-read environment-backed runtime settings without exposing secrets."""
+    settings = reload_settings()
+    return {
+        "reloaded": True,
+        "context_compaction": settings.context_compaction.model_dump(),
+    }
 
 
 @router.get("/{config_id}", response_model=AIProviderConfigDTO, summary="AI Provider 配置详情")

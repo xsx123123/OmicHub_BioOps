@@ -27,6 +27,7 @@ class AIProviderConfigModel(Base, TimestampMixin):
     api_key: Mapped[str] = mapped_column(Text, default="", nullable=False)
     temperature: Mapped[float] = mapped_column(Float, default=0.7, nullable=False)
     max_tokens: Mapped[int] = mapped_column(Integer, default=2048, nullable=False)
+    context_window: Mapped[int] = mapped_column(Integer, default=262144, nullable=False)
     top_p: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
     timeout: Mapped[int] = mapped_column(Integer, default=120, nullable=False)
     # 输入/输出/输入缓存/输出缓存单价（元 / M tokens），用于工作台会话费用估算；None = 未配置

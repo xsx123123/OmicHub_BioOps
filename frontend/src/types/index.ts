@@ -97,6 +97,8 @@ export interface FlowDefinition {
   author?: string | null
   parameter_count?: number
   has_sample_sheet?: boolean
+  status?: string
+  badge?: string
 }
 
 export interface DataFile {
@@ -377,6 +379,8 @@ export interface AIProviderConfig {
   base_url: string
   temperature: number
   max_tokens: number
+  /** 模型上下文窗口大小（tokens），用于服务端压缩触发阈值 */
+  context_window: number
   top_p: number
   timeout: number
   /** 输入/输出/输入缓存/输出缓存单价（元 / M tokens），null = 未配置，费用估算回退到全局单价 */

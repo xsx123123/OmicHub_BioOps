@@ -13,6 +13,7 @@ from __future__ import annotations
 import contextlib
 import hashlib
 import uuid
+from collections.abc import AsyncIterator
 from pathlib import Path
 from uuid import UUID
 
@@ -178,77 +179,102 @@ class UploadService:
             raise NotFoundError("上传会话不存在")
         if session.status == "completed":
             raise ValidationError("上传会话已合并完成")
-        if len(session.uploaded_chunks) != session.total_chunks:
-            raise ValidationError(
-                f"分片不齐全：已传 {len(session.uploaded_chunks)}/{session.total_chunks}"
-            )
+
+        tmp_dir = self._factory.tmp_dir(str(upload_id))
+        chunk_paths: list[tuple[int, str, int]] = []
+        try:
+            for index in range(session.total_chunks):
+                expected_size = min(
+                    session.chunk_size,
+                    session.total_size - index * session.chunk_size,
+                )
+                if expected_size <= 0:
+                    raise ValidationError(f"上传会话分片参数无效：{index}")
+                chunk_rel = self._factory.relative_to_root(tmp_dir / str(index))
+                info = await self._backend.stat(chunk_rel)
+                if not info or info.get("is_dir") or info.get("size") != expected_size:
+                    actual = info.get("size") if info else 0
+                    raise ValidationError(
+                        f"分片文件不完整：{index}（{actual}/{expected_size} bytes）"
+                    )
+                chunk_paths.append((index, chunk_rel, expected_size))
+        except Exception:
+            with contextlib.suppress(Exception):
+                await self._sessions.update_status(user_id, upload_id, "failed")
+                await self._session.commit()
+            raise
 
         await self._sessions.update_status(user_id, upload_id, "merging")
         await self._session.commit()
 
-        tmp_dir = self._factory.tmp_dir(str(upload_id))
-        directory = _normalize_directory(session.directory)
-        inbox_subdir = await self._inbox_subdir(user_id, directory)
-        final_path = inbox_subdir / session.file_name
-        final_rel = self._factory.relative_to_root(final_path)
-        if await self._backend.exists(final_rel):
-            final_path = _append_dedupe_suffix(final_path, uuid.uuid4().hex[:8])
+        try:
+            directory = _normalize_directory(session.directory)
+            inbox_subdir = await self._inbox_subdir(user_id, directory)
+            final_path = inbox_subdir / session.file_name
             final_rel = self._factory.relative_to_root(final_path)
+            if await self._backend.exists(final_rel):
+                final_path = _append_dedupe_suffix(final_path, uuid.uuid4().hex[:8])
+                final_rel = self._factory.relative_to_root(final_path)
 
-        hasher = hashlib.md5()
-        merged_bytes = bytearray()
-        for chunk_meta in sorted(session.uploaded_chunks, key=lambda c: c["index"]):
-            chunk_rel = self._factory.relative_to_root(
-                tmp_dir / str(chunk_meta["index"])
+            hasher = hashlib.md5()
+            size = 0
+
+            async def iter_chunks() -> AsyncIterator[bytes]:
+                nonlocal size
+                for index, chunk_rel, expected_size in chunk_paths:
+                    data = await self._backend.read(chunk_rel)
+                    if len(data) != expected_size:
+                        raise ValidationError(
+                            f"分片文件在合并时发生变化：{index}（{len(data)}/{expected_size} bytes）"
+                        )
+                    hasher.update(data)
+                    size += len(data)
+                    yield data
+
+            await self._backend.write_stream(final_rel, iter_chunks())
+
+            checksum = hasher.hexdigest()
+
+            file_record = DataFile(
+                id=uuid.uuid4(),
+                user_id=user_id,
+                path=final_rel,
+                original_name=session.file_name,
+                size=size,
+                checksum=checksum,
+                file_type=_detect_file_type(session.file_name),
+                status="active",
+                directory=directory,
             )
-            if not await self._backend.exists(chunk_rel):
-                raise ValidationError(f"分片文件丢失：{chunk_meta['index']}")
-            data = await self._backend.read(chunk_rel)
-            merged_bytes.extend(data)
-            hasher.update(data)
+            await self._files.save(file_record)
 
-        await self._backend.write(final_rel, bytes(merged_bytes))
+            new_used = await self._users.add_used_storage(user_id, size)
 
-        checksum = hasher.hexdigest()
-        size = len(merged_bytes)
+            await self._sessions.update_status(user_id, upload_id, "completed")
+            await self._session.commit()
 
-        file_record = DataFile(
-            id=uuid.uuid4(),
-            user_id=user_id,
-            path=final_rel,
-            original_name=session.file_name,
-            size=size,
-            checksum=checksum,
-            file_type=_detect_file_type(session.file_name),
-            status="active",
-            directory=directory,
-        )
-        await self._files.save(file_record)
+            # 按实际扫描出的分片清理，不能依赖可能过时的 JSON 元数据。
+            for _, chunk_rel, _ in chunk_paths:
+                with contextlib.suppress(NotFoundError):
+                    await self._backend.delete(chunk_rel)
+            await self._backend.delete_tree(self._factory.relative_to_root(tmp_dir))
+            # 兼容旧版 .tmp 位置
+            legacy_tmp = self._factory.data_root / ".tmp" / str(upload_id)
+            await self._backend.delete_tree(self._factory.relative_to_root(legacy_tmp))
 
-        new_used = await self._users.add_used_storage(user_id, size)
-
-        await self._sessions.update_status(user_id, upload_id, "completed")
-        await self._session.commit()
-
-        # 清理分片与本地临时目录
-        for chunk_meta in sorted(session.uploaded_chunks, key=lambda c: c["index"]):
-            chunk_rel = self._factory.relative_to_root(
-                tmp_dir / str(chunk_meta["index"])
+            return UploadMergeResponse(
+                file_id=file_record.id,
+                original_name=file_record.original_name,
+                size=size,
+                checksum=checksum,
+                used_storage=new_used,
             )
-            with contextlib.suppress(NotFoundError):
-                await self._backend.delete(chunk_rel)
-        await self._backend.delete_tree(self._factory.relative_to_root(tmp_dir))
-        # 兼容旧版 .tmp 位置
-        legacy_tmp = self._factory.data_root / ".tmp" / str(upload_id)
-        await self._backend.delete_tree(self._factory.relative_to_root(legacy_tmp))
-
-        return UploadMergeResponse(
-            file_id=file_record.id,
-            original_name=file_record.original_name,
-            size=size,
-            checksum=checksum,
-            used_storage=new_used,
-        )
+        except Exception:
+            # 任何合并阶段异常都必须留下可重试的终态，而不是永久 merging。
+            with contextlib.suppress(Exception):
+                await self._sessions.update_status(user_id, upload_id, "failed")
+                await self._session.commit()
+            raise
 
     async def cancel_upload(self, user_id: UUID, upload_id: UUID) -> bool:
         session = await self._sessions.get_by_id(user_id, upload_id)

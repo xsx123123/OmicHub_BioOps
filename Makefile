@@ -1,4 +1,4 @@
-.PHONY: help dev dev-worker dev-rocketmq-worker test test-bridge test-frontend test-all lint format type-check migrate migrate-new migrate-merge migrate-rollback docker-network docker-runtime-dirs docker-fix-permissions verify-persistent-data docker-up docker-up-pgvector pgvector-acceptance polardb-verify knowledge-reindex docker-up-rocketmq docker-up-rocketmq-worker docker-up-matrix-dev docker-build-enrichment docker-build-deg docker-build-studio-sandboxes docker-build-sandboxes docker-build-all-images docker-build-worker docker-up-worker docker-up-all docker-down docker-down-worker docker-down-all docker-logs docker-logs-worker docker-clean docker-purge docker-start docker-reload docker-dev-refresh wait-web clean init-admin init-cookies check-alembic-heads sync-knowledge
+.PHONY: help dev dev-worker dev-rocketmq-worker test test-bridge test-frontend test-all lint format type-check migrate migrate-new migrate-merge migrate-rollback docker-network docker-runtime-dirs docker-fix-permissions verify-persistent-data docker-up docker-up-pgvector pgvector-acceptance polardb-verify knowledge-reindex docker-up-rocketmq docker-up-rocketmq-worker docker-up-matrix-dev docker-build-enrichment docker-build-deg docker-build-studio-sandboxes docker-build-sandboxes docker-build-all-images docker-build-worker docker-up-worker docker-up-all docker-down docker-down-worker docker-down-all docker-logs docker-logs-worker docker-clean docker-purge docker-start docker-reload docker-dev-refresh wait-web clean init-admin init-cookies check-alembic-heads sync-knowledge validate-image-mapping
 
 help: ## 显示所有可用命令
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -66,15 +66,18 @@ COMPOSE_PGVECTOR_AGENTTEAMS := $(COMPOSE_PGVECTOR) -f deploy/agentteams/docker-c
 COMPOSE_AGENTTEAMS := docker compose --project-name agentteams -f deploy/agentteams/docker-compose.agentteams.yml
 COMPOSE_WORKER := ./scripts/worker-compose.sh
 COMPOSE_ALL    := docker compose --env-file .env -f deploy/docker/docker-compose.yml
+COMPOSE_SEARXNG := docker compose --env-file .env -f deploy/docker/docker-compose.searxng.yml
 AGENTTEAMS_BRIDGE_ENV_FILE ?= deploy/agentteams/bridge.env
 AGENTTEAMS_WORKER_ENV_FILE ?= deploy/agentteams/worker.env
 ENV_CYGNUSX_NETWORK_NAME := $(shell test -f .env && sed -n 's/^CYGNUSX_NETWORK_NAME=//p' .env | head -n 1)
 ENV_CYGNUSX_SANDBOX_NETWORK_NAME := $(shell test -f .env && sed -n 's/^CYGNUSX_SANDBOX_NETWORK_NAME=//p' .env | head -n 1)
+ENV_CYGNUSX_APP_NETWORK_NAME := $(shell test -f .env && sed -n 's/^CYGNUSX_APP_NETWORK_NAME=//p' .env | head -n 1)
 ENV_CYGNUSX_BRIDGE_GATEWAY_NETWORK := $(shell test -f .env && sed -n 's/^CYGNUSX_BRIDGE_GATEWAY_NETWORK=//p' .env | head -n 1)
 ENV_CYGNUSX_DATA_ROOT := $(shell test -f .env && sed -n 's/^CYGNUSX_DATA_ROOT=//p' .env | head -n 1)
 ENV_REDIS_PASSWORD := $(shell test -f .env && sed -n 's/^REDIS_PASSWORD=//p' .env | head -n 1)
 DOCKER_NETWORK ?= $(if $(ENV_CYGNUSX_NETWORK_NAME),$(ENV_CYGNUSX_NETWORK_NAME),cygnusx_net)
 SANDBOX_NETWORK ?= $(if $(ENV_CYGNUSX_SANDBOX_NETWORK_NAME),$(ENV_CYGNUSX_SANDBOX_NETWORK_NAME),cygnusx-sandbox-net)
+APP_NETWORK ?= $(if $(ENV_CYGNUSX_APP_NETWORK_NAME),$(ENV_CYGNUSX_APP_NETWORK_NAME),cygnusx_app_net)
 BRIDGE_GATEWAY_NETWORK ?= $(if $(ENV_CYGNUSX_BRIDGE_GATEWAY_NETWORK),$(ENV_CYGNUSX_BRIDGE_GATEWAY_NETWORK),cygnusx_bridge_gateway)
 ENRICHMENT_DOCKER_IMAGE ?= cygnusx-r-enrichment:v1
 DEG_DOCKER_IMAGE ?= cygnusx-r-deg:v1
@@ -100,6 +103,7 @@ export REDIS_PASSWORD
 docker-network: ## 创建跨栈外部网络 + 终端网络（Studio 会话网络由 Manager 动态创建）
 	@docker network create $(DOCKER_NETWORK) 2>/dev/null || true
 	@docker network create $(SANDBOX_NETWORK) 2>/dev/null || true
+	@docker network create $(APP_NETWORK) 2>/dev/null || true
 	@docker network create $(BRIDGE_GATEWAY_NETWORK) 2>/dev/null || true
 
 agentteams-worker-env: ## 从受控 Bridge 配置生成最小权限的 AgentTeams Worker 令牌环境文件
@@ -198,7 +202,16 @@ docker-build-deg: ## 构建 DEG 差异表达分析 R 运行时镜像（DESeq2 + 
 docker-build-synteny: ## 构建 MCScanX 思路的基因组共线性分析运行时镜像
 	docker build -t cygnusx-synteny:v1 -f deploy/docker/Dockerfile.synteny tool_configs/synteny
 
-docker-build-sandboxes: ## 重建全部沙盒/分析运行时镜像（runtime 三件套 + Copilot 代码执行沙盒 + studio base/bio + 终端全家桶，任一失败即中止）
+validate-image-mapping: ## 校验镜像清单与 Dockerfile/Studio/Agent/终端配置是否同步
+	@if [ -x .venv/bin/python ]; then \
+		.venv/bin/python deploy/validate_image_mapping.py; \
+		.venv/bin/python scripts/test_studio_agent_runtime.py; \
+	else \
+		uv run python deploy/validate_image_mapping.py; \
+		uv run python scripts/test_studio_agent_runtime.py; \
+	fi
+
+docker-build-sandboxes: validate-image-mapping ## 重建全部沙盒/分析运行时镜像（runtime 三件套 + Copilot 代码执行沙盒 + studio base/bio + 终端全家桶，任一失败即中止）
 	@echo ""
 	@echo "╔══════════════════════════════════════════════════════════════╗"
 	@echo "║  🐳 CygnusX 沙盒/分析运行时镜像全量重建（共 14 个镜像）        ║"
@@ -360,7 +373,7 @@ runtime-images-build: ## 构建独立分析运行时镜像（core / plot / scrna
 docker-build-studio-sandboxes: ## 构建 Studio base/bio/browser-office 三个沙箱镜像
 	CYGNUSX_IMAGE_TAG=$${CYGNUSX_IMAGE_TAG:-v0.0.2dev} deploy/studio/build.sh
 
-docker-reload: docker-network ## 重新构建前端并刷新 pgvector 主栈 + RocketMQ + AgentTeams Bridge + Worker (开发用)
+docker-reload: validate-image-mapping docker-network ## 重新构建前端并刷新 pgvector 主栈 + RocketMQ + AgentTeams Bridge + Worker (开发用)
 	@echo ""
 	@echo "╔══════════════════════════════════════════════════════════════╗"
 	@echo "║  🚀 CygnusX 开发环境热重载                                    ║"
@@ -407,18 +420,22 @@ docker-reload: docker-network ## 重新构建前端并刷新 pgvector 主栈 + R
 	@echo "⚡ 步骤 8/12：重新构建前端生产包（vite build）..."
 	cd frontend && npm run build
 	@echo ""
-	@echo "🌐 步骤 9/12：重新构建并启动 pgvector 主栈服务与 RocketMQ..."
+	@echo "🌐 步骤 9/13：重新构建并启动 pgvector 主栈服务与 RocketMQ..."
 	$(COMPOSE_PGVECTOR_AGENTTEAMS) --profile rocketmq up -d --build
 	@$(MAKE) --no-print-directory wait-web
 	@echo ""
-	@echo "🔗 步骤 10/12：构建并启动 AgentTeams Bridge、Gateway 与生产 Worker..."
+	@echo "🔎 步骤 10/13：启动 SearXNG 自建联网搜索服务..."
+	$(COMPOSE_SEARXNG) up -d
+	@echo "   已加入共享网络 $(APP_NETWORK)，平台内地址为 http://searxng:8080"
+	@echo ""
+	@echo "🔗 步骤 11/13：构建并启动 AgentTeams Bridge、Gateway 与生产 Worker..."
 	@$(MAKE) --no-print-directory docker-up-agentteams
 	@$(MAKE) --no-print-directory docker-up-matrix-dev
 	@echo ""
-	@echo "🔧 步骤 11/12：构建并启动 Celery 与 RocketMQ Worker 计算栈..."
+	@echo "🔧 步骤 12/13：构建并启动 Celery 与 RocketMQ Worker 计算栈..."
 	$(COMPOSE_WORKER) --profile rocketmq up -d --build worker rocketmq-worker
 	@echo ""
-	@echo "🗄️  步骤 12/12：检查数据库迁移状态、同步知识库并清理悬空镜像..."
+	@echo "🗄️  步骤 13/13：检查数据库迁移状态、同步知识库并清理悬空镜像..."
 	@$(MAKE) --no-print-directory check-alembic-heads
 	@$(MAKE) --no-print-directory sync-knowledge
 	@echo ""

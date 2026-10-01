@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import contextlib
+import hashlib
 import io
 import json
 import os
@@ -608,10 +609,29 @@ class SandboxPool:
 
         command = self._build_exec_command(language, code)
 
-        exec_id = await asyncio.to_thread(
-            lambda: api.exec_create(
-                container_id, cmd=command, tty=False
-            )["Id"]
+        # Docker SDK calls use a blocking Unix-socket client.  A daemon/socket
+        # failure must not hold the request forever before the async timeout
+        # guard has even started.
+        exec_id = await asyncio.wait_for(
+            asyncio.to_thread(
+                lambda: api.exec_create(
+                    container_id, cmd=command, tty=False
+                )["Id"]
+            ),
+            timeout=10,
+        )
+        code_digest = hashlib.sha256(code.encode("utf-8")).hexdigest()[:16]
+        command_preview = [command[0], command[1], f"<source_sha256:{code_digest}>"]
+        logger.info(
+            "沙盒执行开始: container={} exec_id={} language={} timeout={} command={} "
+            "code_sha256={} code_bytes={}",
+            container_id,
+            exec_id,
+            language,
+            timeout,
+            command_preview,
+            code_digest,
+            len(code.encode("utf-8")),
         )
 
         loop = asyncio.get_running_loop()
@@ -629,7 +649,9 @@ class SandboxPool:
                         buffers[channel] += chunk.decode("utf-8", errors="replace")
                         while "\n" in buffers[channel]:
                             line, buffers[channel] = buffers[channel].split("\n", 1)
-                            loop.call_soon_threadsafe(queue.put_nowait, (channel, line))
+                            # 保留行尾换行：上层工具协议按增量字符串拼接，
+                            # 丢掉这里的分隔符会把整个 stdout 压成一行。
+                            loop.call_soon_threadsafe(queue.put_nowait, (channel, f"{line}\n"))
                 for channel, rest in buffers.items():
                     if rest:
                         loop.call_soon_threadsafe(queue.put_nowait, (channel, rest))
@@ -650,25 +672,37 @@ class SandboxPool:
                     "r": "Rscript -",
                     "bash": "bash -s",
                 }.get(language, "")
-                kill_id = await asyncio.to_thread(
-                    lambda: api.exec_create(
-                        container_id,
-                        cmd=["pkill", "-9", "-f", process_pattern],
-                    )["Id"]
+                kill_id = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        lambda: api.exec_create(
+                            container_id,
+                            cmd=["pkill", "-9", "-f", process_pattern],
+                        )["Id"]
+                    ),
+                    timeout=5,
                 )
-                await asyncio.to_thread(api.exec_start, kill_id)
+                await asyncio.wait_for(
+                    asyncio.to_thread(api.exec_start, kill_id),
+                    timeout=5,
+                )
             except Exception:  # noqa: BLE001
                 pass
 
         pump = asyncio.create_task(asyncio.to_thread(_pump))
         timed_out = False
+        pump_error: str | None = None
+        stdout_tail = ""
+        stderr_tail = ""
 
         async def _timeout_guard() -> None:
             nonlocal timed_out
             await asyncio.sleep(timeout)
             timed_out = True
-            await _kill_exec()
+            # Wake the consumer first.  Killing an exec talks to Docker over a
+            # blocking socket and must never be the thing that prevents the
+            # timeout event from reaching the caller.
             await queue.put(_TIMEOUT)
+            await _kill_exec()
 
         guard = asyncio.create_task(_timeout_guard())
 
@@ -679,8 +713,13 @@ class SandboxPool:
                     break
                 channel, line = item
                 if channel == "__error__":
+                    pump_error = line
                     yield {"type": "error", "detail": f"代码执行异常：{line}"}
                     continue
+                if channel == "stdout":
+                    stdout_tail = (stdout_tail + line)[-4000:]
+                else:
+                    stderr_tail = (stderr_tail + line)[-4000:]
                 event = self._parse_line(channel, line)
                 if event is not None:
                     yield event
@@ -702,6 +741,27 @@ class SandboxPool:
                 except Exception:  # noqa: BLE001
                     pass
             duration = int((datetime.now() - started).total_seconds() * 1000)
+            log_message = (
+                "沙盒执行结束: container={} exec_id={} language={} timeout={} "
+                "timed_out={} exit_code={} duration_ms={} pump_error={} stdout_tail={!r} "
+                "stderr_tail={!r}"
+            )
+            log_args = (
+                container_id,
+                exec_id,
+                language,
+                timeout,
+                timed_out,
+                exit_code,
+                duration,
+                pump_error,
+                stdout_tail,
+                stderr_tail,
+            )
+            if timed_out or pump_error or exit_code not in (0, -1):
+                logger.warning(log_message, *log_args)
+            else:
+                logger.info(log_message, *log_args)
             if timed_out:
                 yield {"type": "error", "detail": f"代码执行超时（{timeout}s）"}
             yield {"type": "done", "exit_code": exit_code, "duration_ms": duration}

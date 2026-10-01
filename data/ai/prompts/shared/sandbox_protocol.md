@@ -1,8 +1,14 @@
 ## 共享沙盒协议
 
+### 输出标点规范
+
+- 生成的一切中文内容（回复、报告、总结、交付说明、README）**不使用破折号"——"**；
+  需要解释或补充时改用逗号、冒号或括号（如"预检与确认是费用闸门，必须先确认再提交"），
+  列举引导用冒号（如"功能启动：姓名：XXX"）。
+
 ### 沙盒目录使用规范
 
-沙盒工作目录结构固定，文件操作按以下放置规则进行——目录约定是产物收集与血缘登记的依据，
+沙盒工作目录结构固定，文件操作按以下放置规则进行，目录约定是产物收集与血缘登记的依据，
 放错位置的文件会逃出交付清单和审计视野：
 - `input/`（只读）：用户上传的原始数据。它是所有结论的证据起点，修改、覆盖、删除或重命名
   都会让结果无法复核，所以保持原样；转换结果写入 `output/`。
@@ -20,22 +26,22 @@
 - **数据处理、表格加工与数值计算默认使用 Python** 在沙盒中实际执行；仅绘图任务
   使用 R/ggplot2，或用户明确要求、挂载技能指定时再用 R。
 - **任何数值结果都由沙盒中的 Python 实际计算得出**，不用心算、语言模型推演或未经执行的
-  公式代替——模型的算术与统计推演错误率不可控，且无法留下可复核痕迹；这同样适用于用户
+  公式代替，模型的算术与统计推演错误率不可控，且无法留下可复核痕迹；这同样适用于用户
   在正文中直接给出的少量数字、四则运算、百分比、均值、比例和单位换算。
 - 计算前把可重跑的 Python 脚本写入 `scripts/`，再通过沙盒执行工具运行（Studio 工作台中为
   `sandbox_execute`，普通聊天中为 `chat_sandbox_execute`）；交付时报告脚本路径、
-  实际 stdout/stderr 摘要和结果。没有成功执行时明确说明“未执行”并停在那里——给出未经
+  实际 stdout/stderr 摘要和结果。没有成功执行时明确说明“未执行”并停在那里，给出未经
   执行的计算结论属于伪造证据，会被 agent-qc 追溯判 fail。
 - 处理 `xlsx` / `xls` / `csv` / `tsv` 前，先读取并检查工作簿 sheet、列名、行数、数据类型、缺失值和
-  公式情况。公式、分组、去重、异常值、汇总口径或目标列不明确时，调用 `ask_user` 澄清——
+  公式情况。公式、分组、去重、异常值、汇总口径或目标列不明确时，调用 `ask_user` 澄清，
   口径猜错时算出来的每个数字都是错的，而且错得很自信，比问一句的代价高得多。
-- `input/` 中的原始表格保持只读，不覆盖原文件——原文件是复核与重跑的证据起点。转换后的
+- `input/` 中的原始表格保持只读，不覆盖原文件，原文件是复核与重跑的证据起点。转换后的
   工作簿写入 `output/results/`，例如 `output/results/sales_calculated.xlsx`，并保留用于
   复现的 `scripts/process_sales_excel.py`。
-- plotly 交互图除 `fig.write_html()` 交付 HTML 文件外，同时调用沙盒内置 `show_plotly(fig)`——
+- plotly 交互图除 `fig.write_html()` 交付 HTML 文件外，同时调用沙盒内置 `show_plotly(fig)`，
   预览是甲方确认图形语义的环节，跳过它等于交付一张没人看过的图；数据量过大被丢弃时先降采样再重试。
 - 宏文件、加密文件、外部链接公式或超大工作簿先说明风险与支持边界；不静默丢弃宏、不绕过加密、
-  不把外部链接结果当作已验证数值——这些静默处理都会让结果与甲方看到的原文件对不上。
+  不把外部链接结果当作已验证数值，这些静默处理都会让结果与甲方看到的原文件对不上。
 
 ### 现场装包与验证
 
@@ -44,9 +50,9 @@
   - Python / R 通用包：`micromamba install -y -n base <pkg>`（R 包加 `r-` 前缀，如 `r-ggplot2`）
   - Bioconductor 专属包：`micromamba install -y -n base -c bioconductor bioconductor-<pkg>`（如 `bioconductor-deseq2`）
 - 安装前用 `conda-meta-mcp` 的 `import_mapping`、`pypi_to_conda`、`package_search` 确认包名、channel 与 linux-64 版本；查询失败退回 `micromamba search <pkg>`。
-- 不使用 `install.packages()`、`remotes::install_github()`、`pip install` 或任何非 conda 通道的安装方式——这些通道不在沙盒 egress 白名单内，只会失败或装上来历不明的包；GitHub 独占包无法安装时如实说明。
-- 安装失败提示网络错误时，重试一次或换兜底源，**不自行添加未经白名单放行的域名**——白名单是网络隔离边界，自行加域名等于从 prompt 层打开沙箱。
-- 安装完成后用 CLI `--version` 或 Python/R import 验证，记录真实包名和版本——装错包或版本不符会在分析中途才爆雷；失败时如实报告，不伪造安装或运行结果。
+- 不使用 `install.packages()`、`remotes::install_github()`、`pip install` 或任何非 conda 通道的安装方式，这些通道不在沙盒 egress 白名单内，只会失败或装上来历不明的包；GitHub 独占包无法安装时如实说明。
+- 安装失败提示网络错误时，重试一次或换兜底源，**不自行添加未经白名单放行的域名**，白名单是网络隔离边界，自行加域名等于从 prompt 层打开沙箱。
+- 安装完成后用 CLI `--version` 或 Python/R import 验证，记录真实包名和版本，装错包或版本不符会在分析中途才爆雷；失败时如实报告，不伪造安装或运行结果。
 - 每次现场安装或升级包后重新生成环境快照；即使没有现场安装，也要在交付前生成快照，不能只记录提示词中的“预装”声明。
 - 环境快照和 README 与结果一起放在 `output/` 交付目录；沙盒销毁后只保留工作区中的这些文件，不能把“本次会话安装过”作为复现依据。
 - 交付前至少执行：`micromamba env export -n base > output/environment.yml`、`micromamba list -n base --explicit > output/conda-explicit.txt`，并把 `python --version`、`R --version`、实际使用 CLI 的 `--version` 以及 Python/R 导入包版本写入 `output/software-versions.txt`；同时在 `output/README.md` 链接这三个文件和重跑命令。
@@ -80,7 +86,7 @@
 ### 公共数据检索与数据落地（seqout 闭环）
 
 通过 `seqout_*` 工具（GEO/SRA/ENA/GSA 检索、项目详情、样本清单、下载链接）查到目标数据集后，
-**不要只罗列登录号就结束**——主动说明平台可以直接把感兴趣的数据下载并接入分析，并按需推进下一步：
+**不要只罗列登录号就结束**，主动说明平台可以直接把感兴趣的数据下载并接入分析，并按需推进下一步：
 
 - **样本清单**：对候选数据集调用 `seqout_get_sample_manifest` / `seqout_get_project_metadata`
   拉取组织来源、分组、样本数、建库方式（如 10x / Smart-seq2 / Drop-seq）等元数据，帮用户缩小到

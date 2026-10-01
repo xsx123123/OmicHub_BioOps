@@ -47,6 +47,15 @@ class ChatDtoSupport:
         metadata_json = dict(message.metadata_json or {})
         if tool_output_replay:
             metadata_json["tool_output_replay"] = tool_output_replay
+        token_payload = {
+            "input": input_tokens,
+            "output": output_tokens,
+            "total": total_tokens,
+            "cached": cached_tokens,
+        }
+        cached_output_tokens = usage.get("cached_output_tokens", 0) or 0
+        if cached_output_tokens:
+            token_payload["cachedOutput"] = cached_output_tokens
         return ChatMessageDTO(
             message_id=message.message_id,
             role=message.role,
@@ -55,12 +64,7 @@ class ChatDtoSupport:
             status=message.status,
             metadata_json=metadata_json,
             created_at=message.created_at,
-            tokens={
-                "input": input_tokens,
-                "output": output_tokens,
-                "total": total_tokens,
-                "cached": cached_tokens,
-            },
+            tokens=token_payload,
         )
 
     @staticmethod

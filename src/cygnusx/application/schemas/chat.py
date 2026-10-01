@@ -169,6 +169,8 @@ class ChatSessionDTO(BaseModel):
     # WP1 工作区归档态：sandbox_meta.workspace_archive 原样透出；未归档为 None。
     # 契约字段（前端并行开发依赖），字段名与结构不得改。
     workspace_archive: dict[str, Any] | None = None
+    # 普通 AI 助手的会话级分析归档：run 目录、README、环境和 manifest 索引。
+    analysis_archive: dict[str, Any] | None = None
     # WP3 科研模式三开关：sandbox_meta.research_mode 原样透出；未开启为 None。
     research_mode: ResearchModeConfig | None = None
 

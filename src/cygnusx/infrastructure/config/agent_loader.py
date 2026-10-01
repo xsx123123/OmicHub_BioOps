@@ -103,7 +103,7 @@ def _load_single_agent(yaml_path: Path) -> dict[str, Any] | None:
                 "Agent prompt_file 无法解析: %s -> %s", yaml_path, prompt_file
             )
             return None
-        data["system_prompt"] = _append_shared_sandbox_protocol(prompt, yaml_path)
+        data["system_prompt"] = _append_shared_prompt_sections(prompt, yaml_path)
     elif prompt_ref:
         prompt = get_prompt(prompt_ref)
         if not prompt:
@@ -111,7 +111,7 @@ def _load_single_agent(yaml_path: Path) -> dict[str, Any] | None:
                 "Agent prompt_ref 无法解析: %s -> %s", yaml_path, prompt_ref
             )
             return None
-        data["system_prompt"] = _append_shared_sandbox_protocol(prompt, yaml_path)
+        data["system_prompt"] = _append_shared_prompt_sections(prompt, yaml_path)
 
     _apply_tool_packs(data, yaml_path)
 
@@ -253,17 +253,27 @@ def _load_local_prompt(yaml_path: Path, prompt_file: str) -> str:
         return ""
 
 
-def _append_shared_sandbox_protocol(prompt: str, yaml_path: Path) -> str:
-    """所有 Agent 只在加载时追加一份共享沙盒协议。"""
-    shared_path = (yaml_path.parent / "prompts/shared/sandbox_protocol.md").resolve()
+# 所有 Agent 加载时统一追加的共享提示词片段（按顺序拼接）
+_SHARED_PROMPT_FILES = ("sandbox_protocol.md", "communication_style.md")
+
+
+def _append_shared_prompt_sections(prompt: str, yaml_path: Path) -> str:
+    """所有 Agent 只在加载时追加共享提示词片段（沙盒协议、沟通称呼规范）。"""
     root = yaml_path.parent.resolve()
-    if shared_path != root and root not in shared_path.parents:
+    shared_dir = (yaml_path.parent / "prompts" / "shared").resolve()
+    if shared_dir != root and root not in shared_dir.parents:
         return prompt
-    try:
-        shared = shared_path.read_text(encoding="utf-8").strip()
-    except OSError:
+    sections: list[str] = []
+    for name in _SHARED_PROMPT_FILES:
+        try:
+            shared = (shared_dir / name).read_text(encoding="utf-8").strip()
+        except OSError:
+            continue
+        if shared:
+            sections.append(shared)
+    if not sections:
         return prompt
-    return f"{prompt}\n\n{shared}" if shared else prompt
+    return f"{prompt}\n\n" + "\n\n".join(sections)
 
 
 def _apply_tool_packs(data: dict[str, Any], yaml_path: Path) -> None:

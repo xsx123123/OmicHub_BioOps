@@ -31,6 +31,7 @@ def _config(name: str, *, api_key: str = "sk-secret-real-value", is_active: bool
         api_key=api_key,
         temperature=0.7,
         max_tokens=4096,
+        context_window=131072,
         top_p=1.0,
         timeout=120,
         is_active=is_active,
@@ -69,6 +70,7 @@ def test_write_never_persists_real_api_key(tmp_path: Path):
     assert "# CygnusX AI Provider 外置配置" in content
     # 停用项也回写
     assert "is_active: false" in content
+    assert "context_window: 131072" in content
 
 
 def test_write_preserves_header_only_comments(tmp_path: Path):

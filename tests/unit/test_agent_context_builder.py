@@ -4,8 +4,20 @@ from types import SimpleNamespace
 import time
 
 import pytest
+from sqlalchemy import String
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from cygnusx.application.services.agent_context_builder import AgentContextBuilder
+
+
+class _ORMBase(DeclarativeBase):
+    pass
+
+
+class _CachedAgent(_ORMBase):
+    __tablename__ = "cached_agents"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    agent_id: Mapped[str] = mapped_column(String(50))
 
 
 class _AgentService:
@@ -24,6 +36,22 @@ class _AgentService:
             mcp_servers=[],
             skills=[],
             features={"runtime": {"web_search": True}},
+        )
+
+
+class _ORMAgentService(_AgentService):
+    async def assemble_context(
+        self, agent_id: str, *, user_id: str | None = None, tool_query: str | None = None
+    ) -> SimpleNamespace:
+        self.calls += 1
+        return SimpleNamespace(
+            agent=_CachedAgent(agent_id=agent_id),
+            model_config=None,
+            system_prompt="",
+            tools=[],
+            mcp_servers=[],
+            skills=[],
+            features={},
         )
 
 
@@ -92,3 +120,18 @@ async def test_builder_reassembles_after_cache_ttl_expiry() -> None:
 
     assert await builder.assemble("agent-1", "user-1", user_message="hello") is not None
     assert agent_service.calls == 2
+
+
+@pytest.mark.asyncio
+async def test_builder_does_not_cache_orm_backed_assemblies() -> None:
+    AgentContextBuilder._cache.clear()
+    agent_service = _ORMAgentService()
+    builder = AgentContextBuilder(SimpleNamespace(), agent_service)  # type: ignore[arg-type]
+
+    first = await builder.assemble("agent-1", "user-1", user_message="hello")
+    second = await builder.assemble("agent-1", "user-1", user_message="hello")
+
+    assert first is not None
+    assert second is not None
+    assert agent_service.calls == 2
+    assert not AgentContextBuilder._cache

@@ -48,6 +48,7 @@ features:
   default_role: 基于真实分析结果设计和生成可视化交付物
   capability_scope: [统计图表, publication-ready 绘图, 图表说明, 结果报告呈现]
   capability_tags: [statistical-visualization, publication-ready, figure-design, report-presentation]
+  routing_hints: [已整理结果表, 出版级美化, 版式, 配色, 图注]
   accepts_inputs: [research-plan, code-design, result-table, analysis-output]
   produces_outputs: [figure-plan, plotting-script, publication-figure, figure-caption]
   default_stage: visualization-plan

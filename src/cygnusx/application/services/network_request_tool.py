@@ -22,6 +22,25 @@ MAX_RESPONSE_BYTES = 5 * 1024 * 1024
 MAX_TEXT_CHARS = 30_000
 MAX_REDIRECTS = 3
 
+# 本机翻墙客户端（Clash/Surge 等）fake-ip DNS 的常用段（RFC 2544 基准测试段）。
+# 容器经宿主机 DNS 继承该解析结果，由宿主机 TUN 拦截后代理出站；该段不具备
+# 内网 SSRF 价值（不会被路由到平台内网），故与公网地址同等放行。
+# 与 deploy/studio/egress_proxy.py 的 public_ip() 保持同一标准。
+_FAKE_IP_RANGE = ipaddress.ip_network("198.18.0.0/15")
+
+
+def _is_ssrf_address(address: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    if address in _FAKE_IP_RANGE:
+        return False
+    return (
+        address.is_private
+        or address.is_loopback
+        or address.is_link_local
+        or address.is_reserved
+        or address.is_multicast
+        or address.is_unspecified
+    )
+
 NETWORK_REQUEST_TOOL_SCHEMA: dict[str, Any] = {
     "type": "function",
     "function": {
@@ -73,14 +92,7 @@ def _public_url(url: str) -> tuple[str, str | None]:
         address = ipaddress.ip_address(host)
     except ValueError:
         address = None
-    if address is not None and (
-        address.is_private
-        or address.is_loopback
-        or address.is_link_local
-        or address.is_reserved
-        or address.is_multicast
-        or address.is_unspecified
-    ):
+    if address is not None and _is_ssrf_address(address):
         return "", "禁止访问内网、环回、链路本地或保留地址"
     # 域名的 DNS 结果在真正请求前再次检查，防止解析到内网地址。
     return url.strip(), None
@@ -106,14 +118,7 @@ def _resolve_public_hostname(host: str) -> str | None:
             address = ipaddress.ip_address(item[4][0])
         except (ValueError, IndexError):
             return "域名解析结果无效"
-        if (
-            address.is_private
-            or address.is_loopback
-            or address.is_link_local
-            or address.is_reserved
-            or address.is_multicast
-            or address.is_unspecified
-        ):
+        if _is_ssrf_address(address):
             return "域名解析到内网、环回、链路本地或保留地址"
     return None
 

@@ -55,6 +55,22 @@ async def test_local_read_with_offset_and_limit(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_local_write_stream_is_incremental_and_atomic(tmp_path: Path) -> None:
+    backend = LocalStorageBackend(path_factory=_make_factory(tmp_path))
+    rel_path = "users/u1/inbox/stream.bin"
+
+    async def chunks():
+        yield b"a" * 3
+        yield b"b" * 2
+        yield b"c"
+
+    await backend.write_stream(rel_path, chunks())
+
+    assert await backend.read(rel_path) == b"aaabbc"
+    assert not list((tmp_path / "users/u1/inbox").glob("*.uploading"))
+
+
+@pytest.mark.asyncio
 async def test_local_stat(tmp_path: Path) -> None:
     backend = LocalStorageBackend(path_factory=_make_factory(tmp_path))
     rel_path = "users/u1/inbox/data.bin"

@@ -6,9 +6,12 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
+from collections.abc import AsyncIterable
 from datetime import timedelta
 from pathlib import Path
+from tempfile import SpooledTemporaryFile
 from typing import Any
 from urllib.parse import urlparse
 
@@ -82,6 +85,26 @@ class S3CompatibleStorageBackend(StorageBackend):
             raise
         except Exception as exc:
             raise BusinessError(f"S3 写入失败: {path}") from exc
+
+    async def write_stream(self, path: str, chunks: AsyncIterable[bytes]) -> None:
+        """在磁盘/内存滚动临时文件中聚合后上传，避免大文件驻留内存。"""
+        with SpooledTemporaryFile(max_size=8 * 1024 * 1024, mode="w+b") as stream:
+            size = 0
+            try:
+                async for chunk in chunks:
+                    if not chunk:
+                        continue
+                    await asyncio.to_thread(stream.write, chunk)
+                    size += len(chunk)
+                await asyncio.to_thread(stream.seek, 0)
+                await asyncio.to_thread(self._put_stream, path, stream, size)
+            except BusinessError:
+                raise
+            except Exception as exc:
+                raise BusinessError(f"S3 流式写入失败: {path}") from exc
+
+    def _put_stream(self, path: str, stream: Any, size: int) -> None:
+        self._require_client().put_object(self._bucket, path, stream, length=size)
 
     async def delete(self, path: str) -> None:
         try:

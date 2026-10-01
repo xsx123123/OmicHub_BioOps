@@ -526,6 +526,17 @@ class StudioSandboxManager:
                     with contextlib.suppress(Exception):
                         container.remove(force=True)
                     container = None
+                if container is not None and not self._container_context_archive_env_matches(container):
+                    # Older containers may predate context blob read-back support.
+                    # Rebuild them so cells receive the stable archive mount hint.
+                    logger.warning(
+                        "[Studio] 旧容器缺少 CONTEXT_ARCHIVE，重建沙箱 {}", name
+                    )
+                    with contextlib.suppress(Exception):
+                        container.stop(timeout=5)
+                    with contextlib.suppress(Exception):
+                        container.remove(force=True)
+                    container = None
                 if container is not None:
                     if container.status != "running":
                         container.start()
@@ -595,6 +606,9 @@ class StudioSandboxManager:
                     "volumes": volumes,
                     "labels": {"cygnusx.studio": "1", "cygnusx.studio.session": session_id},
                     "environment": {
+                        # Content-addressed compaction blobs are mirrored into
+                        # the bind-mounted workspace for read-back by cells.
+                        "CONTEXT_ARCHIVE": "/workspace/.context-archive",
                         "SANDBOX_CAPABILITIES": ",".join(capabilities),
                         "SANDBOX_WORKSPACE_QUOTA_BYTES": str(
                             config.sandbox.workspace_quota_bytes
@@ -718,6 +732,14 @@ class StudioSandboxManager:
             and str(mount.get("Source")) == expected_platform_source
             for mount in mounts
         )
+
+    @staticmethod
+    def _container_context_archive_env_matches(container: Any) -> bool:
+        """Require the stable in-container path used for context blob read-back."""
+        env = (getattr(container, "attrs", {}) or {}).get("Config", {}).get("Env") or []
+        return "CONTEXT_ARCHIVE=/workspace/.context-archive" in {
+            str(item) for item in env
+        }
 
     @staticmethod
     def _validate_container_security(container: Any, config: StudioConfig) -> None:

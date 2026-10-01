@@ -63,7 +63,7 @@ studio:
     micro_compaction:
       threshold_chars: 4000
     loop_control:
-      max_tool_calls_per_turn: 40
+      max_tool_calls_per_turn: 100
       max_consecutive_failures: 3
       auto_downgrade_to_supervised: true
   ui:

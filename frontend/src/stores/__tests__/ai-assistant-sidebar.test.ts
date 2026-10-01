@@ -61,8 +61,11 @@ describe('aiAssistantSidebar store', () => {
     expect(options).toMatchObject({
       modelId: 'm1',
       sessionId: undefined,
+      autoApprove: false,
       messages: [{ role: 'user', content: '你好' }],
     })
+    expect(options.agentId).toBeUndefined()
+    expect(options.systemPrompt).toContain('平台服务助手')
 
     expect(store.messages).toHaveLength(2)
     expect(store.messages[0]).toMatchObject({ role: 'user', content: '你好', status: 'complete' })

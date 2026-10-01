@@ -68,6 +68,23 @@ QUOTA_CHECK_INTERVAL_SECONDS = int(
 )
 _quota_exceeded = False
 
+
+def _mcp_is_error(result: Any) -> bool:
+    """兼容 MCP SDK 1.x 的 ``isError`` 与新版本的 ``is_error``。"""
+    value = getattr(result, "is_error", None)
+    if value is None:
+        value = getattr(result, "isError", False)
+    return bool(value)
+
+
+def _mcp_input_schema(tool: Any) -> Any:
+    """兼容 MCP SDK 工具定义的 ``inputSchema``/``input_schema``。"""
+    schema = getattr(tool, "input_schema", None)
+    if schema is None:
+        schema = getattr(tool, "inputSchema", None)
+    return schema or {}
+
+
 _BROWSER_LOCK: asyncio.Lock | None = None
 _PLAYWRIGHT_MANAGER: Any | None = None
 _BROWSER: Any | None = None
@@ -1429,7 +1446,7 @@ async def mcp_start(req: MCPStartRequest) -> dict[str, Any]:
                 {
                     "name": t.name,
                     "description": t.description or "",
-                    "inputSchema": t.inputSchema,
+                    "inputSchema": _mcp_input_schema(t),
                 }
                 for t in listing.tools
             ]
@@ -1475,7 +1492,7 @@ async def mcp_call(req: MCPCallRequest) -> dict[str, Any]:
     return {
         "server_id": req.server_id,
         "tool": req.tool,
-        "is_error": bool(getattr(result, "isError", False)),
+        "is_error": _mcp_is_error(result),
         "content": [
             {"type": getattr(c, "type", "text"), "text": getattr(c, "text", str(c))}
             for c in (result.content or [])
@@ -1497,7 +1514,7 @@ async def mcp_tools(server_id: str = Query(...)) -> dict[str, Any]:
             {
                 "name": t.name,
                 "description": t.description or "",
-                "inputSchema": t.inputSchema,
+                "inputSchema": _mcp_input_schema(t),
             }
             for t in listing.tools
         ]

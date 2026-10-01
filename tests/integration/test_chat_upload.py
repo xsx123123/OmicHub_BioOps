@@ -13,6 +13,9 @@ from cygnusx.infrastructure.storage import reset_storage_backend
 from cygnusx.infrastructure.storage.path_factory import get_path_factory
 
 
+pytestmark = pytest.mark.integration
+
+
 @pytest.fixture
 def storage_path(tmp_path: Path, monkeypatch) -> Path:
     """把存储根目录指向临时目录，避免测试写 /data/cygnusx。"""

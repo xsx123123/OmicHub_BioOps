@@ -17,6 +17,7 @@ from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
 from loguru import logger
 from sqlalchemy import select
 from sqlalchemy import text as sql_text
+from sqlalchemy.exc import SQLAlchemyError
 
 from cygnusx.api.deps import CurrentUserId, DbSession
 from cygnusx.application.schemas.chat import (
@@ -673,6 +674,9 @@ async def chat_stream(
             logger.exception("聊天 SSE 出口异常，已转换为 error 事件: {}", exc)
             if not terminal_sent:
                 detail = str(exc).replace("\n", " ").strip()[:300]
+                # 数据库/驱动层错误不向前端泄露内部细节（SQL 文本、连接状态等）
+                if isinstance(exc, SQLAlchemyError):
+                    detail = ""
                 yield (
                     "data: "
                     + json.dumps(
@@ -690,7 +694,13 @@ async def chat_stream(
                     + "\n\n"
                 )
         finally:
-            await db.commit()
+            # 流式期间 session 可能已因异常处于回滚状态，直接 commit 会再抛
+            #（7s2a），这里兜底回滚，事务清理交给 get_db 依赖。
+            try:
+                await db.commit()
+            except Exception:  # noqa: BLE001
+                with contextlib.suppress(Exception):
+                    await db.rollback()
 
     return StreamingResponse(
         generate_sse(),

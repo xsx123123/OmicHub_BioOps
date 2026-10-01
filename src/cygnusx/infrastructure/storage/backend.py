@@ -7,9 +7,13 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
+import os
 import shutil
+import uuid
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterable
 from pathlib import Path
 from typing import Any
 
@@ -60,6 +64,10 @@ class StorageBackend(ABC):
     @abstractmethod
     async def write(self, path: str, content: bytes) -> None:
         """写入文件；自动创建父目录（对象存储无目录概念，仅保证对象存在）。"""
+
+    @abstractmethod
+    async def write_stream(self, path: str, chunks: AsyncIterable[bytes]) -> None:
+        """按块写入文件，避免在调用方聚合整个文件到内存。"""
 
     @abstractmethod
     async def delete(self, path: str) -> None:
@@ -155,6 +163,30 @@ class LocalStorageBackend(StorageBackend):
     async def write(self, path: str, content: bytes) -> None:
         target = self._abs(path)
         await asyncio.to_thread(self._write_sync, target, content)
+
+    async def write_stream(self, path: str, chunks: AsyncIterable[bytes]) -> None:
+        """以临时文件逐块写入，再原子替换目标文件。"""
+        target = self._abs(path)
+        await asyncio.to_thread(target.parent.mkdir, parents=True, exist_ok=True)
+        temp = target.with_name(f".{target.name}.{uuid.uuid4().hex}.uploading")
+        try:
+            async for chunk in chunks:
+                if not chunk:
+                    continue
+                await asyncio.to_thread(self._append_sync, temp, chunk)
+            await asyncio.to_thread(os.replace, temp, target)
+        finally:
+            await asyncio.to_thread(self._unlink_if_exists, temp)
+
+    @staticmethod
+    def _append_sync(target: Path, content: bytes) -> None:
+        with target.open("ab") as f:
+            f.write(content)
+
+    @staticmethod
+    def _unlink_if_exists(target: Path) -> None:
+        with contextlib.suppress(FileNotFoundError):
+            target.unlink()
 
     @staticmethod
     def _write_sync(target: Path, content: bytes) -> None:
@@ -267,4 +299,3 @@ class LocalStorageBackend(StorageBackend):
 
     async def ensure_dir(self, directory: str) -> None:
         await asyncio.to_thread(self._abs(directory).mkdir, parents=True, exist_ok=True)
-

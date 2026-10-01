@@ -20,11 +20,18 @@ export interface ChatStreamOptions {
   systemPrompt?: string
   temperature?: number
   maxTokens?: number
+  /**
+   * AI 助手快捷入口的工具调用不展示逐次审批卡；未传时保持旧页面的
+   * supervised 语义，避免工作台/旧版聊天被意外放开。
+   */
+  autoApprove?: boolean
 }
 
 export interface StreamCallbacks {
   onText?: (text: string, isReasoning?: boolean) => void
   onSessionCreated?: (sessionId: string, messageId: string) => void
+  /** 上下文压缩事件；estimatedTokens 为压缩前估算值。 */
+  onContextCompressed?: (estimatedTokens: number) => void
   onError?: (error: string) => void
   onDone?: (sessionId: string, messageId: string) => void
 }
@@ -57,6 +64,7 @@ export function useChatStream() {
           system_prompt: options.systemPrompt,
           temperature: options.temperature,
           max_tokens: options.maxTokens,
+          auto_approve: options.autoApprove ?? false,
         }),
         signal: abortController.value.signal,
       })
@@ -141,6 +149,9 @@ export function useChatStream() {
           callbacks.onDone?.(sessionId, messageId)
         }
         return true
+      case 'context_compressed':
+        callbacks.onContextCompressed?.(Number(data.estimated_tokens_before) || 0)
+        return false
       default:
         // tool_call / tool_result / web_search / ask_request 等事件侧边栏不渲染，忽略
         return false
