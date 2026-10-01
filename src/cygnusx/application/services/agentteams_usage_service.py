@@ -95,17 +95,23 @@ async def record_consultation_usage(
             if session is None:
                 raise
 
+    usage_payload = {
+        "prompt_tokens": normalized["prompt_tokens"],
+        "completion_tokens": normalized["completion_tokens"],
+        "total_tokens": total,
+    }
+    if normalized.get("cached_tokens", 0):
+        usage_payload["cached_tokens"] = normalized["cached_tokens"]
+    if normalized.get("cached_output_tokens", 0):
+        usage_payload["cached_output_tokens"] = normalized["cached_output_tokens"]
+
     message = ChatMessageModel(
         session_id=session.session_id,
         message_id=message_id,
         role="assistant",
         content=(conclusion or "")[:_MESSAGE_CONTENT_MAX_CHARS],
         metadata_json={
-            "usage": {
-                "prompt_tokens": normalized["prompt_tokens"],
-                "completion_tokens": normalized["completion_tokens"],
-                "total_tokens": total,
-            },
+            "usage": usage_payload,
             "source": "agentteams",
             "case_id": case_id,
             "agent_id": agent_id,

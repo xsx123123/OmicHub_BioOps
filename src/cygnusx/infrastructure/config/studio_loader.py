@@ -175,7 +175,7 @@ class StudioLoopControlConfig(BaseModel):
 
     model_config = ConfigDict(extra="ignore")
 
-    max_tool_calls_per_turn: int = Field(default=40, ge=1, le=500)
+    max_tool_calls_per_turn: int = Field(default=100, ge=1, le=500)
     max_consecutive_failures: int = Field(default=3, ge=1, le=20)
     auto_downgrade_to_supervised: bool = True
 

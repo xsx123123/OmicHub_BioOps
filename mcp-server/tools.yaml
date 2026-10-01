@@ -11,6 +11,27 @@
 #   - 返回值统一: {success, summary, data, next_steps?}
 
 groups:
+  - id: runs
+    module: tools.runs
+    description: "统一 Run 监控与计划确认"
+    tools:
+      - name: cygnusx_list_runs
+        description: "列出统一 Run"
+        read_only: true
+      - name: cygnusx_get_run_status
+        description: "获取 Run 状态"
+        read_only: true
+      - name: cygnusx_get_run_logs
+        description: "获取 Run 事件日志"
+        read_only: true
+      - name: cygnusx_verify_artifact
+        description: "查询 Run 产物及校验摘要"
+        read_only: true
+      - name: cygnusx_confirm_run_plan
+        description: "确认 Run 计划"
+        read_only: false
+        requires_confirm: true
+
   - id: tasks
     module: tools.tasks
     description: "任务管理 — 查看、监控、取消分析任务"

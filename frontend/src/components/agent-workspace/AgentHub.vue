@@ -1,54 +1,51 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
-import { NBadge, NEmpty, NGrid, NGridItem, NTabPane, NTabs } from 'naive-ui'
+import { computed } from 'vue'
+import { NEmpty, NGrid, NGridItem } from 'naive-ui'
 import AgentCard from './AgentCard.vue'
-import { useAgentHubStore, CATEGORY_LABELS } from '@/stores/agentHub'
-import type { AgentCategory, AgentTemplate } from '@/types/agent'
+import { useAgentHubStore } from '@/stores/agentHub'
+import type { AgentTemplate } from '@/types/agent'
+import { agentDomainLabel } from '@/utils/agentDomainMap'
 
-const props = withDefaults(defineProps<{ compact?: boolean; excludeAgentIds?: string[] }>(), {
+const props = withDefaults(defineProps<{ compact?: boolean; excludeAgentIds?: string[]; searchQuery?: string; categoryFilter?: string; highlightedAgentId?: string }>(), {
   compact: false,
   excludeAgentIds: () => [],
+  searchQuery: '',
+  categoryFilter: '',
+  highlightedAgentId: '',
 })
 const store = useAgentHubStore()
 defineEmits<{ select: [agentId: string] }>()
 
-/** 按分类分组展示（分类顺序固定，未知分类归入末尾） */
-const CATEGORY_ORDER: AgentCategory[] = ['general', 'analysis', 'code', 'visualization']
+const filteredAgents = computed(() => store.activeAgents.filter((agent) => {
+  if (props.excludeAgentIds.includes(agent.id)) return false
+  if (props.categoryFilter && agentDomainLabel(agent.category) !== props.categoryFilter) return false
+  const query = props.searchQuery.trim().toLocaleLowerCase()
+  if (!query) return true
+  const caps = [...store.mcpsByIds(agent.mcp_ids).map((m) => m.name), ...store.skillsByIds(agent.skill_ids).map((s) => s.name)]
+  return [agent.name, agent.description, ...caps].some((value) => value.toLocaleLowerCase().includes(query))
+}))
 
 const groupedAgents = computed(() => {
   const groups: { key: string; label: string; agents: AgentTemplate[] }[] = []
   const buckets = new Map<string, AgentTemplate[]>()
-  for (const agent of store.activeAgents) {
-    if (props.excludeAgentIds.includes(agent.id)) continue
-    const list = buckets.get(agent.category) || []
+  for (const agent of filteredAgents.value) {
+    const key = agentDomainLabel(agent.category)
+    const list = buckets.get(key) || []
     list.push(agent)
-    buckets.set(agent.category, list)
+    buckets.set(key, list)
   }
-  const ordered = [
-    ...CATEGORY_ORDER.filter((c) => buckets.has(c)).map((c) => c as string),
-    ...[...buckets.keys()].filter((k) => !CATEGORY_ORDER.includes(k as AgentCategory)),
-  ]
+  const ordered = [...buckets.keys()].sort((a, b) => (buckets.get(b)?.length || 0) - (buckets.get(a)?.length || 0))
   for (const key of ordered) {
     groups.push({
       key,
-      label: CATEGORY_LABELS[key as AgentCategory] || key,
+      label: key,
       agents: buckets.get(key) || [],
     })
   }
   return groups
 })
 
-const activeCategory = ref('')
-
-watch(
-  groupedAgents,
-  (groups) => {
-    if (!groups.some((group) => group.key === activeCategory.value)) {
-      activeCategory.value = groups[0]?.key || ''
-    }
-  },
-  { immediate: true },
-)
+const visibleGroups = computed(() => props.categoryFilter ? groupedAgents.value.slice(0, 1) : groupedAgents.value)
 </script>
 
 <template>
@@ -65,34 +62,8 @@ watch(
         class="hub-empty"
       />
 
-      <NTabs
-        v-if="props.compact && groupedAgents.length"
-        v-model:value="activeCategory"
-        type="line"
-        animated
-        class="agent-category-tabs"
-      >
-        <NTabPane
-          v-for="group in groupedAgents"
-          :key="group.key"
-          :name="group.key"
-        >
-          <template #tab>
-            <span class="category-tab-label">
-              {{ group.label }}
-              <NBadge :value="group.agents.length" :max="99" />
-            </span>
-          </template>
-          <NGrid :cols="4" :x-gap="12" :y-gap="12" responsive="screen" item-responsive class="card-grid">
-            <NGridItem v-for="agent in group.agents" :key="agent.id" span="4 s:2 m:1">
-              <AgentCard :agent="agent" compact @select="$emit('select', agent.id)" />
-            </NGridItem>
-          </NGrid>
-        </NTabPane>
-      </NTabs>
-
-      <section v-for="group in props.compact ? [] : groupedAgents" :key="group.key" class="hub-section">
-        <h2 class="section-label">{{ group.label }}</h2>
+      <section v-for="group in visibleGroups" :key="group.key" class="hub-section">
+        <h2 v-if="!props.categoryFilter && !props.searchQuery" class="section-label">{{ group.label }} · {{ group.agents.length }}</h2>
         <NGrid
           :cols="props.compact ? 3 : 4"
           :x-gap="props.compact ? 12 : 18"
@@ -106,7 +77,7 @@ watch(
             :key="agent.id"
             :span="props.compact ? '3 s:3 m:1' : '4 s:2 m:2 l:1'"
           >
-            <AgentCard :agent="agent" :compact="props.compact" @select="$emit('select', agent.id)" />
+            <AgentCard :agent="agent" :compact="props.compact" :class="{ 'is-highlighted': props.highlightedAgentId === agent.id }" @select="$emit('select', agent.id)" />
           </NGridItem>
         </NGrid>
       </section>
@@ -124,13 +95,16 @@ watch(
   padding: 40px var(--page-padding, 32px) 80px;
 }
 .agent-hub.compact {
+  display: block;
+  flex: none;
+  min-height: 100%;
   padding: 0;
   overflow: visible;
 }
 .hub-inner {
   width: 100%;
   max-width: 1100px;
-  margin: auto;
+  margin: 0 auto;
 }
 .hub-header {
   text-align: center;
@@ -154,10 +128,6 @@ watch(
   color: var(--chat-text-muted, var(--neutral-text-3));
 }
 .card-grid { justify-content: center; }
-.agent-category-tabs :deep(.n-tabs-nav) { margin-bottom: var(--space-lg, 16px); }
-.agent-category-tabs :deep(.n-tabs-tab) { padding-inline: 4px 14px; }
-.category-tab-label { display: inline-flex; align-items: center; gap: 6px; }
-.category-tab-label :deep(.n-badge) { font-size: 11px; }
 
 @media (max-width: 768px) {
   .agent-hub { padding: 24px 16px 64px; }

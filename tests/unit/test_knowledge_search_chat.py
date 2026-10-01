@@ -68,7 +68,11 @@ async def test_knowledge_search_returns_stable_citation_ids(monkeypatch):
 
 @pytest.mark.unit
 async def test_knowledge_search_chat_delegates_to_studio_impl(monkeypatch):
-    """辅助方法复用 Studio 的 _knowledge_search 实现并透传 db"""
+    """辅助方法复用 Studio 的 _knowledge_search 实现；db 用独立短生命周期会话
+
+    工具执行可能在 LangGraph 图 task 内运行，必须避免与消费协程共享请求级
+    session（并发 flush 会触发 "Session is already flushing"）。
+    """
     called: dict[str, Any] = {}
 
     async def fake_search(
@@ -87,7 +91,7 @@ async def test_knowledge_search_chat_delegates_to_studio_impl(monkeypatch):
 
     assert result["success"] is True
     assert called["args"] == {"query": "双细胞", "limit": 3}
-    assert called["db"] is service._db
+    assert called["db"] is not service._db
     assert called["project_id"] is None
 
 

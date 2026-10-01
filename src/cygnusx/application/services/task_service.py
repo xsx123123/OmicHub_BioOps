@@ -61,6 +61,13 @@ class TaskService:
         5. 投递 Celery 异步任务；
         6. 将任务状态推进为 QUEUED。
         """
+        if req.idempotency_key:
+            existing = await self._repo.get_by_idempotency_key(req.idempotency_key)
+            if existing is not None:
+                if str(existing.user_id) != user_id:
+                    raise ValidationError("幂等键已被其他用户使用")
+                return task_to_response(existing)
+
         flow_config = self._flow_service.get_flow_config(req.flow_id)
         flow_detail = self._flow_service.get_flow(req.flow_id)
 
@@ -105,6 +112,7 @@ class TaskService:
             execution_mode=req.execution_mode,
             sample_count=len(req.sample_sheet),
             task_id=task_id,
+            idempotency_key=req.idempotency_key,
         )
 
         # 写入工作目录等运行信息

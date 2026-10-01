@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { NIcon, NModal } from 'naive-ui'
 import {
   AddOutline,
@@ -13,7 +13,8 @@ import hljs from 'highlight.js'
 import apiClient from '@/api/client'
 import { studioApi } from '@/api/studio'
 import { printBlobUrl } from '@/utils/blobPrint'
-import type { ToolCall } from './types'
+import { VChart } from './setup'
+import type { ChartData, ToolCall } from './types'
 
 interface ArtifactItem {
   path: string
@@ -21,16 +22,21 @@ interface ArtifactItem {
   mtime?: number
   /** 直接下载地址（如聊天沙盒产物）；提供时不走 studio 会话下载 */
   url?: string
+  /** 与下载地址分离的预览地址（AgentTeams HTML/报告等） */
+  previewUrl?: string
 }
 
 const props = withDefaults(defineProps<{
   sessionId?: string
   tools?: ToolCall[]
+  /** 消息级图表也属于分析产物，统一在产物窗口内预览。 */
+  charts?: ChartData[]
   /** Agent/worker 直接回传的产物映射；键通常是工作区相对路径。 */
   artifacts?: unknown
 }>(), {
   sessionId: '',
   tools: () => [],
+  charts: () => [],
   artifacts: undefined,
 })
 
@@ -103,9 +109,49 @@ function artifactPath(value: unknown): string {
 }
 
 function artifactUrl(value: unknown): string | undefined {
+  if (typeof value === 'string' && (value.startsWith('http://') || value.startsWith('https://') || value.startsWith('data:') || value.startsWith('/api/'))) {
+    return value
+  }
   const item = asRecord(value)
-  const url = item?.url ?? item?.download_url
+  // AgentTeams/Overdrive events are normalized to camelCase in the store,
+  // while persisted tool payloads use snake_case. Accept both shapes so the
+  // gallery does not silently fall back to a Studio session URL.
+  const url = item?.url ?? item?.download_url ?? item?.downloadUrl
   return typeof url === 'string' && url ? url : undefined
+}
+
+function artifactPreviewUrl(value: unknown): string | undefined {
+  const item = asRecord(value)
+  const url = item?.preview_url ?? item?.previewUrl
+  return typeof url === 'string' && url ? url : undefined
+}
+
+function inlineImageArtifact(value: unknown, index: number, toolId: string, pathOverride?: string): ArtifactItem | undefined {
+  if (typeof value !== 'string' || !value) return undefined
+  const url = value.startsWith('data:') ? value : `data:image/png;base64,${value}`
+  return {
+    path: pathOverride || `figures/${toolId || 'sandbox'}-preview-${index + 1}.png`,
+    url,
+  }
+}
+
+function inlineJsonArtifact(
+  value: unknown,
+  index: number,
+  toolId: string,
+  prefix: string,
+  pathOverride?: string,
+): ArtifactItem | undefined {
+  try {
+    const json = JSON.stringify(value, null, 2)
+    if (!json) return undefined
+    return {
+      path: pathOverride || `figures/${toolId || 'sandbox'}-${prefix}-${index + 1}.json`,
+      url: `data:application/json;charset=utf-8,${encodeURIComponent(json)}`,
+    }
+  } catch {
+    return undefined
+  }
 }
 
 function artifactDetails(value: unknown): ArtifactItem | undefined {
@@ -117,18 +163,24 @@ function artifactDetails(value: unknown): ArtifactItem | undefined {
     size: typeof item?.size === 'number' ? item.size : undefined,
     mtime: typeof item?.mtime === 'number' ? item.mtime : undefined,
     url: artifactUrl(value),
+    previewUrl: artifactPreviewUrl(value),
   }
 }
 
 function artifactDetailsFromEntry(pathValue: unknown, metadata: unknown): ArtifactItem | undefined {
-  const path = artifactPath(pathValue)
+  // Map-style manifests use the key as the path and may store a bare URL as
+  // metadata. Treat only object metadata as path metadata; otherwise a data:
+  // URL would incorrectly become the displayed file name.
+  const metadataRecord = asRecord(metadata)
+  const path = artifactPath(metadataRecord) || artifactPath(pathValue)
   if (!path) return undefined
-  const item = asRecord(metadata)
+  const item = metadataRecord
   return {
     path,
     size: typeof item?.size === 'number' ? item.size : undefined,
     mtime: typeof item?.mtime === 'number' ? item.mtime : undefined,
-    url: artifactUrl(pathValue) ?? artifactUrl(metadata),
+    url: artifactUrl(metadata) ?? artifactUrl(pathValue),
+    previewUrl: artifactPreviewUrl(metadata) ?? artifactPreviewUrl(pathValue),
   }
 }
 
@@ -148,10 +200,132 @@ function directArtifacts(value: unknown): ArtifactItem[] {
 function collectArtifacts(tool: ToolCall): ArtifactItem[] {
   const result = asRecord(tool.result)
   const nestedPayload = asRecord(result?.ui_payload) || asRecord(result?.uiPayload)
-  const sources = [tool.uiPayload?.artifacts, result?.artifacts, nestedPayload?.artifacts]
-  return sources.flatMap((source) => Array.isArray(source)
+  const sources = [
+    tool.uiPayload?.artifacts,
+    tool.uiPayload?.artifact_manifest,
+    result?.artifacts,
+    result?.artifact_manifest,
+    nestedPayload?.artifacts,
+    nestedPayload?.artifact_manifest,
+  ]
+  const files = sources.flatMap((source) => Array.isArray(source)
     ? source.map(artifactDetails).filter((item): item is ArtifactItem => Boolean(item))
-    : [])
+    : directArtifacts(source))
+  const outputFileSources = [tool.uiPayload?.output_files, result?.output_files, nestedPayload?.output_files]
+  for (const source of outputFileSources) files.push(...directArtifacts(source))
+  // 兼容旧消息及未能落盘的内联预览：仍放入统一产物窗口，而不是在代码卡片中单独渲染。
+  const hasImageFiles = files.some((item) => !item.path.startsWith('inline/') && IMAGE_EXTENSIONS.has(extensionOf(item.path)))
+  const inlineImages = !hasImageFiles && Array.isArray(tool.uiPayload?.images)
+    ? tool.uiPayload.images
+      .map((image, index) => inlineImageArtifact(
+        image,
+        index,
+        tool.id,
+        index === 0
+          ? files.find((item) => item.path.startsWith('inline/') && extensionOf(item.path) === 'png')?.path
+          : undefined,
+      ))
+      .filter((item): item is ArtifactItem => Boolean(item))
+    : []
+  const hasEchartsFiles = files.some((item) => !item.path.startsWith('inline/') && /(^|\/)echarts[_-]/i.test(fileName(item.path)))
+  const inlineEcharts = !hasEchartsFiles && Array.isArray(tool.uiPayload?.echarts)
+    ? tool.uiPayload.echarts
+      .map((option, index) => inlineJsonArtifact(
+        option,
+        index,
+        tool.id,
+        'echarts',
+        index === 0
+          ? files.find((item) => item.path.startsWith('inline/') && /echarts/i.test(fileName(item.path)))?.path
+          : undefined,
+      ))
+      .filter((item): item is ArtifactItem => Boolean(item))
+    : []
+  const plotlyValues = [
+    ...(Array.isArray(tool.uiPayload?.plotly_figures) ? tool.uiPayload.plotly_figures : []),
+    ...(Array.isArray(nestedPayload?.plotly_figures) ? nestedPayload.plotly_figures : []),
+    ...(result?.plotly_figure ? [result.plotly_figure] : []),
+  ]
+  const hasPlotlyFiles = files.some((item) => !item.path.startsWith('inline/') && /(^|\/)plotly[_-]/i.test(fileName(item.path)))
+  const inlinePlotly = !hasPlotlyFiles
+    ? plotlyValues
+      .map((figure, index) => inlineJsonArtifact(
+        figure,
+        index,
+        tool.id,
+        'plotly',
+        index === 0
+          ? files.find((item) => item.path.startsWith('inline/') && /plotly/i.test(fileName(item.path)))?.path
+          : undefined,
+      ))
+      .filter((item): item is ArtifactItem => Boolean(item))
+    : []
+  return [...files, ...inlineImages, ...inlineEcharts, ...inlinePlotly]
+}
+
+interface ArtifactChart extends ChartData {
+  id: string
+}
+
+function chartFiguresFromTool(tool: ToolCall): ArtifactChart[] {
+  const result = asRecord(tool.result)
+  const nested = asRecord(result?.ui_payload) || asRecord(result?.uiPayload)
+  const sources = [tool.uiPayload, nested, result]
+  const charts: ArtifactChart[] = []
+  for (const source of sources) {
+    if (!source) continue
+    const many = source.plotly_figures
+    if (Array.isArray(many)) {
+      many.forEach((option, index) => {
+        if (asRecord(option)) charts.push({ id: `tool-plotly-${tool.id}-${index}`, type: 'plotly', option: option as Record<string, unknown> })
+      })
+    }
+    const single = source.plotly_figure
+    if (asRecord(single)) charts.push({ id: `tool-plotly-${tool.id}-single`, type: 'plotly', option: single as Record<string, unknown> })
+    const echarts = source.echarts
+    if (Array.isArray(echarts)) {
+      echarts.forEach((option, index) => {
+        if (asRecord(option)) charts.push({ id: `tool-echarts-${tool.id}-${index}`, type: 'echarts', option: option as Record<string, unknown> })
+      })
+    }
+  }
+  return charts
+}
+
+const chartItems = computed<ArtifactChart[]>(() => {
+  const items = [...props.charts]
+  for (const tool of props.tools) items.push(...chartFiguresFromTool(tool))
+  const unique = new Map<string, ArtifactChart>()
+  for (const item of items) unique.set(item.id, item)
+  return [...unique.values()]
+})
+
+const chartContainers = ref<Record<string, HTMLDivElement | null>>({})
+const chartRenderError = ref('')
+const setChartContainer = (id: string) => (element: unknown) => {
+  if (element) chartContainers.value[id] = element as HTMLDivElement
+}
+
+async function renderPlotlyArtifacts() {
+  const plotlyItems = chartItems.value.filter((chart) => chart.type === 'plotly')
+  if (!galleryVisible.value || !plotlyItems.length) return
+  try {
+    const Plotly = await import('plotly.js-dist-min')
+    await nextTick()
+    for (const chart of plotlyItems) {
+      const element = chartContainers.value[chart.id]
+      if (!element) continue
+      await Plotly.newPlot(
+        element,
+        (chart.option.data || []) as Plotly.Data[],
+        (chart.option.layout || {}) as Partial<Plotly.Layout>,
+        { responsive: true, displayModeBar: true, displaylogo: false },
+      )
+    }
+    chartRenderError.value = ''
+  } catch (error) {
+    chartRenderError.value = `图表预览失败: ${error instanceof Error ? error.message : String(error)}`
+  }
 }
 
 const artifactItems = computed(() => {
@@ -165,11 +339,16 @@ const artifactItems = computed(() => {
           size: artifact.size ?? existing.size,
           mtime: artifact.mtime ?? existing.mtime,
           url: artifact.url ?? existing.url,
+          previewUrl: artifact.previewUrl ?? existing.previewUrl,
         }
       : artifact)
   }
   for (const tool of props.tools) {
     for (const artifact of collectArtifacts(tool)) addArtifact(artifact)
+  }
+  for (const chart of props.charts) {
+    const artifact = inlineJsonArtifact(chart.option, 0, chart.id, chart.type)
+    if (artifact) addArtifact({ ...artifact, path: `inline/${chart.id}-${chart.type}.json` })
   }
   for (const artifact of directArtifacts(props.artifacts)) addArtifact(artifact)
   return [...unique.values()]
@@ -222,13 +401,23 @@ function clearPreviews() {
 }
 
 async function fetchArtifactBlobData(artifact: ArtifactItem): Promise<Blob> {
-  if (artifact.url) {
+  const sourceUrl = artifact.url
+  if (sourceUrl) {
+    if (sourceUrl.startsWith('data:')) {
+      return await (await fetch(sourceUrl)).blob()
+    }
     // apiClient baseURL 为 /api/v1，剥掉前缀后直连产物下载地址
-    const res = await apiClient.get(artifact.url.replace(/^\/api\/v1/, ''), { responseType: 'blob' })
+    const res = await apiClient.get(sourceUrl.replace(/^\/api\/v1/, ''), { responseType: 'blob' })
     return res.data as Blob
   }
   const objectUrl = await studioApi.fetchArtifactBlob(props.sessionId, artifact.path)
   return await (await fetch(objectUrl)).blob()
+}
+
+async function fetchPreviewBlobData(artifact: ArtifactItem): Promise<Blob> {
+  if (!artifact.previewUrl || artifact.previewUrl === artifact.url) return fetchArtifactBlobData(artifact)
+  const res = await apiClient.get(artifact.previewUrl.replace(/^\/api\/v1/, ''), { responseType: 'blob' })
+  return res.data as Blob
 }
 
 async function fetchArtifactObjectUrl(artifact: ArtifactItem): Promise<string> {
@@ -329,11 +518,11 @@ function printMediaPreview() {
 async function loadPreviewUrls(items: ArtifactItem[]) {
   const targets = items.filter((artifact) => artifact.url || props.sessionId)
   await Promise.all(targets.map(async (artifact) => {
-    const sourceKey = artifact.url || ''
+    const sourceKey = `${artifact.url || ''}:${artifact.previewUrl || ''}`
     // 同一产物按相同来源加载过则跳过;URL 从空补齐为直连地址时来源变化,需重拉
     if (previewUrls.value[artifact.path] && loadedUrlByPath.value[artifact.path] === sourceKey) return
     try {
-      const objectUrl = await fetchArtifactObjectUrl(artifact)
+      const objectUrl = URL.createObjectURL(await fetchPreviewBlobData(artifact))
       const stale = previewUrls.value[artifact.path]
       if (stale) URL.revokeObjectURL(stale)
       previewUrls.value[artifact.path] = objectUrl
@@ -347,11 +536,15 @@ async function loadPreviewUrls(items: ArtifactItem[]) {
 function openGalleryWindow() {
   galleryVisible.value = true
   void loadPreviewUrls(previewArtifacts.value)
+  void renderPlotlyArtifacts()
 }
 
 // 窗口关闭后释放非缩略图预览占用的 object URL,重新打开时再按需加载
 watch(galleryVisible, (visible) => {
-  if (visible) return
+  if (visible) {
+    void renderPlotlyArtifacts()
+    return
+  }
   const keep = new Set(inlineThumbArtifacts.value.map((artifact) => artifact.path))
   for (const [path, url] of Object.entries(previewUrls.value)) {
     if (!keep.has(path)) {
@@ -361,6 +554,10 @@ watch(galleryVisible, (visible) => {
     }
   }
 })
+
+watch(chartItems, () => {
+  void renderPlotlyArtifacts()
+}, { deep: true })
 
 async function downloadArtifact(path: string) {
   const artifact = artifactItems.value.find((item) => item.path === path)
@@ -389,7 +586,7 @@ async function downloadArtifact(path: string) {
 watch(
   () => [
     props.sessionId,
-    previewArtifacts.value.map((artifact) => `${artifact.path}:${artifact.url || ''}`).join('|'),
+    previewArtifacts.value.map((artifact) => `${artifact.path}:${artifact.url || ''}:${artifact.previewUrl || ''}`).join('|'),
   ],
   () => {
     // 产物被移除时释放对应 object URL
@@ -413,11 +610,11 @@ onBeforeUnmount(clearPreviews)
 </script>
 
 <template>
-  <section v-if="artifactItems.length" class="message-artifacts" aria-label="分析产物">
+  <section v-if="artifactItems.length || chartItems.length" class="message-artifacts" aria-label="分析产物">
     <div class="message-artifacts__header">
       <div>
         <span class="message-artifacts__eyebrow">分析产物</span>
-        <strong>已生成 {{ artifactItems.length }} 个文件</strong>
+        <strong>已生成 {{ artifactItems.length }} 个分析产物</strong>
       </div>
       <button
         type="button"
@@ -464,12 +661,22 @@ onBeforeUnmount(clearPreviews)
     <NModal
       v-model:show="galleryVisible"
       preset="card"
-      :title="`分析产物 · 已生成 ${artifactItems.length} 个文件`"
+      :title="`分析产物 · 已生成 ${artifactItems.length} 个分析产物`"
       style="width: min(92vw, 1200px)"
       :bordered="false"
       segmented
     >
       <div class="artifact-gallery-window__body">
+        <section v-if="chartItems.length" class="message-artifacts__charts" aria-label="图表产物">
+          <div v-for="chart in chartItems" :key="chart.id" class="message-artifacts__chart-card">
+            <div class="message-artifacts__chart-title">
+              {{ chart.type === 'plotly' ? 'Plotly 图表' : 'ECharts 图表' }}
+            </div>
+            <div v-if="chart.type === 'plotly'" :ref="setChartContainer(chart.id)" class="message-artifacts__plotly" />
+            <VChart v-else :option="chart.option" autoresize class="message-artifacts__echarts" />
+          </div>
+          <p v-if="chartRenderError" class="plotly-render-error">{{ chartRenderError }}</p>
+        </section>
         <div v-if="previewArtifacts.length" class="message-artifacts__images">
           <figure v-for="artifact in previewArtifacts" :key="artifact.path" class="message-artifacts__image-card">
             <div class="message-artifacts__preview">
@@ -794,6 +1001,38 @@ p.message-artifacts__hint {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: var(--space-md, 12px);
+}
+
+.message-artifacts__charts {
+  display: grid;
+  gap: var(--space-md, 12px);
+  margin-bottom: var(--space-md, 12px);
+}
+
+.message-artifacts__chart-card {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--stardust-border-soft);
+  border-radius: calc(var(--radius-card, 12px) - 2px);
+  background: var(--bg-secondary, var(--bg-card));
+}
+
+.message-artifacts__chart-title {
+  padding: 8px 12px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--stardust-border-soft);
+}
+
+.message-artifacts__plotly {
+  width: 100%;
+  min-height: 360px;
+}
+
+.message-artifacts__echarts {
+  width: 100%;
+  height: 360px;
 }
 
 .message-artifacts__image-card {

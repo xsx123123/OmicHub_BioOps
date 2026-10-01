@@ -7,6 +7,7 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Any
 
 from loguru import logger
+from sqlalchemy.exc import SQLAlchemyError
 
 from cygnusx.application.services.agent_handoff_service import HANDOFF_TOOL_NAME
 from cygnusx.application.services.chat.configuration import (
@@ -26,6 +27,8 @@ from cygnusx.application.services.chat.utils import (
 )
 from cygnusx.application.services.chat_sandbox_tools import (
     CHAT_SANDBOX_TOOL_NAME,
+    chat_sandbox_hard_timeout,
+    chat_sandbox_timeout_result,
     execute_chat_sandbox,
 )
 from cygnusx.application.services.network_request_tool import (
@@ -284,6 +287,28 @@ class LangGraphChatRuntime(DelegatingAgentRuntime):
             "skills": list(skills or []),
             "skill_pins": skill_pins or {},
         }
+
+        # 压缩审计改由消费协程收尾时统一落库：_prepare_messages 在 LangGraph
+        # 图 task 内被调用，若在图内直接写请求级 session，会与消费协程的
+        # update_message_content 并发 flush（"Session is already flushing"），
+        # 并打坏 asyncpg 连接（用户看到 "connection is closed"）。
+        self._service._defer_compaction_audit = True
+
+        async def _prepare_messages(
+            current_messages: list[dict[str, Any]],
+        ) -> tuple[list[dict[str, Any]], bool, int]:
+            """Compact only the provider view; graph state keeps full history."""
+            result = await self._service._compress_context_if_needed(
+                current_messages,
+                runtime_state["model_config"],
+                tool_schemas=runtime_state["tools"],
+                system_prompt=runtime_state["system_prompt"],
+            )
+            _prepare_messages.last_compaction = self._service._last_context_compaction
+            _prepare_messages.last_compaction_policy = getattr(
+                self._service, "_last_context_compaction_policy", None
+            )
+            return result
         persisted_web_sources = web_sources if web_sources is not None else []
         # 审批闸上下文（对齐 legacy chat_service）：仅当会话显式携带
         # sandbox_meta.permissions.mode 时启用审批；always_allow 集合支持流内
@@ -393,9 +418,31 @@ class LangGraphChatRuntime(DelegatingAgentRuntime):
                     },
                 }
             if tool_name == "knowledge_search":
-                session = await self._service.get_session(session_id, user_id)
+                # 本函数运行在 LangGraph 图 task 内：project_id 用独立会话
+                # 读取，避免与消费协程并发使用请求级 session。
+                from sqlalchemy import select as _select
+
+                from cygnusx.infrastructure.database.models.chat import (
+                    ChatSessionModel,
+                )
+                from cygnusx.infrastructure.database.session import (
+                    get_session_factory,
+                )
+
+                project_id: str | None = None
+                try:
+                    async with get_session_factory()() as ks_db:
+                        project_id = (
+                            await ks_db.execute(
+                                _select(ChatSessionModel.project_id).where(
+                                    ChatSessionModel.session_id == session_id
+                                )
+                            )
+                        ).scalar_one_or_none()
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning("knowledge_search 读取会话 project_id 失败: {}", exc)
                 return await self._service._knowledge_search_chat(
-                    args, project_id=session.project_id if session else None
+                    args, project_id=project_id
                 )
             if tool_name == "web_search":
                 # 对齐 legacy chat_service.py:5038-5074：循环内补发 web_search
@@ -472,9 +519,25 @@ class LangGraphChatRuntime(DelegatingAgentRuntime):
                 )
                 if rejection is not None:
                     return rejection
-                return await execute_chat_sandbox(
-                    effective_args, user_id, session_id=session_id
-                )
+                hard_timeout = chat_sandbox_hard_timeout(effective_args)
+                try:
+                    # LangGraph intentionally uses the single-result executor rather
+                    # than the legacy incremental wrapper. Apply the same complete
+                    # deadline here so setup, artifact copy-out, archive, and probe
+                    # cannot leave the assistant tool card in "running" forever.
+                    return await asyncio.wait_for(
+                        execute_chat_sandbox(
+                            effective_args, user_id, session_id=session_id
+                        ),
+                        timeout=hard_timeout,
+                    )
+                except asyncio.TimeoutError:
+                    logger.error(
+                        "[LangGraph] chat sandbox overall timeout: session={} timeout={}",
+                        session_id,
+                        hard_timeout,
+                    )
+                    return chat_sandbox_timeout_result(hard_timeout)
             if tool_name == MAS_PLAN_PREVIEW_TOOL_NAME:
                 # 对齐 legacy chat_service.py:4391-4392：adapt 返回的信封
                 # （success/result 双通道）直接作为工具结果，不再二次封装。
@@ -794,6 +857,8 @@ class LangGraphChatRuntime(DelegatingAgentRuntime):
                     run_id=execution_run_id,
                     agent_id=execution_agent_id,
                     execution_path=execution_path,
+                    prepare_messages=_prepare_messages,
+                    message_id=ai_message_id,
                 )
                 deps_holder["deps"] = deps
                 runtime = LangGraphRuntimeService(deps, max_rounds=max_rounds)
@@ -817,6 +882,11 @@ class LangGraphChatRuntime(DelegatingAgentRuntime):
                         yield chunk
                     elif chunk.type == "error":
                         error = chunk.content or "LangGraph Runtime 返回错误"
+                        if chunk.metadata.get("tool_execution_error"):
+                            # 工具错误是可恢复的执行反馈，不是模型/API 终止错误。
+                            # tool_result 随后会把 error 信封回灌给 Agent，继续下一轮。
+                            yield chunk
+                            continue
                         # 正文保留已累计内容，错误原因写入 metadata.error
                         await self._service.update_message_content(
                             ai_message_id,
@@ -923,6 +993,10 @@ class LangGraphChatRuntime(DelegatingAgentRuntime):
                                 "timeline": timeline,
                             },
                         )
+                        # 沙盒失败仍是可恢复的工具结果：tool_exec_node 已将
+                        # llm_payload（含 stderr/error）写入 role=tool，继续下一轮
+                        # 让 Agent 自己修正并重试。不要升级成 agent_turn_failed，
+                        # 否则前端会显示模型/API 级失败并结束整段对话。
                         yield chunk
                     else:
                         # 其余事件直接透传（metadata 已对齐 legacy）
@@ -1083,15 +1157,30 @@ class LangGraphChatRuntime(DelegatingAgentRuntime):
                 return
         except Exception as e:  # noqa: BLE001
             error = str(e)
-            await self._service.update_message_content(
-                ai_message_id,
-                full_content,
-                "error",
-                {"error": error},
+            logger.exception("LangGraph 聊天流异常: {}", e)
+            # 消费协程内串行写库；失败不得遮蔽原始异常（如 session 已损坏
+            # 时会再抛 DB 错误，把原始错误挤掉并泄露给用户）。
+            try:
+                await self._service.update_message_content(
+                    ai_message_id,
+                    full_content,
+                    "error",
+                    {"error": error},
+                )
+            except Exception as persist_exc:  # noqa: BLE001
+                logger.warning("错误状态落库失败（保留原始错误）: {}", persist_exc)
+            # 数据库层错误不向前端泄露内部细节（SQL/驱动信息）
+            user_visible_error = (
+                "服务内部错误，请稍后重试"
+                if isinstance(e, SQLAlchemyError)
+                else f"生成失败: {error}"
+            )
+            metadata_error = (
+                "db_error" if isinstance(e, SQLAlchemyError) else error
             )
             yield ChatChunk(
                 type="error",
-                content=f"生成失败: {error}",
+                content=user_visible_error,
                 metadata={
                     "session_id": session_id,
                     "message_id": ai_message_id,
@@ -1102,11 +1191,11 @@ class LangGraphChatRuntime(DelegatingAgentRuntime):
                         agent_id=execution_agent_id,
                         round_number=execution_round,
                         execution_path=execution_path,
-                        error=error,
+                        error=metadata_error,
                     ),
                 },
             )
-            for terminal_chunk in _failed_terminal_events(error):
+            for terminal_chunk in _failed_terminal_events(metadata_error):
                 yield terminal_chunk
             return
 
@@ -1125,6 +1214,11 @@ class LangGraphChatRuntime(DelegatingAgentRuntime):
             }
             or None,
         )
+        # 图执行期间暂存的压缩审计在此统一落库（消费协程内，串行安全）
+        try:
+            await self._service._flush_deferred_compaction_audit()
+        except Exception as audit_exc:  # noqa: BLE001
+            logger.warning("压缩审计收尾落库失败（忽略）: {}", audit_exc)
         if (
             runtime.rounds_exhausted
             and runtime.last_handoff is None

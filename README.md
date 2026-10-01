@@ -61,6 +61,14 @@ CygnusX 提供从轻量探索到受控交付的四级入口（L1–L4），共�
 
 ## 平台愿景与核心理念
 
+### 为什么要搭建这个平台
+
+生命科学的数据分析交付，正在经历一场深刻的范式迁移，从凭经验摸索的“个人手艺”，走向机器可核验的“工业交付”。在大语言模型席卷一切的浪潮里，有人惊叹于生成式 AI 的天马行空，有人受阻于科学计算对绝对严谨的苛求。面对“AI for Science”这道复杂的时代命题，CygnusX BioOps 既不做盲目乐观的追随者，也不做止步不前的旁观者，我们选择成为最接地气的探路者。
+
+我们给出的答案，不是堆砌更多聪明的 Agent，而是构建一套让科学敢于探索的确定性系统：为大模型画定清醒的权力边界，用 Skill 契约驯服幻觉；把散落的专家智慧固化为可流转的流程资产，把每一次推演封存为经得起时间推敲的“证据胶囊”。人负责提出最具想象力的科学假说，系统负责守护物理世界中最严谨的计算证据。
+
+通往智能科研的坦途不会凭空出现，总需要有人在代码、数据与生物学规律之间，扎硬寨、打硬仗，摸清大模型在严谨科学领域的边界与可能，这不是停留在纸面上的推演。在真实的高校基因组学实验室里，我们已经迈出了受控验证的第一步；未来，我们更将以扎实的工程持续探明这条路，让每一次科学推导皆有证据，让每一次组学发现都经得起历史检验。
+
 ### 平台定位
 
 **从科研现象出发，组织可验证、可复现、可追溯的计算实验。**
@@ -88,6 +96,20 @@ CygnusX 的愿景是演进方向，不代表当前能力承诺。当前平台首
 - 计划审批、人工复核与交付门禁
 
 因此，自动化不是无限授权，而是**在可审计、可回退的边界内逐步扩大系统可以自主完成的工作范围**。Agent 可以辅助提出方案、调用工具、执行计算和整理证据，但模型生成的假设不能直接视为科学结论，关键判断仍由科研人员负责。
+
+### 可信计算的五个基本问题
+
+CygnusX 对每一次计算实验和每一项交付都坚持回答以下五个问题。它们既是平台愿景中的价值判断，也是权限、证据和交付设计必须满足的工程标准：
+
+| 问题 | 核心关注点 | 平台要求 |
+|---|---|---|
+| **Permission**<br>谁可以执行？ | 执行者身份、权限范围与审批边界 | 只有经过授权的用户、Agent 和工具，才能在明确的 Case 与资源边界内执行操作 |
+| **Provenance**<br>结果来自哪里？ | 数据、流程、环境、模型与外部来源 | 结果关联输入数据、流程版本、软件环境、工具调用和文献或数据库来源 |
+| **Evidence**<br>为什么应该相信？ | 结论依据、质量指标与验证过程 | 交付必须附带可检查的产物、质量控制结果和证据，并区分计算结果、外部证据与综合推断 |
+| **Reproducibility**<br>能否再次运行？ | 参数、依赖、随机性与运行入口 | 固化参数、环境、软件清单、随机种子和重跑命令，使同一任务能够被复现或解释差异 |
+| **Audit**<br>究竟发生了什么？ | 时间线、决策、变更与异常 | 保留完整的执行日志、审批记录、工具调用、产物指纹和失败信息，支持事后核验 |
+
+这五个问题共同定义了平台对“完成”的最低要求：**不是产生一个结果文件，而是产生一个有权限边界、有来源说明、有证据支撑、可重跑且完整留痕的科研交付。**
 
 ### 从分析任务走向科研问题
 
@@ -298,6 +320,53 @@ OmicStudio 分析沙箱按 **capability 路由**（`code` / `browser` / `documen
 - **模块设计**：`docs/modules/`；**命令详表**：`docs/update_info/26.6/Makefile_命令说明.md`
 - **部署细节**：`deploy/docker/README.md`、`deploy/agentteams/README.md`、`deploy/docker/POLARDB_POSTGRES.md`
 - **审查与规划报告**：`report/`（架构梳理、安全审查、任务调度、K8s、存储迁移等）
+
+## TODO · HPC / Systems Agent (`agent-hpc`)
+
+高性能计算 Agent，用于编写、编译并运行 Rust 等高性能系统代码，解决大规模基因组/单细胞分析中的瓶颈计算。
+
+### [Phase 1: Agent Definition & Architecture]
+- [ ] **Define Agent Responsibilities (`agent-hpc`)**:
+  - 核心职责：针对大规模基因组/单细胞瓶颈计算（如超大 BAM/VCF 流式解析、k-mer 频数统计、定制化高性能算法）编写、编译并运行高性能系统代码。
+  - 支持能力：Rust CLI 自动化编译与运行 (`cargo run/build --release`)、Polars 高性能数据流处理、与 Python (PyO3) / C-ABI 互操作。
+- [ ] **Register Agent in Platform Config**:
+  - 新增 Agent：`agent-hpc`（或 `agent-compute`）
+  - 映射运行时沙箱类型：`analysis-hpc` -> `cygnusx-analysis:hpc-v0.0.1dev`
+
+### [Phase 2: Dockerfile & Environment for `analysis-hpc`]
+- [ ] **Base OS & Build Toolchain**:
+  - [ ] 基础镜像：基于轻量稳定 Linux 镜像（如 `debian:bookworm-slim` 或 `ubuntu:24.04`）
+  - [ ] 预装必备编译依赖：`build-essential`, `clang`, `lld` (加速链接), `cmake`, `pkg-config`, `libssl-dev`, `zlib1g-dev`
+- [ ] **Rust Toolchain Configuration**:
+  - [ ] 通过 `rustup` 安装 Stable 官方工具链（含 `rustc`, `cargo`, `rustfmt`, `clippy`）
+  - [ ] 配置 Cargo 缓存路径与并行编译优化环境变量（如 `RUSTFLAGS="-C target-cpu=native"` 或基于通用体系架构的优化）
+  - [ ] 预装常用辅助开发 CLI 工具：
+    - `cargo-binstall` (极速二进制安装工具)
+    - `sccache` (编译缓存加速工具，降低 Agent 反复编译开销)
+- [ ] **Pre-cached Bioinformatics & Numerical Rust Crates**:
+  *(在镜像构建阶段预先下载并编译常用基础依赖，极大缩短 Agent 运行时首编译耗时)*
+  - [ ] **生物信息核心库**：`noodles` (高性能 BAM/VCF/FASTQ 解析生态), `bio` (bio-rs 算法库), `needletail` (超快 FASTA/FASTQ 解析)
+  - [ ] **高性能数据与数值计算**：`polars` (带 SIMD/并行加速), `rayon` (数据并行库), `ndarray`, `sprs` (稀疏矩阵)
+  - [ ] **多线程与系统抽象**：`tokio`, `crossbeam`, `serde`, `serde_json`, `clap`
+
+### [Phase 3: Image Build, Smoke Tests & Registry Push]
+- [ ] **Compiler Smoke Test**:
+  - [ ] 验证 `cargo --version` 与 `rustc --version`
+  - [ ] 执行一段轻量测试代码（例如使用 `noodles` 读取 BAM header 或 `needletail` 统计 base quality），验证链接与编译链路通畅
+- [ ] **Build & Push Image**:
+  - [ ] 构建并推送镜像：`cygnusx-analysis:hpc-v0.0.1dev`
+
+### [Phase 4: Agent Audit & Platform Verification]
+- [ ] **Run Platform Audit Check**:
+  - 确认沙箱检查通过并正确列出新增 Agent：
+    ```bash
+    PASS: audited 20 enabled agents
+      ...
+      agent-atacseq     analysis-atac    cygnusx-analysis:atac-v0.0.1dev
+      agent-hpc         analysis-hpc     cygnusx-analysis:hpc-v0.0.1dev
+    ```
+- [ ] **End-to-End Task Validation**:
+  - 让 `agent-hpc` 接收一个密集数据处理任务（如生成一个统计 FASTQ GC 含量的 Rust CLI 并运行），验证沙箱内从写代码到 `cargo run --release` 的闭环稳定性。
 
 ## TODO · 桌面客户端（规划中）
 

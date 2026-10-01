@@ -5,6 +5,15 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import sys
+from pathlib import Path
+
+# Allow direct execution from the repository root without requiring callers to
+# export PYTHONPATH=src first.
+REPO_ROOT = Path(__file__).resolve().parents[1]
+SRC_ROOT = REPO_ROOT / "src"
+if str(SRC_ROOT) not in sys.path:
+    sys.path.insert(0, str(SRC_ROOT))
 
 from cygnusx.application.services.knowledge_index_service import KnowledgeIndexService
 from cygnusx.infrastructure.database.models.knowledge_document import KbDocumentModel

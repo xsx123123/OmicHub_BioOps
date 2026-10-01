@@ -180,7 +180,6 @@ class LiteLLMProvider:
             start = time.perf_counter()
             status = "success"
             usage: dict[str, Any] | None = None
-            finish_reason: str | None = None
             try:
                 response = await litellm.acompletion(**kwargs)
                 data = response.model_dump() if hasattr(response, "model_dump") else dict(response)
@@ -447,6 +446,13 @@ class LiteLLMProvider:
                 kwargs["api_base"] = config.base_url
         else:
             kwargs["api_key"] = self._settings.openai_api_key or self._settings.kimi_api_key
+
+        # Embeddings use the same OpenAI-compatible endpoint routing as chat.
+        # Without this prefix LiteLLM cannot identify custom providers such as
+        # the configured Doubao endpoint and raises "Provider NOT provided".
+        kwargs["model"] = self._route_model(
+            str(kwargs.get("model", "")), bool(kwargs.get("api_base"))
+        )
 
         tracer = get_tracer("cygnusx.ai")
         with tracer.start_as_current_span(

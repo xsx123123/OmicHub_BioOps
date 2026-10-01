@@ -2,6 +2,7 @@
 
 import uuid
 from collections.abc import AsyncIterator
+from contextlib import suppress
 from typing import Annotated, Any
 
 from fastapi import Depends, Header, Request
@@ -25,10 +26,20 @@ async def get_db() -> AsyncIterator[AsyncSession]:
     async with factory() as session:
         try:
             yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
+        except BaseException:
+            # CancelledError inherits from BaseException.  A cancelled streaming
+            # response must still clear SQLAlchemy's failed transaction before
+            # the connection is returned to the pool.
+            with suppress(Exception):
+                await session.rollback()
             raise
+        else:
+            try:
+                await session.commit()
+            except BaseException:
+                with suppress(Exception):
+                    await session.rollback()
+                raise
 
 
 DbSession = Annotated[AsyncSession, Depends(get_db)]

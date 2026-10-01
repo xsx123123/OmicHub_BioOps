@@ -6,12 +6,12 @@
  *  - 头部：语言徽章 + 执行状态
  *  - 代码区：CodeMirror 只读展示
  *  - 输出区：stdout/stderr 实时累计
- *  - 支持 images / echarts 渲染（standalone sandbox 特有）
+ *  - 预览与下载统一由消息级 MessageArtifactGallery 提供
  *
  * 与 StudioCodeCard 的区别：
  *  - 无工作区耦合（无 workspace_write/edit）
  *  - 无重跑/编辑功能（聊天模式一次性执行）
- *  - 无产物下载（standalone sandbox 无持久化工作区）
+ *  - 不在代码卡片内重复渲染产物，避免与统一产物窗口出现两套交付路径
  */
 import { computed, ref } from 'vue'
 import { NTag } from 'naive-ui'
@@ -57,16 +57,6 @@ const stderrText = computed(() => {
   return typeof s === 'string' ? s : ''
 })
 
-const images = computed(() => {
-  const imgs = props.tool.uiPayload?.images
-  return Array.isArray(imgs) ? (imgs as string[]) : []
-})
-
-const echartsOptions = computed(() => {
-  const opts = props.tool.uiPayload?.echarts
-  return Array.isArray(opts) ? (opts as Record<string, unknown>[]) : []
-})
-
 const errorText = computed(() => {
   const e = props.tool.uiPayload?.error
   return typeof e === 'string' ? e : (props.tool.status === 'error' ? '执行出错' : '')
@@ -80,6 +70,11 @@ const statusText = computed(() => {
 })
 
 const hasOutput = computed(() => stdoutText.value || stderrText.value || props.tool.output)
+
+const displayOutput = computed(() => {
+  const value = props.tool.output || stdoutText.value
+  return value.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+})
 </script>
 
 <template>
@@ -117,26 +112,11 @@ const hasOutput = computed(() => stdoutText.value || stderrText.value || props.t
     <div v-if="hasOutput || tool.status === 'running'" class="output-block">
       <div v-if="stdoutText || tool.output" class="output-section">
         <div class="output-label">stdout</div>
-        <pre class="output-view">{{ tool.output || stdoutText }}</pre>
+        <pre class="output-view">{{ displayOutput }}</pre>
       </div>
       <div v-if="stderrText" class="output-section stderr">
         <div class="output-label">stderr</div>
         <pre class="output-view">{{ stderrText }}</pre>
-      </div>
-    </div>
-
-    <div v-if="images.length" class="image-previews">
-      <img
-        v-for="(img, idx) in images"
-        :key="idx"
-        :src="img.startsWith('data:') ? img : `data:image/png;base64,${img}`"
-        class="preview-image"
-      />
-    </div>
-
-    <div v-if="echartsOptions.length" class="echarts-previews">
-      <div v-for="(opt, idx) in echartsOptions" :key="idx" class="echarts-placeholder">
-        图表 {{ idx + 1 }}（ECharts 渲染待接入）
       </div>
     </div>
 
@@ -236,35 +216,11 @@ const hasOutput = computed(() => stdoutText.value || stderrText.value || props.t
   border-radius: 6px;
   white-space: pre-wrap;
   word-break: break-word;
+  overflow-wrap: anywhere;
+  min-width: 0;
+  max-width: 100%;
   max-height: 300px;
   overflow-y: auto;
-}
-
-.image-previews {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 8px 12px;
-}
-
-.preview-image {
-  max-width: 100%;
-  max-height: 360px;
-  border-radius: 8px;
-  border: 1px solid var(--chat-border, #e8ecf1);
-}
-
-.echarts-previews {
-  padding: 8px 12px;
-}
-
-.echarts-placeholder {
-  font-size: 12px;
-  color: var(--chat-text-muted, #999);
-  padding: 8px;
-  border: 1px dashed var(--chat-border, #e8ecf1);
-  border-radius: 6px;
-  text-align: center;
 }
 
 .error-block {

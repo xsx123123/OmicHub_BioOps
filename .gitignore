@@ -1,0 +1,103 @@
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.claude
+.mypy_cache
+.ruff_cache
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+sc-seq.zip
+sc-seq/
+
+# ===== 虚拟环境 =====
+.venv/
+venv/
+env/
+ENV/
+
+# ===== uv =====
+# uv.lock 应当提交，不忽略
+
+# ===== 测试 =====
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+
+# ===== IDE =====
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.settings/
+.qoder
+
+# ===== 环境变量 =====
+.env
+.env.local
+.env.*.local
+!.env.example
+deploy/agentteams/bridge.env
+deploy/agentteams/gateway.env
+deploy/agentteams/worker.env
+data/.worker-config.env
+
+# ===== 数据库 =====
+*.sqlite
+*.sqlite3
+*.db
+
+# ===== 日志 =====
+logs/
+*.log
+
+# ===== 前端 =====
+node_modules/
+frontend/dist/
+frontend/.vite/
+*.tsbuildinfo
+
+# ===== Docker =====
+# 不忽略 deploy/docker/ 下的配置文件
+
+# ===== 数据卷（本地开发） =====
+!data/ai/providers.yaml
+!data/ai/providers.yaml.example
+!data/OmicHub.yaml
+# 阿里云官方技能源运行时同步缓存（市场同步产物，不入库；内置市场 data/ai/skill_marketplace 随仓库发布）
+data/ai/skill_marketplace_aliyun/
+volumes/
+.codex
+.agents
+
+# 镜像构建用的大件外部制品（GATK/PLINK 等），不入库，缺失时按 Dockerfile 注释重新下载
+tool_configs/terminal/docker/vendor/
+pipelines/*/report/docker/RNA/docker_build/vendor/
+
+update_info/
+atac-seq/
+cloud/
+qc/
+rna-seq/

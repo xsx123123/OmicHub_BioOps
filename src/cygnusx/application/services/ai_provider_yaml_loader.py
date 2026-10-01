@@ -103,6 +103,7 @@ class AIProviderYamlLoader:
                 api_key=item.get("api_key") or (base.api_key if base else ""),
                 temperature=float(item.get("temperature", base.temperature if base else 0.7)),
                 max_tokens=int(item.get("max_tokens", base.max_tokens if base else 2048)),
+                context_window=int(item.get("context_window", base.context_window if base else 262144)),
                 top_p=float(item.get("top_p", base.top_p if base else 1.0)),
                 timeout=int(item.get("timeout", base.timeout if base else 120)),
                 input_price=_opt_float(item.get("input_price", base.input_price if base else None)),

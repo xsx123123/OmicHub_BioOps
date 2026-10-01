@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import and_, delete, exists, func, or_, select, update
@@ -301,11 +302,13 @@ class UploadSessionRepositoryImpl(IUploadSessionRepository):
         await self._session.refresh(model)
         return self._to_entity(model)
 
-    async def add_chunk(self, user_id: UUID, session_id: UUID, chunk: dict) -> UploadSession | None:
+    async def add_chunk(
+        self, user_id: UUID, session_id: UUID, chunk: dict[str, Any]
+    ) -> UploadSession | None:
         stmt = select(UploadSessionModel).where(
             UploadSessionModel.id == session_id,
             UploadSessionModel.user_id == user_id,
-        )
+        ).with_for_update()
         model = (await self._session.execute(stmt)).scalar_one_or_none()
         if model is None:
             return None

@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import DeclarativeBase
 
 from cygnusx.core.config import get_settings
 from cygnusx.core.telemetry import get_meter
@@ -112,6 +113,22 @@ class AgentContextBuilder:
             assembled = await self._assemble(agent_id, user_id, user_message)
             if assembled is None:
                 return None
+            # AgentService currently returns ORM-backed Agent and model objects.
+            # They are valid for this request, but become detached when the
+            # request Session closes. Never retain those objects in the
+            # process-wide cache; a later request would trigger a lazy refresh
+            # on a closed Session (DetachedInstanceError / error 20/bhk3).
+            if self._contains_orm_instance(assembled):
+                duration_ms = (time.perf_counter() - started) * 1000
+                _context_build_duration.record(
+                    duration_ms,
+                    {"agent.id": agent_id, "chat.mode": mode, "cache.hit": False},
+                )
+                _context_cache_access.add(
+                    1,
+                    {"agent.id": agent_id, "chat.mode": mode, "cache.hit": False},
+                )
+                return self._clone_assembly(assembled)
             self._cache[cache_key] = _CachedAssembly(
                 expires_at=time.monotonic() + get_settings().agent_context_cache_ttl_seconds,
                 assembled=self._clone_assembly(assembled),
@@ -171,3 +188,15 @@ class AgentContextBuilder:
             if value is not None:
                 setattr(clone, attribute, list(value))
         return clone
+
+    @staticmethod
+    def _contains_orm_instance(assembled: Any) -> bool:
+        """Return whether an assembly contains an object tied to SQLAlchemy ORM."""
+        for attribute in ("agent", "model_config"):
+            if isinstance(getattr(assembled, attribute, None), DeclarativeBase):
+                return True
+        for attribute in ("mcp_servers", "skills"):
+            values = getattr(assembled, attribute, None) or []
+            if any(isinstance(value, DeclarativeBase) for value in values):
+                return True
+        return False

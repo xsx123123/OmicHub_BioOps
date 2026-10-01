@@ -9,6 +9,7 @@ from cygnusx.infrastructure.cache.redis_client import get_redis
 
 MAS_EVENT_STREAM = "cygnusx:mas:events"
 MAS_SCHEDULER_GROUP = "mas-scheduler"
+RUN_EVENT_STREAM = "cygnusx:run:events"
 
 
 class RedisStreamPublisher:
@@ -24,6 +25,19 @@ class RedisStreamPublisher:
                 approximate=True,
             )
         )
+
+
+class RunEventStreamPublisher:
+    """Publishes durable platform Run events after PostgreSQL persistence."""
+
+    async def publish(self, event_id: str, payload: dict[str, Any]) -> str:
+        redis_client = get_redis()
+        return str(await redis_client.xadd(
+            RUN_EVENT_STREAM,
+            {"event_id": event_id, "payload": json.dumps(payload, ensure_ascii=False)},
+            maxlen=100_000,
+            approximate=True,
+        ))
 
 
 class RedisStreamConsumer:

@@ -92,6 +92,26 @@ class CygnusXAPIClient:
     async def submit_task(self, payload: dict) -> dict:
         return await self.post("/tasks", json=payload)
 
+    # ===== Unified Runs =====
+    async def list_runs(self, project_slug: str | None = None, status: str | None = None) -> list:
+        params = {k: v for k, v in {"project_slug": project_slug, "status": status}.items() if v}
+        return await self.get("/runs", params=params)
+
+    async def get_run(self, run_id: str) -> dict:
+        return await self.get(f"/runs/{run_id}")
+
+    async def get_run_events(self, run_id: str, limit: int = 200) -> dict:
+        return await self.get(f"/runs/{run_id}/events", params={"limit": limit})
+
+    async def get_run_artifacts(self, run_id: str) -> dict:
+        return await self.get(f"/runs/{run_id}/artifacts")
+
+    async def submit_snakemake_plan(self, payload: dict) -> dict:
+        return await self.post("/runs/snakemake/plan", json=payload)
+
+    async def confirm_run(self, run_id: str, user_confirmed: bool) -> dict:
+        return await self.post(f"/runs/{run_id}/confirm", json={"user_confirmed": user_confirmed})
+
     # ===== Pipelines =====
     async def list_available_pipelines(self) -> list[dict[str, Any]]:
         return await self.get("/pipelines")

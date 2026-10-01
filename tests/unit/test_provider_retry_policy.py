@@ -92,6 +92,33 @@ def test_litellm_stream_kwargs_request_usage_and_retry() -> None:
 
 
 @pytest.mark.asyncio
+async def test_litellm_embedding_routes_custom_openai_endpoint(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    async def fake_aembedding(**kwargs: object) -> dict[str, object]:
+        captured.update(kwargs)
+        return {"data": [{"embedding": [0.1]}], "usage": {}}
+
+    monkeypatch.setattr(
+        "cygnusx.infrastructure.ai_provider.litellm_provider.litellm.aembedding",
+        fake_aembedding,
+    )
+    provider = LiteLLMProvider(
+        AIProviderConfig.create(
+            name="doubao",
+            model="doubao-seed-evolving",
+            base_url="https://ark.example/v1",
+        )
+    )
+
+    assert await provider.embeddings("hello") == [0.1]
+    assert captured["model"] == "openai/doubao-seed-evolving"
+    assert captured["api_base"] == "https://ark.example/v1"
+
+
+@pytest.mark.asyncio
 async def test_provider_5xx_is_marked_retryable(monkeypatch: pytest.MonkeyPatch) -> None:
     provider = OpenAICompatibleProvider(
         AIProviderConfigModel(name="test", model="qwen-test", base_url="https://example.test")

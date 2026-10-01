@@ -164,6 +164,66 @@ def test_execute_resets_again_for_other_session_or_container(
     assert len(resets) == 3
 
 
+def test_execute_marks_missing_declared_artifacts_as_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[tuple[str, str]] = []
+    session = SimpleNamespace(id="sandbox-1", container_id="container-1")
+    _patch_execute_deps(monkeypatch, session, calls)
+    monkeypatch.setattr(
+        chat_sandbox_tools,
+        "_collect_artifacts",
+        AsyncMock(return_value=([], [], ["figures/result.png"])),
+    )
+
+    result = asyncio.run(
+        chat_sandbox_tools.execute_chat_sandbox(
+            {
+                "language": "python",
+                "code": "print(1)",
+                "artifacts": ["figures/result.png"],
+            },
+            _USER_ID,
+        )
+    )
+
+    assert result["success"] is False
+    payload = result["result"]["llm_payload"]
+    assert payload["missing_artifacts"] == ["figures/result.png"]
+    assert "声明的交付文件未生成" in payload["error"]
+
+
+def test_stream_chat_sandbox_has_hard_deadline_when_execution_never_returns(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Docker/API 卡死时必须发失败信封，不能只持续 heartbeat。"""
+
+    async def _stuck_execute(*_args: Any, **_kwargs: Any) -> dict[str, Any]:
+        await asyncio.sleep(60)
+        return {"success": True}
+
+    async def _flush(_message_id: str) -> None:
+        return None
+
+    monkeypatch.setattr(chat_sandbox_tools, "execute_chat_sandbox", _stuck_execute)
+    monkeypatch.setattr(chat_sandbox_tools, "CHAT_SANDBOX_HARD_TIMEOUT_GRACE_SECONDS", 0.01)
+    monkeypatch.setattr(chat_sandbox_tools.message_event_service, "flush_message_events", _flush)
+
+    async def _collect() -> list[Any]:
+        return [
+            item
+            async for item in chat_sandbox_tools.stream_chat_sandbox_tool(
+                {"language": "python", "code": "print(1)", "timeout": 1},
+                _USER_ID,
+            )
+        ]
+
+    events = asyncio.run(_collect())
+    assert events
+    assert events[-1]["success"] is False
+    assert "整体时限" in events[-1]["result"]["llm_payload"]["error"]
+
+
 def test_collect_artifacts_dedupes_unchanged_files_within_session(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

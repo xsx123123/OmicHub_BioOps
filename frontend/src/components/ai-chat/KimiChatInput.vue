@@ -528,7 +528,10 @@ function handleCompositionEnd() {
 }
 
 function handleKeydown(e: KeyboardEvent) {
-  if (isComposing.value || e.isComposing) return
+  // `isComposing` 在部分浏览器/输入法的首次 Enter 事件上会短暂为 true，
+  // 即使组件没有进入 compositionstart 状态。只信任组件实际跟踪到的组合态，
+  // 或传统 IME 使用的 keyCode=229，避免普通文本的 Enter 被放成换行。
+  if (isComposing.value || e.keyCode === 229) return
   // compositionend 刚结束后的短窗口内忽略 Enter，拦住 IME 确认候选词后的幽灵 Enter
   if (e.key === 'Enter' && Date.now() - lastCompositionEndTime.value < 200) return
   if (showMcpMenu.value && e.key === 'Escape') {

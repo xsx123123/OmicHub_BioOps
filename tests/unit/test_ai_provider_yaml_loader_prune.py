@@ -48,6 +48,7 @@ def _cfg(name: str, *, is_active: bool = True, is_default: bool = False, model: 
         api_key="secret" if is_active else "",
         temperature=0.7,
         max_tokens=4096,
+        context_window=131072,
         top_p=1.0,
         timeout=120,
         is_active=is_active,
@@ -112,3 +113,22 @@ async def test_loader_keeps_declared_active(tmp_path, monkeypatch):
     loader = _loader(tmp_path, repo, yaml_text)
     await loader.load_and_sync()
     assert repo._items[0].is_active is True
+
+
+@pytest.mark.asyncio
+async def test_loader_round_trips_context_window(tmp_path, monkeypatch):
+    from cygnusx.core import config as config_module
+
+    monkeypatch.setattr(config_module.get_settings(), "ai_provider_config_yaml", str(tmp_path / "providers.yaml"))
+    repo = _FakeRepo()
+    yaml_text = """
+providers:
+  - name: a
+    provider_type: openai_compatible
+    model: m
+    context_window: 65536
+    api_key: ${A_API_KEY}
+"""
+    loader = _loader(tmp_path, repo, yaml_text)
+    await loader.load_and_sync()
+    assert repo._items[0].context_window == 65536

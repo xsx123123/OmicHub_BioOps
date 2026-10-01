@@ -3,8 +3,26 @@
 from functools import lru_cache
 from typing import Any, Literal
 
-from pydantic import field_validator, model_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class ContextCompactionSettings(BaseSettings):
+    """Runtime-tunable context compaction policy defaults."""
+
+    model_config = SettingsConfigDict(env_prefix="CONTEXT_COMPACTION_", extra="ignore")
+
+    trigger_ratio: float = 0.75
+    large_output_chars: int = 16_384
+    preview_chars: int = 768
+    keep_recent_min: int = 4
+    tail_ratio: float = 0.25
+    min_yield_ratio: float = 0.10
+    breaker_attempts: int = 2
+    circuit_retry_growth: float = 1.5
+    min_messages: int = 12
+    summary_max_chars: int = 6000
+    legacy_fallback: bool = False
 
 
 class Settings(BaseSettings):
@@ -39,6 +57,12 @@ class Settings(BaseSettings):
     # 需要严格阻断时显式设置 CHAT_EVENT_SEQUENCE_ENFORCEMENT=raise。
     chat_event_sequence_enforcement: Literal["off", "warn", "raise"] = "warn"
     agent_context_cache_ttl_seconds: int = 60
+    # Use a factory so each Settings() construction re-reads the nested
+    # CONTEXT_COMPACTION_* environment variables instead of freezing values at
+    # module import time.
+    context_compaction: ContextCompactionSettings = Field(
+        default_factory=ContextCompactionSettings
+    )
 
     # ===== 数据库配置 =====
     postgres_host: str = "localhost"
@@ -640,3 +664,13 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """获取配置单例"""
     return Settings()
+
+
+def reload_settings() -> Settings:
+    """清除配置单例并重新读取环境变量/`.env`。
+
+    Runtime-tunable groups, including ``context_compaction``, are consumed on
+    the next request after this explicit reload hook is called.
+    """
+    get_settings.cache_clear()
+    return get_settings()

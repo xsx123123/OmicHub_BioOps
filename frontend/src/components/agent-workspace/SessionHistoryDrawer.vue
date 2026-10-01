@@ -181,6 +181,7 @@ watch(() => props.show, (show) => {
                 <span v-if="item.mode === 'studio' || store.studioSessionIds.has(item.id)" class="mode-dot">工作台</span>
                 <span v-if="item.overdrive" class="mode-dot mode-dot--overdrive">超频模式</span>
                 <span v-if="item.workspace_archive" class="mode-dot mode-dot--archived">已归档</span>
+                <span v-if="item.analysis_archive" class="mode-dot mode-dot--analysis">分析记录</span>
                 <div class="history-actions">
                   <NButton text size="tiny" title="重命名" @click.stop="startRename(item)"><NIcon><CreateOutline /></NIcon></NButton>
                   <NButton text size="tiny" title="删除" @click.stop="removeSession(item)"><NIcon><CloseOutline /></NIcon></NButton>

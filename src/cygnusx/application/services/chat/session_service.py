@@ -11,6 +11,7 @@ from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from cygnusx.infrastructure.database.models.chat import ChatMessageModel, ChatSessionModel
+from cygnusx.infrastructure.database.retry import execute_read_with_retry
 
 
 def _strip_pg_unsafe_text(value: Any) -> Any:
@@ -165,9 +166,10 @@ class SessionService:
         await self._db.flush()
 
     async def get_messages(self, session_id: str) -> list[ChatMessageModel]:
-        result = await self._db.execute(
+        result = await execute_read_with_retry(
+            self._db,
             select(ChatMessageModel)
             .where(ChatMessageModel.session_id == session_id)
-            .order_by(ChatMessageModel.created_at)
+            .order_by(ChatMessageModel.created_at),
         )
         return list(result.scalars().all())

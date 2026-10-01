@@ -3,6 +3,8 @@
 import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -244,3 +246,84 @@ async def test_artifact_checksums_indexed_by_name_and_size(monkeypatch):
 
     indexed = await _run()
     assert indexed == {("volcano.png", 123): "cd" * 32}
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_shared_snapshot_keeps_original_messages_when_compaction_event_exists(
+    monkeypatch, tmp_path: Path
+):
+    """压缩过程事件属于审计流，不能替换或混入分享正文。"""
+    from cygnusx.application.services import studio_sharing
+    from cygnusx.infrastructure.database.models.chat import (
+        ChatMessageEventModel,
+        ChatMessageModel,
+    )
+
+    session = _session()
+    now = datetime.now(UTC)
+    session.created_at = now
+    session.updated_at = now
+    messages = [
+        ChatMessageModel(
+            message_id="share-user-1",
+            session_id=session.session_id,
+            role="user",
+            content="请保留这条原始问题",
+            content_type="text",
+            status="complete",
+            metadata_json={},
+            created_at=now,
+        ),
+        ChatMessageModel(
+            message_id="share-assistant-1",
+            session_id=session.session_id,
+            role="assistant",
+            content="这是原始终态回答",
+            content_type="text",
+            status="complete",
+            metadata_json={},
+            created_at=now,
+        ),
+    ]
+    compaction_event = ChatMessageEventModel(
+        message_id="share-assistant-1",
+        seq=1,
+        event_type="context_compacted",
+        payload={"tokens_before": 1200, "tokens_after": 400},
+    )
+
+    class _Result:
+        def scalars(self):
+            return SimpleNamespace(all=lambda: messages)
+
+    class _Db:
+        async def execute(self, statement):
+            # 该 event 已落在同一会话，但快照 SQL 只读取终态消息表。
+            assert ChatMessageEventModel.__tablename__ not in str(statement)
+            assert ChatMessageModel.__tablename__ in str(statement)
+            assert compaction_event.event_type == "context_compacted"
+            return _Result()
+
+    monkeypatch.setattr(
+        studio_sharing.studio_sandbox_manager,
+        "workspace_dir",
+        lambda _session_id: tmp_path / "workspace",
+    )
+    monkeypatch.setattr(
+        studio_sharing,
+        "get_path_factory",
+        lambda: SimpleNamespace(relative_to_root=lambda _path: "workspace"),
+    )
+    monkeypatch.setattr(
+        studio_sharing,
+        "get_storage_backend",
+        lambda: SimpleNamespace(stat=AsyncMock(return_value=None)),
+    )
+
+    snapshot = await studio_sharing.build_shared_snapshot(_Db(), session)
+
+    assert [message.content for message in snapshot.messages] == [
+        "请保留这条原始问题",
+        "这是原始终态回答",
+    ]

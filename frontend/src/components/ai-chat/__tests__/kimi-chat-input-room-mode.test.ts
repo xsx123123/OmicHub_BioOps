@@ -74,6 +74,59 @@ describe('KimiChatInput roomMode 发送链路', () => {
     expect(sends[0][0]).toBe('帮我做一下系统发育树呀')
   })
 
+  it('首次打开的普通输入框即使 Enter 被标记为 isComposing 也会发送', async () => {
+    const sends: unknown[][] = []
+    const { el } = mountComposer({}, (...args) => sends.push(args))
+    await nextTick()
+    const textarea = await typeText(el, 'hi')
+    textarea.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'Enter',
+      bubbles: true,
+      isComposing: true,
+    }))
+    await nextTick()
+    expect(sends.length).toBe(1)
+    expect(sends[0][0]).toBe('hi')
+  })
+
+  it('输入法组合态或 keyCode=229 的候选确认不会发送', async () => {
+    const sends: unknown[][] = []
+    const { el } = mountComposer({ roomMode: true }, (...args) => sends.push(args))
+    await nextTick()
+    const textarea = await typeText(el, '你好')
+    textarea.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }))
+    textarea.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'Enter',
+      bubbles: true,
+      isComposing: true,
+    }))
+    textarea.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true }))
+    textarea.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'Enter',
+      bubbles: true,
+      keyCode: 229,
+    }))
+    await nextTick()
+    expect(sends.length).toBe(0)
+  })
+
+  it('Shift+Enter 保留换行行为，不触发发送', async () => {
+    const sends: unknown[][] = []
+    const { el } = mountComposer({}, (...args) => sends.push(args))
+    await nextTick()
+    const textarea = await typeText(el, '第一行')
+    const event = new KeyboardEvent('keydown', {
+      key: 'Enter',
+      shiftKey: true,
+      bubbles: true,
+      cancelable: true,
+    })
+    textarea.dispatchEvent(event)
+    await nextTick()
+    expect(event.defaultPrevented).toBe(false)
+    expect(sends.length).toBe(0)
+  })
+
   it('roomMode 下点击发送按钮触发 send emit', async () => {
     const sends: unknown[][] = []
     const { el } = mountComposer({ roomMode: true }, (...args) => sends.push(args))

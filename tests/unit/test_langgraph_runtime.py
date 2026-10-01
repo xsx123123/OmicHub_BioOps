@@ -94,7 +94,7 @@ async def test_no_tool_call_single_round() -> None:
 
     assert [c.type for c in chunks] == ["text", "text"]
     assert [c.content for c in chunks] == ["你", "好"]
-    assert runtime.last_usage == USAGE
+    assert runtime.last_usage == {**USAGE, "cached_tokens": 0}
     assert runtime.error is None
     # state 消息序列：user → assistant
     assert [m["role"] for m in runtime.last_messages] == ["user", "assistant"]
@@ -138,7 +138,8 @@ async def test_one_tool_round_then_finish() -> None:
     assert chunks[0].content == "先分析工具参数"
     assert chunks[1].metadata["tool_name"] == "get_gene"
     assert chunks[2].metadata["success"] is True
-    assert chunks[2].metadata["result"] == {"value": 42}
+    assert chunks[2].metadata["result"]["value"] == 42
+    assert chunks[2].metadata["result"]["artifact_manifest_version"] == 1
     assert executed == [("get_gene", {"gene": "TP53"}, "call_1")]
 
     # 第二轮 LLM 收到的 messages 末尾：assistant(tool_calls) → role:tool
@@ -148,7 +149,9 @@ async def test_one_tool_round_then_finish() -> None:
     assert second_round[-2]["reasoning_content"] == "先分析工具参数"
     assert second_round[-1]["role"] == "tool"
     assert second_round[-1]["tool_call_id"] == "call_1"
-    assert json.loads(second_round[-1]["content"]) == {"value": 42}
+    tool_payload = json.loads(second_round[-1]["content"])
+    assert tool_payload["value"] == 42
+    assert tool_payload["artifact_manifest_version"] == 1
 
     # 最终 state 消息序列完整
     assert [m["role"] for m in runtime.last_messages] == [
@@ -162,6 +165,7 @@ async def test_one_tool_round_then_finish() -> None:
         "prompt_tokens": 20,
         "completion_tokens": 10,
         "total_tokens": 30,
+        "cached_tokens": 0,
     }
 
 
@@ -327,8 +331,8 @@ async def test_handoff_tool_ends_current_graph_without_another_llm_round() -> No
     assert len(calls) == 1
 
 
-async def test_tool_executor_exception_yields_error_chunk() -> None:
-    """tool_executor 抛异常：产 error chunk 优雅结束，不向外抛错"""
+async def test_tool_executor_exception_is_reinjected_for_agent_retry() -> None:
+    """工具抛异常时保留错误上下文，让 agent 获得修复并重试的机会。"""
 
     async def _executor(
         tool_name: str, args: dict[str, Any], tool_call_id: str
@@ -340,16 +344,22 @@ async def test_tool_executor_exception_yields_error_chunk() -> None:
             [
                 _tool_calls_chunk("get_gene", {"gene": "TP53"}),
                 ChatChunk(type="done", metadata={"usage": USAGE}),
-            ]
+            ],
+            [ChatChunk(type="text", content="已根据工具错误整理说明"), ChatChunk(type="done", metadata={"usage": USAGE})],
         ],
         tool_executor=_executor,
     )
 
     chunks = await _collect(runtime)
 
-    assert [c.type for c in chunks] == ["tool_call", "error"]
-    assert "MCP 连接断开" in chunks[-1].content
-    assert runtime.error == "MCP 连接断开"
+    assert [c.type for c in chunks] == ["tool_call", "error", "tool_result", "text"]
+    assert "MCP 连接断开" in chunks[1].content
+    assert chunks[2].metadata["success"] is False
+    assert "MCP 连接断开" in chunks[2].metadata["result"]["error"]
+    assert runtime.error is None
+    assert len(runtime.last_messages) >= 3
+    assert runtime.last_messages[-2]["role"] == "tool"
+    assert "MCP 连接断开" in runtime.last_messages[-2]["content"]
 
 
 async def test_ask_user_tool_ends_current_graph_without_another_llm_round() -> None:

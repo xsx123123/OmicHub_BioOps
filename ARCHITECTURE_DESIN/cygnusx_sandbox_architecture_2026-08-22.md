@@ -207,11 +207,23 @@ Studio 容器现在显式设置：
 
 该方案不能限制用户代码通过 `/exec` 直接写入文件时的瞬时增长，因此它是跨文件系统兜底而非内核硬配额。生产环境若确认 XFS project quota 可用，应优先增加 Docker/宿主硬配额，并保留 agent 检查作为第二层防线。
 
-### 8.4 隔离层升级触发条件
+### 8.4 普通 AI 助手的执行归档边界（2026-09-22 as-built）
+
+普通 AI 助手使用 `infrastructure/sandbox/pool.py` 的 warm pool，不复用 Studio 的一会话一容器工作区。为保留分析可追溯性，`chat_sandbox_execute` 在执行完成后将会话内容归档到项目 run 目录：
+
+- `input/` 保存会话注入的输入文件副本；`work/` 保存每次执行的原始 Python/R/Bash 脚本；`output/` 保存会话累计产物。
+- 平台生成 `README.md`、`environment.json`、`manifest.json`，格式复用 `project_archive_service.archive_run()`。
+- 环境快照记录助手沙箱镜像、注册表 Profile/软件声明、容器内实际 Python 包版本、CPU/内存/PID、网络策略和容器 UID。
+- `sandbox_meta.analysis_archive` 是会话级索引；文档同时登记到统一 `FileRegistry`，供消息产物窗口和会话管理下载。
+- 归档失败必须是非阻塞 warning；代码执行结果、审批语义和 warm pool 回收不能因文档生成失败而改变。
+
+该设计只扩展平台侧 provenance，不把普通助手升级成 Studio：普通助手仍没有 Studio 文件操作、持久化容器或 Studio 审批面板；复杂多文件分析仍应进入工作台。
+
+### 8.5 隔离层升级触发条件
 
 当业务形态变为“接受未认证输入生成任意代码”，或沙箱正式对外开放多租户不可信执行时，启动 gVisor `runsc`（OCI 运行时直接替换）评估；涉及高敏数据、浏览器下载或强对抗租户时，同时评估 Kata Containers/MicroVM。该条件应触发计划内迁移，而不是等到安全事件后应急响应。
 
-### 8.5 当前验收状态
+### 8.6 当前验收状态
 
 - [x] seccomp、固定非 root、硬 CPU、内存、PID、cap drop、no-new-privileges、只读 rootfs、tmpfs 已进入创建参数。
 - [x] 工作区 uid 10001 权限处理已存在并保留。

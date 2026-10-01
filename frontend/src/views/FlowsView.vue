@@ -4,10 +4,11 @@ import apiClient from '@/api/client'
 import { useApi } from '@/composables/useApi'
 import AppLoading from '@/components/AppLoading.vue'
 import PageHeader from '@/components/PageHeader.vue'
-import { NButton, NIcon } from 'naive-ui'
+import { NButton, NIcon, useMessage } from 'naive-ui'
 import { computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { Component } from 'vue'
+import { PENDING_WORKFLOWS } from '@/config/workflows'
 import {
   AnalyticsOutline,
   BeakerOutline,
@@ -34,10 +35,13 @@ interface Pipeline {
   version: string
   githubUrl: string | null
   isReady: boolean
+  status?: string
+  badge?: string
 }
 
 const route = useRoute()
 const router = useRouter()
+const message = useMessage()
 
 const activeType = computed(() => (route.query.type as string) || '')
 
@@ -139,7 +143,7 @@ function resolveGithubUrl(flow: FlowDefinition): string | null {
 }
 
 const pipelines = computed<Pipeline[]>(() => {
-  return (flows.value || []).map((f, index) => ({
+  const apiFlows = (flows.value || []).map((f) => ({
     id: f.id,
     name: f.name,
     desc: f.description,
@@ -149,7 +153,26 @@ const pipelines = computed<Pipeline[]>(() => {
     version: f.version,
     githubUrl: resolveGithubUrl(f),
     isReady: true,
+    status: f.status,
+    badge: f.badge,
   }))
+  const apiIds = new Set(apiFlows.map((flow) => flow.id))
+  const pendingFlows = PENDING_WORKFLOWS
+    .filter((flow) => !apiIds.has(flow.id))
+    .map((flow) => ({
+      id: flow.id,
+      name: flow.name,
+      desc: flow.description,
+      icon: flowIcon({ ...flow, icon: 'default' }),
+      colorVar: `var(--kimi-${CATEGORY_COLOR_MAP.default})`,
+      tags: flow.tags,
+      version: flow.version,
+      githubUrl: null,
+      isReady: false,
+      status: flow.status,
+      badge: flow.badge,
+    }))
+  return [...apiFlows, ...pendingFlows]
 })
 
 const filteredPipelines = computed(() => {
@@ -174,7 +197,17 @@ const gridPipelines = computed(() => {
 })
 
 function handleCardClick(p: Pipeline) {
+  if (p.status === 'UNDER_REVIEW' || p.badge === '专家审核中') {
+    message.warning('该流程当前正处于专家顾问委员会同行评议与基准测试（Benchmarking）阶段，即将开放，敬请期待！', {
+      duration: 5000,
+    })
+    return
+  }
   router.push({ name: 'flow-submit', params: { flowId: p.id } })
+}
+
+function displayVersion(version: string): string {
+  return version.startsWith('v') ? version : `v${version}`
 }
 
 function openGithub(e: Event, url: string) {
@@ -240,7 +273,8 @@ onMounted(fetchFlows)
                 <NIcon :component="FlameOutline" aria-hidden="true" />
                 推荐
               </span>
-              <span class="version-badge">v{{ featuredPipeline.version }}</span>
+              <span v-if="featuredPipeline.badge" class="review-badge">{{ featuredPipeline.badge }}</span>
+              <span class="version-badge">{{ displayVersion(featuredPipeline.version) }}</span>
             </div>
               <p class="hero-desc">{{ featuredPipeline.desc }}</p>
               <div class="hero-tags">
@@ -293,7 +327,8 @@ onMounted(fetchFlows)
               <div class="flow-body">
                 <div class="flow-title-row">
                   <h4 class="flow-title">{{ p.name }}</h4>
-                  <span class="flow-version">v{{ p.version }}</span>
+                  <span v-if="p.badge" class="review-badge">{{ p.badge }}</span>
+                  <span class="flow-version">{{ displayVersion(p.version) }}</span>
                 </div>
                 <p class="flow-desc">{{ p.desc }}</p>
                 <div class="flow-tags">
@@ -466,6 +501,21 @@ onMounted(fetchFlows)
   font-weight: 600;
   line-height: 18px;
   white-space: nowrap;
+}
+
+.review-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border: 1px solid #fde68a;
+  border-radius: 999px;
+  color: #d97706;
+  background: rgba(255, 251, 235, 0.9);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .recommended-badge :deep(.n-icon) {

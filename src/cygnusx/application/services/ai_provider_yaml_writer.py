@@ -34,6 +34,7 @@ def _provider_to_yaml_dict(config: AIProviderConfig) -> dict[str, Any]:
         "api_key": f"${{{provider_env_key(config.name)}}}",
         "temperature": config.temperature,
         "max_tokens": config.max_tokens,
+        "context_window": config.context_window,
         "top_p": config.top_p,
         "timeout": config.timeout,
         # 单价始终落盘（未配置写 null）：YAML 单一事实源，清空单价后重启同步才能真的清掉

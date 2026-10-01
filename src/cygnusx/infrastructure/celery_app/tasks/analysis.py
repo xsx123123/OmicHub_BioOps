@@ -20,6 +20,56 @@ from cygnusx.infrastructure.execution.local import LocalSnakemakeExecutor
 from cygnusx.infrastructure.storage.file_registry import FileRegistry
 
 
+async def _archive_pipeline_run(session: AsyncSession, task: Any, status: str, summary: str = "") -> None:
+    """Write the standard project evidence capsule after a pipeline terminal state."""
+    from cygnusx.application.services.project_archive_service import (
+        ArchivedFile,
+        ProjectInfo,
+        archive_run,
+        md5_stream,
+    )
+    from cygnusx.application.services.artifact_manifest import sha256_stream
+    from cygnusx.infrastructure.database.models.run import RunModel
+    from sqlalchemy import select
+    from cygnusx.infrastructure.storage import get_path_factory, get_storage_backend
+
+    run = await session.scalar(select(RunModel).where(RunModel.task_id == task.id))
+    if run is None:
+        return
+    run_dir = Path(task.work_dir).parent
+    output_dir = run_dir / "output"
+    artifacts: list[ArchivedFile] = []
+    if output_dir.is_dir():
+        for file_path in sorted(output_dir.rglob("*")):
+            if not file_path.is_file():
+                continue
+            relative = file_path.relative_to(run_dir).as_posix()
+            try:
+                size = file_path.stat().st_size
+            except OSError:
+                continue
+            artifacts.append(
+                ArchivedFile(
+                    name=file_path.name,
+                    relative_path=relative,
+                    size=size,
+                    md5=md5_stream(file_path),
+                    sha256=sha256_stream(file_path),
+                )
+            )
+    await archive_run(
+        user_id=str(task.user_id),
+        project=ProjectInfo(name=run.project_slug, slug=run.project_slug),
+        run_dir=run_dir,
+        analysis_type=task.flow_id,
+        status=status,
+        summary=summary,
+        artifacts=artifacts,
+        factory=get_path_factory(),
+        backend=get_storage_backend(),
+    )
+
+
 async def _register_pipeline_outputs(session: AsyncSession, task: Any) -> int:
     """任务成功后扫描 output 目录并批量注册到 file_records。
 
@@ -96,6 +146,13 @@ async def _execute_snakemake(
         if task is None:
             return {"status": "failed", "message": f"任务 {task_id} 不存在"}
 
+        from cygnusx.application.services.run_event_service import RunEventService
+        from cygnusx.infrastructure.database.models.run import RunModel
+        from sqlalchemy import select
+
+        run = await session.scalar(select(RunModel).where(RunModel.task_id == task_uuid))
+        run_events = RunEventService(session) if run is not None else None
+
         async def _add_and_publish_log(level: LogLevel, message: str, source: str = "") -> None:
             await domain.add_log(task_uuid, level, message, source=source)
             await publish_task_log(
@@ -110,6 +167,8 @@ async def _execute_snakemake(
 
         # 推进到 RUNNING
         task = await domain.transition_status(task, TaskStatus.RUNNING)
+        if run_events and run is not None:
+            await run_events.emit(run.id, task_id=task_uuid, status="running", progress=0.0)
         await session.commit()
         await _add_and_publish_log(
             LogLevel.INFO,
@@ -155,6 +214,8 @@ async def _execute_snakemake(
 
             if result.get("status") == "success":
                 task = await domain.transition_status(task, TaskStatus.SUCCESS)
+                if run_events and run is not None:
+                    await run_events.emit(run.id, task_id=task_uuid, status="completed", progress=1.0)
                 await _add_and_publish_log(LogLevel.INFO, "Snakemake 执行完成", source="snakemake")
 
                 # 任务成功后自动生成报告记录
@@ -197,9 +258,24 @@ async def _execute_snakemake(
                         source="file_registry",
                     )
 
+                try:
+                    await _archive_pipeline_run(session, task, "completed", "Snakemake 执行完成")
+                except Exception as archive_exc:  # noqa: BLE001
+                    await _add_and_publish_log(
+                        LogLevel.WARNING, f"生成项目归档失败（非阻塞）: {archive_exc}", source="archive"
+                    )
+
                 return_status = "success"
             else:
                 task = await domain.transition_status(task, TaskStatus.FAILED)
+                if run_events and run is not None:
+                    await run_events.emit(
+                        run.id,
+                        task_id=task_uuid,
+                        status="failed",
+                        progress=task.progress,
+                        payload={"error": (result.get("stderr") or "")[:2000]},
+                    )
                 task.error_message = result.get("stderr", "")[:2000]
                 await repo.save(task)
                 await _add_and_publish_log(
@@ -207,6 +283,12 @@ async def _execute_snakemake(
                     f"Snakemake 执行失败 (returncode={result.get('returncode')})",
                     source="snakemake",
                 )
+                try:
+                    await _archive_pipeline_run(session, task, "failed", task.error_message)
+                except Exception as archive_exc:  # noqa: BLE001
+                    await _add_and_publish_log(
+                        LogLevel.WARNING, f"生成失败归档失败（非阻塞）: {archive_exc}", source="archive"
+                    )
                 return_status = "failed"
 
             # 集成点#3: 任务完成时结算饼干 (多退少补)
@@ -237,8 +319,18 @@ async def _execute_snakemake(
         except Exception as exc:  # noqa: BLE001
             await _add_and_publish_log(LogLevel.ERROR, f"执行异常: {exc}", source="celery")
             task = await domain.transition_status(task, TaskStatus.FAILED)
+            if run_events and run is not None:
+                await run_events.emit(
+                    run.id, task_id=task_uuid, status="failed", payload={"error": str(exc)[:2000]}
+                )
             task.error_message = str(exc)[:2000]
             await repo.save(task)
+            try:
+                await _archive_pipeline_run(session, task, "failed", task.error_message)
+            except Exception as archive_exc:  # noqa: BLE001
+                await _add_and_publish_log(
+                    LogLevel.WARNING, f"生成异常归档失败（非阻塞）: {archive_exc}", source="archive"
+                )
             await session.commit()
             return {"status": "failed", "task_id": task_id, "error": str(exc)}
 

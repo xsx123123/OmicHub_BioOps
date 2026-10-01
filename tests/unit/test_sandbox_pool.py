@@ -171,6 +171,8 @@ def test_parse_line_routes_plotly_marker_to_plotly_event() -> None:
     }
     # 非标记行不受影响
     assert SandboxPool._parse_line("stdout", "hello") == {"type": "stdout", "data": "hello"}
+    # 流读取器会保留行尾换行，避免多行 stdout 在上层拼接时粘成一行。
+    assert SandboxPool._parse_line("stdout", "hello\n") == {"type": "stdout", "data": "hello\n"}
     assert SandboxPool._parse_line("stderr", "warn") == {"type": "stderr", "data": "warn"}
 
 

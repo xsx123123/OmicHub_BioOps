@@ -219,6 +219,41 @@ describe('MessageArtifactGallery', () => {
     app.unmount()
   })
 
+  it('兼容 AgentTeams camelCase 下载地址，避免产物窗口失去预览和下载', async () => {
+    apiGet.mockResolvedValue({ data: new Blob(['png'], { type: 'image/png' }) })
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const app = createApp(MessageArtifactGallery, {
+      artifacts: [{
+        path: 'synthetic_gex_volcano_treat_vs_ctrl.png',
+        downloadUrl: '/api/v1/agent-teams/cases/case-1/artifacts/volcano.png?download=true',
+        previewUrl: '/api/v1/agent-teams/cases/case-1/artifacts/volcano.png',
+      }],
+    })
+    app.mount(host)
+
+    const openButton = [...host.querySelectorAll<HTMLButtonElement>('button')]
+      .find((button) => button.textContent?.includes('打开产物窗口'))
+    openButton?.click()
+    await nextTick()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    await nextTick()
+
+    expect(apiGet).toHaveBeenCalledWith(
+      '/agent-teams/cases/case-1/artifacts/volcano.png',
+      { responseType: 'blob' },
+    )
+    expect(document.body.querySelector('.message-artifacts__zoom-trigger')).toBeTruthy()
+    document.body.querySelector<HTMLButtonElement>('.message-artifacts__download')?.click()
+    await nextTick()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(apiGet).toHaveBeenCalledWith(
+      '/agent-teams/cases/case-1/artifacts/volcano.png?download=true',
+      { responseType: 'blob' },
+    )
+    app.unmount()
+  })
+
   it('PDF 产物卡片内嵌只读预览（iframe 不可交互），点击仍打开带自定义工具条的弹窗', async () => {
     apiGet.mockResolvedValue({ data: new Blob(['pdf'], { type: 'application/pdf' }) })
     const host = document.createElement('div')

@@ -142,6 +142,13 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/AgentTeamsRoomView.vue'),
         meta: { title: '团队协作室', requiresAuth: true, fullscreen: true, autoCollapseSidebar: true }
       },
+      // 生物信息部门页面暂时下线（后端保留），分支验证无误后再恢复
+      // {
+      //   path: 'department',
+      //   name: 'department',
+      //   component: () => import('@/views/DepartmentView.vue'),
+      //   meta: { title: '生物信息部门', requiresAuth: true }
+      // },
       {
         path: 'agent-teams/cases/:caseId',
         name: 'agent-teams-case',

@@ -103,9 +103,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # 且要求 Python >=3.13，故用 micromamba 装独立 env /opt/cmm-env，并把 cmm 软链到
 # /usr/local/bin，让 validate_stdio_command 的 shutil.which 能按名字找到它。
 # /opt/micromamba 是 root prefix（缓存目录），运行时以 uid 1000 执行须可写。
+# 下载落到临时文件并 bzip2 -t 校验后再解包：micro.mamba.pm CDN 直连偶发断流，
+# 管道模式（curl | tar）下 curl 的 -s 会吞掉传输错误，tar 只能报"压缩包损坏"这种
+# 误导性错误。USTC conda-forge 镜像可直取 micromamba 包，但其 WAF 403 默认
+# curl UA，须显式带 UA；micro.mamba.pm 固定版本号作为兜底。
 RUN set -eux; \
-    curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest \
-        | tar -xj -C /usr/local/bin --strip-components=1 bin/micromamba; \
+    MM_VER=2.9.0; \
+    if ! curl -fsL -A 'curl/8.0' --retry 3 --retry-all-errors \
+            -o /tmp/micromamba.tar.bz2 \
+            "https://mirrors.ustc.edu.cn/anaconda/cloud/conda-forge/linux-64/micromamba-${MM_VER}-0.tar.bz2"; then \
+        curl -fsL --retry 3 --retry-all-errors -o /tmp/micromamba.tar.bz2 \
+            "https://micro.mamba.pm/api/micromamba/linux-64/${MM_VER}"; \
+    fi; \
+    bzip2 -t /tmp/micromamba.tar.bz2; \
+    tar -xj -C /usr/local/bin --strip-components=1 bin/micromamba \
+        -f /tmp/micromamba.tar.bz2; \
+    rm -f /tmp/micromamba.tar.bz2; \
+    micromamba --version; \
     micromamba create -y -r /opt/micromamba -p /opt/cmm-env \
         -c https://mirrors.ustc.edu.cn/anaconda/cloud/conda-forge \
         conda-meta-mcp=0.1.4; \

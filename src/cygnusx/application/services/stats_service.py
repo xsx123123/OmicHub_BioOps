@@ -19,6 +19,7 @@ from cygnusx.application.services.cookie_service import CookieService
 from cygnusx.core.config import get_settings
 from cygnusx.domain.task.value_objects import TaskStatus
 from cygnusx.infrastructure.cache.stats_cache import cached_json
+from cygnusx.infrastructure.ai_provider.openai_compatible import normalize_token_usage
 from cygnusx.infrastructure.database.models.chat import ChatMessageModel, ChatSessionModel
 from cygnusx.infrastructure.database.models.task import TaskModel
 from cygnusx.infrastructure.database.models.user import UserModel
@@ -222,27 +223,23 @@ class StatsService:
             input_tokens = 0
             output_tokens = 0
             total_tokens = 0
+            total_cookie_cost = Decimal("0")
             billed_messages = 0
             session_ids: set[str] = set()
             records: list[dict[str, Any]] = []
 
             for created_at, metadata, session_id, title in rows:
-                usage = (metadata or {}).get("usage") or {}
-                prompt = int(usage.get("prompt_tokens") or usage.get("input_tokens") or usage.get("input") or 0)
-                completion = int(
-                    usage.get("completion_tokens")
-                    or usage.get("output_tokens")
-                    or usage.get("output")
-                    or 0
-                )
-                message_total = int(
-                    usage.get("total_tokens") or usage.get("total") or prompt + completion
-                )
+                usage = normalize_token_usage((metadata or {}).get("usage")) or {}
+                prompt = int(usage.get("prompt_tokens") or 0)
+                completion = int(usage.get("completion_tokens") or 0)
+                message_total = int(usage.get("total_tokens") or 0)
                 if message_total <= 0:
                     continue
                 input_tokens += prompt
                 output_tokens += completion
                 total_tokens += message_total
+                message_cost = Decimal(str(_cookie_cost(message_total)))
+                total_cookie_cost += message_cost
                 billed_messages += 1
                 session_ids.add(session_id)
                 day = created_at.date() if created_at else None
@@ -250,7 +247,7 @@ class StatsService:
                     daily[day]["messages"] += 1
                     daily[day]["total_tokens"] += message_total
                     daily[day]["cookie_cost"] = round(
-                        daily[day]["cookie_cost"] + _cookie_cost(message_total), 2
+                        daily[day]["cookie_cost"] + float(message_cost), 2
                     )
                 if len(records) < limit:
                     records.append(
@@ -261,7 +258,7 @@ class StatsService:
                             "input_tokens": prompt,
                             "output_tokens": completion,
                             "total_tokens": message_total,
-                            "cookie_cost": _cookie_cost(message_total),
+                            "cookie_cost": float(message_cost),
                         }
                     )
 
@@ -274,7 +271,7 @@ class StatsService:
                     "input_tokens": input_tokens,
                     "output_tokens": output_tokens,
                     "total_tokens": total_tokens,
-                    "cookie_cost": _cookie_cost(total_tokens),
+                    "cookie_cost": float(total_cookie_cost.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)),
                 },
                 "daily": list(daily.values()),
                 "records": records,

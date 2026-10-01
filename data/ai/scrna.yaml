@@ -73,6 +73,9 @@ features:
       awaiting_input: ["正在等待矩阵、对象或样本信息"]
   subagents_spawnable: true  # 可作为并行子 Agent 被 fan-out 派生
   engine: langgraph
+  # 路由锚点：单细胞对象本身即可确定领域；涉及注释结果/亚群/top 基因的绘图仍由
+  # 单细胞专家先判断生物学语义，再决定图形方案，不能仅因出现“可视化”转给 agent-viz。
+  routing_hints: [.qs, .rds, .h5ad, Seurat, AnnData, 单细胞对象, 细胞注释结果, 亚群, marker, top基因, FeaturePlot, DotPlot]
   domain: omics
   default_role: 单细胞 RNA-seq 专项分析
   capability_scope: [单细胞质控, 整合聚类, 细胞注释, marker, 轨迹与通讯]

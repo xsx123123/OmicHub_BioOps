@@ -2,9 +2,10 @@
  * 全局 AI 助手侧边栏 Store
  *
  * 悬浮于全站（AI 助手 / AI 工作台 / 协作室页面除外）的快捷问答侧边栏，
- * 复用 /api/v1/chat/stream，走平台通用助手 Agent 链路（agent_id=agent-general，
- * 与 /ai 页同一 Agent 调度中枢），模型可由用户在输入区上方切换。
- * 会话与消息持久化到 localStorage，刷新页面后上下文保留。
+ * 复用 /api/v1/chat/stream，但使用独立的平台服务助手提示词，不进入 /ai 页的
+ * Agent 路由、专家协作或工具执行链路；模型可由用户在输入区上方切换。
+ * 会话与消息持久化到 localStorage，用于当前页面会话的恢复与发送过程中的状态保存；
+ * 页面路由切换时由侧栏组件主动清空上下文。
  */
 
 import { defineStore } from 'pinia'
@@ -23,9 +24,17 @@ export interface SidebarMessage {
   created_at: string
 }
 
+// 侧栏本来就使用独立于 AI 工作区的本地命名空间，保持 key 兼容已有侧栏历史。
 const STORAGE_KEY = 'ai_assistant_sidebar_state'
-/** 平台通用助手（data/ai/general.yaml），侧边栏与其共用同一 Agent 链路 */
-const SIDEBAR_AGENT_ID = 'agent-general'
+const PLATFORM_ASSISTANT_PROMPT = `你是 OmicHub 平台服务助手，负责帮助用户理解和使用当前平台。
+
+你的职责是：
+- 介绍平台页面、功能入口、常见操作和术语；
+- 根据用户当前页面上下文，给出清晰、可执行的导航或操作建议；
+- 用户询问具体生信分析时，说明平台可以从哪里进入相关分析，并建议用户前往 AI 助手或对应专家智能体，不直接承担分析任务；
+- 不调用工具、不执行文件或数据分析、不虚构平台不存在的功能；不确定时明确说明并建议联系管理员。
+
+回答简洁、友好，优先给出下一步操作。`
 /** 持久化与发送上下文各自保留的消息条数上限 */
 const MAX_PERSISTED_MESSAGES = 40
 const CONTEXT_LENGTH = 20
@@ -145,9 +154,10 @@ export const useAiAssistantSidebarStore = defineStore('aiAssistantSidebar', () =
       {
         messages: apiMessages,
         modelId: modelId.value,
-        agentId: SIDEBAR_AGENT_ID,
+        systemPrompt: PLATFORM_ASSISTANT_PROMPT,
         pageContext,
         sessionId: sessionId.value || undefined,
+        autoApprove: false,
       },
       {
         onText: (chunk, isReasoning) => {

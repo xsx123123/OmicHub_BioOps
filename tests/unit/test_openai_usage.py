@@ -64,6 +64,19 @@ def test_normalize_extracts_anthropic_cache_read_tokens():
     assert usage["cached_tokens"] == 700
 
 
+def test_normalize_extracts_cached_output_tokens():
+    usage = normalize_token_usage(
+        {
+            "prompt_tokens": 100,
+            "completion_tokens": 40,
+            "completion_tokens_details": {"cached_tokens": 12},
+        }
+    )
+
+    assert usage is not None
+    assert usage["cached_output_tokens"] == 12
+
+
 def test_merge_usage_accumulates_cached_tokens():
     usage = merge_token_usage(
         {"prompt_tokens": 100, "completion_tokens": 10, "total_tokens": 110, "cached_tokens": 40},
@@ -111,4 +124,3 @@ def test_message_dto_does_not_expose_usage_on_user_message():
     dto = ChatService._to_msg_dto(message)
 
     assert dto.tokens == {"input": 0, "output": 0, "total": 0, "cached": 0}
-

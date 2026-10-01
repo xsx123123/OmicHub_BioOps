@@ -13,6 +13,8 @@
 > 6. 新增文档请沿用本规则，并同步登记到本 README。
 >
 > **2026-09-20 新增说明**：新增 `agent_architecture.md`（单 Agent 技术架构备忘录，as-built）。与 `agent_execution_framework.md` 的分工：本文回答"Agent 这个对象由什么构成、接口长什么样、状态存在哪、依赖什么"，后者回答"一次执行怎么流转、怎么观测、怎么保护"。两者互补，不合并。
+> **2026-09-22 更新说明**：普通 AI 助手已补齐会话级分析归档。`chat_sandbox_execute` 的 input/work/output、`README.md`、`environment.json`、`manifest.json`、实际包版本探针和 `sandbox_meta.analysis_archive` 契约，以 `agent_architecture.md`、`agent_execution_framework.md` 与 `cygnusx_sandbox_architecture_2026-08-22.md` 的新增 as-built 小节为准。
+> **2026-09-22 更新说明**：新增 `token_billing_architecture.md`，记录 Provider usage 归一化、缓存 token 计费、工具循环累计、会话落库、饼干扣费、元估算和对账排查流程。涉及 token、费用、余额或模型价格的修改，必须以该文档为当前实现基线。
 
 
 **文档类型口径**：
@@ -24,6 +26,12 @@
 ---
 
 ## 1. 平台总览与总体规范
+
+### `platform_architecture_maps.md` — 当前平台架构图汇总（简练版 + 详细版，2026-09-26）
+以仓库现状为依据，提供一页简图，以及部署拓扑、Chat 请求、Agent 工具边界、Studio 沙箱、AgentTeams/Worker、FlowFrame、生信分析链和数据/事件横切面的 Mermaid 详细图。该文档是看图入口，具体契约仍以各领域 as-built 文档为准。
+
+### `chat_openai4s_integration_architecture.md` — Chat 与 OpenAI4S 融合架构调查（as-built，2026-09-26）
+记录 OpenAI4S 契约在 OmicHub 中的实际衔接边界：上下文估算、校准、滚动摘要、handoff、大输出外置、双熔断和归档；同时按一次请求的时序串联前端 SSE、FastAPI、Agent 装配、LangGraph、OpenAI-compatible Provider、MCP、Skill、Chat/Studio 沙箱、AgentTeams 和 Workflow/Worker。明确“数据库原文权威、压缩视图只供模型请求”的差异，以及已实现能力和 Docker/Postgres/外部服务待验收项。本文是跨子系统调查导航，专项契约仍以 `agent_execution_framework.md`、`mcp_architecture.md`、`skill_architecture.md` 和沙箱基线文档为准。
 
 ### `cygnusx_architecture.md` — 平台架构总览（as-built 导航，2026-08-22）
 全系统"一页地图"：Vue3 前端 → FastAPI → Application/Orchestration → AI/MCP、Celery/Worker、持久化 → Docker 沙箱/MinIO/Nginx 的总体分层；四条执行链路（Chat/Agent、Studio、AgentTeams、Pipeline/Worker）各自的请求路径；第 5 章 Agent 五形态（Legacy ReAct / LangGraph / Studio / Worker ReAct / AgentTeams）与 loop guard、`llm_payload`/`ui_payload` 双通道；第 6–10 章摘要 AgentTeams 四层拓扑、Studio 沙箱安全基线与 capability、MCP 三层体系、记忆/知识分层、Worker 边界与任务状态机；第 11–14 章前端、日志审计、部署发布、安全隔离模型；第 15 章区分"已具备主干能力"与"待验收项"；第 16–17 章为全目录文档索引。本文是导航与摘要，详细契约以各领域文档为准。
@@ -91,6 +99,9 @@ MCP 三层体系（内置 Preset / 外部 Server / 管线专属）：`presets.py
 
 ### `database_architecture.md` — 数据库基础设施基线（as-built + 规范，2026-09-11）
 `session.py` 按进程分流引擎（Web AsyncAdaptedQueuePool / Worker NullPool）、只读副本回退、连接池 OTel 指标；ORM 契约（`models/__init__.py` 全量注册 87 表、模型↔schema 对齐规则、pgvector 自实现 `vector.py`、relationship 懒加载纪律）；仓储两级分层（核心域 Protocol+实现、轻量域直连模型的升格判据）；迁移治理（Alembic 唯一事实来源、`check_migrations.py`/`check_schema_drift.py` 零漂移、外部表清单）；管理端 `/admin/database` 健康页；§11 参考基因组模块（SQLite/FTS5、CDS/UTR、GO Slim、JBrowse/BLAST）；新附录：Terminal 与参考基因组模块更新记录（自 LOG_ARCHITECTURE §9.2–9.6 迁入）。
+
+### `token_billing_architecture.md` — Token 与饼干消耗架构（as-built + 对账规范，2026-09-22）
+记录模型 Provider `usage` 到消息、会话、饼干流水、统计 API 和前端元估算的完整数据流；统一字段映射与多轮合并规则；输入/输出缓存 token 的识别、子集约束和分项价格公式；`ai_token_cookie_rate` 的逐消息舍入、幂等扣费、余额封顶与折扣语义；平台饼干和供应商元账单的边界；token/金额不一致时的逐步对账流程与修改验证清单。该文档是 token、缓存、费用、余额相关改动的唯一架构基线。
 
 ### `log_architecture.md` — 统一日志架构（as-built + 更新规范）
 统一日志根 `/data/cygnusx/logs/`（app/celery/nginx/snakemake/audit 五域）；`core/logging.py` loguru 四 sink 与 `CYGNUSX_LOG_*` 环境变量、trace_id 注入；`LoggedTask` 单任务日志、DB `tasks.logs` 截断；Nginx `cygnusx_json` 格式、Snakemake 落盘、审计 `audit_logs` 表 + JSON 备份；Docker 挂载矩阵、Loki/Promtail 预留、清理策略与容量治理、排障速查。与日志无关的 terminal/参考基因组记录已迁至 database_architecture.md 附录。

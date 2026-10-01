@@ -15,6 +15,7 @@ from core.logger import logger
 
 _GROUP_REGISTRY: dict[str, str] = {
     "tasks": "tools.tasks",
+    "runs": "tools.runs",
     "flows": "tools.flows",
     "analysis": "tools.analysis",
     "downloads": "tools.downloads",

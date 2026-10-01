@@ -8,13 +8,42 @@ from pathlib import Path
 import pytest
 
 from cygnusx.application.services.artifact_manifest import (
+    ARTIFACT_MANIFEST_VERSION,
     build_file_entry,
     build_manifest,
+    normalize_tool_artifact_payload,
     reconcile_declared,
     sha256_stream,
     unverified_paths,
     verified_paths,
 )
+
+
+@pytest.mark.unit
+def test_normalize_tool_artifact_payload_unifies_legacy_shapes():
+    llm, ui = normalize_tool_artifact_payload(
+        {
+            "success": True,
+            "output_files": {"heatmap": "figures/heatmap.png"},
+            "plotly_figure": {"data": [], "layout": {}},
+        },
+        None,
+        tool_name="cygnusx_plot_volcano",
+    )
+    assert llm["artifact_manifest_version"] == ARTIFACT_MANIFEST_VERSION
+    assert ui["artifact_manifest_version"] == ARTIFACT_MANIFEST_VERSION
+    assert {entry["path"] for entry in llm["artifact_manifest"]} == {
+        "figures/heatmap.png",
+        "inline/cygnusx_plot_volcano-plotly.json",
+    }
+    assert ui["plotly_figures"][0]["layout"] == {}
+
+
+@pytest.mark.unit
+def test_normalize_tool_artifact_payload_emits_empty_manifest():
+    llm, ui = normalize_tool_artifact_payload({"success": True}, None, tool_name="noop")
+    assert llm["artifact_manifest"] == []
+    assert ui["artifacts"] == []
 
 
 @pytest.mark.unit

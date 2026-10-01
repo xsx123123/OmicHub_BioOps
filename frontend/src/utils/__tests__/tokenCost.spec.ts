@@ -84,7 +84,9 @@ describe('tokenCost', () => {
       [{ tokens: { input: 100_000, output: 50_000, cached: 300_000, cachedOutput: 300_000 } }],
       { inputPerM: 2, outputPerM: 8, inputCachePerM: 0.25, outputCachePerM: 1 },
     )
-    expect(usage.cost).toBeCloseTo((300_000 / 1_000_000) * 0.25 + (300_000 / 1_000_000) * 1)
+    expect(usage.cached).toBe(100_000)
+    expect(usage.cachedOutput).toBe(50_000)
+    expect(usage.cost).toBeCloseTo((100_000 / 1_000_000) * 0.25 + (50_000 / 1_000_000) * 1)
   })
 
   it('resolves model pricing over global fallback per field', () => {

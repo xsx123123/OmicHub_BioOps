@@ -114,6 +114,30 @@ async def test_empty_message_id_is_noop() -> None:
     await service.flush_message_events("")  # 不触库
 
 
+@pytest.mark.asyncio
+async def test_append_compaction_event_flushes_audit_payload(monkeypatch) -> None:
+    service = ChatMessageEventService()
+    flushed: list[dict[str, Any]] = []
+
+    async def capture(message_id, events):
+        flushed.extend(events)
+
+    monkeypatch.setattr(service, "_flush_events", capture)
+    assert await service.append_compaction_event(
+        "m-compact",
+        tokens_before=100,
+        tokens_after=40,
+        yield_ratio=0.6,
+        archived_count=2,
+        note_preview_sha256="a" * 64,
+        archive_ref="/tmp/compaction.json",
+    )
+    assert flushed[0]["event_type"] == "context_compacted"
+    assert flushed[0]["payload"]["tokens_after"] == 40
+    assert flushed[0]["payload"]["archive_ref"] == "/tmp/compaction.json"
+    assert flushed[0]["payload"]["created_at"]
+
+
 # ===== seq 冲突回退 =====
 
 
@@ -224,6 +248,23 @@ def _event(message_id: str, seq: int, tool_call_id: str, stream: str, data: str)
         event_type="tool_output",
         payload={"tool_call_id": tool_call_id, "stream": stream, "data": data},
     )
+
+
+@pytest.mark.asyncio
+async def test_load_replay_ignores_compaction_event_without_losing_tool_output() -> None:
+    events = [
+        _event("m-replay", 1, "tc-1", "stdout", "ok"),
+        ChatMessageEventModel(
+            message_id="m-replay",
+            seq=2,
+            event_type="context_compacted",
+            payload={"tokens_before": 100, "tokens_after": 40},
+        ),
+    ]
+    service = ChatMessageEventService()
+    replay = await service.load_replay(_FakeReadSession(events, {}), ["m-replay"])
+    assert replay["m-replay"]["tool_outputs"] == {"tc-1": {"stdout": "ok"}}
+    assert replay["m-replay"]["event_count"] == 2
 
 
 @pytest.mark.asyncio

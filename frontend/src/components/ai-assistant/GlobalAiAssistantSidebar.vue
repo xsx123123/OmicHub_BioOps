@@ -71,6 +71,18 @@ function dismissHint() {
 const inputValue = ref('')
 const listEl = ref<HTMLElement | null>(null)
 
+// 每个页面使用独立的侧栏会话。首次挂载也清理持久化历史，避免从其他页面带入上下文。
+watch(
+  () => route.fullPath,
+  () => {
+    store.newChat()
+    inputValue.value = ''
+    hintVisible.value = false
+    if (hidden.value && store.open) store.open = false
+  },
+  { immediate: true },
+)
+
 const modelOptions = computed(() =>
   store.models.map((m) => ({
     value: m.id,
@@ -110,7 +122,7 @@ function onSend() {
 }
 
 function onEnter(e: KeyboardEvent) {
-  if (e.shiftKey) return
+  if (e.key !== 'Enter' || e.shiftKey) return
   e.preventDefault()
   onSend()
 }
@@ -196,7 +208,7 @@ function errorSummary(error: string): string {
           <span class="ai-sidebar__logo" aria-hidden="true"><NIcon :size="16"><SparklesOutline /></NIcon></span>
           <div class="ai-sidebar__title">
             <span class="ai-sidebar__name">AI 助手</span>
-            <span class="ai-sidebar__sub">通用助手 · 随时提问，跨页面陪伴</span>
+            <span class="ai-sidebar__sub">平台服务助手 · 了解平台，随时提问</span>
           </div>
           <NTooltip trigger="hover">
             <template #trigger>
@@ -221,7 +233,7 @@ function errorSummary(error: string): string {
           <div v-if="!store.messages.length" class="ai-empty">
             <span class="ai-empty__icon" aria-hidden="true"><NIcon :size="26"><SparklesOutline /></NIcon></span>
             <p class="ai-empty__title">有什么可以帮你？</p>
-            <p class="ai-empty__desc">我可以回答平台使用、生信分析等问题，对话内容会跨页面保留。</p>
+            <p class="ai-empty__desc">我可以介绍平台功能、协助定位入口和解释使用方法。</p>
             <div class="ai-empty__chips">
               <button
                 v-for="s in suggestions"

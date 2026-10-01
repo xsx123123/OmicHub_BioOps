@@ -159,7 +159,12 @@ def render_environment_markdown(environment: dict[str, Any]) -> list[str]:
     runtime = environment.get("runtime") or {}
     flow = environment.get("flow") or {}
     platform_info = environment.get("platform") or {}
-    software = runtime.get("software") or {}
+    software = dict(runtime.get("software") or {})
+    # 普通聊天沙盒可在容器内采集实际安装包；将实测值并入同一张表，
+    # 保留运行时注册表声明，同时让 README 反映本次实际执行环境。
+    observed_software = runtime.get("observed_software") or {}
+    if isinstance(observed_software, dict):
+        software.update({str(name): str(version) for name, version in observed_software.items()})
     resources = runtime.get("resources") or {}
     lines = ["## 软件与版本", ""]
     lines.append(f"- 运行时镜像: `{runtime.get('image') or '未记录'}`")

@@ -1,0 +1,95 @@
+version: 1
+
+# This file is the deployment inventory for sandbox and analysis images.
+# Update it first when a tag changes, then run: make validate-image-mapping
+
+images:
+  analysis-core:
+    image: cygnusx-analysis:core-v0.0.2dev
+    dockerfile: deploy/runtime-images/core.Dockerfile
+    config_files: [data/ai/runtime_images.yaml, data/ai/studio.yaml]
+  analysis-plot:
+    image: cygnusx-analysis:plot-v0.0.2dev
+    dockerfile: deploy/runtime-images/plot.Dockerfile
+    config_files: [data/ai/runtime_images.yaml, data/ai/studio.yaml]
+  analysis-scrna:
+    image: cygnusx-analysis:scrna-v0.0.3dev
+    dockerfile: deploy/runtime-images/scrna.Dockerfile
+    config_files:
+      - data/ai/runtime_images.yaml
+      - data/ai/studio.yaml
+      - .env.example
+      - src/cygnusx/core/config.py
+  sandbox-copilot:
+    image: cygnusx-sandbox-copilot:v0.0.2dev
+    dockerfile: deploy/sandbox/Dockerfile
+    config_files: [src/cygnusx/core/config.py]
+  sandbox-base:
+    image: cygnusx-sandbox-base:v0.0.2dev
+    dockerfile: deploy/studio/base.Dockerfile
+    config_files: [data/ai/studio.yaml]
+  sandbox-bio:
+    image: cygnusx-sandbox-bio:v0.0.2dev
+    dockerfile: deploy/studio/bio.Dockerfile
+    config_files: [data/ai/runtime_images.yaml, data/ai/studio.yaml]
+  sandbox-browser-office:
+    image: cygnusx-sandbox-browser-office:v0.0.2dev
+    dockerfile: deploy/studio/browser-office.Dockerfile
+    config_files: [data/ai/runtime_images.yaml, data/ai/studio.yaml]
+  sandbox-terminal:
+    image: cygnusx-sandbox-terminal:v0.0.2dev
+    dockerfile: tool_configs/terminal/docker/Dockerfile
+    config_files: [tool_configs/terminal/terminal_images.yaml]
+  sandbox-rnaseq:
+    image: cygnusx-sandbox-rnaseq:v0.0.2dev
+    dockerfile: tool_configs/terminal/docker/Dockerfile.rnaseq
+    config_files: [tool_configs/terminal/terminal_images.yaml]
+  sandbox-scrna:
+    image: cygnusx-sandbox-scrna:v0.0.2dev
+    dockerfile: tool_configs/terminal/docker/Dockerfile.scrna
+    config_files: [tool_configs/terminal/terminal_images.yaml]
+  sandbox-gatk:
+    image: cygnusx-sandbox-gatk:v0.0.2dev
+    dockerfile: tool_configs/terminal/docker/Dockerfile.gatk
+    config_files: [tool_configs/terminal/terminal_images.yaml]
+  sandbox-ggplot2:
+    image: cygnusx-sandbox-ggplot2:v0.0.2dev
+    dockerfile: tool_configs/terminal/docker/Dockerfile.ggplot2
+    config_files: [tool_configs/terminal/terminal_images.yaml]
+  sandbox-assembly:
+    image: cygnusx-sandbox-assembly:v0.0.2dev
+    dockerfile: tool_configs/terminal/docker/Dockerfile.assembly
+    config_files: [tool_configs/terminal/terminal_images.yaml]
+  sandbox-metagenomics:
+    image: cygnusx-sandbox-metagenomics:v0.0.2dev
+    dockerfile: tool_configs/terminal/docker/Dockerfile.metagenomics
+    config_files: [tool_configs/terminal/terminal_images.yaml]
+
+content_checks:
+  - file: deploy/runtime-images/build.sh
+    contains:
+      - 'docker build -t "cygnusx-analysis:core-${TAG}"'
+      - 'docker build -t "cygnusx-analysis:plot-${TAG}"'
+      - 'docker build -t "cygnusx-analysis:scrna-${SCRNA_TAG}"'
+  - file: deploy/runtime-images/scrna.Dockerfile
+    contains: ['FROM cygnusx-analysis:plot-${CYGNUSX_IMAGE_TAG}']
+  - file: .env.example
+    contains:
+      - 'CYGNUSX_SCRNA_IMAGE_TAG=v0.0.3dev'
+      - 'CYGNUSX_ANALYSIS_SCRNA_IMAGE=cygnusx-analysis:scrna-${CYGNUSX_SCRNA_IMAGE_TAG}'
+
+makefile_images:
+  - cygnusx-analysis:core-v0.0.2dev
+  - cygnusx-analysis:plot-v0.0.2dev
+  - cygnusx-analysis:scrna-v0.0.3dev
+  - cygnusx-sandbox-copilot:v0.0.2dev
+  - cygnusx-sandbox-base:v0.0.2dev
+  - cygnusx-sandbox-bio:v0.0.2dev
+  - cygnusx-sandbox-browser-office:v0.0.2dev
+  - cygnusx-sandbox-terminal:v0.0.2dev
+  - cygnusx-sandbox-rnaseq:v0.0.2dev
+  - cygnusx-sandbox-scrna:v0.0.2dev
+  - cygnusx-sandbox-gatk:v0.0.2dev
+  - cygnusx-sandbox-ggplot2:v0.0.2dev
+  - cygnusx-sandbox-assembly:v0.0.2dev
+  - cygnusx-sandbox-metagenomics:v0.0.2dev

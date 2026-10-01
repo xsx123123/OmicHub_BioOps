@@ -71,6 +71,54 @@ async def test_sse_exit_validates_legacy_path_when_refactor_is_disabled(monkeypa
 
 
 @pytest.mark.asyncio
+async def test_sse_exit_preserves_context_compaction_payload(monkeypatch) -> None:
+    """压缩事件的扩展字段必须原样穿过聊天 SSE 出口。"""
+
+    class _ChatService:
+        def __init__(self, _db) -> None:
+            pass
+
+        async def stream_chat(self, **_kwargs):
+            yield ChatChunk(
+                type="context_compressed",
+                content="对话历史较长，已压缩",
+                metadata={
+                    "estimated_tokens_before": 12000,
+                    "tokens_after": 4000,
+                    "yield_ratio": 2 / 3,
+                    "archived_count": 1,
+                },
+            )
+            yield ChatChunk(type="text", content="answer")
+            yield ChatChunk(type="done")
+
+    monkeypatch.setattr(chat_api, "ChatService", _ChatService)
+    monkeypatch.setattr(
+        chat_api.ChatEventService,
+        "from_settings",
+        classmethod(lambda cls: ChatEventService(enforcement="raise")),
+    )
+    monkeypatch.setattr(
+        chat_api,
+        "get_settings",
+        lambda: SimpleNamespace(chat_runtime_refactor_enabled=False),
+    )
+    request = ChatStreamRequest(
+        messages=[{"role": "user", "content": "hello"}],
+        model_id=uuid4(),
+    )
+
+    response = await chat_api.chat_stream(request, "user-1", _Db())
+    payload = "".join([chunk async for chunk in response.body_iterator])
+
+    assert '"type": "context_compressed"' in payload
+    assert '"estimated_tokens_before": 12000' in payload
+    assert '"tokens_after": 4000' in payload
+    assert '"yield_ratio": 0.6666666666666666' in payload
+    assert '"archived_count": 1' in payload
+
+
+@pytest.mark.asyncio
 async def test_sse_exit_reports_incomplete_execution_lifecycle(monkeypatch) -> None:
     class _ChatService:
         def __init__(self, _db) -> None:

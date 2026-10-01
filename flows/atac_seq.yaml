@@ -355,7 +355,7 @@ parameters:
 # ============================================================
 execution:
   engine: snakemake
-  snakefile: "/home/zj/pipeline/ATACFlow/snakefile"
+  snakefile: "/opt/cygnusx/pipelines/ATACFlow/snakefile"
   config_file_param: "analysisyaml"
   config_file_name: "analysis.yaml"
   conda_env: null

@@ -16,7 +16,10 @@ import base64 as _b64
 import builtins as _builtins
 import importlib
 import json as _json
+import os as _os
+from pathlib import Path as _Path
 import sys as _sys
+import time as _time
 import warnings as _warnings
 from typing import Any
 
@@ -28,6 +31,36 @@ _PLOTLY_PREFIX = "%%PLOTLY%%"
 # plotly figure JSON 单行回传上限：超出说明数据量过大，引导降采样，
 # 避免单行撑爆后端落库护栏（tool_invocations 200KB）与前端渲染。
 _PLOTLY_MAX_BYTES = 3 * 1024 * 1024
+_INLINE_ARTIFACT_COUNTER = 0
+
+
+def _save_inline_artifact(data: bytes | str, suffix: str, stem: str) -> None:
+    """把内联预览同步落盘，让聊天结果进入统一 artifact manifest。"""
+    global _INLINE_ARTIFACT_COUNTER
+    try:
+        _INLINE_ARTIFACT_COUNTER += 1
+        target_dir = _Path("/tmp/chat_output/figures")
+        target_dir.mkdir(parents=True, exist_ok=True)
+        stamp = f"{_os.getpid()}_{_time.time_ns()}_{_INLINE_ARTIFACT_COUNTER}"
+        target = target_dir / f"{stem}_{stamp}{suffix}"
+        if isinstance(data, str):
+            target.write_text(data, encoding="utf-8")
+        else:
+            target.write_bytes(data)
+    except Exception:  # noqa: BLE001
+        # 预览协议不能因产物落盘失败而阻断用户代码执行；后端仍会收集用户显式写入的文件。
+        pass
+
+
+def _is_deliverable_path(path: str) -> bool:
+    try:
+        candidate = _Path(path).resolve()
+        return any(
+            candidate == root or root in candidate.parents
+            for root in (_Path("/tmp/chat_output"), _Path("/workspace/output"))
+        )
+    except Exception:  # noqa: BLE001
+        return False
 
 
 class _LazyModule:
@@ -95,6 +128,7 @@ def show_echarts(option: object, *, flush: bool = True) -> None:
     用法：show_echarts({"series": [{"type": "scatterGL", "data": points}]})
     """
     payload = _json.dumps(option, default=str, ensure_ascii=False)
+    _save_inline_artifact(payload, ".json", "echarts")
     print(_ECHARTS_PREFIX + payload, flush=flush)
 
 
@@ -104,7 +138,15 @@ def show_image(path: str, *, mime: str = "image/png") -> None:
     用法：plt.savefig("/workspace/output/umap.png"); show_image("/workspace/output/umap.png")
     """
     with open(path, "rb") as fh:
-        b64 = _b64.b64encode(fh.read()).decode("ascii")
+        image_bytes = fh.read()
+    extension = {
+        "image/jpeg": ".jpg",
+        "image/webp": ".webp",
+        "image/svg+xml": ".svg",
+    }.get(mime.lower(), ".png")
+    if not _is_deliverable_path(path):
+        _save_inline_artifact(image_bytes, extension, "image")
+    b64 = _b64.b64encode(image_bytes).decode("ascii")
     print(f"{_IMAGE_PREFIX}data:{mime};base64,{b64}", flush=True)
 
 
@@ -126,6 +168,7 @@ def show_plotly(fig: object, *, flush: bool = True) -> None:
             file=_sys.stderr,
         )
         return
+    _save_inline_artifact(payload, ".json", "plotly")
     print(_PLOTLY_PREFIX + payload, flush=flush)
 
 

@@ -157,6 +157,21 @@ def test_container_mounts_match():
 
 
 @pytest.mark.unit
+def test_container_context_archive_env_is_required_for_reuse():
+    class _Container:
+        def __init__(self, env):
+            self.attrs = {"Config": {"Env": env}}
+
+    assert StudioSandboxManager._container_context_archive_env_matches(
+        _Container(["CONTEXT_ARCHIVE=/workspace/.context-archive"])
+    ) is True
+    assert StudioSandboxManager._container_context_archive_env_matches(
+        _Container(["CONTEXT_ARCHIVE=/workspace/old-archive"])
+    ) is False
+    assert StudioSandboxManager._container_context_archive_env_matches(_Container([])) is False
+
+
+@pytest.mark.unit
 @pytest.mark.parametrize("mode", ["none", "whitelist"])
 def test_validate_isolated_network_accepts_supported_modes(tmp_path: Path, mode: str):
     manager = _make_manager(tmp_path)

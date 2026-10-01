@@ -230,6 +230,17 @@ AI 配置、饼干中心及后续同类后台配置页面使用统一的全宽�
 
 ## 5. 组件实现契约
 
+### 5.0 智能体选择弹窗规范
+
+`AgentWorkspace.vue` 的智能体选择弹窗采用“搜索 + 筛选 chips + 分组卡片”的选择器模式。容器宽度使用 `min(1120px, 92vw)`，最大高度为 `min(72vh, 860px)`；弹窗头部、自动分派入口和 footer 固定，专家列表独立滚动。
+
+- 搜索框位于领域筛选上方，打开弹窗后自动聚焦，按名称、描述及绑定 MCP/Skill 名称做不区分大小写的子串匹配。
+- 默认显示全部智能体并按领域分组，组标题格式为“领域 · 数量”；领域 chips 单选，再点当前项可取消。`development`、`operations`、`exploration` 只在展示层合并为“工程”，映射集中在 `frontend/src/utils/agentDomainMap.ts`，后端枚举不变。
+- 卡片为紧凑流式网格，使用 40px 左侧头像、单行省略描述和最多 3 个能力 chip；多余能力以 `+N` 表示，悬浮卡片可查看完整能力列表。卡片不使用固定大高度，也不显示“专属能力”纯文本计数。
+- 最近使用通过 `localStorage` 的 `stardust.recentAgents` 保存最多 8 个 id，弹窗内展示前 4 个，仅在非搜索态出现；读取时过滤无效 id。
+- 键盘导航由弹窗统一处理：`↑/↓` 移动候选高亮，`Enter` 选择高亮项，`Esc` 关闭；无匹配时显示空状态并提供自动分派次级操作。
+- 取消按钮只关闭弹窗；底部约束提示必须带信息图标。颜色、间距、圆角和焦点态继续消费现有 CygnusX 语义令牌，移动端允许卡片换行，不产生横向溢出。
+
 ### 5.1 按钮、链接与图标
 
 | 类型 | 使用方式 |
@@ -708,6 +719,7 @@ Arco 项目可遵守 Vue 3 `<script setup lang="ts">`、kebab-case 模板属性�
 - 打印/下载按钮使用图标 + 文字，提供 `aria-label` 或可读文本；缩放百分比用 `aria-live="polite"` 播报；缩放/hover 过渡在 `prefers-reduced-motion` 下关闭。
 - 预览不加载完整文件到内存；大文件使用 Range 请求或后端截断。
 - **权威实现**：`frontend/src/components/ai-chat/MessageArtifactGallery.vue`（AI 消息产物画廊）、`frontend/src/components/studio/StudioArtifactsPanel.vue`（Studio 产物面板）；AI 场景细则见 §18.4.4。文件管理预览（`FilePreviewModal`）等其余入口新增图片/PDF 预览时必须按本节对齐。
+- **普通助手归档文档**：`chat_sandbox_execute` 返回的 `analysis_documents`（`README.md`、`environment.json`、`manifest.json`）与普通产物共享 `MessageArtifactGallery.vue`；会话列表通过 `analysis_archive` 显示“分析记录”状态。归档文件使用 `/api/v1/files/{file_id}/download`，不得新增绕过统一文件权限的下载接口。
 
 ## 18. AI 对话与流式界面
 
@@ -1816,6 +1828,8 @@ frontend/src/components/ai/AIComposer.vue
 - 删除或清空已有草稿、附件时，根据后果使用直接操作或确认。
 - 长工具名称进入菜单或弹出层，避免在紧凑工具栏中放置长文本按钮。
 
+**Enter 与输入法事件约定（`KimiChatInput` 权威实现）**：普通文本按 `Enter` 必须调用统一发送链路并阻止 textarea 默认换行；`Shift+Enter` 才换行。不要直接把 `KeyboardEvent.isComposing` 当作唯一判断依据：部分浏览器/输入法会在首次普通 Enter 上短暂设置该字段，导致消息被错误换行。组件应以自身收到的 `compositionstart` 状态为主，并兼容传统 IME 的 `keyCode === 229` 候选确认事件；组合态只阻止发送，不得清空草稿。该行为需要覆盖首次打开空会话、普通文本、真实组合输入和 `Shift+Enter` 的回归测试。
+
 #### 35.5.2 工具状态
 
 联网、深度思考、终端或技能属于模式状态，应使用：
@@ -2498,3 +2512,43 @@ export interface AIQuickAction {
 ```
 
 另外建议修正文件名：如果当前仓库实际叫 `frontend.md`，最好迁移为正确拼写的 `frontend.md`，并同步 `$cygnusx-frontend-design`、`AGENTS.md` 和其它文档中的引用。如果已有自动化脚本依赖旧文件名，则先保留一个短的兼容入口，避免技能引用失效。
+
+## 37. 分析产物与代码输出统一协议
+
+科研分析 Agent、通用助手和工作台 Agent 的交付结果必须使用同一套前端呈现协议：
+
+1. 文件型结果写入沙盒交付目录（`/tmp/chat_output/` 或 `/workspace/output/`），由后端收集并生成 `ui_payload.artifacts`。消息级 `MessageArtifactGallery` 是唯一的产物窗口入口，负责缩略图、预览、下载和完整文件清单。
+2. `show_image`、`show_echarts`、`show_plotly` 等内联预览协议必须同时落盘到 `figures/`，不能只依赖 `ui_payload.images` 或临时 DOM。旧消息没有 artifact 时，画廊可以用 data URL 做兼容预览，但新执行必须优先生成可下载文件。
+3. 代码执行卡片只展示代码、状态和 stdout/stderr，不重复渲染图片或维护第二套下载入口。工具卡片通过 `MessageArtifactGallery` 汇总结果，避免不同 Agent 出现不同交付样式。
+4. stdout/stderr 是增量文本协议，后端流读取器必须保留原始换行（包括行尾 `\\n`）；前端输出块使用 `white-space: pre-wrap`、`overflow-wrap: anywhere`、有限高度滚动，不能把输出经过 Markdown 普通段落渲染，也不能依赖事件块边界推断换行。
+5. 新增工具或 Agent 若产生文件、图片、表格或图表，必须补充 artifact manifest 和下载 URL；不得只在某个专用 Agent 卡片中添加局部预览。验收至少覆盖：多行 stdout、超长无空格行、图片缩略图、产物窗口下载和历史消息兼容。
+
+统一后端结果字段如下（所有 Agent、AgentTeams 子 Agent 和内置工具均适用）：
+
+```json
+{
+  "artifact_manifest_version": 1,
+  "artifact_manifest": [
+    {
+      "path": "figures/heatmap.png",
+      "size": 12345,
+      "sha256": "...",
+      "url": "/api/v1/...",
+      "kind": "image",
+      "source": "sandbox"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "figures/heatmap.png",
+      "size": 12345,
+      "sha256": "...",
+      "url": "/api/v1/...",
+      "kind": "image",
+      "source": "sandbox"
+    }
+  ]
+}
+```
+
+`path` 是必填的相对产物路径；`size`、`sha256`、`url`、`kind`、`source` 按产物能力提供。没有文件的工具也必须返回版本号和空列表。直接返回的 Plotly 图表使用 `source: inline`，同时保留 `ui_payload.plotly_figures` 供前端预览；不得为不同 Agent 另造结果字段。

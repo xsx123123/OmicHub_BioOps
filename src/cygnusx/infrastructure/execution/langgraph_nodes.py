@@ -23,6 +23,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from cygnusx.application.services.execution_events import execution_chunk
+from cygnusx.application.services.artifact_manifest import normalize_tool_artifact_payload
 from cygnusx.core.telemetry import get_tracer
 from cygnusx.domain.execution.agent_state import AgentState
 from cygnusx.infrastructure.ai_provider.openai_compatible import (
@@ -40,6 +41,10 @@ ChatStreamFn = Callable[..., AsyncIterator[ChatChunk]]
 ToolExecutorFn = Callable[[str, dict[str, Any], str], Awaitable[dict[str, Any]]]
 EventEmitter = Callable[[ChatChunk], Awaitable[None]]
 ChannelResolver = Callable[[str], str | None]
+PrepareMessagesFn = Callable[
+    [list[dict[str, Any]]],
+    Awaitable[tuple[list[dict[str, Any]], bool, int]],
+]
 
 
 @dataclass
@@ -62,6 +67,8 @@ class NodeDeps:
     run_id: str = ""
     agent_id: str = ""
     execution_path: str = "chat_langgraph"
+    prepare_messages: PrepareMessagesFn | None = None
+    message_id: str = ""
 
     async def emit_chunk(self, chunk: ChatChunk) -> None:
         if self.emit is not None:
@@ -93,7 +100,34 @@ class NodeDeps:
 
 async def llm_call_node(state: AgentState, deps: NodeDeps) -> dict[str, Any]:
     """调用 LLM（流式），append assistant 消息（可能含 tool_calls）"""
-    messages = state.get("messages", [])
+    messages = list(state.get("messages", []))
+    if deps.prepare_messages is not None:
+        messages, compressed, tokens_before = await deps.prepare_messages(messages)
+        if compressed:
+            metadata: dict[str, Any] = {
+                "session_id": deps.session_id,
+                **({"message_id": deps.message_id} if deps.message_id else {}),
+                "estimated_tokens_before": tokens_before,
+            }
+            compaction = getattr(deps.prepare_messages, "last_compaction", None)
+            policy = getattr(deps.prepare_messages, "last_compaction_policy", None)
+            if compaction:
+                metadata.update(
+                    {
+                        "tokens_after": compaction.get("tokens_after"),
+                        "yield_ratio": compaction.get("yield_ratio"),
+                        "archived_count": compaction.get("archived_count"),
+                    }
+                )
+            if policy:
+                metadata["compaction_policy"] = policy
+            await deps.emit_chunk(
+                ChatChunk(
+                    type="context_compressed",
+                    content="对话历史较长，已将早期内容压缩为摘要后继续",
+                    metadata=metadata,
+                )
+            )
     usage = state.get("usage")
     rounds = state.get("rounds", 0)
     stream = deps.chat_stream or provider_manager.chat_stream
@@ -143,6 +177,8 @@ async def llm_call_node(state: AgentState, deps: NodeDeps) -> dict[str, Any]:
                 tool_calls = chunk.metadata.get("tool_calls", [])
             elif chunk.type == "error":
                 await deps.emit_chunk(chunk)
+                # Provider/API error 仍然是本轮终止；工具错误不会从这里进入，
+                # 工具异常由 tool_exec_node 以可回灌的 tool 结果处理。
                 return {"rounds": rounds + 1, "usage": usage, "error": chunk.content}
             elif chunk.type == "done":
                 usage = merge_token_usage(usage, chunk.metadata.get("usage"))
@@ -226,9 +262,29 @@ async def tool_exec_node(state: AgentState, deps: NodeDeps) -> dict[str, Any]:
             except Exception as e:  # noqa: BLE001
                 span.record_exception(e)
                 await deps.emit_chunk(
-                    ChatChunk(type="error", content=f"工具 {tool_name} 执行失败: {e}")
+                    ChatChunk(
+                        type="error",
+                        content=f"工具 {tool_name} 执行失败: {e}",
+                        metadata={
+                            "tool_execution_error": True,
+                            "tool_name": tool_name,
+                            "tool_call_id": tool_call_id,
+                        },
+                    )
                 )
-                return {"messages": new_messages, "error": str(e)}
+                # 工具执行异常也要作为 tool 消息回灌给模型。这样 agent 能看到
+                # 真实 traceback/错误原因，修正参数或代码后重试，而不是把一次
+                # 工具失败误判成模型 API 失败并丢弃此前的上下文。
+                result = {
+                    "success": False,
+                    "error": str(e),
+                    "failure_kind": "tool_execution_error",
+                    "result": {
+                        "error": str(e),
+                        "retryable": True,
+                        "next_action": "请根据错误修正代码或参数后重新调用该工具。",
+                    },
+                }
 
         # 双通道：llm_payload 给 LLM，ui_payload 给前端（对齐 legacy 拆分逻辑）
         tool_output = result.get("result") if isinstance(result, dict) else result
@@ -242,6 +298,11 @@ async def tool_exec_node(state: AgentState, deps: NodeDeps) -> dict[str, Any]:
             llm_result = tool_output if tool_output is not None else result
         if not isinstance(llm_result, dict):
             llm_result = {"result": llm_result}
+        llm_result, ui_payload = normalize_tool_artifact_payload(
+            llm_result,
+            ui_payload,
+            tool_name=tool_name,
+        )
 
         await deps.emit_chunk(
             ChatChunk(

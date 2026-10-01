@@ -90,6 +90,7 @@ services:
       - data_net
       - cygnusx_net        # 跨栈外部网络：与独立 worker 栈（docker-compose.worker.yml）互通
       - cygnusx-sandbox-net # 终端沙盒网络：WebSocket 代理经容器 DNS 直连 ttyd（端口 7681）
+      - cygnusx_app_net    # 联网搜索：与独立 SearXNG 栈共享稳定网络
     # 启动入口：先跑 alembic upgrade head（保证 schema 与代码同步），再启动 uvicorn。
     # 历史教训：曾因迁移未进容器 + create_all 不补字段，导致 users.storage_quota 缺列引发 500。
     entrypoint: ["/bin/sh", "/app/entrypoint.sh"]
@@ -411,6 +412,9 @@ networks:
   cygnusx-sandbox-net:       # 终端沙盒网络：由 Makefile docker-network 创建
     name: ${CYGNUSX_SANDBOX_NETWORK_NAME:-cygnusx-sandbox-net}
     external: true
+  cygnusx_app_net:           # 与独立 SearXNG 栈共享；SearXNG 通过服务名 searxng 访问
+    name: ${CYGNUSX_APP_NETWORK_NAME:-cygnusx_app_net}
+    external: true           # 由 make docker-network 或 docker network create 创建
   studio_proxy_egress:       # 仅代理容器加入；不连接 Web/DB/Redis 等平台网络
     driver: bridge
 

@@ -32,6 +32,12 @@
 5. 每个 Worker 的持久化写操作独占独立 AsyncSession（并发共享父 session 必崩）。
 6. 新增工具/节点产出必须区分 `llm_payload`（回灌模型，截断）与 `ui_payload`（前端展示）。
 7. 审批类动作（沙箱执行等）沿用既有 `StudioApprovalService` 审批闸语义，不在 MAS 层另造审批。
+8. **绝对隔离红线（本次为独立测试性建设，不碰任何已构建好的单 Agent 流程）**：
+   - **不改一行既有文件的行为**：`chat_service.py` / `langgraph_runtime.py` / `request_preparation.py` / `agent_service.py` / `agent_context_builder.py` / `orchestrator_graph.py` / `langgraph_nodes.py` 及前端聊天链路，只允许**新增调用点级别的最小接线**（如在路由注册处挂新 router），不得修改这些文件内任何既有函数的逻辑、签名、默认值。
+   - 若功能确实需要既有代码配合（如 `ChatRuntimeRequest` 缺字段），**禁止改既有类**——在新模块写适配器/包装函数解决；适配器解决不了就在阶段 0 差异清单中上报，由用户决策，编码 Agent 不得自行改动。
+   - 数据隔离：新表独立（`mas_room_messages`，必要时 `mas_runs`），不动 `chat_sessions` / `chat_messages` / `overdrive_*` 表结构。
+   - 单 Agent 的既有测试套件（chat 链路相关 pytest）必须在每个阶段完成后**原样全部通过、零修改**——任何失败都视为本建设破坏了既有流程，立即回滚该阶段改动。
+   - 验收方式：`git diff --stat` 中不得出现上述受保护文件的逻辑改动；出现即打回。
 
 ---
 
@@ -288,6 +294,7 @@ frontend/src/
 **提示词**：
 
 ```text
+0. 隔离回归（每阶段必做，放最前）：既有单 Agent 页面手动完整对话一轮 + 既有 chat 链路 pytest 全量跑通且测试文件零修改；`git diff --stat` 确认受保护文件零逻辑改动。任何一项失败＝隔离红线被违反，立即回滚本阶段全部改动并上报。
 1. Worker turn 内触发审批类工具（如 chat_sandbox_execute，supervised 模式）：审批请求卡片正确出现在部门页面时间线，批准/拒绝后 Worker 继续，决议落审计日志（复用 StudioApprovalService 既有链路，语义不得改动）。
 2. 故障注入测试：Worker 模型调用 401 / 超时 / 返回乱码 JSON 时，run 不落死——错误信封回灌 Supervisor，Supervisor 决策"自己兜底回答或终结"，页面可见兜底消息，账本落 run_failed 或 finished。
 3. 并发红线回归：同房间两条消息几乎同时发送，不产生两个并发写同一 run 的会话（用 runs 表状态乐观锁：仅无活跃 run 才新建）。
@@ -319,3 +326,4 @@ frontend/src/
 - [ ] 阶段 3：计划卡片批准/驳回/修改三分支全部手测通过，重启后可恢复
 - [ ] 阶段 4：审批卡片、故障兜底、并发红线回归通过
 - [ ] 全程无 legacy 手写循环、无 LangChain 消息封装、无新中间件（让编码 Agent 自查 + 用户 grep 复核 `git diff` 中新增依赖）
+- [ ] **隔离总验收**：`git diff --stat` 中受保护文件清单（chat_service.py / runtimes/langgraph_runtime.py / request_preparation.py / agent_service.py / agent_context_builder.py / orchestrator_graph.py / langgraph_nodes.py / chat_sessions / chat_messages 表结构 / 前端聊天链路）**零逻辑改动**——只允许新增 router 注册等调用点接线；既有 chat 链路 pytest 全量通过且测试文件零修改
